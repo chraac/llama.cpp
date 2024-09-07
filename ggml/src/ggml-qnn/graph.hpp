@@ -16,7 +16,6 @@
 
 namespace qnn {
 
-using ggml_tensor_array_t = std::vector<ggml_tensor *>;
 using ggml_op_constructor_t = std::function<std::unique_ptr<qnn::ggml_qnn_op_config>(const std::string &)>;
 
 class ggml_qnn_graph {
@@ -91,48 +90,14 @@ public:
             return false;
         }
 
-        // get the max tensor rank
-        for (auto tensor : tensor_inputs) {
-            _tensor_rank = std::max(_tensor_rank, ggml_n_dims(tensor));
-        }
-        for (auto tensor : tensor_outputs) {
-            _tensor_rank = std::max(_tensor_rank, ggml_n_dims(tensor));
-        }
-
         QNN_LOG_DEBUG("graph name %s, build_graph start", _graph_name.c_str());
-        _tensor_inputs.resize(tensor_inputs.size());
-        for (size_t i = 0; i < tensor_inputs.size(); i++) {
-            char buffer[GGML_MAX_NAME] = {};
-            snprintf(buffer, GGML_MAX_NAME, "src%d", (int)i);
-            auto qnn_tensor =
-                std::make_shared<ggml_qnn_tensor>(std::string(buffer), _device, _graph_handle, _qnn_instance);
-            auto *ggml_tensor = tensor_inputs[i];
-            if (!qnn_tensor->bind_ggml_tensor(ggml_tensor, true, _tensor_rank)) {
-                QNN_LOG_ERROR("bind tensor %s failed\n", ggml_get_name(ggml_tensor));
-                return false;
-            }
-
-            _tensor_inputs[i] = qnn_tensor;
-        }
-
-        _tensor_outputs.resize(tensor_outputs.size());
-        for (size_t i = 0; i < tensor_outputs.size(); i++) {
-            char buffer[GGML_MAX_NAME] = {};
-            snprintf(buffer, GGML_MAX_NAME, "dst%d", (int)i);
-            auto qnn_tensor =
-                std::make_shared<ggml_qnn_tensor>(std::string(buffer), _device, _graph_handle, _qnn_instance);
-            auto *ggml_tensor = tensor_outputs[i];
-            if (!qnn_tensor->bind_ggml_tensor(ggml_tensor, false, _tensor_rank)) {
-                QNN_LOG_ERROR("bind tensor %s failed\n", ggml_get_name(ggml_tensor));
-                return false;
-            }
-
-            _tensor_outputs[i] = qnn_tensor;
-        }
-
         _op_config = op_constructor(_graph_name);
-        _op_config->set_input_tensors(_tensor_inputs);
-        _op_config->set_output_tensors(_tensor_outputs);
+        _op_config->create_tensors(_device, _graph_handle, _qnn_instance, tensor_inputs.size(), tensor_outputs.size());
+        if (!_op_config->bind_tensors(tensor_inputs, tensor_outputs)) {
+            QNN_LOG_ERROR("graph name %s, bind tensors failed\n", _graph_name.c_str());
+            return false;
+        }
+
         auto error = _qnn_interface->qnn_graph_add_node(_graph_handle, _op_config->get_op_config());
         if (error != QNN_SUCCESS) {
             auto *error_str = get_qnn_error_string(error);
@@ -160,26 +125,11 @@ public:
     }
 
     bool execute(const ggml_tensor_array_t &tensor_inputs, const ggml_tensor_array_t &tensor_outputs) {
-        GGML_ASSERT(tensor_inputs.size() == _tensor_inputs.size());
-        GGML_ASSERT(tensor_outputs.size() == _tensor_outputs.size());
-        for (size_t i = 0; i < tensor_inputs.size(); i++) {
-            auto *ggml_tensor = tensor_inputs[i];
-            if (!_tensor_inputs[i]->bind_ggml_tensor(ggml_tensor, true, _tensor_rank)) {
-                QNN_LOG_ERROR("bind tensor %s failed\n", ggml_get_name(ggml_tensor));
-                return false;
-            }
+        if (!_op_config->bind_tensors(tensor_inputs, tensor_outputs)) {
+            QNN_LOG_ERROR("graph name %s, bind tensors failed\n", _graph_name.c_str());
+            return false;
         }
 
-        for (size_t i = 0; i < tensor_outputs.size(); i++) {
-            auto *ggml_tensor = tensor_outputs[i];
-            if (!_tensor_outputs[i]->bind_ggml_tensor(ggml_tensor, false, _tensor_rank)) {
-                QNN_LOG_ERROR("bind tensor %s failed\n", ggml_get_name(ggml_tensor));
-                return false;
-            }
-        }
-
-        _op_config->set_input_tensors(_tensor_inputs);
-        _op_config->set_output_tensors(_tensor_outputs);
         auto &qnn_tensor_inputs = _op_config->get_qnn_input_tensors();
         auto &qnn_tensor_outputs = _op_config->get_qnn_output_tensors();
 
@@ -192,13 +142,7 @@ public:
             }
         }
 
-        for (auto tensor : _tensor_inputs) {
-            tensor->unbind_ggml_tensor();
-        }
-
-        for (auto tensor : _tensor_outputs) {
-            tensor->unbind_ggml_tensor();
-        }
+        _op_config->unbind_tensors();
 
         if (error != QNN_SUCCESS) {
             QNN_LOG_INFO("error = %d\n", error);
@@ -220,11 +164,8 @@ private:
     Qnn_GraphHandle_t _graph_handle = nullptr;
     std::shared_ptr<qnn_instance> _qnn_instance;
     std::shared_ptr<qnn_interface> _qnn_interface;
-    std::vector<std::shared_ptr<ggml_qnn_tensor>> _tensor_inputs;
-    std::vector<std::shared_ptr<ggml_qnn_tensor>> _tensor_outputs;
     std::unique_ptr<ggml_qnn_op_config> _op_config;
     std::vector<Qnn_Param_t> _param_types;
-    int _tensor_rank = 0;
 
     DISABLE_COPY(ggml_qnn_graph);
     DISABLE_MOVE(ggml_qnn_graph);

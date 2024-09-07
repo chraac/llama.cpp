@@ -16,20 +16,6 @@ public:
     explicit ggml_qnn_op_config(const std::string &name, const std::string &package_name, const std::string &op_type) :
         _name(name), _package_name(package_name), _op_type(op_type) {}
 
-    void set_input_tensors(const std::vector<std::shared_ptr<ggml_qnn_tensor>> &tensor_inputs) {
-        _qnn_tensor_inputs.resize(tensor_inputs.size());
-        for (size_t i = 0; i < tensor_inputs.size(); i++) {
-            _qnn_tensor_inputs[i] = tensor_inputs[i]->get_qnn_tensor();
-        }
-    }
-
-    void set_output_tensors(const std::vector<std::shared_ptr<ggml_qnn_tensor>> &tensor_outputs) {
-        _qnn_tensor_outputs.resize(tensor_outputs.size());
-        for (size_t i = 0; i < tensor_outputs.size(); i++) {
-            _qnn_tensor_outputs[i] = tensor_outputs[i]->get_qnn_tensor();
-        }
-    }
-
     void add_scalar_param(const std::string &name, const Qnn_Scalar_t scalar) {
         _param_names.push_back(name);
         Qnn_Param_t param = QNN_PARAM_INIT;
@@ -37,6 +23,24 @@ public:
         param.name = _param_names.back().c_str();
         param.scalarParam = scalar;
         _parameters.push_back(param);
+    }
+
+    void create_tensors(QNNBackend device, Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn_instance> qnn_instance,
+                        const size_t input_count, const size_t output_count) {
+        _tensor_inputs.resize(input_count);
+        _qnn_tensor_inputs.resize(input_count);
+        char buffer[GGML_MAX_NAME] = {};
+        for (size_t i = 0; i < input_count; i++) {
+            snprintf(buffer, GGML_MAX_NAME, "src%d", (int)i);
+            _tensor_inputs[i] = std::make_shared<ggml_qnn_tensor>(std::string(buffer), device, graph_handle, qnn_instance);
+        }
+
+        _tensor_outputs.resize(output_count);
+        _qnn_tensor_outputs.resize(output_count);
+        for (size_t i = 0; i < output_count; i++) {
+            snprintf(buffer, GGML_MAX_NAME, "dst%d", (int)i);
+            _tensor_outputs[i] = std::make_shared<ggml_qnn_tensor>(std::string(buffer), device, graph_handle, qnn_instance);
+        }
     }
 
     std::vector<Qnn_Tensor_t> &get_qnn_input_tensors() { return _qnn_tensor_inputs; }
@@ -58,10 +62,59 @@ public:
         return config;
     }
 
+    bool bind_tensors(const ggml_tensor_array_t &tensor_inputs, const ggml_tensor_array_t &tensor_outputs) {
+        GGML_ASSERT(tensor_inputs.size() == _tensor_inputs.size());
+        GGML_ASSERT(tensor_outputs.size() == _tensor_outputs.size());
+
+        int tensor_rank = 0;
+
+        // get the max tensor rank
+        for (auto tensor : tensor_inputs) {
+            tensor_rank = std::max(tensor_rank, ggml_n_dims(tensor));
+        }
+        for (auto tensor : tensor_outputs) {
+            tensor_rank = std::max(tensor_rank, ggml_n_dims(tensor));
+        }
+
+        for (size_t i = 0; i < tensor_inputs.size(); i++) {
+            auto *ggml_tensor = tensor_inputs[i];
+            if (!_tensor_inputs[i]->bind_ggml_tensor(ggml_tensor, true, tensor_rank)) {
+                QNN_LOG_ERROR("bind tensor %s failed\n", ggml_get_name(ggml_tensor));
+                return false;
+            }
+
+            _qnn_tensor_inputs[i] = _tensor_inputs[i]->get_qnn_tensor();
+        }
+
+        for (size_t i = 0; i < tensor_outputs.size(); i++) {
+            auto *ggml_tensor = tensor_outputs[i];
+            if (!_tensor_outputs[i]->bind_ggml_tensor(ggml_tensor, false, tensor_rank)) {
+                QNN_LOG_ERROR("bind tensor %s failed\n", ggml_get_name(ggml_tensor));
+                return false;
+            }
+
+            _qnn_tensor_outputs[i] = _tensor_outputs[i]->get_qnn_tensor();
+        }
+
+        return true;
+    }
+
+    void unbind_tensors() {
+        for (auto tensor : _tensor_inputs) {
+            tensor->unbind_ggml_tensor();
+        }
+
+        for (auto tensor : _tensor_outputs) {
+            tensor->unbind_ggml_tensor();
+        }
+    }
+
 private:
     std::string _name;
     std::string _package_name;
     std::string _op_type;
+    std::vector<std::shared_ptr<ggml_qnn_tensor>> _tensor_inputs;
+    std::vector<std::shared_ptr<ggml_qnn_tensor>> _tensor_outputs;
     std::vector<Qnn_Tensor_t> _qnn_tensor_inputs;
     std::vector<Qnn_Tensor_t> _qnn_tensor_outputs;
     std::vector<Qnn_Param_t> _parameters;

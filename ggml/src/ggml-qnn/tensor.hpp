@@ -15,6 +15,8 @@
 
 namespace qnn {
 
+using ggml_tensor_array_t = std::vector<ggml_tensor *>;
+
 class ggml_qnn_tensor {
 public:
     explicit ggml_qnn_tensor(const std::string &name, QNNBackend device, Qnn_GraphHandle_t graph_handle,
