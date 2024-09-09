@@ -43,10 +43,7 @@ public:
             return true;
         }
 
-        update_params_from_ggml_tensor(tensor, prev_max_rank);
-        Qnn_TensorType_t new_tensor_type = is_input ? QNN_TENSOR_TYPE_APP_WRITE : QNN_TENSOR_TYPE_APP_READ;
-        QNN_TENSOR_SET_TYPE(_qnn_tensor, new_tensor_type);
-        QNN_LOG_INFO("tensor %s changed to type %d", _tensor_name.c_str(), new_tensor_type);
+        update_params_from_ggml_tensor(tensor, is_input, prev_max_rank);
 
         if (!QNN_TENSOR_GET_ID(_qnn_tensor)) {
             Qnn_Tensor_t qnn_tensor = _qnn_tensor;
@@ -170,7 +167,7 @@ private:
         return true;
     }
 
-    void update_params_from_ggml_tensor(ggml_tensor *tensor, int prev_max_rank) {
+    void update_params_from_ggml_tensor(ggml_tensor *tensor, bool is_input, int prev_max_rank) {
         _dimensions[0] = (uint32_t)tensor->ne[0];
         _dimensions[1] = (uint32_t)tensor->ne[1];
         _dimensions[2] = (uint32_t)tensor->ne[2];
@@ -183,6 +180,11 @@ private:
         QNN_TENSOR_SET_MEM_TYPE(_qnn_tensor, QNN_TENSORMEMTYPE_RAW);
         Qnn_ClientBuffer_t client_buf = {};
         QNN_TENSOR_SET_CLIENT_BUF(_qnn_tensor, client_buf);
+
+        Qnn_TensorType_t new_tensor_type = is_input ? QNN_TENSOR_TYPE_APP_WRITE : QNN_TENSOR_TYPE_APP_READ;
+        QNN_TENSOR_SET_TYPE(_qnn_tensor, new_tensor_type);
+
+        QNN_LOG_INFO("tensor %s changed to type %d", _tensor_name.c_str(), new_tensor_type);
     }
 
     bool should_use_mem_handle() const { return _device == QNN_BACKEND_NPU; }

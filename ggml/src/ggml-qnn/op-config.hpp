@@ -32,14 +32,16 @@ public:
         char buffer[GGML_MAX_NAME] = {};
         for (size_t i = 0; i < input_count; i++) {
             snprintf(buffer, GGML_MAX_NAME, "src%d", (int)i);
-            _tensor_inputs[i] = std::make_shared<ggml_qnn_tensor>(std::string(buffer), device, graph_handle, qnn_instance);
+            _tensor_inputs[i] =
+                std::make_shared<ggml_qnn_tensor>(std::string(buffer), device, graph_handle, qnn_instance);
         }
 
         _tensor_outputs.resize(output_count);
         _qnn_tensor_outputs.resize(output_count);
         for (size_t i = 0; i < output_count; i++) {
             snprintf(buffer, GGML_MAX_NAME, "dst%d", (int)i);
-            _tensor_outputs[i] = std::make_shared<ggml_qnn_tensor>(std::string(buffer), device, graph_handle, qnn_instance);
+            _tensor_outputs[i] =
+                std::make_shared<ggml_qnn_tensor>(std::string(buffer), device, graph_handle, qnn_instance);
         }
     }
 

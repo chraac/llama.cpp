@@ -12,7 +12,6 @@
 #include "logger.hpp"
 #include "op-config.hpp"
 #include "qnn-lib.hpp"
-#include "tensor.hpp"
 
 namespace qnn {
 
