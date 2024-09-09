@@ -127,8 +127,9 @@ std::string get_graph_key(const std::string &op_name, const std::array<ggml_tens
 qnn::ggml_op_constructor_t generate_common_op_constructor(const std::string &op_name) {
     if (op_name == QNN_OP_MAT_MUL) {
         // For QNN_OP_MAT_MUL, we need to transpose the input tensor
-        return [](const std::string &name) {
-            auto config = std::make_unique<qnn::ggml_qnn_op_config>(name, QNN_OP_PACKAGE_NAME_QTI_AISW, QNN_OP_MAT_MUL);
+        return [](const std::string &name) -> std::unique_ptr<qnn::ggml_qnn_op_config> {
+            auto config =
+                std::make_unique<qnn::ggml_qnn_single_op_config>(name, QNN_OP_PACKAGE_NAME_QTI_AISW, QNN_OP_MAT_MUL);
             Qnn_Scalar_t scalar = QNN_SCALAR_INIT;
             scalar.dataType = QNN_DATATYPE_BOOL_8;
             scalar.bool8Value = true;
@@ -138,8 +139,8 @@ qnn::ggml_op_constructor_t generate_common_op_constructor(const std::string &op_
         };
     }
 
-    return [op_name](const std::string &name) {
-        return std::make_unique<qnn::ggml_qnn_op_config>(name, QNN_OP_PACKAGE_NAME_QTI_AISW, op_name);
+    return [op_name](const std::string &name) -> std::unique_ptr<qnn::ggml_qnn_op_config> {
+        return std::make_unique<qnn::ggml_qnn_single_op_config>(name, QNN_OP_PACKAGE_NAME_QTI_AISW, op_name);
     };
 }
 

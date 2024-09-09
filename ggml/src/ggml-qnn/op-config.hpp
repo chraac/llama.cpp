@@ -11,9 +11,23 @@
 #include "tensor.hpp"
 
 namespace qnn {
+
 class ggml_qnn_op_config {
+    virtual ~ggml_qnn_op_config() {}
+    virtual void create_tensors(QNNBackend device, Qnn_GraphHandle_t graph_handle,
+                                std::shared_ptr<qnn_instance> qnn_instance, const size_t input_count,
+                                const size_t output_count) = 0;
+    virtual std::vector<Qnn_Tensor_t> &get_qnn_input_tensors() = 0;
+    virtual std::vector<Qnn_Tensor_t> &get_qnn_output_tensors() = 0;
+    virtual Qnn_OpConfig_t get_op_config() = 0;
+    virtual bool bind_tensors(const ggml_tensor_array_t &tensor_inputs, const ggml_tensor_array_t &tensor_outputs) = 0;
+    virtual void unbind_tensors() = 0;
+}
+
+class ggml_qnn_single_op_config : public ggml_qnn_op_config {
 public:
-    explicit ggml_qnn_op_config(const std::string &name, const std::string &package_name, const std::string &op_type) :
+    explicit ggml_qnn_single_op_config(const std::string &name, const std::string &package_name,
+                                       const std::string &op_type) :
         _name(name), _package_name(package_name), _op_type(op_type) {}
 
     void add_scalar_param(const std::string &name, const Qnn_Scalar_t scalar) {
@@ -26,7 +40,7 @@ public:
     }
 
     void create_tensors(QNNBackend device, Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn_instance> qnn_instance,
-                        const size_t input_count, const size_t output_count) {
+                        const size_t input_count, const size_t output_count) override {
         _tensor_inputs.resize(input_count);
         _qnn_tensor_inputs.resize(input_count);
         char buffer[GGML_MAX_NAME] = {};
@@ -44,11 +58,7 @@ public:
                 std::make_shared<ggml_qnn_tensor>(std::string(buffer), device, graph_handle, qnn_instance);
         }
     }
-
-    std::vector<Qnn_Tensor_t> &get_qnn_input_tensors() { return _qnn_tensor_inputs; }
-    std::vector<Qnn_Tensor_t> &get_qnn_output_tensors() { return _qnn_tensor_outputs; }
-
-    Qnn_OpConfig_t get_op_config() {
+    Qnn_OpConfig_t get_op_config() override {
         Qnn_OpConfig_t config = QNN_OPCONFIG_INIT;
         config.version = QNN_OPCONFIG_VERSION_1;
         auto &op_config = config.v1;
@@ -64,7 +74,7 @@ public:
         return config;
     }
 
-    bool bind_tensors(const ggml_tensor_array_t &tensor_inputs, const ggml_tensor_array_t &tensor_outputs) {
+    bool bind_tensors(const ggml_tensor_array_t &tensor_inputs, const ggml_tensor_array_t &tensor_outputs) override {
         GGML_ASSERT(tensor_inputs.size() == _tensor_inputs.size());
         GGML_ASSERT(tensor_outputs.size() == _tensor_outputs.size());
 
@@ -101,7 +111,7 @@ public:
         return true;
     }
 
-    void unbind_tensors() {
+    void unbind_tensors() override {
         for (auto tensor : _tensor_inputs) {
             tensor->unbind_ggml_tensor();
         }
@@ -110,6 +120,9 @@ public:
             tensor->unbind_ggml_tensor();
         }
     }
+
+    std::vector<Qnn_Tensor_t> &get_qnn_input_tensors() override { return _qnn_tensor_inputs; }
+    std::vector<Qnn_Tensor_t> &get_qnn_output_tensors() override { return _qnn_tensor_outputs; }
 
 private:
     std::string _name;
@@ -122,7 +135,7 @@ private:
     std::vector<Qnn_Param_t> _parameters;
     std::vector<std::string> _param_names;
 
-    DISABLE_COPY(ggml_qnn_op_config);
-    DISABLE_MOVE(ggml_qnn_op_config);
+    DISABLE_COPY(ggml_qnn_single_op_config);
+    DISABLE_MOVE(ggml_qnn_single_op_config);
 };
 } // namespace qnn
