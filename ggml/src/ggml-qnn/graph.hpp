@@ -97,18 +97,12 @@ public:
             return false;
         }
 
-        auto error = _qnn_interface->qnn_graph_add_node(_graph_handle, _op_config->get_op_config());
-        if (error != QNN_SUCCESS) {
-            auto *error_str = get_qnn_error_string(error);
-            if (error_str) {
-                QNN_LOG_ERROR("qnn_graph_add_node.error: %s\n", error_str);
-            } else {
-                QNN_LOG_ERROR("qnn_graph_add_node.error: %d\n", error);
-            }
+        if (!_op_config->add_nodes(_graph_handle, _qnn_instance)) {
+            QNN_LOG_ERROR("graph name %s, add nodes failed\n", _graph_name.c_str());
             return false;
         }
 
-        error = _qnn_interface->qnn_graph_finalize(_graph_handle, nullptr, nullptr);
+        auto error = _qnn_interface->qnn_graph_finalize(_graph_handle, nullptr, nullptr);
         if (error != QNN_SUCCESS) {
             auto *error_str = get_qnn_error_string(error);
             if (error_str) {
