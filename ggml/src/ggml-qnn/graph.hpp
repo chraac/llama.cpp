@@ -91,9 +91,8 @@ public:
 
         QNN_LOG_DEBUG("graph name %s, build_graph start", _graph_name.c_str());
         _op_config = op_constructor(_graph_name);
-        _op_config->create_tensors(_device, _graph_handle, _qnn_instance, tensor_inputs.size(), tensor_outputs.size());
-        if (!_op_config->bind_tensors(tensor_inputs, tensor_outputs)) {
-            QNN_LOG_ERROR("graph name %s, bind tensors failed\n", _graph_name.c_str());
+        if (!_op_config->create_tensors(_device, _graph_handle, _qnn_instance, tensor_inputs, tensor_outputs)) {
+            QNN_LOG_ERROR("graph name %s, create_tensors failed\n", _graph_name.c_str());
             return false;
         }
 

@@ -31,18 +31,7 @@ public:
 
     ~ggml_qnn_tensor() { _qnn_rpc_buffer.reset(); }
 
-    bool bind_ggml_tensor(ggml_tensor *tensor, bool is_input, int prev_max_rank) {
-        if (_tensor) {
-            if (_tensor != tensor) {
-                QNN_LOG_WARN("tensor %s has been bound to another ggml tensor %s", _tensor_name.c_str(),
-                             ggml_get_name(_tensor));
-                return false;
-            }
-            QNN_LOG_INFO("tensor %s already bound to same ggml tensor %s", _tensor_name.c_str(),
-                         ggml_get_name(_tensor));
-            return true;
-        }
-
+    bool create_tensor(const ggml_tensor *tensor, bool is_input, int prev_max_rank) {
         update_params_from_ggml_tensor(tensor, is_input, prev_max_rank);
 
         if (!QNN_TENSOR_GET_ID(_qnn_tensor)) {
@@ -57,6 +46,21 @@ public:
             QNN_TENSOR_SET_ID(_qnn_tensor, QNN_TENSOR_GET_ID(qnn_tensor));
             QNN_LOG_DEBUG("create graph tensor %s, id: %d, rank: %d", _tensor_name.c_str(),
                           QNN_TENSOR_GET_ID(qnn_tensor), QNN_TENSOR_GET_RANK(qnn_tensor));
+        }
+
+        return true;
+    }
+
+    bool bind_ggml_tensor(ggml_tensor *tensor) {
+        if (_tensor) {
+            if (_tensor != tensor) {
+                QNN_LOG_WARN("tensor %s has been bound to another ggml tensor %s", _tensor_name.c_str(),
+                             ggml_get_name(_tensor));
+                return false;
+            }
+            QNN_LOG_INFO("tensor %s already bound to same ggml tensor %s", _tensor_name.c_str(),
+                         ggml_get_name(_tensor));
+            return true;
         }
 
         if (should_use_mem_handle()) {
@@ -167,7 +171,7 @@ private:
         return true;
     }
 
-    void update_params_from_ggml_tensor(ggml_tensor *tensor, bool is_input, int prev_max_rank) {
+    void update_params_from_ggml_tensor(const ggml_tensor *tensor, bool is_input, int prev_max_rank) {
         _dimensions[0] = (uint32_t)tensor->ne[0];
         _dimensions[1] = (uint32_t)tensor->ne[1];
         _dimensions[2] = (uint32_t)tensor->ne[2];

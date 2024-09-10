@@ -14,9 +14,9 @@ namespace qnn {
 class ggml_qnn_op_config {
 public:
     virtual ~ggml_qnn_op_config() {}
-    virtual void create_tensors(QNNBackend device, Qnn_GraphHandle_t graph_handle,
-                                std::shared_ptr<qnn_instance> qnn_instance, const size_t input_count,
-                                const size_t output_count) = 0;
+    virtual bool create_tensors(QNNBackend device, Qnn_GraphHandle_t graph_handle,
+                                std::shared_ptr<qnn_instance> qnn_instance, const ggml_tensor_array_t &tensor_inputs,
+                                const ggml_tensor_array_t &tensor_outputs) = 0;
     virtual std::vector<Qnn_Tensor_t> &get_qnn_input_tensors() = 0;
     virtual std::vector<Qnn_Tensor_t> &get_qnn_output_tensors() = 0;
     virtual bool add_nodes(Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn_instance> qnn_instance) = 0;
@@ -31,8 +31,8 @@ public:
         _name(name), _package_name(package_name), _op_type(op_type) {}
 
     void add_scalar_param(const std::string &name, const Qnn_Scalar_t scalar);
-    void create_tensors(QNNBackend device, Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn_instance> qnn_instance,
-                        const size_t input_count, const size_t output_count) override;
+    bool create_tensors(QNNBackend device, Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn_instance> qnn_instance,
+                        const ggml_tensor_array_t &tensor_inputs, const ggml_tensor_array_t &tensor_outputs) override;
     bool add_nodes(Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn_instance> qnn_instance) override;
     bool bind_tensors(const ggml_tensor_array_t &tensor_inputs, const ggml_tensor_array_t &tensor_outputs) override;
     void unbind_tensors() override;
@@ -58,8 +58,10 @@ private:
 
 class ggml_qnn_list_op_config : public ggml_qnn_op_config {
 public:
-    void create_tensors(QNNBackend device, Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn_instance> qnn_instance,
-                        const size_t input_count, const size_t output_count) override {}
+    bool create_tensors(QNNBackend device, Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn_instance> qnn_instance,
+                        const ggml_tensor_array_t &tensor_inputs, const ggml_tensor_array_t &tensor_outputs) override {
+        return true;
+    }
 
     std::vector<Qnn_Tensor_t> &get_qnn_input_tensors() override { return _operations.front()->get_qnn_input_tensors(); }
 
@@ -81,7 +83,11 @@ public:
         return true;
     }
 
-    void unbind_tensors() override {}
+    void unbind_tensors() override {
+        for (auto &op : _operations) {
+            op->unbind_tensors();
+        }
+    }
 
 private:
     std::vector<std::unique_ptr<ggml_qnn_op_config>> _operations;
