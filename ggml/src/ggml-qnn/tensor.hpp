@@ -16,6 +16,7 @@
 namespace qnn {
 
 using ggml_tensor_array_t = std::vector<ggml_tensor *>;
+using ggml_dimension_array_t = int64_t[GGML_MAX_DIMS];
 
 class ggml_qnn_tensor {
 public:
@@ -32,7 +33,8 @@ public:
     ~ggml_qnn_tensor() { _qnn_rpc_buffer.reset(); }
 
     bool create_tensor(const ggml_tensor *tensor, bool is_input, int prev_max_rank) {
-        update_params_from_ggml_tensor(tensor, is_input, prev_max_rank);
+        uint32_t rank = (uint32_t)std::max(prev_max_rank, ggml_n_dims(tensor));
+        update_params_from_ggml_tensor(is_input, tensor->ne, tensor->type, rank);
 
         if (!QNN_TENSOR_GET_ID(_qnn_tensor)) {
             Qnn_Tensor_t qnn_tensor = _qnn_tensor;
@@ -171,23 +173,22 @@ private:
         return true;
     }
 
-    void update_params_from_ggml_tensor(const ggml_tensor *tensor, bool is_input, int prev_max_rank) {
-        _dimensions[0] = (uint32_t)tensor->ne[0];
-        _dimensions[1] = (uint32_t)tensor->ne[1];
-        _dimensions[2] = (uint32_t)tensor->ne[2];
-        _dimensions[3] = (uint32_t)tensor->ne[3];
-        QNN_TENSOR_SET_DATA_TYPE(_qnn_tensor, device_datatype_from_ggml_datatype(tensor->type));
+    void update_params_from_ggml_tensor(bool is_input, const ggml_dimension_array_t &dimensions, ggml_type type,
+                                        uint32_t rank) {
+        _dimensions[0] = (uint32_t)dimensions[0];
+        _dimensions[1] = (uint32_t)dimensions[1];
+        _dimensions[2] = (uint32_t)dimensions[2];
+        _dimensions[3] = (uint32_t)dimensions[3];
+        QNN_TENSOR_SET_DATA_TYPE(_qnn_tensor, device_datatype_from_ggml_datatype(type));
+
         // TODO: set the quantizeParams base on the tensor type
 
-        QNN_TENSOR_SET_RANK(_qnn_tensor, (uint32_t)std::max(prev_max_rank, ggml_n_dims(tensor)));
-
+        QNN_TENSOR_SET_RANK(_qnn_tensor, rank);
         QNN_TENSOR_SET_MEM_TYPE(_qnn_tensor, QNN_TENSORMEMTYPE_RAW);
         Qnn_ClientBuffer_t client_buf = {};
         QNN_TENSOR_SET_CLIENT_BUF(_qnn_tensor, client_buf);
-
         Qnn_TensorType_t new_tensor_type = is_input ? QNN_TENSOR_TYPE_APP_WRITE : QNN_TENSOR_TYPE_APP_READ;
         QNN_TENSOR_SET_TYPE(_qnn_tensor, new_tensor_type);
-
         QNN_LOG_INFO("tensor %s changed to type %d", _tensor_name.c_str(), new_tensor_type);
     }
 
