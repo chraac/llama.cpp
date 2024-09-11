@@ -22,36 +22,26 @@ class ggml_qnn_tensor {
 public:
     typedef enum _tensor_type { INPUT, OUTPUT, INTERMEDIATE } tensor_type_t;
 
-    explicit ggml_qnn_tensor(const std::string &name, QNNBackend device, Qnn_GraphHandle_t graph_handle,
-                             std::shared_ptr<qnn_instance> qnn_instance) :
+    explicit ggml_qnn_tensor(tensor_type_t tensor_type, const std::string &name,
+                             const ggml_dimension_array_t &dimensions, ggml_type data_type, int rank, QNNBackend device,
+                             Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn_instance> qnn_instance) :
         _tensor_name(name), _device(device), _qnn_instance(qnn_instance), _graph_handle(graph_handle) {
         QNN_TENSOR_SET_NAME(_qnn_tensor, _tensor_name.c_str());
         QNN_TENSOR_SET_DIMENSIONS(_qnn_tensor, _dimensions.data());
         QNN_TENSOR_SET_TYPE(_qnn_tensor, QNN_TENSOR_TYPE_NATIVE);
         QNN_TENSOR_SET_DATA_FORMAT(_qnn_tensor, QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER);
+        update_params_from_ggml_tensor(tensor_type, dimensions, data_type, rank);
         QNN_LOG_DEBUG("create tensor %s, device: %d", _tensor_name.c_str(), device);
     }
 
     ~ggml_qnn_tensor() { _qnn_rpc_buffer.reset(); }
 
-    bool create_tensor(tensor_type_t tensor_type, const ggml_dimension_array_t &dimensions, ggml_type data_type,
-                       int rank) {
-        update_params_from_ggml_tensor(dimensions, data_type, rank);
-
-        Qnn_TensorType_t new_tensor_type;
-        switch (tensor_type) {
-            case INPUT:
-                new_tensor_type = QNN_TENSOR_TYPE_APP_WRITE;
-                break;
-            case OUTPUT:
-                new_tensor_type = QNN_TENSOR_TYPE_APP_READ;
-                break;
-            default:
-                new_tensor_type = QNN_TENSOR_TYPE_NATIVE;
-                break;
+    bool alloc_qnn_tensor_id() {
+        if (QNN_TENSOR_GET_ID(_qnn_tensor)) {
+            QNN_LOG_WARN("graph tensor %s already created, id %d", _tensor_name.c_str(),
+                         QNN_TENSOR_GET_ID(_qnn_tensor));
+            return true;
         }
-        QNN_TENSOR_SET_TYPE(_qnn_tensor, new_tensor_type);
-        QNN_LOG_INFO("tensor %s changed to type %d", _tensor_name.c_str(), new_tensor_type);
 
         Qnn_Tensor_t qnn_tensor = _qnn_tensor;
         auto qnn_interface = _qnn_instance->get_qnn_interface();
@@ -188,12 +178,13 @@ private:
         return true;
     }
 
-    void update_params_from_ggml_tensor(const ggml_dimension_array_t &dimensions, ggml_type type, int rank) {
+    void update_params_from_ggml_tensor(tensor_type_t tensor_type, const ggml_dimension_array_t &dimensions,
+                                        ggml_type data_type, int rank) {
         _dimensions[0] = (uint32_t)dimensions[0];
         _dimensions[1] = (uint32_t)dimensions[1];
         _dimensions[2] = (uint32_t)dimensions[2];
         _dimensions[3] = (uint32_t)dimensions[3];
-        QNN_TENSOR_SET_DATA_TYPE(_qnn_tensor, device_datatype_from_ggml_datatype(type));
+        QNN_TENSOR_SET_DATA_TYPE(_qnn_tensor, device_datatype_from_ggml_datatype(data_type));
 
         // TODO: set the quantizeParams base on the tensor type
 
@@ -201,6 +192,21 @@ private:
         QNN_TENSOR_SET_MEM_TYPE(_qnn_tensor, QNN_TENSORMEMTYPE_RAW);
         Qnn_ClientBuffer_t client_buf = {};
         QNN_TENSOR_SET_CLIENT_BUF(_qnn_tensor, client_buf);
+
+        Qnn_TensorType_t new_tensor_type;
+        switch (tensor_type) {
+            case INPUT:
+                new_tensor_type = QNN_TENSOR_TYPE_APP_WRITE;
+                break;
+            case OUTPUT:
+                new_tensor_type = QNN_TENSOR_TYPE_APP_READ;
+                break;
+            default:
+                new_tensor_type = QNN_TENSOR_TYPE_NATIVE;
+                break;
+        }
+        QNN_TENSOR_SET_TYPE(_qnn_tensor, new_tensor_type);
+        QNN_LOG_INFO("tensor %s changed to type %d", _tensor_name.c_str(), new_tensor_type);
     }
 
     bool should_use_mem_handle() const { return _device == QNN_BACKEND_NPU; }

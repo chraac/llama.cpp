@@ -33,31 +33,20 @@ bool ggml_qnn_single_op_config::create_tensors(QNNBackend device, Qnn_GraphHandl
     char buffer[GGML_MAX_NAME] = {};
     for (size_t i = 0; i < tensor_inputs.size(); i++) {
         snprintf(buffer, GGML_MAX_NAME, "src%d", (int)i);
-        auto tensor = std::make_shared<ggml_qnn_tensor>(std::string(buffer), device, graph_handle, qnn_instance);
         auto *ggml_tensor = tensor_inputs[i];
-        if (!tensor->create_tensor(ggml_qnn_tensor::INPUT, ggml_tensor->ne, ggml_tensor->type, tensor_rank)) {
-            QNN_LOG_ERROR("create input tensor %s failed\n", buffer);
-            _tensor_inputs.clear();
-            return false;
-        }
-
-        _tensor_inputs[i] = tensor;
+        _tensor_inputs[i] =
+            std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::INPUT, std::string(buffer), ggml_tensor->ne,
+                                              ggml_tensor->type, tensor_rank, device, graph_handle, qnn_instance);
     }
 
     _tensor_outputs.resize(tensor_outputs.size());
     _qnn_tensor_outputs.resize(tensor_outputs.size());
     for (size_t i = 0; i < tensor_outputs.size(); i++) {
         snprintf(buffer, GGML_MAX_NAME, "dst%d", (int)i);
-        auto tensor = std::make_shared<ggml_qnn_tensor>(std::string(buffer), device, graph_handle, qnn_instance);
         auto *ggml_tensor = tensor_outputs[i];
-        if (!tensor->create_tensor(ggml_qnn_tensor::OUTPUT, ggml_tensor->ne, ggml_tensor->type, tensor_rank)) {
-            QNN_LOG_ERROR("create output tensor %s failed\n", buffer);
-            _tensor_inputs.clear();
-            _tensor_outputs.clear();
-            return false;
-        }
-
-        _tensor_outputs[i] = tensor;
+        _tensor_outputs[i] =
+            std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::OUTPUT, std::string(buffer), ggml_tensor->ne,
+                                              ggml_tensor->type, tensor_rank, device, graph_handle, qnn_instance);
     }
 
     return true;
@@ -65,6 +54,26 @@ bool ggml_qnn_single_op_config::create_tensors(QNNBackend device, Qnn_GraphHandl
 
 bool ggml_qnn_single_op_config::add_nodes(Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn_instance> qnn_instance) {
     auto qnn_interface = qnn_instance->get_qnn_interface();
+
+    for (size_t i = 0; i < _tensor_inputs.size(); i++) {
+        auto tensor = _tensor_inputs[i];
+        if (!tensor->alloc_qnn_tensor_id()) {
+            QNN_LOG_ERROR("input tensor alloc_qnn_tensor_id failed\n");
+            return false;
+        }
+
+        _qnn_tensor_inputs[i] = tensor->get_qnn_tensor();
+    }
+
+    for (size_t i = 0; i < _tensor_outputs.size(); i++) {
+        auto tensor = _tensor_outputs[i];
+        if (!tensor->alloc_qnn_tensor_id()) {
+            QNN_LOG_ERROR("output tensor alloc_qnn_tensor_id failed\n");
+            return false;
+        }
+        _qnn_tensor_outputs[i] = _tensor_outputs[i]->get_qnn_tensor();
+    }
+
     auto error = qnn_interface->qnn_graph_add_node(graph_handle, get_op_config());
     if (error != QNN_SUCCESS) {
         auto *error_str = get_qnn_error_string(error);
@@ -117,14 +126,6 @@ void ggml_qnn_single_op_config::unbind_tensors() {
 }
 
 Qnn_OpConfig_t ggml_qnn_single_op_config::get_op_config() {
-    for (size_t i = 0; i < _tensor_inputs.size(); i++) {
-        _qnn_tensor_inputs[i] = _tensor_inputs[i]->get_qnn_tensor();
-    }
-
-    for (size_t i = 0; i < _tensor_outputs.size(); i++) {
-        _qnn_tensor_outputs[i] = _tensor_outputs[i]->get_qnn_tensor();
-    }
-
     Qnn_OpConfig_t config = QNN_OPCONFIG_INIT;
     config.version = QNN_OPCONFIG_VERSION_1;
     auto &op_config = config.v1;
