@@ -34,9 +34,9 @@ public:
 
     ~ggml_qnn_tensor() { _qnn_rpc_buffer.reset(); }
 
-    bool create_tensor(const ggml_tensor *tensor, tensor_type_t tensor_type, int prev_max_rank) {
-        uint32_t rank = (uint32_t)std::max(prev_max_rank, ggml_n_dims(tensor));
-        update_params_from_ggml_tensor(tensor->ne, tensor->type, rank);
+    bool create_tensor(tensor_type_t tensor_type, const ggml_dimension_array_t &dimensions, ggml_type data_type,
+                       int rank) {
+        update_params_from_ggml_tensor(dimensions, data_type, rank);
 
         Qnn_TensorType_t new_tensor_type;
         switch (tensor_type) {
@@ -188,7 +188,7 @@ private:
         return true;
     }
 
-    void update_params_from_ggml_tensor(const ggml_dimension_array_t &dimensions, ggml_type type, uint32_t rank) {
+    void update_params_from_ggml_tensor(const ggml_dimension_array_t &dimensions, ggml_type type, int rank) {
         _dimensions[0] = (uint32_t)dimensions[0];
         _dimensions[1] = (uint32_t)dimensions[1];
         _dimensions[2] = (uint32_t)dimensions[2];
@@ -197,7 +197,7 @@ private:
 
         // TODO: set the quantizeParams base on the tensor type
 
-        QNN_TENSOR_SET_RANK(_qnn_tensor, rank);
+        QNN_TENSOR_SET_RANK(_qnn_tensor, (uint32_t)rank);
         QNN_TENSOR_SET_MEM_TYPE(_qnn_tensor, QNN_TENSORMEMTYPE_RAW);
         Qnn_ClientBuffer_t client_buf = {};
         QNN_TENSOR_SET_CLIENT_BUF(_qnn_tensor, client_buf);

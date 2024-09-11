@@ -34,7 +34,8 @@ bool ggml_qnn_single_op_config::create_tensors(QNNBackend device, Qnn_GraphHandl
     for (size_t i = 0; i < tensor_inputs.size(); i++) {
         snprintf(buffer, GGML_MAX_NAME, "src%d", (int)i);
         auto tensor = std::make_shared<ggml_qnn_tensor>(std::string(buffer), device, graph_handle, qnn_instance);
-        if (!tensor->create_tensor(tensor_inputs[i], ggml_qnn_tensor::INPUT, tensor_rank)) {
+        auto *ggml_tensor = tensor_inputs[i];
+        if (!tensor->create_tensor(ggml_qnn_tensor::INPUT, ggml_tensor->ne, ggml_tensor->type, tensor_rank)) {
             QNN_LOG_ERROR("create input tensor %s failed\n", buffer);
             _tensor_inputs.clear();
             return false;
@@ -48,7 +49,8 @@ bool ggml_qnn_single_op_config::create_tensors(QNNBackend device, Qnn_GraphHandl
     for (size_t i = 0; i < tensor_outputs.size(); i++) {
         snprintf(buffer, GGML_MAX_NAME, "dst%d", (int)i);
         auto tensor = std::make_shared<ggml_qnn_tensor>(std::string(buffer), device, graph_handle, qnn_instance);
-        if (!tensor->create_tensor(tensor_outputs[i], ggml_qnn_tensor::OUTPUT, tensor_rank)) {
+        auto *ggml_tensor = tensor_outputs[i];
+        if (!tensor->create_tensor(ggml_qnn_tensor::OUTPUT, ggml_tensor->ne, ggml_tensor->type, tensor_rank)) {
             QNN_LOG_ERROR("create output tensor %s failed\n", buffer);
             _tensor_inputs.clear();
             _tensor_outputs.clear();
