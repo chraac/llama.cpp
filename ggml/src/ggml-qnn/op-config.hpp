@@ -56,41 +56,37 @@ private:
     DISABLE_MOVE(ggml_qnn_single_op_config);
 };
 
-class ggml_qnn_list_op_config : public ggml_qnn_op_config {
+class ggml_qnn_matmul_op_config : public ggml_qnn_op_config {
 public:
+    ggml_qnn_matmul_op_config() :
+        _transpose("matmul_trans", QNN_OP_PACKAGE_NAME_QTI_AISW, QNN_OP_TRANSPOSE),
+        _mat_mul("matmul", QNN_OP_PACKAGE_NAME_QTI_AISW, QNN_OP_MAT_MUL) {}
+
     bool create_tensors(QNNBackend device, Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn_instance> qnn_instance,
                         const ggml_tensor_array_t &tensor_inputs, const ggml_tensor_array_t &tensor_outputs) override {
         return true;
     }
 
-    std::vector<Qnn_Tensor_t> &get_qnn_input_tensors() override { return _operations.front()->get_qnn_input_tensors(); }
+    std::vector<Qnn_Tensor_t> &get_qnn_input_tensors() override { return _transpose.get_qnn_input_tensors(); }
+    std::vector<Qnn_Tensor_t> &get_qnn_output_tensors() override { return _mat_mul.get_qnn_output_tensors(); }
 
-    std::vector<Qnn_Tensor_t> &get_qnn_output_tensors() override {
-        return _operations.back()->get_qnn_output_tensors();
-    }
-
-    bool add_nodes(Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn_instance> qnn_instance) override {
-        for (auto &op : _operations) {
-            if (!op->add_nodes(graph_handle, qnn_instance)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
+    bool add_nodes(Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn_instance> qnn_instance) override { return true; }
 
     bool bind_tensors(const ggml_tensor_array_t &tensor_inputs, const ggml_tensor_array_t &tensor_outputs) override {
         return true;
     }
 
     void unbind_tensors() override {
-        for (auto &op : _operations) {
-            op->unbind_tensors();
-        }
+        _transpose.unbind_tensors();
+        _mat_mul.unbind_tensors();
     }
 
 private:
-    std::vector<std::unique_ptr<ggml_qnn_op_config>> _operations;
+    ggml_qnn_single_op_config _transpose;
+    ggml_qnn_single_op_config _mat_mul;
+
+    DISABLE_COPY(ggml_qnn_matmul_op_config);
+    DISABLE_MOVE(ggml_qnn_matmul_op_config);
 };
 
 } // namespace qnn
