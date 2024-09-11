@@ -34,13 +34,12 @@ bool ggml_qnn_single_op_config::create_tensors(QNNBackend device, Qnn_GraphHandl
     for (size_t i = 0; i < tensor_inputs.size(); i++) {
         snprintf(buffer, GGML_MAX_NAME, "src%d", (int)i);
         auto tensor = std::make_shared<ggml_qnn_tensor>(std::string(buffer), device, graph_handle, qnn_instance);
-        if (!tensor->create_tensor(tensor_inputs[i], true, tensor_rank)) {
+        if (!tensor->create_tensor(tensor_inputs[i], ggml_qnn_tensor::INPUT, tensor_rank)) {
             QNN_LOG_ERROR("create input tensor %s failed\n", buffer);
             _tensor_inputs.clear();
             return false;
         }
 
-        _qnn_tensor_inputs[i] = tensor->get_qnn_tensor();
         _tensor_inputs[i] = tensor;
     }
 
@@ -49,14 +48,13 @@ bool ggml_qnn_single_op_config::create_tensors(QNNBackend device, Qnn_GraphHandl
     for (size_t i = 0; i < tensor_outputs.size(); i++) {
         snprintf(buffer, GGML_MAX_NAME, "dst%d", (int)i);
         auto tensor = std::make_shared<ggml_qnn_tensor>(std::string(buffer), device, graph_handle, qnn_instance);
-        if (!tensor->create_tensor(tensor_outputs[i], false, tensor_rank)) {
+        if (!tensor->create_tensor(tensor_outputs[i], ggml_qnn_tensor::OUTPUT, tensor_rank)) {
             QNN_LOG_ERROR("create output tensor %s failed\n", buffer);
             _tensor_inputs.clear();
             _tensor_outputs.clear();
             return false;
         }
 
-        _qnn_tensor_outputs[i] = tensor->get_qnn_tensor();
         _tensor_outputs[i] = tensor;
     }
 
@@ -117,6 +115,14 @@ void ggml_qnn_single_op_config::unbind_tensors() {
 }
 
 Qnn_OpConfig_t ggml_qnn_single_op_config::get_op_config() {
+    for (size_t i = 0; i < _tensor_inputs.size(); i++) {
+        _qnn_tensor_inputs[i] = _tensor_inputs[i]->get_qnn_tensor();
+    }
+
+    for (size_t i = 0; i < _tensor_outputs.size(); i++) {
+        _qnn_tensor_outputs[i] = _tensor_outputs[i]->get_qnn_tensor();
+    }
+
     Qnn_OpConfig_t config = QNN_OPCONFIG_INIT;
     config.version = QNN_OPCONFIG_VERSION_1;
     auto &op_config = config.v1;

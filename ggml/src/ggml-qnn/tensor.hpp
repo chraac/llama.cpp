@@ -20,6 +20,8 @@ using ggml_dimension_array_t = int64_t[GGML_MAX_DIMS];
 
 class ggml_qnn_tensor {
 public:
+    typedef enum _tensor_type { INPUT, OUTPUT, INTERMEDIATE } tensor_type_t;
+
     explicit ggml_qnn_tensor(const std::string &name, QNNBackend device, Qnn_GraphHandle_t graph_handle,
                              std::shared_ptr<qnn_instance> qnn_instance) :
         _tensor_name(name), _device(device), _qnn_instance(qnn_instance), _graph_handle(graph_handle) {
@@ -32,23 +34,36 @@ public:
 
     ~ggml_qnn_tensor() { _qnn_rpc_buffer.reset(); }
 
-    bool create_tensor(const ggml_tensor *tensor, bool is_input, int prev_max_rank) {
+    bool create_tensor(const ggml_tensor *tensor, tensor_type_t tensor_type, int prev_max_rank) {
         uint32_t rank = (uint32_t)std::max(prev_max_rank, ggml_n_dims(tensor));
-        update_params_from_ggml_tensor(is_input, tensor->ne, tensor->type, rank);
+        update_params_from_ggml_tensor(tensor->ne, tensor->type, rank);
 
-        if (!QNN_TENSOR_GET_ID(_qnn_tensor)) {
-            Qnn_Tensor_t qnn_tensor = _qnn_tensor;
-            auto qnn_interface = _qnn_instance->get_qnn_interface();
-            auto error = qnn_interface->qnn_tensor_create_graph_tensor(_graph_handle, &qnn_tensor);
-            if (error != QNN_SUCCESS) {
-                QNN_LOG_WARN("create graph tensor failed, tensor %s, error: %d\n", _tensor_name.c_str(), error);
-                return false;
-            }
-
-            QNN_TENSOR_SET_ID(_qnn_tensor, QNN_TENSOR_GET_ID(qnn_tensor));
-            QNN_LOG_DEBUG("create graph tensor %s, id: %d, rank: %d", _tensor_name.c_str(),
-                          QNN_TENSOR_GET_ID(qnn_tensor), QNN_TENSOR_GET_RANK(qnn_tensor));
+        Qnn_TensorType_t new_tensor_type;
+        switch (tensor_type) {
+            case INPUT:
+                new_tensor_type = QNN_TENSOR_TYPE_APP_WRITE;
+                break;
+            case OUTPUT:
+                new_tensor_type = QNN_TENSOR_TYPE_APP_READ;
+                break;
+            default:
+                new_tensor_type = QNN_TENSOR_TYPE_NATIVE;
+                break;
         }
+        QNN_TENSOR_SET_TYPE(_qnn_tensor, new_tensor_type);
+        QNN_LOG_INFO("tensor %s changed to type %d", _tensor_name.c_str(), new_tensor_type);
+
+        Qnn_Tensor_t qnn_tensor = _qnn_tensor;
+        auto qnn_interface = _qnn_instance->get_qnn_interface();
+        auto error = qnn_interface->qnn_tensor_create_graph_tensor(_graph_handle, &qnn_tensor);
+        if (error != QNN_SUCCESS) {
+            QNN_LOG_WARN("create graph tensor failed, tensor %s, error: %d\n", _tensor_name.c_str(), error);
+            return false;
+        }
+
+        QNN_TENSOR_SET_ID(_qnn_tensor, QNN_TENSOR_GET_ID(qnn_tensor));
+        QNN_LOG_DEBUG("create graph tensor %s, id: %d, rank: %d", _tensor_name.c_str(), QNN_TENSOR_GET_ID(qnn_tensor),
+                      QNN_TENSOR_GET_RANK(qnn_tensor));
 
         return true;
     }
@@ -173,8 +188,7 @@ private:
         return true;
     }
 
-    void update_params_from_ggml_tensor(bool is_input, const ggml_dimension_array_t &dimensions, ggml_type type,
-                                        uint32_t rank) {
+    void update_params_from_ggml_tensor(const ggml_dimension_array_t &dimensions, ggml_type type, uint32_t rank) {
         _dimensions[0] = (uint32_t)dimensions[0];
         _dimensions[1] = (uint32_t)dimensions[1];
         _dimensions[2] = (uint32_t)dimensions[2];
@@ -187,9 +201,6 @@ private:
         QNN_TENSOR_SET_MEM_TYPE(_qnn_tensor, QNN_TENSORMEMTYPE_RAW);
         Qnn_ClientBuffer_t client_buf = {};
         QNN_TENSOR_SET_CLIENT_BUF(_qnn_tensor, client_buf);
-        Qnn_TensorType_t new_tensor_type = is_input ? QNN_TENSOR_TYPE_APP_WRITE : QNN_TENSOR_TYPE_APP_READ;
-        QNN_TENSOR_SET_TYPE(_qnn_tensor, new_tensor_type);
-        QNN_LOG_INFO("tensor %s changed to type %d", _tensor_name.c_str(), new_tensor_type);
     }
 
     bool should_use_mem_handle() const { return _device == QNN_BACKEND_NPU; }
