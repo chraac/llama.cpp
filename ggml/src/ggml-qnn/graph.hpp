@@ -117,8 +117,13 @@ public:
     }
 
     bool execute(const ggml_tensor_array_t &tensor_inputs, const ggml_tensor_array_t &tensor_outputs) {
-        if (!_op_config->bind_tensors(tensor_inputs, tensor_outputs)) {
-            QNN_LOG_ERROR("graph name %s, bind tensors failed\n", _graph_name.c_str());
+        if (!_op_config->bind_input_tensors(tensor_inputs)) {
+            QNN_LOG_ERROR("graph name %s, bind input tensors failed\n", _graph_name.c_str());
+            return false;
+        }
+
+        if (!_op_config->bind_output_tensors(tensor_outputs)) {
+            QNN_LOG_ERROR("graph name %s, bind output tensors failed\n", _graph_name.c_str());
             return false;
         }
 
@@ -134,7 +139,8 @@ public:
             }
         }
 
-        _op_config->unbind_tensors();
+        _op_config->unbind_input_tensors();
+        _op_config->unbind_output_tensors();
 
         if (error != QNN_SUCCESS) {
             QNN_LOG_INFO("error = %d\n", error);

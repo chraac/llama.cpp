@@ -15,19 +15,19 @@
 
 namespace qnn {
 
-using ggml_dimension_array_t = int64_t[GGML_MAX_DIMS];
+using ggml_qnn_dimension_array_t = int64_t[GGML_MAX_DIMS];
 
 class ggml_qnn_tensor {
 public:
     typedef enum _tensor_type { INPUT, OUTPUT, INTERMEDIATE } tensor_type_t;
 
     explicit ggml_qnn_tensor(tensor_type_t tensor_type, const std::string &name,
-                             const ggml_dimension_array_t &dimensions, ggml_type data_type, int rank, QNNBackend device,
-                             Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn_instance> qnn_instance) :
+                             const ggml_qnn_dimension_array_t &dimensions, ggml_type data_type, int rank,
+                             QNNBackend device, Qnn_GraphHandle_t graph_handle,
+                             std::shared_ptr<qnn_instance> qnn_instance) :
         _tensor_name(name), _device(device), _qnn_instance(qnn_instance), _graph_handle(graph_handle) {
         QNN_TENSOR_SET_NAME(_qnn_tensor, _tensor_name.c_str());
         QNN_TENSOR_SET_DIMENSIONS(_qnn_tensor, _dimensions.data());
-        QNN_TENSOR_SET_TYPE(_qnn_tensor, QNN_TENSOR_TYPE_NATIVE);
         QNN_TENSOR_SET_DATA_FORMAT(_qnn_tensor, QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER);
         update_params_from_ggml_tensor(tensor_type, dimensions, data_type, rank);
         QNN_LOG_DEBUG("create tensor %s, type: %d, device: %d", _tensor_name.c_str(), (int)tensor_type, (int)device);
@@ -66,6 +66,12 @@ public:
             }
             QNN_LOG_INFO("tensor %s already bound to same ggml tensor %s", _tensor_name.c_str(),
                          ggml_get_name(_tensor));
+            return true;
+        }
+
+        if (QNN_TENSOR_GET_TYPE(_qnn_tensor) == QNN_TENSOR_TYPE_NATIVE) {
+            QNN_LOG_DEBUG("tensor %s type(%d) not READ/WRITE, skipping", _tensor_name.c_str(),
+                          (int)QNN_TENSOR_TYPE_NATIVE);
             return true;
         }
 
@@ -177,7 +183,7 @@ private:
         return true;
     }
 
-    void update_params_from_ggml_tensor(tensor_type_t tensor_type, const ggml_dimension_array_t &dimensions,
+    void update_params_from_ggml_tensor(tensor_type_t tensor_type, const ggml_qnn_dimension_array_t &dimensions,
                                         ggml_type data_type, int rank) {
         _dimensions[0] = (uint32_t)dimensions[0];
         _dimensions[1] = (uint32_t)dimensions[1];

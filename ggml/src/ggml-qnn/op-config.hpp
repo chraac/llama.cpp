@@ -22,8 +22,10 @@ public:
     virtual std::vector<Qnn_Tensor_t> &get_qnn_input_tensors() = 0;
     virtual std::vector<Qnn_Tensor_t> &get_qnn_output_tensors() = 0;
     virtual bool add_op_to_graph(Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn_instance> qnn_instance) = 0;
-    virtual bool bind_tensors(const ggml_tensor_array_t &tensor_inputs, const ggml_tensor_array_t &tensor_outputs) = 0;
-    virtual void unbind_tensors() = 0;
+    virtual bool bind_input_tensors(const ggml_tensor_array_t &tensor_inputs) = 0;
+    virtual bool bind_output_tensors(const ggml_tensor_array_t &tensor_outputs) = 0;
+    virtual void unbind_input_tensors() = 0;
+    virtual void unbind_output_tensors() = 0;
 };
 
 class ggml_qnn_op_config_base : public ggml_qnn_op_config {
@@ -34,8 +36,10 @@ public:
 
     void add_scalar_param(const std::string &name, const Qnn_Scalar_t scalar);
     bool add_op_to_graph(Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn_instance> qnn_instance) override;
-    bool bind_tensors(const ggml_tensor_array_t &tensor_inputs, const ggml_tensor_array_t &tensor_outputs) override;
-    void unbind_tensors() override;
+    bool bind_input_tensors(const ggml_tensor_array_t &tensor_inputs) override;
+    bool bind_output_tensors(const ggml_tensor_array_t &tensor_outputs) override;
+    void unbind_input_tensors() override;
+    void unbind_output_tensors() override;
     std::vector<Qnn_Tensor_t> &get_qnn_input_tensors() override { return _qnn_tensor_inputs; }
     std::vector<Qnn_Tensor_t> &get_qnn_output_tensors() override { return _qnn_tensor_outputs; }
 
@@ -76,27 +80,19 @@ public:
 
     bool create_tensors(QNNBackend device, Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn_instance> qnn_instance,
                         const ggml_tensor_array_t &tensor_inputs, const ggml_tensor_array_t &tensor_outputs) override;
-    std::vector<Qnn_Tensor_t> &get_qnn_input_tensors() override { return _transpose->get_qnn_input_tensors(); }
+    bool add_op_to_graph(Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn_instance> qnn_instance) override;
+    bool bind_input_tensors(const ggml_tensor_array_t &tensor_inputs) override;
+    bool bind_output_tensors(const ggml_tensor_array_t &tensor_outputs) override;
+    void unbind_input_tensors() override;
+    void unbind_output_tensors() override;
+    std::vector<Qnn_Tensor_t> &get_qnn_input_tensors() override { return _qnn_tensor_inputs; }
     std::vector<Qnn_Tensor_t> &get_qnn_output_tensors() override { return _mat_mul->get_qnn_output_tensors(); }
-
-    bool add_op_to_graph(Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn_instance> qnn_instance) override {
-        return _transpose->add_op_to_graph(graph_handle, qnn_instance) &&
-               _mat_mul->add_op_to_graph(graph_handle, qnn_instance);
-    }
-
-    bool bind_tensors(const ggml_tensor_array_t &tensor_inputs, const ggml_tensor_array_t &tensor_outputs) override {
-        return _transpose->bind_tensors(tensor_inputs, tensor_outputs) &&
-               _mat_mul->bind_tensors(tensor_inputs, tensor_outputs);
-    }
-
-    void unbind_tensors() override {
-        _transpose->unbind_tensors();
-        _mat_mul->unbind_tensors();
-    }
 
 private:
     std::unique_ptr<ggml_qnn_op_config> _transpose;
     std::unique_ptr<ggml_qnn_op_config> _mat_mul;
+    std::vector<std::shared_ptr<ggml_qnn_tensor>> _tensor_inputs;
+    std::vector<Qnn_Tensor_t> _qnn_tensor_inputs;
 
     DISABLE_COPY(ggml_qnn_matmul_op_config);
     DISABLE_MOVE(ggml_qnn_matmul_op_config);
