@@ -15,7 +15,6 @@
 
 namespace qnn {
 
-using ggml_tensor_array_t = std::vector<ggml_tensor *>;
 using ggml_dimension_array_t = int64_t[GGML_MAX_DIMS];
 
 class ggml_qnn_tensor {
@@ -31,7 +30,7 @@ public:
         QNN_TENSOR_SET_TYPE(_qnn_tensor, QNN_TENSOR_TYPE_NATIVE);
         QNN_TENSOR_SET_DATA_FORMAT(_qnn_tensor, QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER);
         update_params_from_ggml_tensor(tensor_type, dimensions, data_type, rank);
-        QNN_LOG_DEBUG("create tensor %s, device: %d", _tensor_name.c_str(), device);
+        QNN_LOG_DEBUG("create tensor %s, type: %d, device: %d", _tensor_name.c_str(), (int)tensor_type, (int)device);
     }
 
     ~ggml_qnn_tensor() { _qnn_rpc_buffer.reset(); }

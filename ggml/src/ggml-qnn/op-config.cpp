@@ -4,21 +4,9 @@
 
 #include "logger.hpp"
 
-namespace qnn {
+namespace {
 
-void ggml_qnn_single_op_config::add_scalar_param(const std::string &name, const Qnn_Scalar_t scalar) {
-    _param_names.push_back(name);
-    Qnn_Param_t param = QNN_PARAM_INIT;
-    param.paramType = QNN_PARAMTYPE_SCALAR;
-    param.name = _param_names.back().c_str();
-    param.scalarParam = scalar;
-    _parameters.push_back(param);
-}
-
-bool ggml_qnn_single_op_config::create_tensors(QNNBackend device, Qnn_GraphHandle_t graph_handle,
-                                               std::shared_ptr<qnn_instance> qnn_instance,
-                                               const ggml_tensor_array_t &tensor_inputs,
-                                               const ggml_tensor_array_t &tensor_outputs) {
+int get_rank(const qnn::ggml_tensor_array_t &tensor_inputs, const qnn::ggml_tensor_array_t &tensor_outputs) {
     int tensor_rank = 0;
     // get the max tensor rank
     for (auto tensor : tensor_inputs) {
@@ -28,31 +16,44 @@ bool ggml_qnn_single_op_config::create_tensors(QNNBackend device, Qnn_GraphHandl
         tensor_rank = std::max(tensor_rank, ggml_n_dims(tensor));
     }
 
-    _tensor_inputs.resize(tensor_inputs.size());
-    _qnn_tensor_inputs.resize(tensor_inputs.size());
-    char buffer[GGML_MAX_NAME] = {};
-    for (size_t i = 0; i < tensor_inputs.size(); i++) {
-        snprintf(buffer, GGML_MAX_NAME, "src%d", (int)i);
-        auto *ggml_tensor = tensor_inputs[i];
-        _tensor_inputs[i] =
-            std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::INPUT, std::string(buffer), ggml_tensor->ne,
-                                              ggml_tensor->type, tensor_rank, device, graph_handle, qnn_instance);
-    }
-
-    _tensor_outputs.resize(tensor_outputs.size());
-    _qnn_tensor_outputs.resize(tensor_outputs.size());
-    for (size_t i = 0; i < tensor_outputs.size(); i++) {
-        snprintf(buffer, GGML_MAX_NAME, "dst%d", (int)i);
-        auto *ggml_tensor = tensor_outputs[i];
-        _tensor_outputs[i] =
-            std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::OUTPUT, std::string(buffer), ggml_tensor->ne,
-                                              ggml_tensor->type, tensor_rank, device, graph_handle, qnn_instance);
-    }
-
-    return true;
+    return tensor_rank;
 }
 
-bool ggml_qnn_single_op_config::add_nodes(Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn_instance> qnn_instance) {
+void create_tensors_from_ggml_tensor(const std::string &prefix, int tensor_rank, bool is_input, QNNBackend device,
+                                     Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn::qnn_instance> qnn_instance,
+                                     const qnn::ggml_tensor_array_t &ggml_tensors,
+                                     std::vector<std::shared_ptr<qnn::ggml_qnn_tensor>> &tensor_wrappers,
+                                     std::vector<Qnn_Tensor_t> &qnn_tensors) {
+    using namespace qnn;
+
+    tensor_wrappers.resize(ggml_tensors.size());
+    qnn_tensors.resize(ggml_tensors.size());
+    char buffer[GGML_MAX_NAME] = {};
+    auto tensor_type = is_input ? ggml_qnn_tensor::INPUT : ggml_qnn_tensor::OUTPUT;
+    for (size_t i = 0; i < ggml_tensors.size(); i++) {
+        snprintf(buffer, GGML_MAX_NAME, "%s%d", prefix.c_str(), (int)i);
+        auto *ggml_tensor = ggml_tensors[i];
+        tensor_wrappers[i] =
+            std::make_shared<ggml_qnn_tensor>(tensor_type, std::string(buffer), ggml_tensor->ne, ggml_tensor->type,
+                                              tensor_rank, device, graph_handle, qnn_instance);
+    }
+}
+
+} // namespace
+
+namespace qnn {
+
+void ggml_qnn_op_config_base::add_scalar_param(const std::string &name, const Qnn_Scalar_t scalar) {
+    _param_names.push_back(name);
+    Qnn_Param_t param = QNN_PARAM_INIT;
+    param.paramType = QNN_PARAMTYPE_SCALAR;
+    param.name = _param_names.back().c_str();
+    param.scalarParam = scalar;
+    _parameters.push_back(param);
+}
+
+bool ggml_qnn_op_config_base::add_op_to_graph(Qnn_GraphHandle_t graph_handle,
+                                              std::shared_ptr<qnn_instance> qnn_instance) {
     auto qnn_interface = qnn_instance->get_qnn_interface();
 
     for (size_t i = 0; i < _tensor_inputs.size(); i++) {
@@ -88,8 +89,8 @@ bool ggml_qnn_single_op_config::add_nodes(Qnn_GraphHandle_t graph_handle, std::s
     return true;
 }
 
-bool ggml_qnn_single_op_config::bind_tensors(const ggml_tensor_array_t &tensor_inputs,
-                                             const ggml_tensor_array_t &tensor_outputs) {
+bool ggml_qnn_op_config_base::bind_tensors(const ggml_tensor_array_t &tensor_inputs,
+                                           const ggml_tensor_array_t &tensor_outputs) {
     GGML_ASSERT(tensor_inputs.size() == _tensor_inputs.size());
     GGML_ASSERT(tensor_outputs.size() == _tensor_outputs.size());
     for (size_t i = 0; i < tensor_inputs.size(); i++) {
@@ -115,7 +116,7 @@ bool ggml_qnn_single_op_config::bind_tensors(const ggml_tensor_array_t &tensor_i
     return true;
 }
 
-void ggml_qnn_single_op_config::unbind_tensors() {
+void ggml_qnn_op_config_base::unbind_tensors() {
     for (auto tensor : _tensor_inputs) {
         tensor->unbind_ggml_tensor();
     }
@@ -125,7 +126,7 @@ void ggml_qnn_single_op_config::unbind_tensors() {
     }
 }
 
-Qnn_OpConfig_t ggml_qnn_single_op_config::get_op_config() {
+Qnn_OpConfig_t ggml_qnn_op_config_base::get_op_config() {
     Qnn_OpConfig_t config = QNN_OPCONFIG_INIT;
     config.version = QNN_OPCONFIG_VERSION_1;
     auto &op_config = config.v1;
@@ -139,6 +140,25 @@ Qnn_OpConfig_t ggml_qnn_single_op_config::get_op_config() {
     op_config.numOfOutputs = (uint32_t)_qnn_tensor_outputs.size();
     op_config.outputTensors = _qnn_tensor_outputs.data();
     return config;
+}
+
+bool ggml_qnn_single_op_config::create_tensors(QNNBackend device, Qnn_GraphHandle_t graph_handle,
+                                               std::shared_ptr<qnn_instance> qnn_instance,
+                                               const ggml_tensor_array_t &tensor_inputs,
+                                               const ggml_tensor_array_t &tensor_outputs) {
+    const auto tensor_rank = get_rank(tensor_inputs, tensor_outputs);
+    create_tensors_from_ggml_tensor("src", tensor_rank, true, device, graph_handle, qnn_instance, tensor_inputs,
+                                    _tensor_inputs, _qnn_tensor_inputs);
+    create_tensors_from_ggml_tensor("dst", tensor_rank, false, device, graph_handle, qnn_instance, tensor_outputs,
+                                    _tensor_outputs, _qnn_tensor_outputs);
+    return true;
+}
+
+bool ggml_qnn_matmul_op_config::create_tensors(QNNBackend device, Qnn_GraphHandle_t graph_handle,
+                                               std::shared_ptr<qnn_instance> qnn_instance,
+                                               const ggml_tensor_array_t &tensor_inputs,
+                                               const ggml_tensor_array_t &tensor_outputs) {
+    return true;
 }
 
 } // namespace qnn

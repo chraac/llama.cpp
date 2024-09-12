@@ -96,7 +96,7 @@ public:
             return false;
         }
 
-        if (!_op_config->add_nodes(_graph_handle, _qnn_instance)) {
+        if (!_op_config->add_op_to_graph(_graph_handle, _qnn_instance)) {
             QNN_LOG_ERROR("graph name %s, add nodes failed\n", _graph_name.c_str());
             return false;
         }
