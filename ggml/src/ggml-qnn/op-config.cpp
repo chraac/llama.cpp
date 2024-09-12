@@ -19,8 +19,15 @@ int get_rank(const qnn::ggml_tensor_array_t &tensor_inputs, const qnn::ggml_tens
     return tensor_rank;
 }
 
-void create_tensors_from_ggml_tensor(const std::string &prefix, int tensor_rank, bool is_input, QNNBackend device,
-                                     Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn::qnn_instance> qnn_instance,
+struct tensor_common_params {
+    const char *name_prefix;
+    int tensor_rank;
+    QNNBackend device;
+    Qnn_GraphHandle_t graph_handle;
+    std::shared_ptr<qnn::qnn_instance> qnn_instance;
+};
+
+void create_tensors_from_ggml_tensor(bool is_input, const tensor_common_params &params,
                                      const qnn::ggml_tensor_array_t &ggml_tensors,
                                      std::vector<std::shared_ptr<qnn::ggml_qnn_tensor>> &tensor_wrappers,
                                      std::vector<Qnn_Tensor_t> &qnn_tensors) {
@@ -31,11 +38,11 @@ void create_tensors_from_ggml_tensor(const std::string &prefix, int tensor_rank,
     char buffer[GGML_MAX_NAME] = {};
     auto tensor_type = is_input ? ggml_qnn_tensor::INPUT : ggml_qnn_tensor::OUTPUT;
     for (size_t i = 0; i < ggml_tensors.size(); i++) {
-        snprintf(buffer, GGML_MAX_NAME, "%s%d", prefix.c_str(), (int)i);
+        snprintf(buffer, GGML_MAX_NAME, "%s%d", params.name_prefix, (int)i);
         auto *ggml_tensor = ggml_tensors[i];
-        tensor_wrappers[i] =
-            std::make_shared<ggml_qnn_tensor>(tensor_type, std::string(buffer), ggml_tensor->ne, ggml_tensor->type,
-                                              tensor_rank, device, graph_handle, qnn_instance);
+        tensor_wrappers[i] = std::make_shared<ggml_qnn_tensor>(tensor_type, std::string(buffer), ggml_tensor->ne,
+                                                               ggml_tensor->type, params.tensor_rank, params.device,
+                                                               params.graph_handle, params.qnn_instance);
     }
 }
 
@@ -147,10 +154,10 @@ bool ggml_qnn_single_op_config::create_tensors(QNNBackend device, Qnn_GraphHandl
                                                const ggml_tensor_array_t &tensor_inputs,
                                                const ggml_tensor_array_t &tensor_outputs) {
     const auto tensor_rank = get_rank(tensor_inputs, tensor_outputs);
-    create_tensors_from_ggml_tensor("src", tensor_rank, true, device, graph_handle, qnn_instance, tensor_inputs,
-                                    _tensor_inputs, _qnn_tensor_inputs);
-    create_tensors_from_ggml_tensor("dst", tensor_rank, false, device, graph_handle, qnn_instance, tensor_outputs,
-                                    _tensor_outputs, _qnn_tensor_outputs);
+    tensor_common_params params = { "src", tensor_rank, device, graph_handle, qnn_instance };
+    create_tensors_from_ggml_tensor(true, params, tensor_inputs, _tensor_inputs, _qnn_tensor_inputs);
+    params.name_prefix = "dst";
+    create_tensors_from_ggml_tensor(false, params, tensor_outputs, _tensor_outputs, _qnn_tensor_outputs);
     return true;
 }
 
