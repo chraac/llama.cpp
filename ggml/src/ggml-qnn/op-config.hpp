@@ -12,6 +12,7 @@
 namespace qnn {
 
 using ggml_tensor_array_t = std::vector<ggml_tensor *>;
+using ggml_qnn_tensor_array_t = std::vector<std::shared_ptr<ggml_qnn_tensor>>;
 
 class ggml_qnn_op_config {
 public:
@@ -49,8 +50,8 @@ protected:
     std::string _name;
     std::string _package_name;
     std::string _op_type;
-    std::vector<std::shared_ptr<ggml_qnn_tensor>> _tensor_inputs;
-    std::vector<std::shared_ptr<ggml_qnn_tensor>> _tensor_outputs;
+    ggml_qnn_tensor_array_t _tensor_inputs;
+    ggml_qnn_tensor_array_t _tensor_outputs;
     std::vector<Qnn_Tensor_t> _qnn_tensor_inputs;
     std::vector<Qnn_Tensor_t> _qnn_tensor_outputs;
     std::vector<Qnn_Param_t> _parameters;
@@ -76,7 +77,7 @@ private:
 
 class ggml_qnn_matmul_op_config : public ggml_qnn_op_config {
 public:
-    ggml_qnn_matmul_op_config() {}
+    ggml_qnn_matmul_op_config(const std::string &name) : _name(name) {}
 
     bool create_tensors(QNNBackend device, Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn_instance> qnn_instance,
                         const ggml_tensor_array_t &tensor_inputs, const ggml_tensor_array_t &tensor_outputs) override;
@@ -89,9 +90,10 @@ public:
     std::vector<Qnn_Tensor_t> &get_qnn_output_tensors() override { return _mat_mul->get_qnn_output_tensors(); }
 
 private:
-    std::unique_ptr<ggml_qnn_op_config> _transpose;
-    std::unique_ptr<ggml_qnn_op_config> _mat_mul;
-    std::vector<std::shared_ptr<ggml_qnn_tensor>> _tensor_inputs;
+    std::string _name;
+    std::shared_ptr<ggml_qnn_op_config> _transpose;
+    std::shared_ptr<ggml_qnn_op_config> _mat_mul;
+    ggml_qnn_tensor_array_t _tensor_inputs;
     std::vector<Qnn_Tensor_t> _qnn_tensor_inputs;
 
     DISABLE_COPY(ggml_qnn_matmul_op_config);
