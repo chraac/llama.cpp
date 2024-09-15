@@ -636,7 +636,7 @@ public:
         return mem_fd;
     }
 
-    Qnn_MemHandle_t register_rpcmem(void *p_data, uint32_t rank, uint32_t *dimensions, Qnn_DataType_t data_type) {
+    Qnn_MemHandle_t register_rpcmem(void *p_data, const uint32_t rank, uint32_t *dimensions, Qnn_DataType_t data_type) {
         if (!p_data) {
             QNN_LOG_WARN("invalid param\n");
             return nullptr;

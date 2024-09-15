@@ -149,13 +149,13 @@ bool ggml_qnn_op_config_base::bind_output_tensors(const ggml_tensor_array_t &ten
 
 void ggml_qnn_op_config_base::unbind_input_tensors() {
     for (auto &tensor : _tensor_inputs) {
-        tensor->unbind_ggml_tensor();
+        tensor->unbind();
     }
 }
 
 void ggml_qnn_op_config_base::unbind_output_tensors() {
     for (auto &tensor : _tensor_outputs) {
-        tensor->unbind_ggml_tensor();
+        tensor->unbind();
     }
 }
 
