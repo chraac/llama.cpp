@@ -20,7 +20,7 @@ using ggml_qnn_dimension_array_t = int64_t[GGML_MAX_DIMS];
 
 class ggml_qnn_tensor {
 public:
-    typedef enum _tensor_type { INPUT, OUTPUT, INTERMEDIATE } tensor_type_t;
+    typedef enum _tensor_type { INPUT, OUTPUT, INTERMEDIATE, PARAMETER } tensor_type_t;
 
     explicit ggml_qnn_tensor(tensor_type_t tensor_type, const std::string &name,
                              const ggml_qnn_dimension_array_t &dimensions, ggml_type data_type, int rank,
@@ -217,6 +217,9 @@ private:
                 break;
             case OUTPUT:
                 new_tensor_type = QNN_TENSOR_TYPE_APP_READ;
+                break;
+            case PARAMETER:
+                new_tensor_type = QNN_TENSOR_TYPE_STATIC;
                 break;
             default:
                 new_tensor_type = QNN_TENSOR_TYPE_NATIVE;
