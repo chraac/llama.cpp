@@ -62,15 +62,15 @@ bool bind_tensors(const qnn::ggml_tensor_array_t &ggml_tensors, qnn::ggml_qnn_te
 class ggml_qnn_connectable_op_config : public qnn::ggml_qnn_op_config_base {
 public:
     explicit ggml_qnn_connectable_op_config(const std::string &name, const std::string &package_name,
-                                            const std::string &op_type) :
-        ggml_qnn_op_config_base(name, package_name, op_type) {}
+                                            const std::string &op_type,
+                                            std::shared_ptr<qnn::qnn_instance> qnn_instance) :
+        ggml_qnn_op_config_base(name, package_name, op_type, qnn_instance) {}
 
     bool create_tensors(QNNBackend device, Qnn_GraphHandle_t graph_handle,
-                        std::shared_ptr<qnn::qnn_instance> qnn_instance, const qnn::ggml_tensor_array_t &tensor_inputs,
+                        const qnn::ggml_tensor_array_t &tensor_inputs,
                         const qnn::ggml_tensor_array_t &tensor_outputs) override {
         GGML_UNUSED(device);
         GGML_UNUSED(graph_handle);
-        GGML_UNUSED(qnn_instance);
         GGML_UNUSED(tensor_inputs);
         GGML_UNUSED(tensor_outputs);
         return true;
@@ -97,41 +97,42 @@ void ggml_qnn_op_config_base::add_scalar_param(const std::string &name, const Qn
     param.paramType = QNN_PARAMTYPE_SCALAR;
     param.name = _param_names.back().c_str();
     param.scalarParam = scalar;
-    _scalar_parameters.push_back(param);
+    _qnn_parameters.push_back(param);
 }
 
-bool ggml_qnn_op_config_base::add_tensor_param(const std::string &name, const std::vector<uint32_t> &dims,
-                                               const uint8_t *data, const ggml_type data_type, QNNBackend device,
-                                               Qnn_GraphHandle_t graph_handle,
-                                               std::shared_ptr<qnn_instance> qnn_instance) {
-    ggml_qnn_dimension_array_t dimensions;
-    for (size_t i = 0; i < GGML_MAX_DIMS; i++) {
-        dimensions[i] = i < dims.size() ? dims[i] : 1;
-    }
-
-    auto param_tensor = std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::PARAMETER, name, dimensions, data_type,
-                                                          (int)dims.size(), device, graph_handle, qnn_instance);
+bool ggml_qnn_op_config_base::add_tensor_param(const std::string &name, const ggml_qnn_dimension_array_t &dimensions,
+                                               int rank, const uint8_t *data, const ggml_type data_type,
+                                               QNNBackend device, Qnn_GraphHandle_t graph_handle) {
+    auto param_tensor = std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::PARAMETER, name + "_tensor", dimensions,
+                                                          data_type, rank, device, graph_handle, _qnn_instance);
     if (!param_tensor->alloc_qnn_tensor_id()) {
         QNN_LOG_ERROR("parameter tensor alloc_qnn_tensor_id failed\n");
         return false;
     }
 
     size_t data_size = ggml_type_size(data_type);
-    for (auto dim : dims) {
-        data_size *= dim;
+    for (int i = 0; i < rank; i++) {
+        data_size *= dimensions[i];
     }
 
+    GGML_ASSERT(data_size > 0);
     if (!param_tensor->bind_buffer(const_cast<uint8_t *>(data), data_size)) {
         QNN_LOG_ERROR("parameter tensor bind_buffer failed\n");
         return false;
     }
 
+    _tensor_parameters.push_back(param_tensor);
+    _param_names.push_back(name);
+    Qnn_Param_t param = QNN_PARAM_INIT;
+    param.paramType = QNN_PARAMTYPE_TENSOR;
+    param.name = _param_names.back().c_str();
+    param.tensorParam = param_tensor->get_qnn_tensor();
+    _qnn_parameters.push_back(param);
     return true;
 }
 
-bool ggml_qnn_op_config_base::add_op_to_graph(Qnn_GraphHandle_t graph_handle,
-                                              std::shared_ptr<qnn_instance> qnn_instance) {
-    auto qnn_interface = qnn_instance->get_qnn_interface();
+bool ggml_qnn_op_config_base::add_op_to_graph(Qnn_GraphHandle_t graph_handle) {
+    auto qnn_interface = _qnn_instance->get_qnn_interface();
 
     for (size_t i = 0; i < _tensor_inputs.size(); i++) {
         auto tensor = _tensor_inputs[i];
@@ -195,8 +196,8 @@ Qnn_OpConfig_t ggml_qnn_op_config_base::get_op_config() {
     op_config.name = _name.c_str();
     op_config.packageName = _package_name.c_str();
     op_config.typeName = _op_type.c_str();
-    op_config.numOfParams = (uint32_t)_scalar_parameters.size();
-    op_config.params = _scalar_parameters.data();
+    op_config.numOfParams = (uint32_t)_qnn_parameters.size();
+    op_config.params = _qnn_parameters.data();
     op_config.numOfInputs = (uint32_t)_qnn_tensor_inputs.size();
     op_config.inputTensors = _qnn_tensor_inputs.data();
     op_config.numOfOutputs = (uint32_t)_qnn_tensor_outputs.size();
@@ -205,11 +206,10 @@ Qnn_OpConfig_t ggml_qnn_op_config_base::get_op_config() {
 }
 
 bool ggml_qnn_single_op_config::create_tensors(QNNBackend device, Qnn_GraphHandle_t graph_handle,
-                                               std::shared_ptr<qnn_instance> qnn_instance,
                                                const ggml_tensor_array_t &tensor_inputs,
                                                const ggml_tensor_array_t &tensor_outputs) {
     const auto tensor_rank = get_rank(tensor_inputs, tensor_outputs);
-    tensor_common_params params = { "src", tensor_rank, device, graph_handle, qnn_instance };
+    tensor_common_params params = { "src", tensor_rank, device, graph_handle, _qnn_instance };
     create_tensors_from_ggml_tensor(params, true, tensor_inputs, _tensor_inputs, _qnn_tensor_inputs);
     params.name_prefix = "dst";
     create_tensors_from_ggml_tensor(params, false, tensor_outputs, _tensor_outputs, _qnn_tensor_outputs);
@@ -217,11 +217,10 @@ bool ggml_qnn_single_op_config::create_tensors(QNNBackend device, Qnn_GraphHandl
 }
 
 bool ggml_qnn_matmul_op_config::create_tensors(QNNBackend device, Qnn_GraphHandle_t graph_handle,
-                                               std::shared_ptr<qnn_instance> qnn_instance,
                                                const ggml_tensor_array_t &tensor_inputs,
                                                const ggml_tensor_array_t &tensor_outputs) {
     const auto tensor_rank = get_rank(tensor_inputs, tensor_outputs);
-    tensor_common_params params = { "src", tensor_rank, device, graph_handle, qnn_instance };
+    tensor_common_params params = { "src", tensor_rank, device, graph_handle, _qnn_instance };
     create_tensors_from_ggml_tensor(params, true, tensor_inputs, _tensor_inputs, _qnn_tensor_inputs);
 
     // create intermediate tensor
@@ -235,18 +234,18 @@ bool ggml_qnn_matmul_op_config::create_tensors(QNNBackend device, Qnn_GraphHandl
     };
     auto intermediate_tensor =
         std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::INTERMEDIATE, "intermediate", dimensions,
-                                          first_ggml_tensor->type, tensor_rank, device, graph_handle, qnn_instance);
+                                          first_ggml_tensor->type, tensor_rank, device, graph_handle, _qnn_instance);
 
     // create mat_mul
-    auto mat_mul =
-        std::make_shared<ggml_qnn_connectable_op_config>(_name, QNN_OP_PACKAGE_NAME_QTI_AISW, QNN_OP_MAT_MUL);
+    auto mat_mul = std::make_shared<ggml_qnn_connectable_op_config>(_name, QNN_OP_PACKAGE_NAME_QTI_AISW, QNN_OP_MAT_MUL,
+                                                                    _qnn_instance);
     params.name_prefix = "dst";
     create_tensors_from_ggml_tensor(params, false, tensor_outputs, mat_mul->get_output_tensors(),
                                     mat_mul->get_qnn_output_tensors());
 
     // create transpose
     auto transpose = std::make_shared<ggml_qnn_connectable_op_config>(_name + "_trans", QNN_OP_PACKAGE_NAME_QTI_AISW,
-                                                                      QNN_OP_TRANSPOSE);
+                                                                      QNN_OP_TRANSPOSE, _qnn_instance);
 
     // set transpose parameters
     transpose->add_scalar_param("perm", QNN_SCALAR_INIT);
@@ -267,10 +266,8 @@ bool ggml_qnn_matmul_op_config::create_tensors(QNNBackend device, Qnn_GraphHandl
     return true;
 }
 
-bool ggml_qnn_matmul_op_config::add_op_to_graph(Qnn_GraphHandle_t graph_handle,
-                                                std::shared_ptr<qnn_instance> qnn_instance) {
-    return _transpose->add_op_to_graph(graph_handle, qnn_instance) &&
-           _mat_mul->add_op_to_graph(graph_handle, qnn_instance);
+bool ggml_qnn_matmul_op_config::add_op_to_graph(Qnn_GraphHandle_t graph_handle) {
+    return _transpose->add_op_to_graph(graph_handle) && _mat_mul->add_op_to_graph(graph_handle);
 }
 
 bool ggml_qnn_matmul_op_config::bind_input_tensors(const ggml_tensor_array_t &tensor_inputs) {

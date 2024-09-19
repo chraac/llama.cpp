@@ -16,6 +16,7 @@
 
 namespace qnn {
 
+static_assert(GGML_MAX_DIMS == 4, "GGML_MAX_DIMS should be 4");
 using ggml_qnn_dimension_array_t = int64_t[GGML_MAX_DIMS];
 
 class ggml_qnn_tensor {
@@ -197,10 +198,21 @@ private:
 
     void update_params_from_ggml_tensor(tensor_type_t tensor_type, const ggml_qnn_dimension_array_t &dimensions,
                                         ggml_type data_type, int rank) {
-        _dimensions[0] = (uint32_t)dimensions[0];
-        _dimensions[1] = (uint32_t)dimensions[1];
-        _dimensions[2] = (uint32_t)dimensions[2];
-        _dimensions[3] = (uint32_t)dimensions[3];
+        GGML_ASSERT(rank <= GGML_MAX_DIMS && rank > 0);
+        switch (rank) {
+            case 4:
+                _dimensions[3] = (uint32_t)(dimensions[3] ? dimensions[3] : 1);
+                // fall through
+            case 3:
+                _dimensions[2] = (uint32_t)(dimensions[2] ? dimensions[2] : 1);
+                // fall through
+            case 2:
+                _dimensions[1] = (uint32_t)(dimensions[1] ? dimensions[1] : 1);
+                // fall through
+            case 1:
+                _dimensions[0] = (uint32_t)dimensions[0];
+                break;
+        }
         QNN_TENSOR_SET_DATA_TYPE(_qnn_tensor, device_datatype_from_ggml_datatype(data_type));
 
         // TODO: set the quantizeParams base on the tensor type

@@ -15,7 +15,8 @@
 
 namespace qnn {
 
-using ggml_op_constructor_t = std::function<std::unique_ptr<qnn::ggml_qnn_op_config>(const std::string &)>;
+using ggml_op_constructor_t =
+    std::function<std::unique_ptr<qnn::ggml_qnn_op_config>(const std::string &, std::shared_ptr<qnn::qnn_instance>)>;
 
 class ggml_qnn_graph {
 public:
@@ -90,13 +91,13 @@ public:
         }
 
         QNN_LOG_DEBUG("graph name %s, build_graph start", _graph_name.c_str());
-        _op_config = op_constructor(_graph_name);
-        if (!_op_config->create_tensors(_device, _graph_handle, _qnn_instance, tensor_inputs, tensor_outputs)) {
+        _op_config = op_constructor(_graph_name, _qnn_instance);
+        if (!_op_config->create_tensors(_device, _graph_handle, tensor_inputs, tensor_outputs)) {
             QNN_LOG_ERROR("graph name %s, create_tensors failed\n", _graph_name.c_str());
             return false;
         }
 
-        if (!_op_config->add_op_to_graph(_graph_handle, _qnn_instance)) {
+        if (!_op_config->add_op_to_graph(_graph_handle)) {
             QNN_LOG_ERROR("graph name %s, add nodes failed\n", _graph_name.c_str());
             return false;
         }
