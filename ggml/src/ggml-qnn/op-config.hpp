@@ -36,6 +36,9 @@ public:
         _name(name), _package_name(package_name), _op_type(op_type) {}
 
     void add_scalar_param(const std::string &name, const Qnn_Scalar_t scalar);
+    bool add_tensor_param(const std::string &name, const std::vector<uint32_t> &dims, const uint8_t *data,
+                          const ggml_type data_type, QNNBackend device, Qnn_GraphHandle_t graph_handle,
+                          std::shared_ptr<qnn_instance> qnn_instance);
     bool add_op_to_graph(Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn_instance> qnn_instance) override;
     bool bind_input_tensors(const ggml_tensor_array_t &tensor_inputs) override;
     bool bind_output_tensors(const ggml_tensor_array_t &tensor_outputs) override;
@@ -54,7 +57,8 @@ protected:
     ggml_qnn_tensor_array_t _tensor_outputs;
     std::vector<Qnn_Tensor_t> _qnn_tensor_inputs;
     std::vector<Qnn_Tensor_t> _qnn_tensor_outputs;
-    std::vector<Qnn_Param_t> _parameters;
+    ggml_qnn_tensor_array_t _tensor_parameters;
+    std::vector<Qnn_Param_t> _scalar_parameters;
     std::vector<std::string> _param_names;
 
     DISABLE_COPY(ggml_qnn_op_config_base);

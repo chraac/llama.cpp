@@ -97,7 +97,36 @@ void ggml_qnn_op_config_base::add_scalar_param(const std::string &name, const Qn
     param.paramType = QNN_PARAMTYPE_SCALAR;
     param.name = _param_names.back().c_str();
     param.scalarParam = scalar;
-    _parameters.push_back(param);
+    _scalar_parameters.push_back(param);
+}
+
+bool ggml_qnn_op_config_base::add_tensor_param(const std::string &name, const std::vector<uint32_t> &dims,
+                                               const uint8_t *data, const ggml_type data_type, QNNBackend device,
+                                               Qnn_GraphHandle_t graph_handle,
+                                               std::shared_ptr<qnn_instance> qnn_instance) {
+    ggml_qnn_dimension_array_t dimensions;
+    for (size_t i = 0; i < GGML_MAX_DIMS; i++) {
+        dimensions[i] = i < dims.size() ? dims[i] : 1;
+    }
+
+    auto param_tensor = std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::PARAMETER, name, dimensions, data_type,
+                                                          (int)dims.size(), device, graph_handle, qnn_instance);
+    if (!param_tensor->alloc_qnn_tensor_id()) {
+        QNN_LOG_ERROR("parameter tensor alloc_qnn_tensor_id failed\n");
+        return false;
+    }
+
+    size_t data_size = ggml_type_size(data_type);
+    for (auto dim : dims) {
+        data_size *= dim;
+    }
+
+    if (!param_tensor->bind_buffer(const_cast<uint8_t *>(data), data_size)) {
+        QNN_LOG_ERROR("parameter tensor bind_buffer failed\n");
+        return false;
+    }
+
+    return true;
 }
 
 bool ggml_qnn_op_config_base::add_op_to_graph(Qnn_GraphHandle_t graph_handle,
@@ -166,8 +195,8 @@ Qnn_OpConfig_t ggml_qnn_op_config_base::get_op_config() {
     op_config.name = _name.c_str();
     op_config.packageName = _package_name.c_str();
     op_config.typeName = _op_type.c_str();
-    op_config.numOfParams = (uint32_t)_parameters.size();
-    op_config.params = _parameters.data();
+    op_config.numOfParams = (uint32_t)_scalar_parameters.size();
+    op_config.params = _scalar_parameters.data();
     op_config.numOfInputs = (uint32_t)_qnn_tensor_inputs.size();
     op_config.inputTensors = _qnn_tensor_inputs.data();
     op_config.numOfOutputs = (uint32_t)_qnn_tensor_outputs.size();
