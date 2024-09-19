@@ -248,7 +248,10 @@ bool ggml_qnn_matmul_op_config::create_tensors(QNNBackend device, Qnn_GraphHandl
                                                                       QNN_OP_TRANSPOSE, _qnn_instance);
 
     // set transpose parameters
-    transpose->add_scalar_param("perm", QNN_SCALAR_INIT);
+    const ggml_qnn_dimension_array_t param_dims = { tensor_rank };
+    const int32_t param_data[GGML_MAX_DIMS] = { 1, 0, 2, 3 };
+    transpose->add_tensor_param(QNN_OP_TRANSPOSE_PARAM_PERM, param_dims, 1,
+                                reinterpret_cast<const uint8_t *>(param_data), GGML_TYPE_I32, device, graph_handle);
 
     // set tensor to transpose and mat_mul
     // the graph here will look like:
