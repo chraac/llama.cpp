@@ -124,29 +124,6 @@ std::string get_graph_key(const std::string &op_name, const std::array<ggml_tens
     return graph_key;
 }
 
-qnn::ggml_op_constructor_t generate_common_op_constructor(const std::string &op_name) {
-    if (op_name == QNN_OP_MAT_MUL) {
-        // For QNN_OP_MAT_MUL, we need to transpose the input tensor
-        return [](const std::string &name,
-                  std::shared_ptr<qnn::qnn_instance> qnn_instance) -> std::unique_ptr<qnn::ggml_qnn_op_config> {
-            auto config = std::make_unique<qnn::ggml_qnn_single_op_config>(name, QNN_OP_PACKAGE_NAME_QTI_AISW,
-                                                                           QNN_OP_MAT_MUL, qnn_instance);
-            Qnn_Scalar_t scalar = QNN_SCALAR_INIT;
-            scalar.dataType = QNN_DATATYPE_BOOL_8;
-            scalar.bool8Value = true;
-            config->add_scalar_param(QNN_OP_MAT_MUL_PARAM_TRANSPOSE_IN0, scalar);
-            QNN_LOG_DEBUG("add scalar param %s\n", QNN_OP_MAT_MUL_PARAM_TRANSPOSE_IN0);
-            return config;
-        };
-    }
-
-    return [op_name](const std::string &name,
-                     std::shared_ptr<qnn::qnn_instance> qnn_instance) -> std::unique_ptr<qnn::ggml_qnn_op_config> {
-        return std::make_unique<qnn::ggml_qnn_single_op_config>(name, QNN_OP_PACKAGE_NAME_QTI_AISW, op_name,
-                                                                qnn_instance);
-    };
-}
-
 constexpr const char *kGgmlOpToQnnOp[] = {
     nullptr,                         // GGML_OP_NONE
     nullptr,                         // GGML_OP_DUP
@@ -280,7 +257,7 @@ qnn::ggml_qnn_graph *get_qnn_graph_from_cache(ggml_backend_qnn_context *ctx, siz
             return nullptr;
         }
 
-        auto op_constructor = generate_common_op_constructor(kGgmlOpToQnnOp[op]);
+        auto op_constructor = qnn::create_op_constructor(kGgmlOpToQnnOp[op]);
         if (!graph->build_graph(op_constructor, to_ggml_tensor_array<_InputSize>(inputs),
                                 to_ggml_tensor_array<_OutputSize>(outputs))) {
             QNN_LOG_ERROR("build_graph failed\n");

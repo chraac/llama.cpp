@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -106,5 +107,10 @@ private:
     DISABLE_COPY(ggml_qnn_matmul_op_config);
     DISABLE_MOVE(ggml_qnn_matmul_op_config);
 };
+
+using ggml_op_constructor_t =
+    std::function<std::unique_ptr<qnn::ggml_qnn_op_config>(const std::string &, std::shared_ptr<qnn::qnn_instance>)>;
+
+ggml_op_constructor_t create_op_constructor(const std::string &op_name);
 
 } // namespace qnn

@@ -2,7 +2,6 @@
 #pragma once
 
 #include <cstdio>
-#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -14,9 +13,6 @@
 #include "qnn-lib.hpp"
 
 namespace qnn {
-
-using ggml_op_constructor_t =
-    std::function<std::unique_ptr<qnn::ggml_qnn_op_config>(const std::string &, std::shared_ptr<qnn::qnn_instance>)>;
 
 class ggml_qnn_graph {
 public:
