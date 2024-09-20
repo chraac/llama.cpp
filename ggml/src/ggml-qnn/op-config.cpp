@@ -107,11 +107,6 @@ bool ggml_qnn_op_config_base::add_tensor_param(const std::string &name, const gg
                                                QNNBackend device, Qnn_GraphHandle_t graph_handle) {
     auto param_tensor = std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::PARAMETER, name + "_tensor", dimensions,
                                                           data_type, rank, device, graph_handle, _qnn_instance);
-    if (!param_tensor->alloc_qnn_tensor_id()) {
-        QNN_LOG_ERROR("parameter tensor alloc_qnn_tensor_id failed\n");
-        return false;
-    }
-
     size_t data_size = ggml_type_size(data_type);
     for (int i = 0; i < rank; i++) {
         data_size *= dimensions[i];
@@ -120,6 +115,11 @@ bool ggml_qnn_op_config_base::add_tensor_param(const std::string &name, const gg
     GGML_ASSERT(data_size > 0);
     if (!param_tensor->bind_buffer(const_cast<uint8_t *>(data), data_size)) {
         QNN_LOG_ERROR("parameter tensor bind_buffer failed\n");
+        return false;
+    }
+
+    if (!param_tensor->alloc_qnn_tensor_id()) {
+        QNN_LOG_ERROR("parameter tensor alloc_qnn_tensor_id failed\n");
         return false;
     }
 
@@ -298,14 +298,8 @@ ggml_op_constructor_t create_op_constructor(const std::string &op_name) {
         // For QNN_OP_MAT_MUL, we need to transpose the input tensor
         return [](const std::string &instance_name,
                   std::shared_ptr<qnn::qnn_instance> qnn_instance) -> std::unique_ptr<qnn::ggml_qnn_op_config> {
-            auto config = std::make_unique<qnn::ggml_qnn_single_op_config>(instance_name, QNN_OP_PACKAGE_NAME_QTI_AISW,
-                                                                           QNN_OP_MAT_MUL, qnn_instance);
-            Qnn_Scalar_t scalar = QNN_SCALAR_INIT;
-            scalar.dataType = QNN_DATATYPE_BOOL_8;
-            scalar.bool8Value = true;
-            config->add_scalar_param(QNN_OP_MAT_MUL_PARAM_TRANSPOSE_IN0, scalar);
-            QNN_LOG_DEBUG("add scalar param %s\n", QNN_OP_MAT_MUL_PARAM_TRANSPOSE_IN0);
-            return config;
+            QNN_LOG_DEBUG("create QNN_OP_MAT_MUL, name %s\n", instance_name.c_str());
+            return std::make_unique<qnn::ggml_qnn_matmul_op_config>(instance_name, qnn_instance);
         };
     }
 

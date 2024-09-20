@@ -241,7 +241,9 @@ private:
         QNN_LOG_INFO("tensor %s changed to type %d", _tensor_name.c_str(), new_tensor_type);
     }
 
-    bool should_use_mem_handle() const { return _device == QNN_BACKEND_NPU; }
+    bool should_use_mem_handle() const {
+        return _device == QNN_BACKEND_NPU && QNN_TENSOR_GET_TYPE(_qnn_tensor) != QNN_TENSOR_TYPE_STATIC;
+    }
 
     std::string _tensor_name;
     uint8_t *_buffer = nullptr;

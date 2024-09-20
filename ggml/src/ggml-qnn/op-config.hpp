@@ -109,7 +109,7 @@ private:
 };
 
 using ggml_op_constructor_t =
-    std::function<std::unique_ptr<qnn::ggml_qnn_op_config>(const std::string &, std::shared_ptr<qnn::qnn_instance>)>;
+    std::function<std::unique_ptr<ggml_qnn_op_config>(const std::string &, std::shared_ptr<qnn_instance>)>;
 
 ggml_op_constructor_t create_op_constructor(const std::string &op_name);
 
