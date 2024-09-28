@@ -6,6 +6,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 // header file of Qualcomm QNN(Qualcomm Neural Network, aka Qualcomm AI Engine Direct) SDK
 // https://qpm.qualcomm.com/#/main/tools/details/qualcomm_ai_engine_direct
@@ -251,7 +252,7 @@ public:
         }
 
         qnn_status = QNN_SUCCESS;
-        if (_backend_name.find("Htp") != std::variant_npos) {
+        if (_backend_name.find("Htp") != _backend_name.npos) {
             const QnnDevice_PlatformInfo_t *p_info = nullptr;
             _qnn_interface->qnn_device_get_platform_info(nullptr, &p_info);
             QNN_LOG_INFO("device counts %d", p_info->v1.numHwDevices);
@@ -358,7 +359,7 @@ public:
             QNN_LOG_DEBUG("initialize qnn context successfully\n");
         }
 
-        if (_backend_name.find("Htp") != std::variant_npos) {
+        if (_backend_name.find("Htp") != _backend_name.npos) {
             // TODO: faster approach to probe the accurate capacity of rpc ion memory
             size_t candidate_size = 0;
             uint8_t *rpc_buffer = nullptr;
@@ -409,7 +410,7 @@ public:
             QNN_LOG_DEBUG("succeed to close rpcmem lib\n");
         }
 
-        if (_backend_name.find("Htp") != std::variant_npos) {
+        if (_backend_name.find("Htp") != _backend_name.npos) {
             _qnn_htp_perfinfra->destroyPowerConfigId(_qnn_power_configid);
         }
 
