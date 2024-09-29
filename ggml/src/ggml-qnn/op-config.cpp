@@ -78,8 +78,15 @@ public:
         return true;
     }
 
-    void set_input_tensors(qnn::ggml_qnn_tensor_array_t &tensor_inputs) { _tensor_inputs = tensor_inputs; }
-    void set_output_tensors(qnn::ggml_qnn_tensor_array_t &tensor_outputs) { _tensor_outputs = tensor_outputs; }
+    void set_input_tensors(qnn::ggml_qnn_tensor_array_t &tensor_inputs) {
+        _tensor_inputs = tensor_inputs;
+        _qnn_tensor_inputs.resize(tensor_inputs.size());
+    }
+
+    void set_output_tensors(qnn::ggml_qnn_tensor_array_t &tensor_outputs) {
+        _tensor_outputs = tensor_outputs;
+        _qnn_tensor_outputs.resize(tensor_outputs.size());
+    }
 
     qnn::ggml_qnn_tensor_array_t &get_input_tensors() { return _tensor_inputs; }
     qnn::ggml_qnn_tensor_array_t &get_output_tensors() { return _tensor_outputs; }
@@ -241,6 +248,8 @@ bool ggml_qnn_matmul_op_config::create_tensors(QNNBackend device, Qnn_GraphHandl
     // create mat_mul
     auto mat_mul = std::make_shared<ggml_qnn_connectable_op_config>(_name, QNN_OP_PACKAGE_NAME_QTI_AISW, QNN_OP_MAT_MUL,
                                                                     _qnn_instance);
+
+    // create output tensor of mat_mul
     params.name_prefix = "dst";
     create_tensors_from_ggml_tensor(params, false, tensor_outputs, mat_mul->get_output_tensors(),
                                     mat_mul->get_qnn_output_tensors());
