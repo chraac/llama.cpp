@@ -212,6 +212,7 @@ constexpr const char *kGgmlOpToQnnOp[] = {
 
     nullptr, // GGML_OP_CROSS_ENTROPY_LOSS
     nullptr, // GGML_OP_CROSS_ENTROPY_LOSS_BACK
+    nullptr, // GGML_OP_OPT_STEP_ADAMW
 
     // ggml_unary_op
     nullptr,     // GGML_UNARY_OP_ABS
@@ -403,6 +404,7 @@ constexpr const ggml_qnn_unary_op_t kQnnUnaryOpsTable[] = {
 
     nullptr, // GGML_OP_CROSS_ENTROPY_LOSS
     nullptr, // GGML_OP_CROSS_ENTROPY_LOSS_BACK
+    nullptr, // GGML_OP_OPT_STEP_ADAMW
 
     // ggml_unary_op
     nullptr,                                                   // GGML_UNARY_OP_ABS
@@ -512,6 +514,7 @@ static constexpr const ggml_qnn_binary_op_t kQnnBinaryOpsTable[] = {
 
     nullptr, // GGML_OP_CROSS_ENTROPY_LOSS
     nullptr, // GGML_OP_CROSS_ENTROPY_LOSS_BACK
+    nullptr, // GGML_OP_OPT_STEP_ADAMW
 };
 
 static_assert(sizeof(kQnnBinaryOpsTable) / sizeof(kQnnBinaryOpsTable[0]) == GGML_OP_COUNT,
