@@ -112,8 +112,8 @@ void ggml_qnn_op_config_base::add_scalar_param(const std::string &name, const Qn
 bool ggml_qnn_op_config_base::add_tensor_param(const std::string &name, const ggml_qnn_dimension_array_t &dimensions,
                                                int rank, const uint8_t *data, const ggml_type data_type,
                                                QNNBackend device, Qnn_GraphHandle_t graph_handle) {
-    auto param_tensor = std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::PARAMETER, name + "_tensor", dimensions,
-                                                          data_type, rank, device, graph_handle, _qnn_instance);
+    auto param_tensor = std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::PARAMETER, name, dimensions, data_type, rank,
+                                                          device, graph_handle, _qnn_instance);
     size_t data_size = ggml_type_size(data_type);
     for (int i = 0; i < rank; i++) {
         data_size *= dimensions[i];
@@ -173,6 +173,7 @@ bool ggml_qnn_op_config_base::add_op_to_graph(Qnn_GraphHandle_t graph_handle) {
         return false;
     }
 
+    QNN_LOG_DEBUG("add op: %s, to graph\n", _name.c_str());
     return true;
 }
 
@@ -259,7 +260,7 @@ bool ggml_qnn_matmul_op_config::create_tensors(QNNBackend device, Qnn_GraphHandl
                                                                       QNN_OP_TRANSPOSE, _qnn_instance);
 
     // set transpose parameters
-    const ggml_qnn_dimension_array_t param_dims = { 4, 1, 1, 1 };
+    const ggml_qnn_dimension_array_t param_dims = { tensor_rank, 1, 1, 1 };
     transpose->add_tensor_param(QNN_OP_TRANSPOSE_PARAM_PERM, param_dims, 1,
                                 reinterpret_cast<const uint8_t *>(_transpose_param_data.data()), GGML_TYPE_I32, device,
                                 graph_handle);
