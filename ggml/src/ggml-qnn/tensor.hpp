@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <cstddef>
@@ -199,17 +200,34 @@ private:
 
     void update_params_from_ggml_tensor(tensor_type_t tensor_type, const ggml_qnn_dimension_array_t &dimensions,
                                         ggml_type data_type, int rank) {
+        static_assert(GGML_MAX_DIMS == 4, "GGML_MAX_DIMS should be 4");
         GGML_ASSERT(rank <= GGML_MAX_DIMS && rank > 0);
+        /*
+         * Both the ggml and qnn tensor in memory are stored as row-major format.
+         * But the dimensions of the tensor are stored in different order.
+         * For example, a 2x3 matrix:
+         *   [
+         *     [1, 2, 3],
+         *     [4, 5, 6],
+         *   ]
+         * The ggml tensor will have dimensions [3, 2], while the qnn tensor will have dimensions [2, 3].
+         */
         switch (rank) {
             case 4:
-                _dimensions[3] = (uint32_t)(dimensions[3] ? dimensions[3] : 1);
-                // fall through
+                _dimensions[3] = std::max<uint32_t>(dimensions[0], 1);
+                _dimensions[2] = std::max<uint32_t>(dimensions[1], 1);
+                _dimensions[1] = std::max<uint32_t>(dimensions[2], 1);
+                _dimensions[0] = std::max<uint32_t>(dimensions[3], 1);
+                break;
             case 3:
-                _dimensions[2] = (uint32_t)(dimensions[2] ? dimensions[2] : 1);
-                // fall through
+                _dimensions[2] = std::max<uint32_t>(dimensions[0], 1);
+                _dimensions[1] = std::max<uint32_t>(dimensions[1], 1);
+                _dimensions[0] = std::max<uint32_t>(dimensions[2], 1);
+                break;
             case 2:
-                _dimensions[1] = (uint32_t)(dimensions[1] ? dimensions[1] : 1);
-                // fall through
+                _dimensions[1] = std::max<uint32_t>(dimensions[0], 1);
+                _dimensions[0] = std::max<uint32_t>(dimensions[1], 1);
+                break;
             case 1:
                 _dimensions[0] = (uint32_t)dimensions[0];
                 break;

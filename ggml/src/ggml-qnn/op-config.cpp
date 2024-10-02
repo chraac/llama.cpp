@@ -229,6 +229,44 @@ bool ggml_qnn_single_op_config::create_tensors(QNNBackend device, Qnn_GraphHandl
 bool ggml_qnn_matmul_op_config::create_tensors(QNNBackend device, Qnn_GraphHandle_t graph_handle,
                                                const ggml_tensor_array_t &tensor_inputs,
                                                const ggml_tensor_array_t &tensor_outputs) {
+    /*
+     * First, both the ggml and qnn tensor in memory are stored as row-major format.
+     * But the dimensions of the tensor are stored in different order.
+     * For example, a 2x3 matrix:
+     *   [
+     *     [1, 2, 3],
+     *     [4, 5, 6],
+     *   ]
+     * The ggml tensor will have dimensions [3, 2], while the qnn tensor will have dimensions [2, 3].
+     *
+     * Second, from the ggml introduction here: https://github.com/huggingface/blog/blob/main/introduction-to-ggml.md
+     * Given 2 matrices A and B, the matrix multiplication C = A * B is defined as:
+     * ```python
+     * import torch
+     * # Create two matrices
+     * A = torch.tensor([
+     *   [2, 8],
+     *   [5, 1],
+     *   [4, 2],
+     *   [8, 6],
+     * ])
+     * B = torch.tensor([
+     *   [10, 5],
+     *   [9, 9],
+     *   [5, 4],
+     * ])
+     * # Perform matrix multiplication
+     * result = torch.matmul(A, B.T)
+     * print(result.T)
+     * ```
+     * Here, the B.T is the transpose of B.
+     *
+     * So here we need to create graph like:
+     * src0 ------------------------------------> | mat_mul0 | -> | transpose1 | -> intermediate1 -> dst0
+     * src1 -> | transpose0 | -> intermediate0 -> | mat_mul0 |
+     */
+
+    // TODO: Fix this function
     const auto tensor_rank = get_rank(tensor_inputs, tensor_outputs);
     tensor_common_params params = { "src", tensor_rank, device, graph_handle, _qnn_instance };
     create_tensors_from_ggml_tensor(params, true, tensor_inputs, _tensor_inputs, _qnn_tensor_inputs);
