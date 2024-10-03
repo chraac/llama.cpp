@@ -57,7 +57,7 @@ Qnn_DataType_t device_datatype_from_ggml_datatype(ggml_type ggml_type) {
         case GGML_TYPE_F32:
             return QNN_DATATYPE_FLOAT_32;
         case GGML_TYPE_I32:
-            return QNN_DATATYPE_UINT_32;
+            return QNN_DATATYPE_UINT_32; // TODO: Should be INT_32
         case GGML_TYPE_I16:
             return QNN_DATATYPE_INT_16;
         case GGML_TYPE_I8:

@@ -6,6 +6,13 @@
 
 namespace {
 
+constexpr const qnn::qnn_internal_dimension_array_t kTransposeParamData[GGML_MAX_DIMS] = {
+    { 0 },
+    { 1, 0 },
+    { 0, 2, 1 },
+    { 0, 1, 3, 2 },
+};
+
 int get_rank(const qnn::ggml_tensor_array_t &tensor_inputs, const qnn::ggml_tensor_array_t &tensor_outputs) {
     int tensor_rank = 0;
     // get the max tensor rank
@@ -310,14 +317,13 @@ bool ggml_qnn_matmul_op_config::create_tensors(QNNBackend device, Qnn_GraphHandl
                                     transpose1->get_qnn_output_tensors());
 
     // set transpose0 parameters
+    auto *params_data = reinterpret_cast<const uint8_t *>(kTransposeParamData[tensor_rank - 1].data());
     const ggml_dimension_array_t param_dims = { tensor_rank, 1, 1, 1 };
-    transpose0->add_tensor_param(QNN_OP_TRANSPOSE_PARAM_PERM, param_dims, 1,
-                                 reinterpret_cast<const uint8_t *>(_transpose_param_data.data()), GGML_TYPE_I32, device,
+    transpose0->add_tensor_param(QNN_OP_TRANSPOSE_PARAM_PERM, param_dims, 1, params_data, GGML_TYPE_I32, device,
                                  graph_handle);
 
     // set transpose1 parameters
-    transpose1->add_tensor_param(QNN_OP_TRANSPOSE_PARAM_PERM, param_dims, 1,
-                                 reinterpret_cast<const uint8_t *>(_transpose_param_data.data()), GGML_TYPE_I32, device,
+    transpose1->add_tensor_param(QNN_OP_TRANSPOSE_PARAM_PERM, param_dims, 1, params_data, GGML_TYPE_I32, device,
                                  graph_handle);
 
     // set tensor to transpose0

@@ -105,7 +105,6 @@ private:
     std::shared_ptr<ggml_qnn_op_config> _mat_mul;
     ggml_qnn_tensor_array_t _tensor_inputs;
     std::vector<Qnn_Tensor_t> _qnn_tensor_inputs;
-    std::array<int32_t, GGML_MAX_DIMS> _transpose_param_data = { 1, 0, 2, 3 };
 
     DISABLE_COPY(ggml_qnn_matmul_op_config);
     DISABLE_MOVE(ggml_qnn_matmul_op_config);
