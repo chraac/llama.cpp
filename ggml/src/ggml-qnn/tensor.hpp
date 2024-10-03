@@ -19,16 +19,14 @@
 namespace qnn {
 
 static_assert(GGML_MAX_DIMS == 4, "GGML_MAX_DIMS should be 4");
-using ggml_qnn_dimension_array_t = int64_t[GGML_MAX_DIMS];
 
 class ggml_qnn_tensor {
 public:
     typedef enum _tensor_type { INPUT, OUTPUT, INTERMEDIATE, PARAMETER } tensor_type_t;
 
     explicit ggml_qnn_tensor(tensor_type_t tensor_type, const std::string &name,
-                             const ggml_qnn_dimension_array_t &dimensions, ggml_type data_type, int rank,
-                             QNNBackend device, Qnn_GraphHandle_t graph_handle,
-                             std::shared_ptr<qnn_instance> qnn_instance) :
+                             const ggml_dimension_array_t &dimensions, ggml_type data_type, int rank, QNNBackend device,
+                             Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn_instance> qnn_instance) :
         _tensor_name(name), _device(device), _qnn_instance(qnn_instance), _graph_handle(graph_handle) {
         QNN_TENSOR_SET_NAME(_qnn_tensor, _tensor_name.c_str());
         QNN_TENSOR_SET_DIMENSIONS(_qnn_tensor, _dimensions.data());
@@ -198,41 +196,13 @@ private:
         return true;
     }
 
-    void update_params_from_ggml_tensor(tensor_type_t tensor_type, const ggml_qnn_dimension_array_t &dimensions,
+    void update_params_from_ggml_tensor(tensor_type_t tensor_type, const ggml_dimension_array_t &dimensions,
                                         ggml_type data_type, int rank) {
-        static_assert(GGML_MAX_DIMS == 4, "GGML_MAX_DIMS should be 4");
-        GGML_ASSERT(rank <= GGML_MAX_DIMS && rank > 0);
-        /*
-         * Both the ggml and qnn tensor in memory are stored as row-major format.
-         * But the dimensions of the tensor are stored in different order.
-         * For example, a 2x3 matrix:
-         *   [
-         *     [1, 2, 3],
-         *     [4, 5, 6],
-         *   ]
-         * The ggml tensor will have dimensions [3, 2], while the qnn tensor will have dimensions [2, 3].
-         */
-        switch (rank) {
-            case 4:
-                _dimensions[3] = std::max<uint32_t>(dimensions[0], 1);
-                _dimensions[2] = std::max<uint32_t>(dimensions[1], 1);
-                _dimensions[1] = std::max<uint32_t>(dimensions[2], 1);
-                _dimensions[0] = std::max<uint32_t>(dimensions[3], 1);
-                break;
-            case 3:
-                _dimensions[2] = std::max<uint32_t>(dimensions[0], 1);
-                _dimensions[1] = std::max<uint32_t>(dimensions[1], 1);
-                _dimensions[0] = std::max<uint32_t>(dimensions[2], 1);
-                break;
-            case 2:
-                _dimensions[1] = std::max<uint32_t>(dimensions[0], 1);
-                _dimensions[0] = std::max<uint32_t>(dimensions[1], 1);
-                break;
-            case 1:
-                _dimensions[0] = (uint32_t)dimensions[0];
-                break;
-        }
+        _dimensions = get_internal_dimension(dimensions, rank);
         QNN_TENSOR_SET_DATA_TYPE(_qnn_tensor, device_datatype_from_ggml_datatype(data_type));
+        QNN_LOG_DEBUG("tensor %s, rank: %d, dims: [%d, %d, %d, %d], data type: %d", _tensor_name.c_str(), rank,
+                      (int)_dimensions[0], (int)_dimensions[1], (int)_dimensions[2], (int)_dimensions[3],
+                      (int)data_type);
 
         // TODO: set the quantizeParams base on the tensor type
 

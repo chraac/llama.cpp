@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
 #include <string>
 
 #include "ggml.h"
@@ -16,6 +17,11 @@
 #define QNN_TENSOR_VER(x) ((x).v1)
 
 namespace qnn {
+
+using ggml_dimension_array_t = int64_t[GGML_MAX_DIMS];
+using qnn_internal_dimension_array_t = std::array<uint32_t, GGML_MAX_DIMS>;
+
+qnn_internal_dimension_array_t get_internal_dimension(const ggml_dimension_array_t &dims, uint32_t rank);
 
 uint32_t get_ggml_tensor_rank(const ggml_tensor *tensor);
 const char *get_backend_name(int n_backend_type);

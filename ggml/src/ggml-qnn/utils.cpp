@@ -9,6 +9,45 @@
 
 namespace qnn {
 
+qnn_internal_dimension_array_t get_internal_dimension(const ggml_dimension_array_t &dims, uint32_t rank) {
+    static_assert(GGML_MAX_DIMS == 4, "GGML_MAX_DIMS should be 4");
+    GGML_ASSERT(rank <= GGML_MAX_DIMS && rank > 0);
+
+    qnn_internal_dimension_array_t internal_dims = {};
+    /*
+     * Both the ggml and qnn tensor in memory are stored as row-major format.
+     * But the dimensions of the tensor are stored in different order.
+     * For example, a 2x3 matrix:
+     *   [
+     *     [1, 2, 3],
+     *     [4, 5, 6],
+     *   ]
+     * The ggml tensor will have dimensions [3, 2], while the qnn tensor will have dimensions [2, 3].
+     */
+    switch (rank) {
+        case 4:
+            internal_dims[3] = std::max<uint32_t>(dims[0], 1);
+            internal_dims[2] = std::max<uint32_t>(dims[1], 1);
+            internal_dims[1] = std::max<uint32_t>(dims[2], 1);
+            internal_dims[0] = std::max<uint32_t>(dims[3], 1);
+            break;
+        case 3:
+            internal_dims[2] = std::max<uint32_t>(dims[0], 1);
+            internal_dims[1] = std::max<uint32_t>(dims[1], 1);
+            internal_dims[0] = std::max<uint32_t>(dims[2], 1);
+            break;
+        case 2:
+            internal_dims[1] = std::max<uint32_t>(dims[0], 1);
+            internal_dims[0] = std::max<uint32_t>(dims[1], 1);
+            break;
+        case 1:
+            internal_dims[0] = (uint32_t)dims[0];
+            break;
+    }
+
+    return internal_dims;
+}
+
 // TODO: mapping more ggml data type to QNN data type
 // ref:explanation of k-quants, https://github.com/ggerganov/llama.cpp/pull/1684
 Qnn_DataType_t device_datatype_from_ggml_datatype(ggml_type ggml_type) {
