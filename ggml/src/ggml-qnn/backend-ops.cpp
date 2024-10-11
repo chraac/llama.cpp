@@ -13,7 +13,7 @@
 
 namespace {
 
-bool qnn_is_valid_params(ggml_backend_qnn_context *ctx, const ggml_tensor *src, ggml_tensor *dst) {
+bool qnn_is_valid_params(ggml_backend_qnn_device_context *ctx, const ggml_tensor *src, ggml_tensor *dst) {
     if (!ctx || !src || !dst) {
         QNN_LOG_WARN("invalid params\n");
         return false;
@@ -28,7 +28,7 @@ bool qnn_is_valid_params(ggml_backend_qnn_context *ctx, const ggml_tensor *src, 
     return true;
 }
 
-bool qnn_is_valid_params(ggml_backend_qnn_context *ctx, const ggml_tensor *src0, const ggml_tensor *src1,
+bool qnn_is_valid_params(ggml_backend_qnn_device_context *ctx, const ggml_tensor *src0, const ggml_tensor *src1,
                          ggml_tensor *dst) {
     if (!ctx || !src0 || !src1 || !dst) {
         QNN_LOG_WARN("invalid params\n");
@@ -78,8 +78,8 @@ void print_ggml_tensor(const ggml_tensor *tensor) {
 
 namespace {
 
-typedef bool (*ggml_qnn_unary_op_t)(ggml_backend_qnn_context *ctx, ggml_tensor *src, ggml_tensor *dst);
-typedef bool (*ggml_qnn_binary_op_t)(ggml_backend_qnn_context *ctx, ggml_tensor *src0, ggml_tensor *src1,
+typedef bool (*ggml_qnn_unary_op_t)(ggml_backend_qnn_device_context *ctx, ggml_tensor *src, ggml_tensor *dst);
+typedef bool (*ggml_qnn_binary_op_t)(ggml_backend_qnn_device_context *ctx, ggml_tensor *src0, ggml_tensor *src1,
                                      ggml_tensor *dst);
 
 typedef const ggml_qnn_unary_op_t (&ggml_qnn_unary_op_array_t)[GGML_OP_COUNT + GGML_UNARY_OP_COUNT];
@@ -142,6 +142,7 @@ constexpr const char *kGgmlOpToQnnOp[] = {
     nullptr,                         // GGML_OP_SUM_ROWS
     nullptr,                         // GGML_OP_MEAN
     nullptr,                         // GGML_OP_ARGMAX
+    nullptr,                         // GGML_OP_COUNT_EQUAL
     nullptr,                         // GGML_OP_REPEAT
     nullptr,                         // GGML_OP_REPEAT_BACK
     nullptr,                         // GGML_OP_CONCAT
@@ -237,7 +238,7 @@ static_assert(kGgmlOpToQnnOp[GGML_UNARY_OP_GELU + kGgmlUnaryOpStart] != nullptr,
               "GGML_UNARY_OP_GELU does not correspond to QNN_OP_GELU");
 
 template <size_t _InputSize, size_t _OutputSize>
-qnn::ggml_qnn_graph *get_qnn_graph_from_cache(ggml_backend_qnn_context *ctx, size_t op,
+qnn::ggml_qnn_graph *get_qnn_graph_from_cache(ggml_backend_qnn_device_context *ctx, size_t op,
                                               const std::array<ggml_tensor *, _InputSize> &inputs,
                                               const std::array<ggml_tensor *, _OutputSize> &outputs) {
     GGML_ASSERT(op < (GGML_OP_COUNT + GGML_UNARY_OP_COUNT));
@@ -252,8 +253,8 @@ qnn::ggml_qnn_graph *get_qnn_graph_from_cache(ggml_backend_qnn_context *ctx, siz
         QNN_LOG_DEBUG("found graph %s in cache\n", graph_key.c_str());
         graph_ptr = it->second.get();
     } else {
-        auto graph = std::make_unique<qnn::ggml_qnn_graph>(graph_key, (QNNBackend)(ctx->device), ctx->instance,
-                                                           ctx->socinfo.vtcm_size_in_mb);
+        auto graph =
+            std::make_unique<qnn::ggml_qnn_graph>(graph_key, ctx->device, ctx->instance, ctx->socinfo.vtcm_size_in_mb);
         if (!graph->is_valid()) {
             return nullptr;
         }
@@ -273,7 +274,7 @@ qnn::ggml_qnn_graph *get_qnn_graph_from_cache(ggml_backend_qnn_context *ctx, siz
 }
 
 template <ggml_op _GgmlOp>
-bool qnn_binary_op_impl(ggml_backend_qnn_context *ctx, ggml_tensor *src0, ggml_tensor *src1, ggml_tensor *dst) {
+bool qnn_binary_op_impl(ggml_backend_qnn_device_context *ctx, ggml_tensor *src0, ggml_tensor *src1, ggml_tensor *dst) {
     static_assert(kGgmlOpToQnnOp[_GgmlOp] != nullptr, "GGML_OP does not have a corresponding QNN_OP");
 
     CHECK_PARAMS(ctx, src0, src1, dst);
@@ -296,7 +297,7 @@ bool qnn_binary_op_impl(ggml_backend_qnn_context *ctx, ggml_tensor *src0, ggml_t
 }
 
 template <size_t _GgmlOp>
-bool qnn_unary_op_impl(ggml_backend_qnn_context *ctx, ggml_tensor *src, ggml_tensor *dst) {
+bool qnn_unary_op_impl(ggml_backend_qnn_device_context *ctx, ggml_tensor *src, ggml_tensor *dst) {
     static_assert(kGgmlOpToQnnOp[_GgmlOp] != nullptr, "GGML_OP does not have a corresponding QNN_OP");
 
     CHECK_PARAMS(ctx, src, dst);
@@ -334,6 +335,7 @@ constexpr const ggml_qnn_unary_op_t kQnnUnaryOpsTable[] = {
     nullptr,                         // GGML_OP_SUM_ROWS
     nullptr,                         // GGML_OP_MEAN
     nullptr,                         // GGML_OP_ARGMAX
+    nullptr,                         // GGML_OP_COUNT_EQUAL
     nullptr,                         // GGML_OP_REPEAT
     nullptr,                         // GGML_OP_REPEAT_BACK
     nullptr,                         // GGML_OP_CONCAT
@@ -444,6 +446,7 @@ static constexpr const ggml_qnn_binary_op_t kQnnBinaryOpsTable[] = {
     nullptr,                         // GGML_OP_SUM_ROWS
     nullptr,                         // GGML_OP_MEAN
     nullptr,                         // GGML_OP_ARGMAX
+    nullptr,                         // GGML_OP_COUNT_EQUAL
     nullptr,                         // GGML_OP_REPEAT
     nullptr,                         // GGML_OP_REPEAT_BACK
     nullptr,                         // GGML_OP_CONCAT
@@ -569,7 +572,7 @@ bool ggml_qnn_supports_op(const ggml_tensor *op) {
     return true;
 }
 
-bool ggml_qnn_forward(ggml_backend_qnn_context *ctx, struct ggml_tensor *tensor) {
+bool ggml_qnn_forward(ggml_backend_qnn_device_context *ctx, struct ggml_tensor *tensor) {
     size_t unary_op_idx = tensor->op;
     if (tensor->op == GGML_OP_UNARY) {
         unary_op_idx = kGgmlUnaryOpStart + ggml_get_unary_op(tensor);
