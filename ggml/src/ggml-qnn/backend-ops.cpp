@@ -524,6 +524,22 @@ static_assert(sizeof(kQnnBinaryOpsTable) / sizeof(kQnnBinaryOpsTable[0]) == GGML
 namespace qnn {
 
 bool ggml_qnn_supports_op(const ggml_tensor *op) {
+    if (op->op == GGML_OP_NONE) {
+        switch (op->type) {
+            case GGML_TYPE_F32:
+            case GGML_TYPE_F16:
+            case GGML_TYPE_I8:
+            case GGML_TYPE_Q8_0:
+            case GGML_TYPE_Q4_0:
+                break;
+            default:
+                QNN_LOG_DEBUG("unsupported src0 type %d", op->src[0]->type);
+                return false;
+        }
+
+        return true;
+    }
+
     if (op->op == GGML_OP_UNARY) {
         if (!kQnnUnaryOpsTable[kGgmlUnaryOpStart + ggml_get_unary_op(op)]) {
             QNN_LOG_DEBUG("unsupported unary op %d", ggml_get_unary_op(op));
@@ -534,35 +550,47 @@ bool ggml_qnn_supports_op(const ggml_tensor *op) {
             QNN_LOG_DEBUG("src0 is nullptr");
             return false;
         }
-    } else if (op->op != GGML_OP_NONE) {
+    } else {
         if (!kQnnUnaryOpsTable[op->op] && !kQnnBinaryOpsTable[op->op]) {
             QNN_LOG_DEBUG("unsupported op %d", op->op);
             return false;
         }
 
-        if (!op->src[0] || !op->src[1]) {
+        auto *src0 = op->src[0];
+        auto *src1 = op->src[1];
+        if (!src0 || !src1) {
             QNN_LOG_DEBUG("src0 or src1 is nullptr");
             return false;
         }
 
-#ifndef NDEBUG
-        if (op->op == GGML_OP_ADD && !is_tensor_dimensions_equal(op->src[0], op->src[1])) {
-            QNN_LOG_DEBUG("src0 and src1 dimensions are not equal");
-            return false;
-        }
-#endif
-    }
+        switch (op->op) {
+            case GGML_OP_ADD:
+                if (!is_tensor_dimensions_equal(src0, src1)) {
+                    QNN_LOG_DEBUG("src0 and src1 dimensions are not equal");
+                    return false;
+                }
+                break;
 
-    switch (op->type) {
-        case GGML_TYPE_F32:
-        case GGML_TYPE_F16:
-        case GGML_TYPE_I8:
-        case GGML_TYPE_Q8_0:
-        case GGML_TYPE_Q4_0:
-            break;
-        default:
-            QNN_LOG_DEBUG("unsupported src0 type %d", op->src[0]->type);
-            return false;
+            case GGML_OP_MUL_MAT:
+                if (src0->type != src1->type) {
+                    // current qnn implementation only supports the same type for src0 and src1
+                    QNN_LOG_DEBUG("src0 type %d and src1 type %d are not equal", src0->type, src1->type);
+                    return false;
+                }
+
+                if (src0->ne[2] != src1->ne[2] || src0->ne[3] != src1->ne[3]) {
+                    /*
+                     * TODO: remove the blocker here when qnn backend supports mul_mat like this:
+                     *   [ne03, ne02, n, k] * [ne03 * x, ne02 * y, m, k] -> [ne03 * x, ne02 * y, m, n]
+                     */
+                    QNN_LOG_DEBUG("src0 and src1 dimensions are not equal");
+                    return false;
+                }
+                break;
+
+            default:
+                break;
+        }
     }
 
     return true;
