@@ -94,8 +94,53 @@ uint32_t get_ggml_tensor_rank(const ggml_tensor *tensor) {
     return rank;
 }
 
-const char *get_backend_name(int n_backend_type) {
-    switch (n_backend_type) {
+const char *get_ggml_type_name(ggml_type type) {
+    switch (type) {
+        case GGML_TYPE_F32:
+            return "F32";
+        case GGML_TYPE_F16:
+            return "F16";
+        case GGML_TYPE_Q4_0:
+            return "Q4";
+        case GGML_TYPE_Q4_1:
+            return "Q41";
+        case GGML_TYPE_Q5_0:
+            return "Q50";
+        case GGML_TYPE_Q5_1:
+            return "Q51";
+        case GGML_TYPE_Q8_0:
+            return "Q80";
+        case GGML_TYPE_Q8_1:
+            return "Q81";
+        case GGML_TYPE_Q2_K:
+            return "Q2K";
+        case GGML_TYPE_Q3_K:
+            return "Q3K";
+        case GGML_TYPE_Q4_K:
+            return "Q4K";
+        case GGML_TYPE_Q5_K:
+            return "Q5K";
+        case GGML_TYPE_Q6_K:
+            return "Q6K";
+        case GGML_TYPE_Q8_K:
+            return "Q8K";
+        case GGML_TYPE_I8:
+            return "I8";
+        case GGML_TYPE_I16:
+            return "I16";
+        case GGML_TYPE_I32:
+            return "I32";
+        case GGML_TYPE_I64:
+            return "I64";
+        case GGML_TYPE_F64:
+            return "F64";
+        default:
+            return "unknown";
+    }
+}
+
+const char *get_backend_name(size_t device_index) {
+    switch (device_index) {
         case QNN_BACKEND_CPU:
             return "QNN-CPU";
         case QNN_BACKEND_GPU:

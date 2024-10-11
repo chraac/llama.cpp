@@ -108,17 +108,14 @@ std::string get_graph_key(const std::string &op_name, const std::array<ggml_tens
                           const std::array<ggml_tensor *, _OutputSize> &outputs) {
     constexpr static const auto append_dimensions = [](std::string &key, const ggml_tensor *tensor) {
         char buffer[256] = {};
-        snprintf(buffer, sizeof(buffer), "_%ldx%ldx%ldx%ld", (long)tensor->ne[0], (long)tensor->ne[1],
-                 (long)tensor->ne[2], (long)tensor->ne[3]);
+        snprintf(buffer, sizeof(buffer), "_%ldx%ldx%ldx%ld%s", (long)tensor->ne[0], (long)tensor->ne[1],
+                 (long)tensor->ne[2], (long)tensor->ne[3], qnn::get_ggml_type_name(tensor->type));
         key += buffer;
     };
 
     std::string graph_key(op_name);
     for (auto &input : inputs) {
         append_dimensions(graph_key, input);
-    }
-    for (auto &output : outputs) {
-        append_dimensions(graph_key, output);
     }
 
     return graph_key;
