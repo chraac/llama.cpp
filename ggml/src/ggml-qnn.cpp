@@ -360,9 +360,10 @@ void ggml_backend_qnn_device_get_props(ggml_backend_dev_t dev, struct ggml_backe
     props->type = ggml_backend_qnn_device_get_type(dev);
     ggml_backend_qnn_device_get_memory(dev, &props->memory_free, &props->memory_total);
     props->caps = {
-        /* async       */ false,
-        /* host_buffer */ false,
-        /* events      */ false,
+        /* async                */ false,
+        /* host_buffer          */ false,
+        /* buffer_from_host_ptr */ false,
+        /* events               */ false,
     };
 }
 
