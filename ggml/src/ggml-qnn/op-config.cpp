@@ -270,8 +270,14 @@ bool ggml_qnn_matmul_op_config::create_tensors(QNNBackend device, Qnn_GraphHandl
      * Here, the B.T is the transpose of B.
      *
      * So here we need to create graph like:
-     * src0 ------------------------------------> | mat_mul0 | -> intermediate1 -> | transpose1 | -> dst0
-     * src1 -> | transpose0 | -> intermediate0 -> | mat_mul0 |
+     *   ```mermaid
+     *   graph TD;
+     *        i1>input_tensor_a] --src0--> mat_mul0;
+     *        i2>input_tensor_b] --src1--> transpose0;
+     *        transpose0 --intermediate0--> mat_mul0;
+     *        mat_mul0 --intermediate1--> transpose1;
+     *        transpose1 --dst0--> o1>output_tensor_c];
+     *   ```
      */
 
     const auto tensor_rank = get_rank(tensor_inputs, tensor_outputs);
