@@ -589,7 +589,7 @@ bool ggml_qnn_supports_op(const ggml_tensor *op) {
                 break;
 
             default:
-                break;
+                return false;
         }
     }
 
