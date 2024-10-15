@@ -25,15 +25,26 @@ public:
     typedef enum _tensor_type { INPUT, OUTPUT, INTERMEDIATE, PARAMETER } tensor_type_t;
 
     explicit ggml_qnn_tensor(tensor_type_t tensor_type, const std::string &name,
-                             const ggml_dimension_array_t &dimensions, ggml_type data_type, int rank, QNNBackend device,
-                             Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn_instance> qnn_instance) :
+                             const qnn_dimension_array_t &dimensions, Qnn_DataType_t data_type, int rank,
+                             QNNBackend device, Qnn_GraphHandle_t graph_handle,
+                             std::shared_ptr<qnn_instance> qnn_instance) :
         _tensor_name(name), _device(device), _qnn_instance(qnn_instance), _graph_handle(graph_handle) {
         QNN_TENSOR_SET_NAME(_qnn_tensor, _tensor_name.c_str());
         QNN_TENSOR_SET_DIMENSIONS(_qnn_tensor, _dimensions.data());
         QNN_TENSOR_SET_DATA_FORMAT(_qnn_tensor, QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER);
-        update_params_from_ggml_tensor(tensor_type, dimensions, data_type, rank);
-        QNN_LOG_DEBUG("create tensor %s, type: %d, device: %d", _tensor_name.c_str(), (int)tensor_type, (int)device);
+
+        _dimensions = dimensions;
+        update_params_from_ggml_tensor(tensor_type, data_type, rank);
+        QNN_LOG_DEBUG("create tensor %s, rank: %d, dims: [%d, %d, %d, %d], data_type: %d, device: %d",
+                      _tensor_name.c_str(), rank, (int)_dimensions[0], (int)_dimensions[1], (int)_dimensions[2],
+                      (int)_dimensions[3], (int)data_type, (int)device);
     }
+
+    explicit ggml_qnn_tensor(tensor_type_t tensor_type, const std::string &name,
+                             const ggml_dimension_array_t &dimensions, ggml_type data_type, int rank, QNNBackend device,
+                             Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn_instance> qnn_instance) :
+        ggml_qnn_tensor(tensor_type, name, get_internal_dimension(dimensions, rank),
+                        qnn_datatype_from_ggml_datatype(data_type), rank, device, graph_handle, qnn_instance) {}
 
     ~ggml_qnn_tensor() { _qnn_rpc_buffer.reset(); }
 
@@ -152,6 +163,8 @@ public:
     }
 
     const Qnn_Tensor_t &get_qnn_tensor() const { return _qnn_tensor; }
+    Qnn_DataType_t get_data_type() const { return QNN_TENSOR_GET_DATA_TYPE(_qnn_tensor); }
+    const qnn_dimension_array_t &get_dimensions() const { return _dimensions; }
 
 private:
     bool write_to_qnn_tensor() {
@@ -196,14 +209,8 @@ private:
         return true;
     }
 
-    void update_params_from_ggml_tensor(tensor_type_t tensor_type, const ggml_dimension_array_t &dimensions,
-                                        ggml_type data_type, int rank) {
-        _dimensions = get_internal_dimension(dimensions, rank);
-        QNN_TENSOR_SET_DATA_TYPE(_qnn_tensor, device_datatype_from_ggml_datatype(data_type));
-        QNN_LOG_DEBUG("tensor %s, rank: %d, dims: [%d, %d, %d, %d], data type: %d", _tensor_name.c_str(), rank,
-                      (int)_dimensions[0], (int)_dimensions[1], (int)_dimensions[2], (int)_dimensions[3],
-                      (int)data_type);
-
+    void update_params_from_ggml_tensor(tensor_type_t tensor_type, Qnn_DataType_t data_type, int rank) {
+        QNN_TENSOR_SET_DATA_TYPE(_qnn_tensor, data_type);
         // TODO: set the quantizeParams base on the tensor type
 
         QNN_TENSOR_SET_RANK(_qnn_tensor, (uint32_t)rank);
@@ -240,12 +247,14 @@ private:
     QNNBackend _device;
     std::shared_ptr<qnn_instance> _qnn_instance;
     Qnn_Tensor_t _qnn_tensor = qnn_tensor_init(kDefaultQnnTensorVersion);
-    std::array<uint32_t, GGML_MAX_DIMS> _dimensions = {};
+    qnn_dimension_array_t _dimensions = {};
     Qnn_GraphHandle_t _graph_handle = nullptr;
     std::unique_ptr<ggml_qnn_rpc_buffer> _qnn_rpc_buffer;
 
     DISABLE_COPY(ggml_qnn_tensor);
     DISABLE_MOVE(ggml_qnn_tensor);
 };
+
+using ggml_qnn_tensor_array_t = std::vector<std::shared_ptr<ggml_qnn_tensor>>;
 
 } // namespace qnn

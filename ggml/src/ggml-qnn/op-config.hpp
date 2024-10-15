@@ -14,7 +14,6 @@
 namespace qnn {
 
 using ggml_tensor_array_t = std::vector<ggml_tensor *>;
-using ggml_qnn_tensor_array_t = std::vector<std::shared_ptr<ggml_qnn_tensor>>;
 
 class ggml_qnn_op_config {
 public:
@@ -38,8 +37,8 @@ public:
         _name(name), _package_name(package_name), _op_type(op_type), _qnn_instance(qnn_instance) {}
 
     void add_scalar_param(const std::string &name, const Qnn_Scalar_t scalar);
-    bool add_tensor_param(const std::string &name, const ggml_dimension_array_t &dimensions, int rank,
-                          const uint8_t *data, const ggml_type data_type, QNNBackend device,
+    bool add_tensor_param(const std::string &name, const qnn_dimension_array_t &dimensions, int rank,
+                          const uint8_t *data, const Qnn_DataType_t data_type, QNNBackend device,
                           Qnn_GraphHandle_t graph_handle);
     bool add_op_to_graph(Qnn_GraphHandle_t graph_handle) override;
     bool bind_input_tensors(const ggml_tensor_array_t &tensor_inputs) override;
@@ -95,14 +94,19 @@ public:
     void unbind_input_tensors() override;
     void unbind_output_tensors() override;
     std::vector<Qnn_Tensor_t> &get_qnn_input_tensors() override { return _qnn_tensor_inputs; }
-    std::vector<Qnn_Tensor_t> &get_qnn_output_tensors() override { return _transpose1->get_qnn_output_tensors(); }
+    std::vector<Qnn_Tensor_t> &get_qnn_output_tensors() override;
 
 private:
+    bool create_mat_mul_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle, const int rank,
+                              ggml_qnn_tensor_array_t &tensor_inputs, ggml_qnn_tensor_array_t &tensor_outputs);
+
     std::string _name;
     std::shared_ptr<qnn_instance> _qnn_instance;
     std::shared_ptr<ggml_qnn_op_config> _transpose0;
     std::shared_ptr<ggml_qnn_op_config> _transpose1;
     std::shared_ptr<ggml_qnn_op_config> _mat_mul;
+    std::vector<std::shared_ptr<ggml_qnn_op_config>> _input_converts;
+    std::shared_ptr<ggml_qnn_op_config> _output_convert;
     ggml_qnn_tensor_array_t _tensor_inputs;
     std::vector<Qnn_Tensor_t> _qnn_tensor_inputs;
 

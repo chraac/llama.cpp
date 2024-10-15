@@ -533,7 +533,7 @@ bool ggml_qnn_supports_op(const ggml_tensor *op) {
             case GGML_TYPE_Q4_0:
                 break;
             default:
-                QNN_LOG_DEBUG("unsupported src0 type %d", op->src[0]->type);
+                QNN_LOG_DEBUG("unsupported src0 type %d", op->type);
                 return false;
         }
 

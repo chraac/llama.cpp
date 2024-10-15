@@ -9,11 +9,11 @@
 
 namespace qnn {
 
-qnn_internal_dimension_array_t get_internal_dimension(const ggml_dimension_array_t &dims, uint32_t rank) {
+qnn_dimension_array_t get_internal_dimension(const ggml_dimension_array_t &dims, uint32_t rank) {
     static_assert(GGML_MAX_DIMS == 4, "GGML_MAX_DIMS should be 4");
     GGML_ASSERT(rank <= GGML_MAX_DIMS && rank > 0);
 
-    qnn_internal_dimension_array_t internal_dims = {};
+    qnn_dimension_array_t internal_dims = {};
     /*
      * Both the ggml and qnn tensor in memory are stored as row-major format.
      * But the dimensions of the tensor are stored in different order.
@@ -24,25 +24,8 @@ qnn_internal_dimension_array_t get_internal_dimension(const ggml_dimension_array
      *   ]
      * The ggml tensor will have dimensions [3, 2], while the qnn tensor will have dimensions [2, 3].
      */
-    switch (rank) {
-        case 4:
-            internal_dims[3] = std::max<uint32_t>(dims[0], 1);
-            internal_dims[2] = std::max<uint32_t>(dims[1], 1);
-            internal_dims[1] = std::max<uint32_t>(dims[2], 1);
-            internal_dims[0] = std::max<uint32_t>(dims[3], 1);
-            break;
-        case 3:
-            internal_dims[2] = std::max<uint32_t>(dims[0], 1);
-            internal_dims[1] = std::max<uint32_t>(dims[1], 1);
-            internal_dims[0] = std::max<uint32_t>(dims[2], 1);
-            break;
-        case 2:
-            internal_dims[1] = std::max<uint32_t>(dims[0], 1);
-            internal_dims[0] = std::max<uint32_t>(dims[1], 1);
-            break;
-        case 1:
-            internal_dims[0] = (uint32_t)dims[0];
-            break;
+    for (uint32_t i = 0; i < rank; i++) {
+        internal_dims[i] = std::max<uint32_t>(dims[rank - 1 - i], 1);
     }
 
     return internal_dims;
@@ -50,14 +33,14 @@ qnn_internal_dimension_array_t get_internal_dimension(const ggml_dimension_array
 
 // TODO: mapping more ggml data type to QNN data type
 // ref:explanation of k-quants, https://github.com/ggerganov/llama.cpp/pull/1684
-Qnn_DataType_t device_datatype_from_ggml_datatype(ggml_type ggml_type) {
+Qnn_DataType_t qnn_datatype_from_ggml_datatype(ggml_type ggml_type) {
     switch (ggml_type) {
-        case GGML_TYPE_F16:
-            return QNN_DATATYPE_FLOAT_16;
         case GGML_TYPE_F32:
             return QNN_DATATYPE_FLOAT_32;
+        case GGML_TYPE_F16:
+            return QNN_DATATYPE_FLOAT_16;
         case GGML_TYPE_I32:
-            return QNN_DATATYPE_UINT_32; // TODO: Should be INT_32
+            return QNN_DATATYPE_INT_32;
         case GGML_TYPE_I16:
             return QNN_DATATYPE_INT_16;
         case GGML_TYPE_I8:
@@ -72,16 +55,75 @@ Qnn_DataType_t device_datatype_from_ggml_datatype(ggml_type ggml_type) {
     return QNN_DATATYPE_UNDEFINED;
 }
 
-Qnn_TensorType_t device_tensortype_from_ggml_tensor(ggml_tensor *ggml_tensor) {
-    Qnn_TensorType_t qnn_tensor_type = QNN_TENSOR_TYPE_NATIVE;
+ggml_type ggml_datatype_from_qnn_datatype(Qnn_DataType_t qnn_type) {
+    switch (qnn_type) {
+        case QNN_DATATYPE_FLOAT_32:
+            return GGML_TYPE_F32;
+        case QNN_DATATYPE_FLOAT_16:
+            return GGML_TYPE_F16;
+        case QNN_DATATYPE_UINT_32:
+        case QNN_DATATYPE_INT_32:
+            return GGML_TYPE_I32;
+        case QNN_DATATYPE_INT_16:
+            return GGML_TYPE_I16;
+        case QNN_DATATYPE_INT_8:
+            return GGML_TYPE_I8;
+        case QNN_DATATYPE_SFIXED_POINT_8:
+            return GGML_TYPE_Q8_0;
+        case QNN_DATATYPE_SFIXED_POINT_4:
+            return GGML_TYPE_Q4_0;
+        default:
+            break;
+    }
+    return GGML_TYPE_COUNT;
+}
 
-    if (ggml_tensor->flags & GGML_TENSOR_FLAG_INPUT) {
-        qnn_tensor_type = QNN_TENSOR_TYPE_APP_WRITE;
-    } else if (ggml_tensor->flags & GGML_TENSOR_FLAG_OUTPUT) {
-        qnn_tensor_type = QNN_TENSOR_TYPE_APP_READ;
+size_t qnn_datatype_size(Qnn_DataType_t qnn_type) {
+    switch (qnn_type) {
+        case QNN_DATATYPE_FLOAT_32:
+            return sizeof(float);
+        case QNN_DATATYPE_FLOAT_16:
+            return sizeof(uint16_t);
+        case QNN_DATATYPE_UINT_32:
+        case QNN_DATATYPE_INT_32:
+            return sizeof(int32_t);
+        case QNN_DATATYPE_INT_16:
+            return sizeof(int16_t);
+        case QNN_DATATYPE_INT_8:
+            return sizeof(int8_t);
+        case QNN_DATATYPE_SFIXED_POINT_8:
+            return sizeof(int8_t);
+        case QNN_DATATYPE_SFIXED_POINT_4:
+            return sizeof(int8_t);
+        default:
+            break;
+    }
+    return 0;
+}
+
+const char *qnn_datatype_to_string(Qnn_DataType_t qnn_type) {
+    switch (qnn_type) {
+        case QNN_DATATYPE_FLOAT_32:
+            return "QNN_DATATYPE_FLOAT_32";
+        case QNN_DATATYPE_FLOAT_16:
+            return "QNN_DATATYPE_FLOAT_16";
+        case QNN_DATATYPE_UINT_32:
+            return "QNN_DATATYPE_UINT_32";
+        case QNN_DATATYPE_INT_32:
+            return "QNN_DATATYPE_INT_32";
+        case QNN_DATATYPE_INT_16:
+            return "QNN_DATATYPE_INT_16";
+        case QNN_DATATYPE_INT_8:
+            return "QNN_DATATYPE_INT_8";
+        case QNN_DATATYPE_SFIXED_POINT_8:
+            return "QNN_DATATYPE_SFIXED_POINT_8";
+        case QNN_DATATYPE_SFIXED_POINT_4:
+            return "QNN_DATATYPE_SFIXED_POINT_4";
+        default:
+            break;
     }
 
-    return qnn_tensor_type;
+    return "QNN_DATATYPE_UNDEFINED";
 }
 
 uint32_t get_ggml_tensor_rank(const ggml_tensor *tensor) {
