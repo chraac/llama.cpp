@@ -8,8 +8,8 @@
 namespace qnn {
 class ggml_qnn_rpc_buffer {
 public:
-    ggml_qnn_rpc_buffer(std::shared_ptr<qnn_instance> qnn_instance, size_t size, uint32_t rank, uint32_t *dimensions,
-                        Qnn_DataType_t data_type) :
+    ggml_qnn_rpc_buffer(std::shared_ptr<qnn_instance> qnn_instance, const size_t size, const uint32_t rank,
+                        uint32_t *dimensions, Qnn_DataType_t data_type) :
         _qnn_instance(qnn_instance), _size(size) {
 
         _qnn_rpc_buffer = static_cast<uint8_t *>(qnn_instance->alloc_rpcmem(size, alignof(void *)));
