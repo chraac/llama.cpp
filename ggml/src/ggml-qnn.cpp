@@ -286,8 +286,8 @@ ggml_status ggml_backend_qnn_graph_compute(ggml_backend_t backend, ggml_cgraph *
 }
 
 bool ggml_backend_qnn_supports_op(ggml_backend_t backend, const ggml_tensor *op) {
-    GGML_UNUSED(backend);
-    return qnn::ggml_qnn_supports_op(op);
+    auto *device_ctx = get_device_context(backend->device);
+    return qnn::ggml_qnn_supports_op(device_ctx, op);
 }
 
 bool ggml_backend_qnn_offload_op(ggml_backend_t backend, const ggml_tensor *op) {
@@ -461,8 +461,8 @@ ggml_backend_buffer_t ggml_backend_qnn_device_buffer_from_ptr(ggml_backend_dev_t
 }
 
 bool ggml_backend_qnn_device_supports_op(ggml_backend_dev_t dev, const struct ggml_tensor *op) {
-    GGML_UNUSED(dev);
-    return qnn::ggml_qnn_supports_op(op);
+    auto *device_ctx = get_device_context(dev);
+    return qnn::ggml_qnn_supports_op(device_ctx, op);
 }
 
 bool ggml_backend_qnn_device_supports_buft(ggml_backend_dev_t dev, ggml_backend_buffer_type_t buft) {

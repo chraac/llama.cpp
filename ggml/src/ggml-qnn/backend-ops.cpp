@@ -523,17 +523,24 @@ static_assert(sizeof(kQnnBinaryOpsTable) / sizeof(kQnnBinaryOpsTable[0]) == GGML
 
 namespace qnn {
 
-bool ggml_qnn_supports_op(const ggml_tensor *op) {
+bool ggml_qnn_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor *op) {
     if (op->op == GGML_OP_NONE) {
         switch (op->type) {
             case GGML_TYPE_F32:
+                break;
             case GGML_TYPE_F16:
-            case GGML_TYPE_I8:
+                if (ctx->device == QNN_BACKEND_CPU) {
+                    // disabled for CPU backend, see also:
+                    //   https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/cpu_backend.html#supported-operations
+                    QNN_LOG_DEBUG("unsupported data type GGML_TYPE_F16 for cpu backend");
+                    return false;
+                }
+                break;
             case GGML_TYPE_Q8_0:
             case GGML_TYPE_Q4_0:
                 break;
             default:
-                QNN_LOG_DEBUG("unsupported src0 type %d", op->type);
+                QNN_LOG_DEBUG("unsupported data type %d", op->type);
                 return false;
         }
 
