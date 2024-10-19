@@ -289,6 +289,11 @@ bool ggml_qnn_matmul_op_config::create_tensors(QNNBackend device, Qnn_GraphHandl
     params.is_input = false;
     create_tensors_from_ggml_tensor(params, tensor_outputs, &mat_mul_tensor_outputs, nullptr);
 
+    if (device == QNN_BACKEND_GPU) {
+        // there's no convert op for GPU, so we should create matmul nodes directl.
+        return create_mat_mul_nodes(device, graph_handle, tensor_rank, _tensor_inputs, mat_mul_tensor_outputs);
+    }
+
     // create tensors for convert node
     ggml_qnn_tensor_array_t mat_mul_tensor_inputs = _tensor_inputs;
     auto input_tensor_type = get_tensor_type(mat_mul_tensor_inputs);
@@ -445,7 +450,8 @@ bool ggml_qnn_matmul_op_config::add_op_to_graph(Qnn_GraphHandle_t graph_handle) 
     }
 
     return _transpose0->add_op_to_graph(graph_handle) && _mat_mul->add_op_to_graph(graph_handle) &&
-           _transpose1->add_op_to_graph(graph_handle) && _output_convert->add_op_to_graph(graph_handle);
+           _transpose1->add_op_to_graph(graph_handle) &&
+           (!_output_convert || _output_convert->add_op_to_graph(graph_handle));
 }
 
 bool ggml_qnn_matmul_op_config::bind_input_tensors(const ggml_tensor_array_t &tensor_inputs) {

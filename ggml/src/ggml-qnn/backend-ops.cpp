@@ -527,17 +527,13 @@ bool ggml_qnn_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tenso
     if (op->op == GGML_OP_NONE) {
         switch (op->type) {
             case GGML_TYPE_F32:
-                break;
             case GGML_TYPE_F16:
-                if (ctx->device == QNN_BACKEND_CPU) {
-                    // disabled for CPU backend, see also:
-                    //   https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/cpu_backend.html#supported-operations
+            case GGML_TYPE_Q8_0:
+            case GGML_TYPE_Q4_0:
+                if (ctx->supported_types.find(GGML_TYPE_F16) == ctx->supported_types.end()) {
                     QNN_LOG_DEBUG("unsupported data type GGML_TYPE_F16 for cpu backend");
                     return false;
                 }
-                break;
-            case GGML_TYPE_Q8_0:
-            case GGML_TYPE_Q4_0:
                 break;
             default:
                 QNN_LOG_DEBUG("unsupported data type %d", op->type);

@@ -51,12 +51,30 @@ struct qnn_device_caps {
     const char *description;
     const char *lib_name;
     enum ggml_backend_dev_type type;
+
+    // TODO: should get this caps from device
+    std::unordered_set<ggml_type> supported_types;
 };
 
 const qnn_device_caps kDeviceCaps[GGML_QNN_MAX_DEVICES]{
-    { "qnn-cpu", "Qualcomm Kryo CPU", "libQnnCpu.so", GGML_BACKEND_DEVICE_TYPE_CPU },   /* QNN_BACKEND_CPU */
-    { "qnn-gpu", "Qualcomm Adreno GPU", "libQnnGpu.so", GGML_BACKEND_DEVICE_TYPE_GPU }, /* QNN_BACKEND_GPU */
-    { "qnn-npu", "Qualcomm NPU", "libQnnHtp.so", GGML_BACKEND_DEVICE_TYPE_GPU },        /* QNN_BACKEND_NPU */
+    { "qnn-cpu",
+      "Qualcomm Kryo CPU",
+      "libQnnCpu.so",
+      GGML_BACKEND_DEVICE_TYPE_CPU,
+      { GGML_TYPE_F32,
+        GGML_TYPE_I8 } }, // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/CpuOpDefSupplement.html#matmul
+    { "qnn-gpu",
+      "Qualcomm Adreno GPU",
+      "libQnnGpu.so",
+      GGML_BACKEND_DEVICE_TYPE_GPU,
+      { GGML_TYPE_F32,
+        GGML_TYPE_F16 } }, // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/GpuOpDefSupplement.html#matmul
+    { "qnn-npu",
+      "Qualcomm NPU",
+      "libQnnHtp.so",
+      GGML_BACKEND_DEVICE_TYPE_GPU,
+      { GGML_TYPE_F32, GGML_TYPE_F16, GGML_TYPE_I16,
+        GGML_TYPE_I8 } }, // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/HtpOpDefSupplement.html#matmul
 };
 
 class ggml_backend_qnn_buffer_context {
@@ -433,6 +451,7 @@ ggml_backend_t ggml_backend_qnn_init_with_device_context(ggml_backend_dev_t dev,
     dev_ctx->instance = instance;
     dev_ctx->qnn_interface = qnn_interface;
     dev_ctx->socinfo = instance->get_soc_info();
+    dev_ctx->supported_types = kDeviceCaps[device_index].supported_types;
 
     ggml_backend_t qnn_backend = new ggml_backend{
         /* .guid      = */ ggml_backend_qnn_guid(),

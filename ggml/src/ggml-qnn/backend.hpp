@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "ggml.h"
 
@@ -26,6 +27,7 @@ struct ggml_backend_qnn_device_context {
 
     // initialize in init
     qnn::qcom_socinfo socinfo = {};
+    std::unordered_set<ggml_type> supported_types;
     std::shared_ptr<qnn::qnn_instance> instance;
     std::shared_ptr<qnn::qnn_interface> qnn_interface;
 
