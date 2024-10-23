@@ -303,26 +303,6 @@ ggml_status ggml_backend_qnn_graph_compute(ggml_backend_t backend, ggml_cgraph *
     return result;
 }
 
-bool ggml_backend_qnn_supports_op(ggml_backend_t backend, const ggml_tensor *op) {
-    auto *device_ctx = get_device_context(backend->device);
-    return qnn::ggml_qnn_supports_op(device_ctx, op);
-}
-
-bool ggml_backend_qnn_offload_op(ggml_backend_t backend, const ggml_tensor *op) {
-    GGML_UNUSED(backend);
-
-    size_t dims = ggml_n_dims(op);
-    bool can_offload = false;
-    for (size_t i = 0; i < dims; i++) {
-        if (op->ne[i] > 1) {
-            can_offload = true;
-            break;
-        }
-    }
-
-    return can_offload;
-}
-
 ggml_backend_i ggml_backend_qnn_interface = {
     /* .get_name                = */ ggml_backend_qnn_name,
     /* .free                    = */ ggml_backend_qnn_free,
