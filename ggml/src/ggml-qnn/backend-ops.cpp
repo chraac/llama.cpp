@@ -104,7 +104,8 @@ bool execute_graph(qnn::ggml_qnn_graph *graph, const std::array<ggml_tensor *, _
 }
 
 template <size_t _InputSize, size_t _OutputSize>
-std::string get_graph_key(const std::string &op_name, const std::array<ggml_tensor *, _InputSize> &inputs) {
+std::string get_graph_key(const std::string &op_name, const std::array<ggml_tensor *, _InputSize> &inputs,
+                          const std::array<ggml_tensor *, _OutputSize> &outputs) {
     constexpr static const auto append_dimensions = [](std::string &key, const ggml_tensor *tensor) {
         char buffer[256] = {};
         snprintf(buffer, sizeof(buffer), "_%ldx%ldx%ldx%ld%s", (long)tensor->ne[0], (long)tensor->ne[1],
@@ -117,6 +118,7 @@ std::string get_graph_key(const std::string &op_name, const std::array<ggml_tens
         append_dimensions(graph_key, input);
     }
 
+    graph_key += qnn::get_ggml_type_name(outputs.front()->type);
     return graph_key;
 }
 
@@ -242,7 +244,7 @@ qnn::ggml_qnn_graph *get_qnn_graph_from_cache(ggml_backend_qnn_device_context *c
     auto &graph_cache = ctx->qnn_graph_cache;
     const auto *op_name =
         op < kGgmlUnaryOpStart ? ggml_op_name(ggml_op(op)) : ggml_unary_op_name(ggml_unary_op(op - kGgmlUnaryOpStart));
-    auto graph_key = get_graph_key<_InputSize, _OutputSize>(op_name, inputs);
+    auto graph_key = get_graph_key<_InputSize, _OutputSize>(op_name, inputs, outputs);
     auto it = graph_cache.find(graph_key);
     qnn::ggml_qnn_graph *graph_ptr = nullptr;
     if (it != graph_cache.end()) {
