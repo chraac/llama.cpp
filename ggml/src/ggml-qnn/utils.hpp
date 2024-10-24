@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
 #include <string>
 
 #include "ggml.h"
@@ -17,8 +18,14 @@
 
 namespace qnn {
 
+using ggml_dimension_array_t = int64_t[GGML_MAX_DIMS];
+using qnn_dimension_array_t = std::array<uint32_t, GGML_MAX_DIMS>;
+
+qnn_dimension_array_t get_internal_dimension(const ggml_dimension_array_t &dims, uint32_t rank);
+
 uint32_t get_ggml_tensor_rank(const ggml_tensor *tensor);
-const char *get_backend_name(int n_backend_type);
+const char *get_ggml_type_name(ggml_type type);
+const char *get_backend_name(size_t device_index);
 const char *get_chipset_desc(uint32_t chipset_id);
 const char *get_htparch_desc(size_t htp_arch);
 intptr_t align_to(size_t alignment, intptr_t offset);
@@ -187,8 +194,10 @@ inline void set_qnn_tensor_dyn_dimensions(Qnn_Tensor_t &tensor, uint8_t *isDynam
     }
 }
 
-Qnn_DataType_t device_datatype_from_ggml_datatype(ggml_type ggml_type);
-Qnn_TensorType_t device_tensortype_from_ggml_tensor(ggml_tensor *ggml_tensor);
+Qnn_DataType_t qnn_datatype_from_ggml_datatype(ggml_type ggml_type);
+ggml_type ggml_datatype_from_qnn_datatype(Qnn_DataType_t qnn_type);
+size_t qnn_datatype_size(Qnn_DataType_t qnn_type);
+const char *qnn_datatype_to_string(Qnn_DataType_t qnn_type);
 
 #if ENABLE_QNNBACKEND_PERF
 class qnn_perf {

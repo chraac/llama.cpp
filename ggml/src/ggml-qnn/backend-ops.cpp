@@ -108,8 +108,8 @@ std::string get_graph_key(const std::string &op_name, const std::array<ggml_tens
                           const std::array<ggml_tensor *, _OutputSize> &outputs) {
     constexpr static const auto append_dimensions = [](std::string &key, const ggml_tensor *tensor) {
         char buffer[256] = {};
-        snprintf(buffer, sizeof(buffer), "_%ldx%ldx%ldx%ld", (long)tensor->ne[0], (long)tensor->ne[1],
-                 (long)tensor->ne[2], (long)tensor->ne[3]);
+        snprintf(buffer, sizeof(buffer), "_%ldx%ldx%ldx%ld%s", (long)tensor->ne[0], (long)tensor->ne[1],
+                 (long)tensor->ne[2], (long)tensor->ne[3], qnn::get_ggml_type_name(tensor->type));
         key += buffer;
     };
 
@@ -117,30 +117,9 @@ std::string get_graph_key(const std::string &op_name, const std::array<ggml_tens
     for (auto &input : inputs) {
         append_dimensions(graph_key, input);
     }
-    for (auto &output : outputs) {
-        append_dimensions(graph_key, output);
-    }
 
+    graph_key += qnn::get_ggml_type_name(outputs.front()->type);
     return graph_key;
-}
-
-qnn::ggml_op_constructor_t generate_common_op_constructor(const std::string &op_name) {
-    if (op_name == QNN_OP_MAT_MUL) {
-        // For QNN_OP_MAT_MUL, we need to transpose the input tensor
-        return [](const std::string &name) {
-            auto config = std::make_unique<qnn::ggml_qnn_op_config>(name, QNN_OP_PACKAGE_NAME_QTI_AISW, QNN_OP_MAT_MUL);
-            Qnn_Scalar_t scalar = QNN_SCALAR_INIT;
-            scalar.dataType = QNN_DATATYPE_BOOL_8;
-            scalar.bool8Value = true;
-            config->add_scalar_param(QNN_OP_MAT_MUL_PARAM_TRANSPOSE_IN0, scalar);
-            QNN_LOG_DEBUG("add scalar param %s\n", QNN_OP_MAT_MUL_PARAM_TRANSPOSE_IN0);
-            return config;
-        };
-    }
-
-    return [op_name](const std::string &name) {
-        return std::make_unique<qnn::ggml_qnn_op_config>(name, QNN_OP_PACKAGE_NAME_QTI_AISW, op_name);
-    };
 }
 
 constexpr const char *kGgmlOpToQnnOp[] = {
@@ -278,7 +257,7 @@ qnn::ggml_qnn_graph *get_qnn_graph_from_cache(ggml_backend_qnn_device_context *c
             return nullptr;
         }
 
-        auto op_constructor = generate_common_op_constructor(kGgmlOpToQnnOp[op]);
+        auto op_constructor = qnn::create_op_constructor(kGgmlOpToQnnOp[op]);
         if (!graph->build_graph(op_constructor, to_ggml_tensor_array<_InputSize>(inputs),
                                 to_ggml_tensor_array<_OutputSize>(outputs))) {
             QNN_LOG_ERROR("build_graph failed\n");
@@ -542,11 +521,55 @@ static constexpr const ggml_qnn_binary_op_t kQnnBinaryOpsTable[] = {
 static_assert(sizeof(kQnnBinaryOpsTable) / sizeof(kQnnBinaryOpsTable[0]) == GGML_OP_COUNT,
               "GGML_OP_COUNT does not match the size of the kQnnBinaryOpsTable table");
 
+bool ggml_qnn_supports_tensor(ggml_backend_qnn_device_context *ctx, const ggml_tensor *tensor) {
+    switch (tensor->type) {
+        case GGML_TYPE_F32:
+        case GGML_TYPE_F16:
+        case GGML_TYPE_Q8_0:
+        case GGML_TYPE_Q4_0:
+            if (ctx->supported_types.find(tensor->type) == ctx->supported_types.end()) {
+                QNN_LOG_DEBUG("unsupported data type GGML_TYPE_F16 for cpu backend");
+                return false;
+            }
+            break;
+        default:
+            QNN_LOG_DEBUG("unsupported data type %d", tensor->type);
+            return false;
+    }
+
+    return true;
+}
+
+bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor *op) {
+    auto *src0 = op->src[0];
+    auto *src1 = op->src[1];
+    if (src0->type != src1->type || src0->type != op->type) {
+        // current qnn implementation only supports the same type for src0 and src1
+        QNN_LOG_DEBUG("src0 type %d and src1 type %d and op type %d are not equal", src0->type, src1->type, op->type);
+        return false;
+    }
+
+    if (src0->ne[2] != src1->ne[2] || src0->ne[3] != src1->ne[3]) {
+        /*
+         * TODO: remove the blocker here when qnn backend supports mul_mat like this:
+         *   [ne03, ne02, n, k] * [ne03 * x, ne02 * y, m, k] -> [ne03 * x, ne02 * y, m, n]
+         */
+        QNN_LOG_DEBUG("src0 and src1 dimensions are not equal");
+        return false;
+    }
+
+    return true;
+}
+
 } // namespace
 
 namespace qnn {
 
-bool ggml_qnn_supports_op(const ggml_tensor *op) {
+bool ggml_qnn_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor *op) {
+    if (op->op == GGML_OP_NONE) {
+        return true;
+    }
+
     if (op->op == GGML_OP_UNARY) {
         if (!kQnnUnaryOpsTable[kGgmlUnaryOpStart + ggml_get_unary_op(op)]) {
             QNN_LOG_DEBUG("unsupported unary op %d", ggml_get_unary_op(op));
@@ -557,35 +580,38 @@ bool ggml_qnn_supports_op(const ggml_tensor *op) {
             QNN_LOG_DEBUG("src0 is nullptr");
             return false;
         }
-    } else if (op->op != GGML_OP_NONE) {
+    } else {
         if (!kQnnUnaryOpsTable[op->op] && !kQnnBinaryOpsTable[op->op]) {
             QNN_LOG_DEBUG("unsupported op %d", op->op);
             return false;
         }
 
-        if (!op->src[0] || !op->src[1]) {
+        auto *src0 = op->src[0];
+        auto *src1 = op->src[1];
+        if (!src0 || !src1) {
             QNN_LOG_DEBUG("src0 or src1 is nullptr");
             return false;
         }
 
-#ifndef NDEBUG
-        if (op->op == GGML_OP_ADD && !is_tensor_dimensions_equal(op->src[0], op->src[1])) {
-            QNN_LOG_DEBUG("src0 and src1 dimensions are not equal");
+        if (!ggml_qnn_supports_tensor(ctx, src0) || !ggml_qnn_supports_tensor(ctx, src1) ||
+            !ggml_qnn_supports_tensor(ctx, op)) {
             return false;
         }
-#endif
-    }
 
-    switch (op->type) {
-        case GGML_TYPE_F32:
-        case GGML_TYPE_F16:
-        case GGML_TYPE_I8:
-        case GGML_TYPE_Q8_0:
-        case GGML_TYPE_Q4_0:
-            break;
-        default:
-            QNN_LOG_DEBUG("unsupported src0 type %d", op->src[0]->type);
-            return false;
+        switch (op->op) {
+            case GGML_OP_ADD:
+                if (!is_tensor_dimensions_equal(src0, src1)) {
+                    QNN_LOG_DEBUG("src0 and src1 dimensions are not equal");
+                    return false;
+                }
+                break;
+
+            case GGML_OP_MUL_MAT:
+                return ggml_qnn_supports_matmul_op(ctx, op);
+
+            default:
+                return false;
+        }
     }
 
     return true;
