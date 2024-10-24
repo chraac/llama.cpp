@@ -521,6 +521,27 @@ static constexpr const ggml_qnn_binary_op_t kQnnBinaryOpsTable[] = {
 static_assert(sizeof(kQnnBinaryOpsTable) / sizeof(kQnnBinaryOpsTable[0]) == GGML_OP_COUNT,
               "GGML_OP_COUNT does not match the size of the kQnnBinaryOpsTable table");
 
+bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor *op) {
+    auto *src0 = op->src[0];
+    auto *src1 = op->src[1];
+    if (src0->type != src1->type || src0->type != op->type) {
+        // current qnn implementation only supports the same type for src0 and src1
+        QNN_LOG_DEBUG("src0 type %d and src1 type %d and op type %d are not equal", src0->type, src1->type, op->type);
+        return false;
+    }
+
+    if (src0->ne[2] != src1->ne[2] || src0->ne[3] != src1->ne[3]) {
+        /*
+         * TODO: remove the blocker here when qnn backend supports mul_mat like this:
+         *   [ne03, ne02, n, k] * [ne03 * x, ne02 * y, m, k] -> [ne03 * x, ne02 * y, m, n]
+         */
+        QNN_LOG_DEBUG("src0 and src1 dimensions are not equal");
+        return false;
+    }
+
+    return true;
+}
+
 } // namespace
 
 namespace qnn {
@@ -577,21 +598,7 @@ bool ggml_qnn_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tenso
                 break;
 
             case GGML_OP_MUL_MAT:
-                if (src0->type != src1->type) {
-                    // current qnn implementation only supports the same type for src0 and src1
-                    QNN_LOG_DEBUG("src0 type %d and src1 type %d are not equal", src0->type, src1->type);
-                    return false;
-                }
-
-                if (src0->ne[2] != src1->ne[2] || src0->ne[3] != src1->ne[3]) {
-                    /*
-                     * TODO: remove the blocker here when qnn backend supports mul_mat like this:
-                     *   [ne03, ne02, n, k] * [ne03 * x, ne02 * y, m, k] -> [ne03 * x, ne02 * y, m, n]
-                     */
-                    QNN_LOG_DEBUG("src0 and src1 dimensions are not equal");
-                    return false;
-                }
-                break;
+                return ggml_qnn_supports_matmul_op(ctx, op);
 
             default:
                 return false;
