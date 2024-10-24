@@ -521,6 +521,25 @@ static constexpr const ggml_qnn_binary_op_t kQnnBinaryOpsTable[] = {
 static_assert(sizeof(kQnnBinaryOpsTable) / sizeof(kQnnBinaryOpsTable[0]) == GGML_OP_COUNT,
               "GGML_OP_COUNT does not match the size of the kQnnBinaryOpsTable table");
 
+bool ggml_qnn_supports_tensor(ggml_backend_qnn_device_context *ctx, const ggml_tensor *tensor) {
+    switch (tensor->type) {
+        case GGML_TYPE_F32:
+        case GGML_TYPE_F16:
+        case GGML_TYPE_Q8_0:
+        case GGML_TYPE_Q4_0:
+            if (ctx->supported_types.find(tensor->type) == ctx->supported_types.end()) {
+                QNN_LOG_DEBUG("unsupported data type GGML_TYPE_F16 for cpu backend");
+                return false;
+            }
+            break;
+        default:
+            QNN_LOG_DEBUG("unsupported data type %d", tensor->type);
+            return false;
+    }
+
+    return true;
+}
+
 bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor *op) {
     auto *src0 = op->src[0];
     auto *src1 = op->src[1];
@@ -548,21 +567,6 @@ namespace qnn {
 
 bool ggml_qnn_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor *op) {
     if (op->op == GGML_OP_NONE) {
-        switch (op->type) {
-            case GGML_TYPE_F32:
-            case GGML_TYPE_F16:
-            case GGML_TYPE_Q8_0:
-            case GGML_TYPE_Q4_0:
-                if (ctx->supported_types.find(GGML_TYPE_F16) == ctx->supported_types.end()) {
-                    QNN_LOG_DEBUG("unsupported data type GGML_TYPE_F16 for cpu backend");
-                    return false;
-                }
-                break;
-            default:
-                QNN_LOG_DEBUG("unsupported data type %d", op->type);
-                return false;
-        }
-
         return true;
     }
 
@@ -586,6 +590,11 @@ bool ggml_qnn_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tenso
         auto *src1 = op->src[1];
         if (!src0 || !src1) {
             QNN_LOG_DEBUG("src0 or src1 is nullptr");
+            return false;
+        }
+
+        if (!ggml_qnn_supports_tensor(ctx, src0) || !ggml_qnn_supports_tensor(ctx, src1) ||
+            !ggml_qnn_supports_tensor(ctx, op)) {
             return false;
         }
 
