@@ -29,7 +29,9 @@ public:
                              QNNBackend device, Qnn_GraphHandle_t graph_handle,
                              std::shared_ptr<qnn_instance> qnn_instance) :
         _tensor_name(name), _device(device), _qnn_instance(qnn_instance), _graph_handle(graph_handle) {
-        QNN_TENSOR_SET_NAME(_qnn_tensor, _tensor_name.c_str());
+        if (!_tensor_name.empty()) {
+            QNN_TENSOR_SET_NAME(_qnn_tensor, _tensor_name.c_str());
+        }
         QNN_TENSOR_SET_DIMENSIONS(_qnn_tensor, _dimensions.data());
         QNN_TENSOR_SET_DATA_FORMAT(_qnn_tensor, QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER);
 
