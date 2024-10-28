@@ -290,8 +290,49 @@ bool ggml_qnn_matmul_op_config::create_tensors(QNNBackend device, Qnn_GraphHandl
     params.is_input = false;
     create_tensors_from_ggml_tensor(params, tensor_outputs, &mat_mul_tensor_outputs, nullptr);
 
+    if (device == QNN_BACKEND_GPU) {
+        // there's no convert op for GPU, so we should create matmul nodes directl.
+        return create_mat_mul_nodes(device, graph_handle, tensor_rank, _tensor_inputs, mat_mul_tensor_outputs);
+    }
+
+    // create tensors for convert node
+    ggml_qnn_tensor_array_t mat_mul_tensor_inputs = _tensor_inputs;
+    auto input_tensor_type = get_tensor_type(mat_mul_tensor_inputs);
+    QNN_LOG_DEBUG("matmul input tensor type: %s\n", qnn_datatype_to_string(input_tensor_type));
+
+    _input_converts.resize(mat_mul_tensor_inputs.size());
+    for (size_t i = 0; i < mat_mul_tensor_inputs.size(); ++i) {
+        // create input convert nodes
+        std::string convert_name("convert_src" + std::to_string(i));
+        auto convert_in = mat_mul_tensor_inputs[i];
+        auto convert_out = std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::INTERMEDIATE, convert_name + "_out",
+                                                             convert_in->get_dimensions(), input_tensor_type,
+                                                             tensor_rank, device, graph_handle, _qnn_instance);
+        auto convert = std::make_shared<ggml_qnn_connectable_op_config>(convert_name, QNN_OP_PACKAGE_NAME_QTI_AISW,
+                                                                        QNN_OP_CONVERT, _qnn_instance);
+        convert->set_input_tensors({ convert_in });
+        convert->set_output_tensors({ convert_out });
+        mat_mul_tensor_inputs[i] = convert_out;
+        _input_converts[i] = convert;
+    }
+
+    {
+        // create output convert node
+        std::string convert_name("convert_dst");
+        auto convert_out = mat_mul_tensor_outputs.front();
+        auto convert_in = std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::INTERMEDIATE, convert_name + "_in",
+                                                            convert_out->get_dimensions(), input_tensor_type,
+                                                            tensor_rank, device, graph_handle, _qnn_instance);
+        auto output_convert = std::make_shared<ggml_qnn_connectable_op_config>(
+            convert_name, QNN_OP_PACKAGE_NAME_QTI_AISW, QNN_OP_CONVERT, _qnn_instance);
+        output_convert->set_input_tensors({ convert_in });
+        output_convert->set_output_tensors({ convert_out });
+        mat_mul_tensor_outputs[0] = convert_in;
+        _output_convert = output_convert;
+    }
+
     // create mat_mul nodes
-    return create_mat_mul_nodes(device, graph_handle, tensor_rank, _tensor_inputs, mat_mul_tensor_outputs);
+    return create_mat_mul_nodes(device, graph_handle, tensor_rank, mat_mul_tensor_inputs, mat_mul_tensor_outputs);
 }
 
 bool ggml_qnn_matmul_op_config::create_mat_mul_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle, const int rank,
