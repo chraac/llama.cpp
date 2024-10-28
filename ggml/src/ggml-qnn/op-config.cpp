@@ -154,7 +154,7 @@ void ggml_qnn_op_config_base::add_scalar_param(const std::string &name, const Qn
 bool ggml_qnn_op_config_base::add_tensor_param(const std::string &name, const qnn_dimension_array_t &dimensions,
                                                int rank, const uint8_t *data, const Qnn_DataType_t data_type,
                                                QNNBackend device, Qnn_GraphHandle_t graph_handle) {
-    std::string tensor_name = name + std::to_string(_tensor_parameters.size());
+    std::string tensor_name = _name + name + std::to_string(_tensor_parameters.size());
     auto param_tensor = std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::PARAMETER, tensor_name, dimensions,
                                                           data_type, rank, device, graph_handle, _qnn_instance);
     size_t data_size = ggml_type_size(ggml_datatype_from_qnn_datatype(data_type));
