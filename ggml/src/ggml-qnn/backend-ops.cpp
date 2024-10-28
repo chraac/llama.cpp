@@ -541,6 +541,8 @@ bool ggml_qnn_supports_tensor(ggml_backend_qnn_device_context *ctx, const ggml_t
 }
 
 bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor *op) {
+    GGML_UNUSED(ctx);
+
     auto *src0 = op->src[0];
     auto *src1 = op->src[1];
     if (src0->type != src1->type || src0->type != op->type) {
