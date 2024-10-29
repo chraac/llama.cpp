@@ -57,30 +57,30 @@ struct qnn_device_caps {
 };
 
 const qnn_device_caps kDeviceCaps[GGML_QNN_MAX_DEVICES]{
-    { "qnn-cpu",
-      "Qualcomm Kryo CPU",
-      "libQnnCpu.so",
-      GGML_BACKEND_DEVICE_TYPE_CPU,
-      { GGML_TYPE_F32,
-        GGML_TYPE_I8 } }, // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/CpuOpDefSupplement.html#matmul
-    { "qnn-gpu",
-      "Qualcomm Adreno GPU",
-      "libQnnGpu.so",
-      GGML_BACKEND_DEVICE_TYPE_GPU,
-      { GGML_TYPE_F32,
-        GGML_TYPE_F16 } }, // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/GpuOpDefSupplement.html#matmul
-    { "qnn-npu",
-      "Qualcomm NPU",
-      "libQnnHtp.so",
-      GGML_BACKEND_DEVICE_TYPE_GPU,
-      { GGML_TYPE_F32, GGML_TYPE_F16, GGML_TYPE_I16,
-        GGML_TYPE_I8 } }, // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/HtpOpDefSupplement.html#matmul
+    {// https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/CpuOpDefSupplement.html#matmul
+     "qnn-cpu",
+     "Qualcomm Kryo CPU",
+     "libQnnCpu.so",
+     GGML_BACKEND_DEVICE_TYPE_CPU,
+     {GGML_TYPE_F32, GGML_TYPE_I8}},
+    {// https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/GpuOpDefSupplement.html#matmul
+     "qnn-gpu",
+     "Qualcomm Adreno GPU",
+     "libQnnGpu.so",
+     GGML_BACKEND_DEVICE_TYPE_GPU,
+     {GGML_TYPE_F32, GGML_TYPE_F16}},
+    {// https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/HtpOpDefSupplement.html#matmul
+     "qnn-npu",
+     "Qualcomm NPU",
+     "libQnnHtp.so",
+     GGML_BACKEND_DEVICE_TYPE_GPU,
+     {GGML_TYPE_F32, GGML_TYPE_F16, GGML_TYPE_I16, GGML_TYPE_I8}},
 };
 
 class ggml_backend_qnn_buffer_context {
 public:
-    ggml_backend_qnn_buffer_context(QNNBackend device, std::shared_ptr<qnn::qnn_instance> instance, size_t size) :
-        _instance(instance), _name(QNN_BACKEND_NAME + std::to_string(device)) {
+    ggml_backend_qnn_buffer_context(QNNBackend device, std::shared_ptr<qnn::qnn_instance> instance, size_t size)
+        : _instance(instance), _name(QNN_BACKEND_NAME + std::to_string(device)) {
 
         // TODO: fix this for other platforms
         size_t size_page = sysconf(_SC_PAGESIZE);
@@ -261,7 +261,7 @@ ggml_backend_buffer_type_t ggml_backend_qnn_buffer_type(ggml_backend_dev_t dev) 
     if (!ggml_backend_qnn_buffer_type_initialized) {
         for (size_t i = 0; i < GGML_QNN_MAX_DEVICES; i++) {
             auto &context = ggml_backend_qnn_buffer_type_contexts[i];
-            context = { std::string(QNN_BACKEND_NAME) + std::to_string(i) };
+            context = {std::string(QNN_BACKEND_NAME) + std::to_string(i)};
             ggml_backend_qnn_buffer_types[i] = {
                 /* .iface   = */ {
                     /* .get_name         = */ ggml_backend_qnn_buffer_type_name,
@@ -366,8 +366,8 @@ void ggml_backend_qnn_device_get_props(ggml_backend_dev_t dev, struct ggml_backe
 }
 
 ggml_guid_t ggml_backend_qnn_guid() {
-    static ggml_guid guid = { 0x1a, 0x2b, 0x3c, 0x4d, 0x5e, 0x6f, 0x70, 0x81,
-                              0x92, 0xa3, 0xb4, 0xc5, 0xd6, 0xe7, 0xf8, 0x09 };
+    static ggml_guid guid = {0x1a, 0x2b, 0x3c, 0x4d, 0x5e, 0x6f, 0x70, 0x81,
+                             0x92, 0xa3, 0xb4, 0xc5, 0xd6, 0xe7, 0xf8, 0x09};
     return &guid;
 }
 
@@ -529,7 +529,7 @@ const ggml_backend_reg_i ggml_backend_qnn_reg_interface = {
 } // namespace
 
 ggml_backend_reg_t ggml_backend_qnn_reg() {
-    static ggml_backend_qnn_reg_impl reg{ ggml_backend_qnn_reg_interface };
+    static ggml_backend_qnn_reg_impl reg{ggml_backend_qnn_reg_interface};
     static bool initialized = false;
     static std::mutex mutex;
 

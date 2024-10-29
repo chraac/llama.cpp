@@ -278,9 +278,9 @@ bool qnn_binary_op_impl(ggml_backend_qnn_device_context *ctx, ggml_tensor *src0,
     CHECK_PARAMS(ctx, src0, src1, dst);
 
     bool succeed = false;
-    auto *graph_ptr = get_qnn_graph_from_cache<2, 1>(ctx, _GgmlOp, { src0, src1 }, { dst });
+    auto *graph_ptr = get_qnn_graph_from_cache<2, 1>(ctx, _GgmlOp, {src0, src1}, {dst});
     if (graph_ptr) {
-        succeed = execute_graph<2, 1>(graph_ptr, { src0, src1 }, { dst });
+        succeed = execute_graph<2, 1>(graph_ptr, {src0, src1}, {dst});
     }
 
 #ifndef NDEBUG
@@ -301,9 +301,9 @@ bool qnn_unary_op_impl(ggml_backend_qnn_device_context *ctx, ggml_tensor *src, g
     CHECK_PARAMS(ctx, src, dst);
 
     bool succeed = false;
-    auto *graph_ptr = get_qnn_graph_from_cache<1, 1>(ctx, _GgmlOp, { src }, { dst });
+    auto *graph_ptr = get_qnn_graph_from_cache<1, 1>(ctx, _GgmlOp, {src}, {dst});
     if (graph_ptr) {
-        succeed = execute_graph<1, 1>(graph_ptr, { src }, { dst });
+        succeed = execute_graph<1, 1>(graph_ptr, {src}, {dst});
     }
 
 #ifndef NDEBUG
