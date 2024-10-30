@@ -79,11 +79,11 @@ bool is_tensor_dimensions_equal(const ggml_tensor *l, const ggml_tensor *r) {
 }
 
 typedef bool (*ggml_qnn_unary_op_t)(ggml_backend_qnn_device_context *ctx, ggml_tensor *src, ggml_tensor *dst);
-typedef bool (*ggml_qnn_general_op_t)(ggml_backend_qnn_device_context *ctx, ggml_tensor *src0, ggml_tensor *src1,
-                                      ggml_tensor *dst);
+typedef bool (*ggml_qnn_binary_op_t)(ggml_backend_qnn_device_context *ctx, ggml_tensor *src0, ggml_tensor *src1,
+                                     ggml_tensor *dst);
 
 typedef const ggml_qnn_unary_op_t (&ggml_qnn_unary_op_array_t)[GGML_OP_COUNT + GGML_UNARY_OP_COUNT];
-typedef const ggml_qnn_general_op_t (&ggml_qnn_general_op_array_t)[GGML_OP_COUNT];
+typedef const ggml_qnn_binary_op_t (&ggml_qnn_binary_op_array_t)[GGML_OP_COUNT];
 
 constexpr const size_t kGgmlUnaryOpStart = GGML_OP_COUNT;
 
@@ -272,7 +272,7 @@ qnn::ggml_qnn_graph *get_qnn_graph_from_cache(ggml_backend_qnn_device_context *c
 }
 
 template <ggml_op _GgmlOp>
-bool qnn_general_op_impl(ggml_backend_qnn_device_context *ctx, ggml_tensor *src0, ggml_tensor *src1, ggml_tensor *dst) {
+bool qnn_binary_op_impl(ggml_backend_qnn_device_context *ctx, ggml_tensor *src0, ggml_tensor *src1, ggml_tensor *dst) {
     static_assert(kGgmlOpToQnnOp[_GgmlOp] != nullptr, "GGML_OP does not have a corresponding QNN_OP");
 
     CHECK_PARAMS(ctx, src0, src1, dst);
@@ -426,15 +426,15 @@ constexpr const ggml_qnn_unary_op_t kQnnUnaryOpsTable[] = {
 static_assert(sizeof(kQnnUnaryOpsTable) / sizeof(kQnnUnaryOpsTable[0]) == (GGML_OP_COUNT + GGML_UNARY_OP_COUNT),
               "GGML_OP_COUNT does not match the size of the kQnnUnaryOpsTable table");
 
-static constexpr const ggml_qnn_general_op_t kQnnGeneralOpsTable[] = {
+static constexpr const ggml_qnn_binary_op_t kQnnBinaryOpsTable[] = {
     nullptr,                         // GGML_OP_NONE
     nullptr,                         // GGML_OP_DUP
-    qnn_general_op_impl<GGML_OP_ADD>, // GGML_OP_ADD
+    qnn_binary_op_impl<GGML_OP_ADD>, // GGML_OP_ADD
     nullptr,                         // GGML_OP_ADD1
     nullptr,                         // GGML_OP_ACC
-    qnn_general_op_impl<GGML_OP_SUB>, // GGML_OP_SUB
-    qnn_general_op_impl<GGML_OP_MUL>, // GGML_OP_MUL
-    qnn_general_op_impl<GGML_OP_DIV>, // GGML_OP_DIV
+    qnn_binary_op_impl<GGML_OP_SUB>, // GGML_OP_SUB
+    qnn_binary_op_impl<GGML_OP_MUL>, // GGML_OP_MUL
+    qnn_binary_op_impl<GGML_OP_DIV>, // GGML_OP_DIV
     nullptr,                         // GGML_OP_SQR
     nullptr,                         // GGML_OP_SQRT
     nullptr,                         // GGML_OP_LOG
@@ -454,7 +454,7 @@ static constexpr const ggml_qnn_general_op_t kQnnGeneralOpsTable[] = {
     nullptr,                         // GGML_OP_RMS_NORM_BACK
     nullptr,                         // GGML_OP_GROUP_NORM
 
-    qnn_general_op_impl<GGML_OP_MUL_MAT>, // GGML_OP_MUL_MAT
+    qnn_binary_op_impl<GGML_OP_MUL_MAT>, // GGML_OP_MUL_MAT
     nullptr,                             // GGML_OP_MUL_MAT_ID
     nullptr,                             // GGML_OP_OUT_PROD
 
@@ -518,8 +518,8 @@ static constexpr const ggml_qnn_general_op_t kQnnGeneralOpsTable[] = {
     nullptr, // GGML_OP_OPT_STEP_ADAMW
 };
 
-static_assert(sizeof(kQnnGeneralOpsTable) / sizeof(kQnnGeneralOpsTable[0]) == GGML_OP_COUNT,
-              "GGML_OP_COUNT does not match the size of the kQnnGeneralOpsTable table");
+static_assert(sizeof(kQnnBinaryOpsTable) / sizeof(kQnnBinaryOpsTable[0]) == GGML_OP_COUNT,
+              "GGML_OP_COUNT does not match the size of the kQnnBinaryOpsTable table");
 
 bool ggml_qnn_supports_tensor(ggml_backend_qnn_device_context *ctx, const ggml_tensor *tensor) {
     switch (tensor->type) {
@@ -590,7 +590,7 @@ bool ggml_qnn_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tenso
             return false;
         }
     } else {
-        if (!kQnnUnaryOpsTable[op->op] && !kQnnGeneralOpsTable[op->op]) {
+        if (!kQnnUnaryOpsTable[op->op] && !kQnnBinaryOpsTable[op->op]) {
             QNN_LOG_DEBUG("unsupported op %d", op->op);
             return false;
         }
@@ -637,9 +637,9 @@ bool ggml_qnn_forward(ggml_backend_qnn_device_context *ctx, struct ggml_tensor *
         return unary_op(ctx, tensor->src[0], tensor);
     }
 
-    auto general_op = kQnnGeneralOpsTable[tensor->op];
-    if (general_op) {
-        return general_op(ctx, tensor->src[0], tensor->src[1], tensor);
+    auto binary_op = kQnnBinaryOpsTable[tensor->op];
+    if (binary_op) {
+        return binary_op(ctx, tensor->src[0], tensor->src[1], tensor);
     }
 
     QNN_LOG_WARN("unsupported op %s", ggml_op_desc(tensor));
