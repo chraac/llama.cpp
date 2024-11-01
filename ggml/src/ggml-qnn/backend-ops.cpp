@@ -315,6 +315,22 @@ bool qnn_unary_op_impl(ggml_backend_qnn_device_context *ctx, ggml_tensor *src, g
 
     return succeed;
 }
+
+bool qnn_unary_nop_impl(ggml_backend_qnn_device_context *ctx, ggml_tensor *src, ggml_tensor *dst) {
+    GGML_UNUSED(ctx);
+    GGML_UNUSED(src);
+    GGML_UNUSED(dst);
+    return true;
+}
+
+bool qnn_binary_nop_impl(ggml_backend_qnn_device_context *ctx, ggml_tensor *src0, ggml_tensor *src1, ggml_tensor *dst) {
+    GGML_UNUSED(ctx);
+    GGML_UNUSED(src0);
+    GGML_UNUSED(src1);
+    GGML_UNUSED(dst);
+    return true;
+}
+
 constexpr const ggml_qnn_unary_op_t kQnnUnaryOpsTable[] = {
     nullptr,                         // GGML_OP_NONE
     nullptr,                         // GGML_OP_DUP
@@ -352,10 +368,10 @@ constexpr const ggml_qnn_unary_op_t kQnnUnaryOpsTable[] = {
     nullptr,                            // GGML_OP_CPY
     nullptr,                            // GGML_OP_CONT
     nullptr,                            // GGML_OP_RESHAPE
-    nullptr,                            // GGML_OP_VIEW
+    qnn_unary_nop_impl,                 // GGML_OP_VIEW
     qnn_unary_op_impl<GGML_OP_PERMUTE>, // GGML_OP_PERMUTE
     nullptr,                            // GGML_OP_TRANSPOSE
-    nullptr,                            // GGML_OP_GET_ROWS
+    qnn_unary_nop_impl,                 // GGML_OP_GET_ROWS
     nullptr,                            // GGML_OP_GET_ROWS_BACK
     nullptr,                            // GGML_OP_DIAG
     nullptr,                            // GGML_OP_DIAG_MASK_INF
@@ -522,18 +538,24 @@ static_assert(sizeof(kQnnBinaryOpsTable) / sizeof(kQnnBinaryOpsTable[0]) == GGML
               "GGML_OP_COUNT does not match the size of the kQnnBinaryOpsTable table");
 
 bool ggml_qnn_supports_tensor(ggml_backend_qnn_device_context *ctx, const ggml_tensor *tensor) {
+    if (!tensor) {
+        QNN_LOG_DEBUG("tensor is nullptr");
+        return false;
+    }
+
+    auto *type_name = ggml_get_type_traits(tensor->type)->type_name;
     switch (tensor->type) {
         case GGML_TYPE_F32:
         case GGML_TYPE_F16:
         case GGML_TYPE_Q8_0:
         case GGML_TYPE_Q4_0:
             if (ctx->supported_types.find(tensor->type) == ctx->supported_types.end()) {
-                QNN_LOG_DEBUG("unsupported data type GGML_TYPE_F16 for cpu backend");
+                QNN_LOG_DEBUG("unsupported data type %s for backend %d", type_name, (int)ctx->device);
                 return false;
             }
             break;
         default:
-            QNN_LOG_DEBUG("unsupported data type %d", tensor->type);
+            QNN_LOG_DEBUG("unsupported data type %s", type_name);
             return false;
     }
 
@@ -591,19 +613,15 @@ bool ggml_qnn_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tenso
         }
     } else {
         if (!kQnnUnaryOpsTable[op->op] && !kQnnBinaryOpsTable[op->op]) {
-            QNN_LOG_DEBUG("unsupported op %s", ggml_op_name(op->op));
+            QNN_LOG_DEBUG("[%s] unsupported op", ggml_op_name(op->op));
             return false;
         }
 
         auto *src0 = op->src[0];
         auto *src1 = op->src[1];
-        if (!src0 || !src1) {
-            QNN_LOG_DEBUG("src0 or src1 is nullptr");
-            return false;
-        }
-
-        if (!ggml_qnn_supports_tensor(ctx, src0) || !ggml_qnn_supports_tensor(ctx, src1) ||
-            !ggml_qnn_supports_tensor(ctx, op)) {
+        if (!ggml_qnn_supports_tensor(ctx, src0) || !ggml_qnn_supports_tensor(ctx, op) ||
+            (kQnnBinaryOpsTable[op->op] && !ggml_qnn_supports_tensor(ctx, src1))) {
+            QNN_LOG_DEBUG("[%s] unsupported tensor", ggml_op_name(op->op));
             return false;
         }
 
