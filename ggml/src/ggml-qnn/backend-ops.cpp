@@ -567,12 +567,6 @@ bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context *ctx, const ggm
 
     auto *src0 = op->src[0];
     auto *src1 = op->src[1];
-    if (src0->type != src1->type || src0->type != op->type) {
-        // current qnn implementation only supports the same type for src0 and src1
-        QNN_LOG_DEBUG("src0 type %d and src1 type %d and op type %d are not equal", src0->type, src1->type, op->type);
-        return false;
-    }
-
     if (src0->ne[2] != src1->ne[2] || src0->ne[3] != src1->ne[3]) {
         /*
          * TODO: remove the blocker here when qnn backend supports mul_mat like this:
