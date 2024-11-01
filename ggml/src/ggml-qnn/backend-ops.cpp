@@ -161,7 +161,7 @@ constexpr const char *kGgmlOpToQnnOp[] = {
     nullptr,          // GGML_OP_RESHAPE
     nullptr,          // GGML_OP_VIEW
     QNN_OP_TRANSPOSE, // GGML_OP_PERMUTE
-    QNN_OP_TRANSPOSE, // GGML_OP_TRANSPOSE
+    nullptr,          // GGML_OP_TRANSPOSE
     nullptr,          // GGML_OP_GET_ROWS
     nullptr,          // GGML_OP_GET_ROWS_BACK
     nullptr,          // GGML_OP_DIAG
@@ -591,7 +591,7 @@ bool ggml_qnn_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tenso
         }
     } else {
         if (!kQnnUnaryOpsTable[op->op] && !kQnnBinaryOpsTable[op->op]) {
-            QNN_LOG_DEBUG("unsupported op %d", op->op);
+            QNN_LOG_DEBUG("unsupported op %s", ggml_op_name(op->op));
             return false;
         }
 
@@ -642,7 +642,7 @@ bool ggml_qnn_forward(ggml_backend_qnn_device_context *ctx, struct ggml_tensor *
         return binary_op(ctx, tensor->src[0], tensor->src[1], tensor);
     }
 
-    QNN_LOG_WARN("unsupported op %s", ggml_op_desc(tensor));
+    QNN_LOG_WARN("[forward]unsupported op %s", ggml_op_desc(tensor));
     return false;
 }
 

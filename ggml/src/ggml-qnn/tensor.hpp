@@ -257,6 +257,7 @@ private:
     DISABLE_MOVE(ggml_qnn_tensor);
 };
 
+using ggml_qnn_tensor_ptr_t = std::shared_ptr<ggml_qnn_tensor>;
 using ggml_qnn_tensor_array_t = std::vector<std::shared_ptr<ggml_qnn_tensor>>;
 
 } // namespace qnn

@@ -30,6 +30,11 @@ public:
     virtual void unbind_output_tensors() = 0;
 };
 
+using ggml_op_constructor_t =
+    std::function<std::unique_ptr<ggml_qnn_op_config>(const std::string &, std::shared_ptr<qnn_instance>)>;
+
+ggml_op_constructor_t create_op_constructor(const std::string &op_name);
+
 class ggml_qnn_op_config_base : public ggml_qnn_op_config {
 public:
     explicit ggml_qnn_op_config_base(const std::string &name, const std::string &package_name,
@@ -73,10 +78,23 @@ public:
                                        const std::string &op_type, std::shared_ptr<qnn_instance> qnn_instance)
         : ggml_qnn_op_config_base(name, package_name, op_type, qnn_instance) {}
 
+    explicit ggml_qnn_single_op_config(const std::string &name, const std::string &package_name,
+                                       const std::string &op_type, const std::string &param_name,
+                                       const Qnn_DataType_t param_type, const size_t param_size,
+                                       std::shared_ptr<qnn_instance> qnn_instance)
+        : ggml_qnn_op_config_base(name, package_name, op_type, qnn_instance),
+          _param_name(param_name),
+          _param_type(param_type),
+          _param_buffer(param_size) {}
+
     bool create_tensors(QNNBackend device, Qnn_GraphHandle_t graph_handle, const ggml_tensor_array_t &tensor_inputs,
                         const ggml_tensor_array_t &tensor_outputs) override;
 
 private:
+    const std::string _param_name;
+    const Qnn_DataType_t _param_type = QNN_DATATYPE_UINT_32;
+    std::vector<uint8_t> _param_buffer;
+
     DISABLE_COPY(ggml_qnn_single_op_config);
     DISABLE_MOVE(ggml_qnn_single_op_config);
 };
@@ -113,10 +131,5 @@ private:
     DISABLE_COPY(ggml_qnn_matmul_op_config);
     DISABLE_MOVE(ggml_qnn_matmul_op_config);
 };
-
-using ggml_op_constructor_t =
-    std::function<std::unique_ptr<ggml_qnn_op_config>(const std::string &, std::shared_ptr<qnn_instance>)>;
-
-ggml_op_constructor_t create_op_constructor(const std::string &op_name);
 
 } // namespace qnn
