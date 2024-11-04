@@ -126,15 +126,6 @@ ggml_backend_qnn_device_context *get_device_context(ggml_backend_dev_t dev) {
  * qnn backend buffer object
  * -----------------------------------------------------------------------------------------------
  */
-const char *ggml_backend_qnn_buffer_get_name(ggml_backend_buffer_t buffer) {
-    GGML_UNUSED(buffer);
-    return GGML_QNN_NAME;
-}
-
-bool ggml_backend_buffer_is_qnn(ggml_backend_buffer_t buffer) {
-    return buffer->iface.get_name == ggml_backend_qnn_buffer_get_name;
-}
-
 void ggml_backend_qnn_buffer_free_buffer(ggml_backend_buffer_t buffer) {
     ggml_backend_qnn_buffer_context *ctx = (ggml_backend_qnn_buffer_context *)buffer->context;
 
@@ -184,7 +175,6 @@ void ggml_backend_qnn_buffer_clear(ggml_backend_buffer_t buffer, uint8_t value) 
 }
 
 ggml_backend_buffer_i ggml_backend_qnn_buffer_interface = {
-    /* .get_name        = */ ggml_backend_qnn_buffer_get_name,
     /* .free_buffer     = */ ggml_backend_qnn_buffer_free_buffer,
     /* .get_base        = */ ggml_backend_qnn_buffer_get_base,
     /* .init_tensor     = */ ggml_backend_qnn_buffer_init_tensor,
@@ -281,10 +271,6 @@ ggml_backend_buffer_type_t ggml_backend_qnn_buffer_type(ggml_backend_dev_t dev) 
     return &ggml_backend_qnn_buffer_types[dev_ctx->device];
 }
 
-ggml_backend_buffer_type_t ggml_backend_qnn_get_default_buffer_type(ggml_backend_t backend) {
-    return ggml_backend_qnn_buffer_type(backend->device);
-}
-
 ggml_status ggml_backend_qnn_graph_compute(ggml_backend_t backend, ggml_cgraph *cgraph) {
     enum ggml_status result = GGML_STATUS_SUCCESS;
     auto *device_ctx = get_device_context(backend->device);
@@ -306,7 +292,6 @@ ggml_status ggml_backend_qnn_graph_compute(ggml_backend_t backend, ggml_cgraph *
 ggml_backend_i ggml_backend_qnn_interface = {
     /* .get_name                = */ ggml_backend_qnn_name,
     /* .free                    = */ ggml_backend_qnn_free,
-    /* .get_default_buffer_type = */ ggml_backend_qnn_get_default_buffer_type,
     /* .set_tensor_async        = */ nullptr,
     /* .get_tensor_async        = */ nullptr,
     /* .cpy_tensor_async        = */ nullptr,
@@ -316,9 +301,6 @@ ggml_backend_i ggml_backend_qnn_interface = {
     /* .graph_plan_update       = */ nullptr,
     /* .graph_plan_compute      = */ nullptr,
     /* .graph_compute           = */ ggml_backend_qnn_graph_compute,
-    /* .supports_op             = */ nullptr, // moved to device
-    /* .supports_buft           = */ nullptr, // moved to device
-    /* .offload_op              = */ nullptr, // moved to device
     /* .event_record            = */ nullptr,
     /* .event_wait              = */ nullptr,
 };
