@@ -9,14 +9,13 @@ extern "C" {
 #endif
 
 #define GGML_QNN_NAME "QNN"
-#define GGML_QNN_MAX_DEVICES 3
+#define GGML_QNN_MAX_DEVICES QNN_BACKEND_COUNT
 
 enum QNNBackend {
     QNN_BACKEND_CPU = 0,
     QNN_BACKEND_GPU,
     QNN_BACKEND_NPU,
-    QNN_BACKEND_GGML, //"fake" QNN backend, used for compare performance between
-                      // QNN and original GGML
+    QNN_BACKEND_COUNT,
 };
 
 GGML_API bool ggml_backend_is_qnn(ggml_backend_t backend);

@@ -149,8 +149,7 @@ const char *get_backend_name(size_t device_index) {
             return "QNN-GPU";
         case QNN_BACKEND_NPU:
             return "QNN-NPU";
-        case QNN_BACKEND_GGML:
-            return "ggml"; //"fake" QNN backend, used for compare performance between QNN backend and original GGML
+        case QNN_BACKEND_COUNT:
         default:
             return "unknown";
     }

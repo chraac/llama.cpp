@@ -329,9 +329,17 @@ void ggml_backend_qnn_device_get_memory(ggml_backend_dev_t dev, size_t *free, si
 }
 
 enum ggml_backend_dev_type ggml_backend_qnn_device_get_type(ggml_backend_dev_t dev) {
-    // TODO: for cpu backend, we should return GGML_BACKEND_DEVICE_TYPE_CPU
-    GGML_UNUSED(dev);
-    return GGML_BACKEND_DEVICE_TYPE_GPU;
+    switch (get_device_context(dev)->device) {
+        case QNN_BACKEND_CPU:
+            return GGML_BACKEND_DEVICE_TYPE_CPU;
+        case QNN_BACKEND_GPU:
+            return GGML_BACKEND_DEVICE_TYPE_GPU;
+        case QNN_BACKEND_NPU:
+            return GGML_BACKEND_DEVICE_TYPE_ACCEL;
+        default:
+            break;
+    }
+    return GGML_BACKEND_DEVICE_TYPE_CPU;
 }
 
 void ggml_backend_qnn_device_get_props(ggml_backend_dev_t dev, struct ggml_backend_dev_props *props) {
