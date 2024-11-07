@@ -368,37 +368,37 @@ ggml_backend_t ggml_backend_qnn_init_with_device_context(ggml_backend_dev_t dev,
     }
 
     auto *dev_ctx = get_device_context(dev);
-    auto device_index = dev_ctx->device;
-    QNN_LOG_DEBUG("device %d", device_index);
+    const auto device = dev_ctx->device;
+    QNN_LOG_DEBUG("device %d", device);
     QNN_LOG_DEBUG("extend_lib_search_path %s", extend_lib_search_path);
     std::string path = extend_lib_search_path;
 
 // TODO: Fix this for other platforms
 #if defined(__ANDROID__) || defined(ANDROID)
-    if (QNN_BACKEND_NPU == device_index) {
-        if (0 == setenv("LD_LIBRARY_PATH",
-                        (path + ":/vendor/dsp/cdsp:/vendor/lib64:/vendor/dsp/"
-                                "dsp:/vendor/dsp/images")
-                            .c_str(),
-                        1)) {
+    if (device == QNN_BACKEND_NPU) {
+        if (setenv("LD_LIBRARY_PATH",
+                   (path + ":/vendor/dsp/cdsp:/vendor/lib64:/vendor/dsp/"
+                           "dsp:/vendor/dsp/images")
+                       .c_str(),
+                   1) == 0) {
             QNN_LOG_INFO("QNN NPU backend setenv successfully");
         } else {
             QNN_LOG_ERROR("QNN NPU backend setenv failure");
         }
-        if (0 == setenv("ADSP_LIBRARY_PATH",
-                        (path + ";/vendor/dsp/cdsp;/vendor/lib/rfsa/adsp;/system/lib/"
-                                "rfsa/adsp;/vendor/dsp/dsp;/vendor/dsp/images;/dsp")
-                            .c_str(),
-                        1)) {
+        if (setenv("ADSP_LIBRARY_PATH",
+                   (path + ";/vendor/dsp/cdsp;/vendor/lib/rfsa/adsp;/system/lib/"
+                           "rfsa/adsp;/vendor/dsp/dsp;/vendor/dsp/images;/dsp")
+                       .c_str(),
+                   1) == 0) {
             QNN_LOG_INFO("QNN NPU backend setenv successfully");
         } else {
             QNN_LOG_ERROR("QNN NPU backend setenv failure");
         }
     } else {
-        if (0 == setenv("LD_LIBRARY_PATH", path.c_str(), 1)) {
-            QNN_LOG_INFO("%s backend setenv successfully\n", qnn::get_backend_name(device_index));
+        if (setenv("LD_LIBRARY_PATH", path.c_str(), 1) == 0) {
+            QNN_LOG_INFO("%s backend setenv successfully\n", qnn::get_backend_name(device));
         } else {
-            QNN_LOG_ERROR("%s backend setenv failure\n", qnn::get_backend_name(device_index));
+            QNN_LOG_ERROR("%s backend setenv failure\n", qnn::get_backend_name(device));
         }
     }
 #endif
@@ -406,8 +406,7 @@ ggml_backend_t ggml_backend_qnn_init_with_device_context(ggml_backend_dev_t dev,
     auto instance = std::make_shared<qnn::qnn_instance>(path, dev_ctx->lib_name, "ggml");
     auto result = instance->qnn_init(nullptr);
     if (result != 0) {
-        QNN_LOG_WARN("init qnn subsystem failed with qnn backend %s, pls check why\n",
-                     qnn::get_backend_name(device_index));
+        QNN_LOG_WARN("init qnn subsystem failed with qnn backend %s, pls check why\n", qnn::get_backend_name(device));
         return nullptr;
     }
     auto qnn_interface = instance->get_qnn_interface();
@@ -416,12 +415,12 @@ ggml_backend_t ggml_backend_qnn_init_with_device_context(ggml_backend_dev_t dev,
         return nullptr;
     }
 
-    std::string device_name = qnn::get_backend_name(device_index);
+    std::string device_name = qnn::get_backend_name(device);
     QNN_LOG_INFO("qnn device name %s", device_name.c_str());
     dev_ctx->instance = instance;
     dev_ctx->qnn_interface = qnn_interface;
     dev_ctx->socinfo = instance->get_soc_info();
-    dev_ctx->supported_types = kDeviceCaps[device_index].supported_types;
+    dev_ctx->supported_types = kDeviceCaps[device].supported_types;
 
     ggml_backend_t qnn_backend = new ggml_backend{
         /* .guid      = */ ggml_backend_qnn_guid(),
@@ -527,11 +526,12 @@ ggml_backend_reg_t ggml_backend_qnn_reg() {
         std::lock_guard<std::mutex> lock(mutex);
         if (!initialized) {
             for (int i = 0; i < GGML_QNN_MAX_DEVICES; i++) {
+                const auto device_enum = (QNNBackend)(GGML_QNN_MAX_DEVICES - 1 - i); // init from the last device, i.e. NPU
                 reg.device_contexts[i] = std::make_unique<ggml_backend_qnn_device_context>(
-                    /* .device   = */ (QNNBackend)i,
+                    /* .device   = */ device_enum, // init from the last device, i.e. NPU
                     /* .threads  = */ 1,
-                    /* .name     = */ qnn::get_backend_name(i),
-                    /* .lib_name = */ kDeviceCaps[i].lib_name);
+                    /* .name     = */ qnn::get_backend_name(device_enum),
+                    /* .lib_name = */ kDeviceCaps[device_enum].lib_name);
 
                 auto &device = reg.devices[i];
                 device.iface = ggml_backend_qnn_device_interface;
