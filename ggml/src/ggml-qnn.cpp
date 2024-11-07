@@ -536,11 +536,3 @@ ggml_backend_reg_t ggml_backend_qnn_reg() {
 
     return &reg;
 }
-
-int ggml_backend_qnn_get_device_count() { return GGML_QNN_MAX_DEVICES; }
-
-ggml_backend_t ggml_backend_qnn_init(size_t index, const char *extend_lib_search_path) {
-    auto *reg = ggml_backend_qnn_reg();
-    auto *device = ggml_backend_qnn_reg_get_device(reg, index);
-    return ggml_backend_qnn_device_init(device, extend_lib_search_path);
-}
