@@ -486,9 +486,23 @@ struct ggml_backend_qnn_reg_impl : ggml_backend_reg {
     std::array<std::unique_ptr<ggml_backend_qnn_device_context>, GGML_QNN_MAX_DEVICES> device_contexts;
     std::array<ggml_backend_device, GGML_QNN_MAX_DEVICES> devices;
 
-    ggml_backend_qnn_reg_impl(ggml_backend_reg_i interface) {
+    explicit ggml_backend_qnn_reg_impl(ggml_backend_reg_i interface) {
         context = this;
         iface = interface;
+
+        for (int i = 0; i < GGML_QNN_MAX_DEVICES; i++) {
+            const auto device_enum = (QNNBackend)(GGML_QNN_MAX_DEVICES - 1 - i); // init from the last device, i.e. NPU
+            device_contexts[i] = std::make_unique<ggml_backend_qnn_device_context>(
+                /* .device   = */ device_enum, // init from the last device, i.e. NPU
+                /* .threads  = */ 1,
+                /* .name     = */ qnn::get_backend_name(device_enum),
+                /* .lib_name = */ kDeviceCaps[device_enum].lib_name);
+
+            auto &device = devices[i];
+            device.iface = ggml_backend_qnn_device_interface;
+            device.reg = this;
+            device.context = device_contexts[i].get();
+        }
     }
 };
 
@@ -519,28 +533,5 @@ const ggml_backend_reg_i ggml_backend_qnn_reg_interface = {
 
 ggml_backend_reg_t ggml_backend_qnn_reg() {
     static ggml_backend_qnn_reg_impl reg{ggml_backend_qnn_reg_interface};
-    static bool initialized = false;
-    static std::mutex mutex;
-
-    {
-        std::lock_guard<std::mutex> lock(mutex);
-        if (!initialized) {
-            for (int i = 0; i < GGML_QNN_MAX_DEVICES; i++) {
-                const auto device_enum = (QNNBackend)(GGML_QNN_MAX_DEVICES - 1 - i); // init from the last device, i.e. NPU
-                reg.device_contexts[i] = std::make_unique<ggml_backend_qnn_device_context>(
-                    /* .device   = */ device_enum, // init from the last device, i.e. NPU
-                    /* .threads  = */ 1,
-                    /* .name     = */ qnn::get_backend_name(device_enum),
-                    /* .lib_name = */ kDeviceCaps[device_enum].lib_name);
-
-                auto &device = reg.devices[i];
-                device.iface = ggml_backend_qnn_device_interface;
-                device.reg = &reg;
-                device.context = reg.device_contexts[i].get();
-            }
-            initialized = true;
-        }
-    }
-
     return &reg;
 }
