@@ -53,28 +53,34 @@ struct qnn_device_caps {
     enum ggml_backend_dev_type type;
 
     // TODO: should get this caps from device
-    std::unordered_set<ggml_type> supported_types;
+    uint64_t supported_types;
 };
 
-const qnn_device_caps kDeviceCaps[] = {
-    {// https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/CpuOpDefSupplement.html#matmul
-     "qnn-cpu",
-     "Qualcomm Kryo CPU",
-     "libQnnCpu.so",
-     GGML_BACKEND_DEVICE_TYPE_CPU,
-     {GGML_TYPE_F32, GGML_TYPE_I8}},
-    {// https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/GpuOpDefSupplement.html#matmul
-     "qnn-gpu",
-     "Qualcomm Adreno GPU",
-     "libQnnGpu.so",
-     GGML_BACKEND_DEVICE_TYPE_GPU,
-     {GGML_TYPE_F32, GGML_TYPE_F16}},
-    {// https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/HtpOpDefSupplement.html#matmul
-     "qnn-npu",
-     "Qualcomm NPU",
-     "libQnnHtp.so",
-     GGML_BACKEND_DEVICE_TYPE_ACCEL,
-     {GGML_TYPE_F32, GGML_TYPE_F16, GGML_TYPE_I16, GGML_TYPE_I8}},
+constexpr const qnn_device_caps kDeviceCaps[] = {
+    {
+        // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/CpuOpDefSupplement.html#matmul
+        "qnn-cpu",
+        "Qualcomm Kryo CPU",
+        "libQnnCpu.so",
+        GGML_BACKEND_DEVICE_TYPE_CPU,
+        (1 << GGML_TYPE_I8) | (1 << GGML_TYPE_F32),
+    },
+    {
+        // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/GpuOpDefSupplement.html#matmul
+        "qnn-gpu",
+        "Qualcomm Adreno GPU",
+        "libQnnGpu.so",
+        GGML_BACKEND_DEVICE_TYPE_GPU,
+        (1 << GGML_TYPE_F32) | (1 << GGML_TYPE_F16),
+    },
+    {
+        // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/HtpOpDefSupplement.html#matmul
+        "qnn-npu",
+        "Qualcomm NPU",
+        "libQnnHtp.so",
+        GGML_BACKEND_DEVICE_TYPE_ACCEL,
+        (1 << GGML_TYPE_F32) | (1 << GGML_TYPE_F16) | (1 << GGML_TYPE_I16) | (1 << GGML_TYPE_I8),
+    },
 };
 
 static_assert(sizeof(kDeviceCaps) / sizeof(kDeviceCaps[0]) == GGML_QNN_MAX_DEVICES,
