@@ -56,7 +56,7 @@ struct qnn_device_caps {
     std::unordered_set<ggml_type> supported_types;
 };
 
-const qnn_device_caps kDeviceCaps[GGML_QNN_MAX_DEVICES] = {
+const qnn_device_caps kDeviceCaps[] = {
     {// https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/CpuOpDefSupplement.html#matmul
      "qnn-cpu",
      "Qualcomm Kryo CPU",
@@ -73,19 +73,24 @@ const qnn_device_caps kDeviceCaps[GGML_QNN_MAX_DEVICES] = {
      "qnn-npu",
      "Qualcomm NPU",
      "libQnnHtp.so",
-     GGML_BACKEND_DEVICE_TYPE_GPU,
+     GGML_BACKEND_DEVICE_TYPE_ACCEL,
      {GGML_TYPE_F32, GGML_TYPE_F16, GGML_TYPE_I16, GGML_TYPE_I8}},
 };
+
+static_assert(sizeof(kDeviceCaps) / sizeof(kDeviceCaps[0]) == GGML_QNN_MAX_DEVICES,
+              "The number of qnn devices should be equal to GGML_QNN_MAX_DEVICES");
+static_assert(kDeviceCaps[QNN_BACKEND_NPU].type == GGML_BACKEND_DEVICE_TYPE_ACCEL,
+              "The NPU device should be an accelerator device");
 
 class ggml_backend_qnn_buffer_context {
 public:
     ggml_backend_qnn_buffer_context(QNNBackend device, std::shared_ptr<qnn::qnn_instance> instance, size_t size)
         : _instance(instance), _name(QNN_BACKEND_NAME + std::to_string(device)) {
-
         // TODO: fix this for other platforms
         size_t size_page = sysconf(_SC_PAGESIZE);
 
-        // TODO: for qnn npu, a better way here is to reuse the buffer allocated by qnn rpc, will save an extra copy
+        // TODO: for qnn npu, a better way here is to reuse the buffer allocated by
+        // qnn rpc, will save an extra copy
         _buffer = qnn::align_alloc(size_page, size);
 
         if (!_buffer) {
@@ -212,7 +217,8 @@ size_t ggml_backend_qnn_buffer_type_get_alignment(ggml_backend_buffer_type_t buf
     return 32;
 }
 
-// TODO: this value is an experimental value, works fine with whisper/llm/minicpm-v inference on Android
+// TODO: this value is an experimental value, works fine with
+// whisper/llm/minicpm-v inference on Android
 size_t ggml_backend_qnn_buffer_type_get_max_size(ggml_backend_buffer_type_t buft) {
     GGML_UNUSED(buft);
 
@@ -255,9 +261,12 @@ ggml_backend_buffer_type_t ggml_backend_qnn_buffer_type(ggml_backend_dev_t dev) 
             ggml_backend_qnn_buffer_types[i] = {
                 /* .iface   = */ {
                     /* .get_name         = */ ggml_backend_qnn_buffer_type_name,
-                    /* .alloc_buffer     = */ ggml_backend_qnn_buffer_type_alloc_buffer,
-                    /* .get_alignment    = */ ggml_backend_qnn_buffer_type_get_alignment,
-                    /* .get_max_size     = */ ggml_backend_qnn_buffer_type_get_max_size,
+                    /* .alloc_buffer     = */
+                    ggml_backend_qnn_buffer_type_alloc_buffer,
+                    /* .get_alignment    = */
+                    ggml_backend_qnn_buffer_type_get_alignment,
+                    /* .get_max_size     = */
+                    ggml_backend_qnn_buffer_type_get_max_size,
                     /* .get_alloc_size   = */ nullptr, // defaults to ggml_nbytes
                     /* .is_host          = */ ggml_backend_qnn_buffer_is_host,
                 },
@@ -329,17 +338,7 @@ void ggml_backend_qnn_device_get_memory(ggml_backend_dev_t dev, size_t *free, si
 }
 
 enum ggml_backend_dev_type ggml_backend_qnn_device_get_type(ggml_backend_dev_t dev) {
-    switch (get_device_context(dev)->device) {
-        case QNN_BACKEND_CPU:
-            return GGML_BACKEND_DEVICE_TYPE_CPU;
-        case QNN_BACKEND_GPU:
-            return GGML_BACKEND_DEVICE_TYPE_GPU;
-        case QNN_BACKEND_NPU:
-            return GGML_BACKEND_DEVICE_TYPE_ACCEL;
-        default:
-            break;
-    }
-    return GGML_BACKEND_DEVICE_TYPE_CPU;
+    return kDeviceCaps[get_device_context(dev)->device].type;
 }
 
 void ggml_backend_qnn_device_get_props(ggml_backend_dev_t dev, struct ggml_backend_dev_props *props) {
@@ -364,7 +363,9 @@ ggml_guid_t ggml_backend_qnn_guid() {
 ggml_backend_t ggml_backend_qnn_init_with_device_context(ggml_backend_dev_t dev, const char *extend_lib_search_path) {
     if (!extend_lib_search_path) {
         extend_lib_search_path = GGML_QNN_DEFAULT_LIB_SEARCH_PATH;
-        QNN_LOG_WARN("extend_lib_search_path is nullptr, will use " GGML_QNN_DEFAULT_LIB_SEARCH_PATH " as default");
+        QNN_LOG_WARN(
+            "extend_lib_search_path is nullptr, will "
+            "use " GGML_QNN_DEFAULT_LIB_SEARCH_PATH " as default");
     }
 
     auto *dev_ctx = get_device_context(dev);
