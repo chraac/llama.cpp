@@ -56,7 +56,7 @@ struct qnn_device_caps {
     std::unordered_set<ggml_type> supported_types;
 };
 
-const qnn_device_caps kDeviceCaps[GGML_QNN_MAX_DEVICES]{
+const qnn_device_caps kDeviceCaps[GGML_QNN_MAX_DEVICES] = {
     {// https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/CpuOpDefSupplement.html#matmul
      "qnn-cpu",
      "Qualcomm Kryo CPU",
