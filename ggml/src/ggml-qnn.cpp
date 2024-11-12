@@ -203,8 +203,8 @@ ggml_backend_buffer_i ggml_backend_qnn_buffer_interface = {
  * -----------------------------------------------------------------------------------------------
  */
 const char *ggml_backend_qnn_buffer_type_name(ggml_backend_buffer_type_t buft) {
-    GGML_UNUSED(buft);
-    return GGML_QNN_NAME;
+    auto *dev_ctx = get_device_context(buft->device);
+    return qnn::get_backend_name(dev_ctx->device);
 }
 
 ggml_backend_buffer_t ggml_backend_qnn_buffer_type_alloc_buffer(ggml_backend_buffer_type_t buft, size_t size) {
@@ -220,14 +220,14 @@ ggml_backend_buffer_t ggml_backend_qnn_buffer_type_alloc_buffer(ggml_backend_buf
 
 size_t ggml_backend_qnn_buffer_type_get_alignment(ggml_backend_buffer_type_t buft) {
     GGML_UNUSED(buft);
+    // TODO: fix this
     return 32;
 }
 
-// TODO: this value is an experimental value, works fine with
-// whisper/llm/minicpm-v inference on Android
 size_t ggml_backend_qnn_buffer_type_get_max_size(ggml_backend_buffer_type_t buft) {
     GGML_UNUSED(buft);
-
+    // TODO: this value is an experimental value, works fine with
+    // whisper/llm/minicpm-v inference on Android
     return (96 * 1024 * 1024);
 }
 
@@ -336,11 +336,9 @@ const char *ggml_backend_qnn_device_get_description(ggml_backend_dev_t dev) {
 }
 
 void ggml_backend_qnn_device_get_memory(ggml_backend_dev_t dev, size_t *free, size_t *total) {
-    // TODO: get memory info
-    *free = 0;
-    *total = 0;
-
     GGML_UNUSED(dev);
+    *free = qnn::get_system_free_memory_in_bytes();
+    *total = qnn::get_system_total_memory_in_bytes();
 }
 
 enum ggml_backend_dev_type ggml_backend_qnn_device_get_type(ggml_backend_dev_t dev) {
