@@ -17,8 +17,8 @@ namespace qnn {
 class ggml_qnn_graph {
 public:
     explicit ggml_qnn_graph(const std::string &graph_name, QNNBackend device,
-                            std::shared_ptr<qnn_instance> qnn_instance, size_t vtcm_size_in_mb) :
-        _graph_name(graph_name), _device(device), _qnn_instance(qnn_instance) {
+                            std::shared_ptr<qnn_instance> qnn_instance, size_t vtcm_size_in_mb)
+        : _graph_name(graph_name), _device(device), _qnn_instance(qnn_instance) {
         QNN_LOG_INFO("[%s]create", graph_name.c_str());
 
         auto qnn_interface = qnn_instance->get_qnn_interface();
@@ -56,15 +56,15 @@ public:
             graph_vtcm_config.option = QNN_GRAPH_CONFIG_OPTION_CUSTOM;
             graph_vtcm_config.customConfig = &vtcm_config;
 
-            const QnnGraph_Config_t *graph_configs[] = { &graph_hvx_config, &graph_dlbc_config, &graph_vtcm_config,
-                                                         &graph_opt_config, nullptr };
+            const QnnGraph_Config_t *graph_configs[] = {&graph_hvx_config, &graph_dlbc_config, &graph_vtcm_config,
+                                                        &graph_opt_config, nullptr};
             error = qnn_interface->qnn_graph_create(qnn_context, graph_name.c_str(), graph_configs, &graph_handle);
         } else {
             error = qnn_interface->qnn_graph_create(qnn_context, graph_name.c_str(), nullptr, &graph_handle);
         }
 
         if (error != QNN_SUCCESS) {
-            QNN_LOG_INFO("[%s]can't create qnn graph handle, error = %d\n", graph_name.c_str(), error);
+            QNN_LOG_ERROR("[%s]can't create qnn graph handle, error = %d\n", graph_name.c_str(), error);
             return;
         }
 
@@ -137,7 +137,7 @@ public:
         _op_config->unbind_output_tensors();
 
         if (error != QNN_SUCCESS) {
-            QNN_LOG_INFO("[%s]error = %d\n", _graph_name.c_str(), error);
+            QNN_LOG_ERROR("[%s]error = %d\n", _graph_name.c_str(), error);
             return false;
         }
 

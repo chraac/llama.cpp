@@ -188,8 +188,8 @@ class qnn_instance {
 public:
     using BackendIdType = decltype(QnnInterface_t{}.backendId);
 
-    explicit qnn_instance(const std::string &lib_path, const std::string &backend_name, const std::string &model_name) :
-        _lib_path(std::move(lib_path)), _backend_name(std::move(backend_name)), _model_name(std::move(model_name)) {}
+    explicit qnn_instance(const std::string &lib_path, const std::string &backend_name, const std::string &model_name)
+        : _lib_path(std::move(lib_path)), _backend_name(std::move(backend_name)), _model_name(std::move(model_name)) {}
 
     ~qnn_instance() {}
 
@@ -269,7 +269,7 @@ public:
                 QNN_LOG_INFO("qualcomm soc_model:%d(%s), htp_arch:%d(%s), vtcm_size:%d MB", chipinfo.socModel,
                              qnn::get_chipset_desc(chipinfo.socModel), htp_arch, qnn::get_htparch_desc(htp_arch),
                              chipinfo.vtcmSize);
-                _soc_info = { chipinfo.socModel, htp_arch, chipinfo.vtcmSize };
+                _soc_info = {chipinfo.socModel, htp_arch, chipinfo.vtcmSize};
             }
             _qnn_interface->qnn_device_free_platform_info(nullptr, p_info);
 
@@ -288,7 +288,7 @@ public:
             arch_devconfig.option = QNN_DEVICE_CONFIG_OPTION_CUSTOM;
             arch_devconfig.customConfig = &arch_customconfig;
 
-            const QnnDevice_Config_t *p_deviceconfig[] = { &soc_devconfig, &arch_devconfig, nullptr };
+            const QnnDevice_Config_t *p_deviceconfig[] = {&soc_devconfig, &arch_devconfig, nullptr};
             qnn_status = _qnn_interface->qnn_device_create(_qnn_log_handle, p_deviceconfig, &_qnn_device_handle);
         } else {
             qnn_status = _qnn_interface->qnn_device_create(_qnn_log_handle, nullptr, &_qnn_device_handle);
@@ -364,7 +364,7 @@ public:
             size_t candidate_size = 0;
             uint8_t *rpc_buffer = nullptr;
             const int size_in_mb = (1 << 20);
-            size_t probe_slots[] = { 1024, 1536, 2048 - 48, 2048 };
+            size_t probe_slots[] = {1024, 1536, 2048 - 48, 2048};
             size_t probe_counts = sizeof(probe_slots) / sizeof(size_t);
             for (size_t idx = 0; idx < probe_counts; idx++) {
                 rpc_buffer = static_cast<uint8_t *>(alloc_rpcmem(probe_slots[idx] * size_in_mb, sizeof(void *)));
@@ -526,13 +526,13 @@ public:
             // use rpc control latency recommended 100 us, refer hexagon sdk
             rpc_control_latency.rpcControlLatencyConfig = 100;
 
-            const QnnHtpPerfInfrastructure_PowerConfig_t *power_configs[] = { &rpc_polling_time, &rpc_control_latency,
-                                                                              nullptr };
+            const QnnHtpPerfInfrastructure_PowerConfig_t *power_configs[] = {&rpc_polling_time, &rpc_control_latency,
+                                                                             nullptr};
             Qnn_ErrorHandle_t qnn_status = _qnn_htp_perfinfra->setPowerConfig(_qnn_power_configid, power_configs);
             if (qnn_status != QNN_SUCCESS) {
                 QNN_LOG_WARN("set htp perf failed\n");
             } else {
-                QNN_LOG_INFO("set htp perf ok\n");
+                QNN_LOG_DEBUG("set htp perf ok\n");
             }
         } else {
             QNN_LOG_WARN("can't set htp perf\n");
@@ -572,13 +572,13 @@ public:
         power_config.dcvsV3Config.coreVoltageCornerMax = DCVS_VOLTAGE_VCORNER_MAX_VOLTAGE_CORNER;
 
         // set power config with different performance parameters
-        const QnnHtpPerfInfrastructure_PowerConfig_t *power_configs[] = { &power_config, nullptr };
+        const QnnHtpPerfInfrastructure_PowerConfig_t *power_configs[] = {&power_config, nullptr};
         Qnn_ErrorHandle_t qnn_status = QNN_SUCCESS;
         qnn_status = _qnn_htp_perfinfra->setPowerConfig(_qnn_power_configid, power_configs);
         if (qnn_status != QNN_SUCCESS) {
             QNN_LOG_WARN("set htp high performance mode failed\n");
         } else {
-            QNN_LOG_INFO("set htp high performance mode ok\n");
+            QNN_LOG_DEBUG("set htp high performance mode ok\n");
         }
 
         return 0;
@@ -659,8 +659,8 @@ public:
             return nullptr;
         }
 
-        QNN_LOG_INFO("mem_fd %d\n", mem_fd);
-        Qnn_MemDescriptor_t descriptor = { { rank, dimensions, nullptr }, data_type, QNN_MEM_TYPE_ION, { { mem_fd } } };
+        QNN_LOG_DEBUG("mem_fd %d\n", mem_fd);
+        Qnn_MemDescriptor_t descriptor = {{rank, dimensions, nullptr}, data_type, QNN_MEM_TYPE_ION, {{mem_fd}}};
         Qnn_MemHandle_t handle = nullptr;
         auto error = _qnn_interface->qnn_mem_register(_qnn_context_handle, &descriptor,
                                                       /*numDescriptors=*/1, &handle);
@@ -670,8 +670,8 @@ public:
             return nullptr;
         }
 
-        _qnn_rpc_buffer_to_handles.insert({ p_data, handle });
-        QNN_LOG_INFO("successfully register shared memory handler: %p\n", handle);
+        _qnn_rpc_buffer_to_handles.insert({p_data, handle});
+        QNN_LOG_DEBUG("successfully register shared memory handler: %p\n", handle);
         return handle;
     }
 
@@ -748,7 +748,7 @@ private:
             QNN_LOG_WARN("unable to find a valid qnn system interface\n");
             return 6;
         } else {
-            QNN_LOG_INFO("find a valid qnn system interface\n");
+            QNN_LOG_DEBUG("find a valid qnn system interface\n");
         }
 
         auto qnn_sys_interface = std::make_shared<qnn::qnn_system_interface>(*provider_list[0], system_lib_handle);
@@ -810,7 +810,7 @@ private:
             QNN_LOG_WARN("unable to find a valid qnn interface\n");
             return 6;
         } else {
-            QNN_LOG_INFO("find a valid qnn interface\n");
+            QNN_LOG_DEBUG("find a valid qnn interface\n");
         }
 
         BackendIdType backend_id = provider_list[0]->backendId;
@@ -890,7 +890,7 @@ private:
     std::unordered_map<BackendIdType, const QnnInterface_t *> _loaded_backend;
 
     dl_handler_t _rpc_lib_handle = nullptr;
-    std::atomic_bool _rpcmem_initialized{ false };
+    std::atomic_bool _rpcmem_initialized{false};
     qnn::pfn_rpc_mem_alloc _pfn_rpc_mem_alloc;
     qnn::pfn_rpc_mem_free _pfn_rpc_mem_free;
     qnn::pfn_rpc_mem_to_fd _pfn_rpc_mem_to_fd;

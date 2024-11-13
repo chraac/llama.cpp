@@ -27,8 +27,8 @@ public:
     explicit ggml_qnn_tensor(tensor_type_t tensor_type, const std::string &name,
                              const qnn_dimension_array_t &dimensions, Qnn_DataType_t data_type, int rank,
                              QNNBackend device, Qnn_GraphHandle_t graph_handle,
-                             std::shared_ptr<qnn_instance> qnn_instance) :
-        _tensor_name(name), _device(device), _qnn_instance(qnn_instance), _graph_handle(graph_handle) {
+                             std::shared_ptr<qnn_instance> qnn_instance)
+        : _tensor_name(name), _device(device), _qnn_instance(qnn_instance), _graph_handle(graph_handle) {
         if (!_tensor_name.empty()) {
             QNN_TENSOR_SET_NAME(_qnn_tensor, _tensor_name.c_str());
         }
@@ -44,9 +44,9 @@ public:
 
     explicit ggml_qnn_tensor(tensor_type_t tensor_type, const std::string &name,
                              const ggml_dimension_array_t &dimensions, ggml_type data_type, int rank, QNNBackend device,
-                             Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn_instance> qnn_instance) :
-        ggml_qnn_tensor(tensor_type, name, get_internal_dimension(dimensions, rank),
-                        qnn_datatype_from_ggml_datatype(data_type), rank, device, graph_handle, qnn_instance) {}
+                             Qnn_GraphHandle_t graph_handle, std::shared_ptr<qnn_instance> qnn_instance)
+        : ggml_qnn_tensor(tensor_type, name, get_internal_dimension(dimensions, rank),
+                          qnn_datatype_from_ggml_datatype(data_type), rank, device, graph_handle, qnn_instance) {}
 
     ~ggml_qnn_tensor() { _qnn_rpc_buffer.reset(); }
 
@@ -79,7 +79,7 @@ public:
                 return false;
             }
 
-            QNN_LOG_INFO("tensor %s already bound to same ggml tensor %p", _tensor_name.c_str(), _buffer);
+            QNN_LOG_DEBUG("tensor %s already bound to same ggml tensor %p", _tensor_name.c_str(), _buffer);
             return true;
         }
 
@@ -107,7 +107,7 @@ public:
             QNN_LOG_DEBUG("tensor %s, use mem handle %p", _tensor_name.c_str(), QNN_TENSOR_GET_MEM_HANDLE(_qnn_tensor));
         } else {
             QNN_TENSOR_SET_MEM_TYPE(_qnn_tensor, QNN_TENSORMEMTYPE_RAW);
-            Qnn_ClientBuffer_t client_buf = { buffer, (uint32_t)buffer_size };
+            Qnn_ClientBuffer_t client_buf = {buffer, (uint32_t)buffer_size};
             QNN_TENSOR_SET_CLIENT_BUF(_qnn_tensor, client_buf);
             QNN_LOG_DEBUG("tensor %s, use client buffer %p size %d", _tensor_name.c_str(), client_buf.data,
                           (int)client_buf.dataSize);
@@ -236,7 +236,7 @@ private:
                 break;
         }
         QNN_TENSOR_SET_TYPE(_qnn_tensor, new_tensor_type);
-        QNN_LOG_INFO("tensor %s changed to type %d", _tensor_name.c_str(), new_tensor_type);
+        QNN_LOG_DEBUG("tensor %s changed to type %d", _tensor_name.c_str(), new_tensor_type);
     }
 
     bool should_use_mem_handle() const {

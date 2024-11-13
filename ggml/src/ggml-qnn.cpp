@@ -386,7 +386,7 @@ ggml_backend_t ggml_backend_qnn_init_with_device_context(ggml_backend_dev_t dev,
                            "dsp:/vendor/dsp/images")
                        .c_str(),
                    1) == 0) {
-            QNN_LOG_INFO("QNN NPU backend setenv successfully");
+            QNN_LOG_DEBUG("QNN NPU backend setenv successfully");
         } else {
             QNN_LOG_ERROR("QNN NPU backend setenv failure");
         }
@@ -395,13 +395,13 @@ ggml_backend_t ggml_backend_qnn_init_with_device_context(ggml_backend_dev_t dev,
                            "rfsa/adsp;/vendor/dsp/dsp;/vendor/dsp/images;/dsp")
                        .c_str(),
                    1) == 0) {
-            QNN_LOG_INFO("QNN NPU backend setenv successfully");
+            QNN_LOG_DEBUG("QNN NPU backend setenv successfully");
         } else {
             QNN_LOG_ERROR("QNN NPU backend setenv failure");
         }
     } else {
         if (setenv("LD_LIBRARY_PATH", path.c_str(), 1) == 0) {
-            QNN_LOG_INFO("%s backend setenv successfully\n", qnn::get_backend_name(device));
+            QNN_LOG_DEBUG("%s backend setenv successfully\n", qnn::get_backend_name(device));
         } else {
             QNN_LOG_ERROR("%s backend setenv failure\n", qnn::get_backend_name(device));
         }
