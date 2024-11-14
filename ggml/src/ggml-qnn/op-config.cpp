@@ -513,9 +513,9 @@ ggml_op_constructor_t create_op_constructor(const std::string &op_name) {
     } else if (op_name == QNN_OP_TRANSPOSE) {
         return [](const std::string &instance_name,
                   std::shared_ptr<qnn::qnn_instance> qnn_instance) -> std::unique_ptr<qnn::ggml_qnn_op_config> {
-            return std::make_unique<qnn::ggml_qnn_single_op_config>(instance_name, QNN_OP_PACKAGE_NAME_QTI_AISW,
-                                                                    QNN_OP_TRANSPOSE, QNN_OP_TRANSPOSE_PARAM_PERM,
-                                                                    QNN_DATATYPE_UINT_32, 4 * sizeof(uint32_t), qnn_instance);
+            return std::make_unique<qnn::ggml_qnn_single_op_config>(
+                instance_name, QNN_OP_PACKAGE_NAME_QTI_AISW, QNN_OP_TRANSPOSE, QNN_OP_TRANSPOSE_PARAM_PERM,
+                QNN_DATATYPE_UINT_32, 4 * sizeof(uint32_t), qnn_instance);
         };
     }
 
