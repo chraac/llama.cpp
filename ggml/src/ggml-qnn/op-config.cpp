@@ -301,7 +301,7 @@ bool ggml_qnn_matmul_op_config::create_tensors(QNNBackend device, Qnn_GraphHandl
     create_tensors_from_ggml_tensor(params, tensor_outputs, &mat_mul_tensor_outputs, nullptr);
 
     if (device == QNN_BACKEND_GPU) {
-        // there's no convert op for GPU, so we should create matmul nodes directl.
+        // there's no convert op for GPU, so here we return matmul nodes directly.
         return create_mat_mul_nodes(device, graph_handle, tensor_rank, _tensor_inputs, mat_mul_tensor_outputs);
     }
 
@@ -451,6 +451,68 @@ bool ggml_qnn_matmul_op_config::create_mat_mul_nodes(QNNBackend device, Qnn_Grap
     _transpose0 = transpose0;
     _transpose1 = transpose1;
     return true;
+}
+
+ggml_qnn_tensor_ptr_t ggml_qnn_matmul_op_config::create_concat_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle,
+                                                                     const int rank, ggml_qnn_tensor_ptr_t tensor_input,
+                                                                     const qnn_dimension_array_t &output_dimensions) {
+    if (rank <= 2) {
+        return tensor_input;
+    }
+
+    // create concat nodes, to convert tensor shape from [ne03, ne02, n, k] to [ne03 * x, ne02 * y, n, k]
+    const auto y = output_dimensions[rank - 3] / tensor_input->get_dimensions()[rank - 3];
+    if (y == 1 && rank == 3) {
+        return tensor_input;
+    }
+
+    // create concat0
+    ggml_qnn_tensor_ptr_t concat0_out;
+    {
+        std::string name = _name + "_cat0";
+        auto concat0 = std::make_shared<ggml_qnn_connectable_op_config>(name, QNN_OP_PACKAGE_NAME_QTI_AISW,
+                                                                        QNN_OP_CONCAT, _qnn_instance);
+        Qnn_Scalar_t scalar = QNN_SCALAR_INIT;
+        scalar.dataType = QNN_DATATYPE_UINT_32;
+        scalar.uint32Value = rank - 3;
+        concat0->add_scalar_param(QNN_OP_CONCAT_PARAM_AXIS, scalar);
+        concat0->set_input_tensors(ggml_qnn_tensor_array_t(y, tensor_input));
+        auto dimensions = tensor_input->get_dimensions();
+        dimensions[rank - 3] *= y;
+        concat0_out =
+            std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::INTERMEDIATE, name + "_out", dimensions,
+                                              tensor_input->get_data_type(), rank, device, graph_handle, _qnn_instance);
+        concat0->set_output_tensors({concat0_out});
+        _concat0 = concat0;
+        if (rank == 3) {
+            return concat0_out;
+        }
+    }
+
+    const auto x = output_dimensions[0] / tensor_input->get_dimensions()[0];
+    if (x == 1) {
+        return concat0_out;
+    }
+
+    // create concat1
+    ggml_qnn_tensor_ptr_t concat1_out;
+    {
+        std::string name = _name + "_cat1";
+        auto concat1 = std::make_shared<ggml_qnn_connectable_op_config>(name, QNN_OP_PACKAGE_NAME_QTI_AISW,
+                                                                        QNN_OP_CONCAT, _qnn_instance);
+        Qnn_Scalar_t scalar = QNN_SCALAR_INIT;
+        scalar.dataType = QNN_DATATYPE_UINT_32;
+        scalar.uint32Value = 0;
+        concat1->add_scalar_param(QNN_OP_CONCAT_PARAM_AXIS, scalar);
+        concat1->set_input_tensors(ggml_qnn_tensor_array_t(x, concat0_out));
+        concat1_out =
+            std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::INTERMEDIATE, name + "_out", output_dimensions,
+                                              concat0_out->get_data_type(), rank, device, graph_handle, _qnn_instance);
+        concat1->set_output_tensors({concat1_out});
+        _concat1 = concat1;
+    }
+
+    return concat1_out;
 }
 
 bool ggml_qnn_matmul_op_config::add_op_to_graph(Qnn_GraphHandle_t graph_handle) {
