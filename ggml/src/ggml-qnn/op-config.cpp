@@ -466,24 +466,34 @@ ggml_qnn_tensor_ptr_t ggml_qnn_matmul_op_config::create_concat_nodes(QNNBackend 
         return tensor_input;
     }
 
+    constexpr const auto create_concat =
+        [](const std::string &name, const QNNBackend device, const Qnn_GraphHandle_t graph_handle,
+           std::shared_ptr<qnn_instance> qnn_instance, const int rank, const int concat_axis,
+           const ggml_qnn_tensor_ptr_t &tensor_input, const qnn_dimension_array_t &output_dimensions,
+           std::shared_ptr<ggml_qnn_op_config> &concat) {
+            auto concat_op = std::make_shared<ggml_qnn_connectable_op_config>(name, QNN_OP_PACKAGE_NAME_QTI_AISW,
+                                                                              QNN_OP_CONCAT, qnn_instance);
+            Qnn_Scalar_t scalar = QNN_SCALAR_INIT;
+            scalar.dataType = QNN_DATATYPE_UINT_32;
+            scalar.uint32Value = concat_axis;
+            concat_op->add_scalar_param(QNN_OP_CONCAT_PARAM_AXIS, scalar);
+            concat_op->set_input_tensors(ggml_qnn_tensor_array_t(
+                output_dimensions[concat_axis] / tensor_input->get_dimensions()[concat_axis], tensor_input));
+            auto concat_out = std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::INTERMEDIATE, name + "_out",
+                                                                output_dimensions, tensor_input->get_data_type(), rank,
+                                                                device, graph_handle, qnn_instance);
+            concat_op->set_output_tensors({concat_out});
+            concat = concat_op;
+            return concat_out;
+        };
+
     // create concat0
     ggml_qnn_tensor_ptr_t concat0_out;
     {
-        std::string name = _name + "_cat0";
-        auto concat0 = std::make_shared<ggml_qnn_connectable_op_config>(name, QNN_OP_PACKAGE_NAME_QTI_AISW,
-                                                                        QNN_OP_CONCAT, _qnn_instance);
-        Qnn_Scalar_t scalar = QNN_SCALAR_INIT;
-        scalar.dataType = QNN_DATATYPE_UINT_32;
-        scalar.uint32Value = rank - 3;
-        concat0->add_scalar_param(QNN_OP_CONCAT_PARAM_AXIS, scalar);
-        concat0->set_input_tensors(ggml_qnn_tensor_array_t(y, tensor_input));
         auto dimensions = tensor_input->get_dimensions();
         dimensions[rank - 3] *= y;
-        concat0_out =
-            std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::INTERMEDIATE, name + "_out", dimensions,
-                                              tensor_input->get_data_type(), rank, device, graph_handle, _qnn_instance);
-        concat0->set_output_tensors({concat0_out});
-        _concat0 = concat0;
+        concat0_out = create_concat(_name + "_cat0", device, graph_handle, _qnn_instance, rank, rank - 3, tensor_input,
+                                    dimensions, _concat0);
         if (rank == 3) {
             return concat0_out;
         }
@@ -497,19 +507,8 @@ ggml_qnn_tensor_ptr_t ggml_qnn_matmul_op_config::create_concat_nodes(QNNBackend 
     // create concat1
     ggml_qnn_tensor_ptr_t concat1_out;
     {
-        std::string name = _name + "_cat1";
-        auto concat1 = std::make_shared<ggml_qnn_connectable_op_config>(name, QNN_OP_PACKAGE_NAME_QTI_AISW,
-                                                                        QNN_OP_CONCAT, _qnn_instance);
-        Qnn_Scalar_t scalar = QNN_SCALAR_INIT;
-        scalar.dataType = QNN_DATATYPE_UINT_32;
-        scalar.uint32Value = 0;
-        concat1->add_scalar_param(QNN_OP_CONCAT_PARAM_AXIS, scalar);
-        concat1->set_input_tensors(ggml_qnn_tensor_array_t(x, concat0_out));
-        concat1_out =
-            std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::INTERMEDIATE, name + "_out", output_dimensions,
-                                              concat0_out->get_data_type(), rank, device, graph_handle, _qnn_instance);
-        concat1->set_output_tensors({concat1_out});
-        _concat1 = concat1;
+        concat1_out = create_concat(_name + "_cat1", device, graph_handle, _qnn_instance, rank, 0, concat0_out,
+                                    output_dimensions, _concat1);
     }
 
     return concat1_out;
