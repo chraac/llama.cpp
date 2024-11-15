@@ -37,9 +37,9 @@ public:
 
         _dimensions = dimensions;
         update_params_from_ggml_tensor(tensor_type, data_type, rank);
-        QNN_LOG_DEBUG("create tensor %s, rank: %d, dims: [%d, %d, %d, %d], data_type: %d, device: %d",
+        QNN_LOG_DEBUG("create tensor %s, rank: %d, dims: [%d, %d, %d, %d], data_type: %s, device: %d",
                       _tensor_name.c_str(), rank, (int)_dimensions[0], (int)_dimensions[1], (int)_dimensions[2],
-                      (int)_dimensions[3], (int)data_type, (int)device);
+                      (int)_dimensions[3], qnn_datatype_to_string(data_type), (int)device);
     }
 
     explicit ggml_qnn_tensor(tensor_type_t tensor_type, const std::string &name,

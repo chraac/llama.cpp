@@ -301,8 +301,8 @@ bool ggml_qnn_matmul_op_config::create_tensors(QNNBackend device, Qnn_GraphHandl
     create_tensors_from_ggml_tensor(params, tensor_outputs, &mat_mul_tensor_outputs, nullptr);
 
     ggml_qnn_tensor_array_t mat_mul_tensor_inputs = _tensor_inputs;
-    mat_mul_tensor_inputs.front() = create_concat_nodes(device, graph_handle, tensor_rank, _tensor_inputs.front(),
-                                                        _tensor_inputs.back()->get_dimensions());
+    mat_mul_tensor_inputs.front() = create_resize_node(device, graph_handle, tensor_rank, _tensor_inputs.front(),
+                                                       _tensor_inputs.back()->get_dimensions());
     return create_mat_mul_nodes(device, graph_handle, tensor_rank, mat_mul_tensor_inputs, mat_mul_tensor_outputs);
 }
 
@@ -414,66 +414,37 @@ bool ggml_qnn_matmul_op_config::create_mat_mul_nodes(QNNBackend device, Qnn_Grap
     return true;
 }
 
-ggml_qnn_tensor_ptr_t ggml_qnn_matmul_op_config::create_concat_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle,
-                                                                     const int rank, ggml_qnn_tensor_ptr_t tensor_input,
-                                                                     const qnn_dimension_array_t &output_dimensions) {
+ggml_qnn_tensor_ptr_t ggml_qnn_matmul_op_config::create_resize_node(QNNBackend device, Qnn_GraphHandle_t graph_handle,
+                                                                    const int rank, ggml_qnn_tensor_ptr_t tensor_input,
+                                                                    qnn_dimension_array_t output_dimensions) {
     if (rank <= 2) {
         return tensor_input;
     }
 
+    const auto &input_dimensions = tensor_input->get_dimensions();
+    output_dimensions[rank - 1] = input_dimensions[rank - 1];
+    output_dimensions[rank - 2] = input_dimensions[rank - 2];
     // create concat nodes, to convert tensor shape from [ne03, ne02, n, k] to [ne03 * x, ne02 * y, n, k]
-    const auto y = output_dimensions[rank - 3] / tensor_input->get_dimensions()[rank - 3];
+    const auto y = output_dimensions[rank - 3] / input_dimensions[rank - 3];
     if (y == 1 && rank == 3) {
         return tensor_input;
     }
 
-    constexpr const auto create_concat =
-        [](const std::string &name, const QNNBackend device, const Qnn_GraphHandle_t graph_handle,
-           std::shared_ptr<qnn_instance> qnn_instance, const int rank, const int concat_axis,
-           const ggml_qnn_tensor_ptr_t &tensor_input, const qnn_dimension_array_t &output_dimensions,
-           std::shared_ptr<ggml_qnn_op_config> &concat) {
-            auto concat_op = std::make_shared<ggml_qnn_connectable_op_config>(name, QNN_OP_PACKAGE_NAME_QTI_AISW,
-                                                                              QNN_OP_CONCAT, qnn_instance);
-            Qnn_Scalar_t scalar = QNN_SCALAR_INIT;
-            scalar.dataType = QNN_DATATYPE_UINT_32;
-            scalar.uint32Value = concat_axis;
-            concat_op->add_scalar_param(QNN_OP_CONCAT_PARAM_AXIS, scalar);
-            concat_op->set_input_tensors(ggml_qnn_tensor_array_t(
-                output_dimensions[concat_axis] / tensor_input->get_dimensions()[concat_axis], tensor_input));
-            auto concat_out = std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::INTERMEDIATE, name + "_out",
-                                                                output_dimensions, tensor_input->get_data_type(), rank,
-                                                                device, graph_handle, qnn_instance);
-            concat_op->set_output_tensors({concat_out});
-            concat = concat_op;
-            return concat_out;
-        };
+    std::string name = _name + "_resize";
+    auto resize_out =
+        std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::INTERMEDIATE, name + "_out", output_dimensions,
+                                          tensor_input->get_data_type(), rank, device, graph_handle, _qnn_instance);
+    auto resize_op = std::make_shared<ggml_qnn_connectable_op_config>(name, QNN_OP_PACKAGE_NAME_QTI_AISW, QNN_OP_RESIZE,
+                                                                      _qnn_instance);
+    resize_op->set_input_tensors({tensor_input});
+    resize_op->set_output_tensors({resize_out});
 
-    // create concat0
-    ggml_qnn_tensor_ptr_t concat0_out;
-    auto dimensions = tensor_input->get_dimensions();
-    {
-        dimensions[rank - 3] *= y;
-        concat0_out = create_concat(_name + "_cat0", device, graph_handle, _qnn_instance, rank, rank - 3, tensor_input,
-                                    dimensions, _concat0);
-        if (rank == 3) {
-            return concat0_out;
-        }
-    }
-
-    const auto x = output_dimensions[0] / tensor_input->get_dimensions()[0];
-    if (x == 1) {
-        return concat0_out;
-    }
-
-    // create concat1
-    ggml_qnn_tensor_ptr_t concat1_out;
-    {
-        dimensions[0] *= x;
-        concat1_out = create_concat(_name + "_cat1", device, graph_handle, _qnn_instance, rank, 0, concat0_out,
-                                    dimensions, _concat1);
-    }
-
-    return concat1_out;
+    Qnn_Scalar_t scalar = QNN_SCALAR_INIT;
+    scalar.dataType = QNN_DATATYPE_UINT_32;
+    scalar.uint32Value = 3; // ASYMMETRIC = 3
+    resize_op->add_scalar_param(QNN_OP_RESIZE_PARAM_TRANSFORMATION_MODE, scalar);
+    _resize = resize_op;
+    return resize_out;
 }
 
 bool ggml_qnn_matmul_op_config::add_op_to_graph(Qnn_GraphHandle_t graph_handle) {
@@ -483,11 +454,7 @@ bool ggml_qnn_matmul_op_config::add_op_to_graph(Qnn_GraphHandle_t graph_handle) 
         }
     }
 
-    if (_concat0 && !_concat0->add_op_to_graph(graph_handle)) {
-        return false;
-    }
-
-    if (_concat1 && !_concat1->add_op_to_graph(graph_handle)) {
+    if (_resize && !_resize->add_op_to_graph(graph_handle)) {
         return false;
     }
 
