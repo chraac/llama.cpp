@@ -54,6 +54,10 @@ public:
     }
 
     bool set_data_buffer(std::vector<uint8_t> &&buffer) {
+        if (!bind_buffer_impl(buffer.data(), buffer.size())) {
+            return false;
+        }
+
         _buffer_storage = std::move(buffer);
         return true;
     }
@@ -76,12 +80,6 @@ public:
         QNN_TENSOR_SET_ID(_qnn_tensor, QNN_TENSOR_GET_ID(qnn_tensor));
         QNN_LOG_DEBUG("create graph tensor %s, id: %d, rank: %d", _tensor_name.c_str(), QNN_TENSOR_GET_ID(qnn_tensor),
                       QNN_TENSOR_GET_RANK(qnn_tensor));
-
-        if (!_buffer_storage.empty()) {
-            QNN_LOG_DEBUG("tensor %s has buffer storage, will bind after id allocated", _tensor_name.c_str());
-            return bind_buffer_impl(_buffer_storage.data(), _buffer_storage.size());
-        }
-
         return true;
     }
 
@@ -258,6 +256,7 @@ private:
             case PARAMETER:
                 new_tensor_type = QNN_TENSOR_TYPE_STATIC;
                 break;
+            case INTERMEDIATE:
             default:
                 new_tensor_type = QNN_TENSOR_TYPE_NATIVE;
                 break;

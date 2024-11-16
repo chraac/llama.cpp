@@ -455,8 +455,8 @@ qnn_tensor_ptr_t ggml_qnn_matmul_op_config::create_gather_node(QNNBackend device
         }
 
         auto gather_index = std::make_shared<ggml_qnn_tensor>(
-            ggml_qnn_tensor::INPUT, name + "_index", qnn_dimension_array_t{dimensions[axis]}, QNN_DATATYPE_UINT_32, 1,
-            device, graph_handle, qnn_instance);
+            ggml_qnn_tensor::PARAMETER, name + "_index", qnn_dimension_array_t{dimensions[axis]},
+            QNN_DATATYPE_UINT_32, 1, device, graph_handle, qnn_instance);
         gather_index->set_data_buffer(std::move(index_buffer));
         gather_op->set_input_tensors({tensor_input, gather_index});
 
