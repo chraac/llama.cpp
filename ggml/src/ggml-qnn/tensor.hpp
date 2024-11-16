@@ -125,6 +125,15 @@ public:
         return true;
     }
 
+    bool bind_buffer(std::vector<uint8_t> &&buffer) {
+        if (!bind_buffer(buffer.data(), buffer.size())) {
+            return false;
+        }
+
+        _buffer_storage = std::move(buffer);
+        return true;
+    }
+
     bool bind_ggml_tensor(ggml_tensor *tensor) {
         if (!bind_buffer(reinterpret_cast<uint8_t *>(tensor->data), ggml_nbytes(tensor))) {
             QNN_LOG_WARN("Failed to bind tensor: %s to ggml tensor: %s", _tensor_name.c_str(), ggml_get_name(tensor));
@@ -246,6 +255,7 @@ private:
     std::string _tensor_name;
     uint8_t *_buffer = nullptr;
     size_t _buffer_size = 0;
+    std::vector<uint8_t> _buffer_storage;
     QNNBackend _device;
     std::shared_ptr<qnn_instance> _qnn_instance;
     Qnn_Tensor_t _qnn_tensor = qnn_tensor_init(kDefaultQnnTensorVersion);
@@ -257,7 +267,7 @@ private:
     DISABLE_MOVE(ggml_qnn_tensor);
 };
 
-using ggml_qnn_tensor_ptr_t = std::shared_ptr<ggml_qnn_tensor>;
-using ggml_qnn_tensor_array_t = std::vector<std::shared_ptr<ggml_qnn_tensor>>;
+using qnn_tensor_ptr_t = std::shared_ptr<ggml_qnn_tensor>;
+using qnn_tensor_array_t = std::vector<qnn_tensor_ptr_t>;
 
 } // namespace qnn
