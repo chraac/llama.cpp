@@ -117,7 +117,7 @@ public:
 private:
     bool create_mat_mul_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle, const int rank,
                               qnn_tensor_array_t &tensor_inputs, qnn_tensor_array_t &tensor_outputs);
-    qnn_tensor_ptr_t create_resize_node(QNNBackend device, Qnn_GraphHandle_t graph_handle, const int rank,
+    qnn_tensor_ptr_t create_gather_node(QNNBackend device, Qnn_GraphHandle_t graph_handle, const int rank,
                                         qnn_tensor_ptr_t tensor_input, qnn_dimension_array_t output_dimensions);
 
     std::string _name;
@@ -125,7 +125,8 @@ private:
     std::shared_ptr<ggml_qnn_op_config> _transpose0;
     std::shared_ptr<ggml_qnn_op_config> _transpose1;
     std::shared_ptr<ggml_qnn_op_config> _mat_mul;
-    std::shared_ptr<ggml_qnn_op_config> _resize;
+    std::shared_ptr<ggml_qnn_op_config> _gather0;
+    std::shared_ptr<ggml_qnn_op_config> _gather1;
     std::vector<std::shared_ptr<ggml_qnn_op_config>> _input_converts;
     std::shared_ptr<ggml_qnn_op_config> _output_convert;
     qnn_tensor_array_t _tensor_inputs;

@@ -300,7 +300,7 @@ bool ggml_qnn_matmul_op_config::create_tensors(QNNBackend device, Qnn_GraphHandl
     create_tensors_from_ggml_tensor(params, tensor_outputs, &mat_mul_tensor_outputs, nullptr);
 
     qnn_tensor_array_t mat_mul_tensor_inputs = _tensor_inputs;
-    mat_mul_tensor_inputs.front() = create_resize_node(device, graph_handle, tensor_rank, _tensor_inputs.front(),
+    mat_mul_tensor_inputs.front() = create_gather_node(device, graph_handle, tensor_rank, _tensor_inputs.front(),
                                                        _tensor_inputs.back()->get_dimensions());
     return create_mat_mul_nodes(device, graph_handle, tensor_rank, mat_mul_tensor_inputs, mat_mul_tensor_outputs);
 }
@@ -413,7 +413,7 @@ bool ggml_qnn_matmul_op_config::create_mat_mul_nodes(QNNBackend device, Qnn_Grap
     return true;
 }
 
-qnn_tensor_ptr_t ggml_qnn_matmul_op_config::create_resize_node(QNNBackend device, Qnn_GraphHandle_t graph_handle,
+qnn_tensor_ptr_t ggml_qnn_matmul_op_config::create_gather_node(QNNBackend device, Qnn_GraphHandle_t graph_handle,
                                                                const int rank, qnn_tensor_ptr_t tensor_input,
                                                                qnn_dimension_array_t output_dimensions) {
     if (rank <= 2) {
@@ -423,34 +423,57 @@ qnn_tensor_ptr_t ggml_qnn_matmul_op_config::create_resize_node(QNNBackend device
     const auto &input_dimensions = tensor_input->get_dimensions();
     output_dimensions[rank - 1] = input_dimensions[rank - 1];
     output_dimensions[rank - 2] = input_dimensions[rank - 2];
+
     // create concat nodes, to convert tensor shape from [ne03, ne02, n, k] to [ne03 * x, ne02 * y, n, k]
     const auto y = output_dimensions[rank - 3] / input_dimensions[rank - 3];
     if (y == 1 && rank == 3) {
         return tensor_input;
     }
 
-    std::string name = _name + "_resize";
-    auto resize_out =
-        std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::INTERMEDIATE, name + "_out", output_dimensions,
-                                          tensor_input->get_data_type(), rank, device, graph_handle, _qnn_instance);
-    auto resize_op = std::make_shared<ggml_qnn_connectable_op_config>(name, QNN_OP_PACKAGE_NAME_QTI_AISW, QNN_OP_RESIZE,
-                                                                      _qnn_instance);
-    resize_op->set_input_tensors({tensor_input});
-    resize_op->set_output_tensors({resize_out});
+    constexpr const auto create_node = [](const std::string &name, const int rank, const int axis,
+                                          const qnn_dimension_array_t &dimensions, qnn_tensor_ptr_t tensor_input,
+                                          QNNBackend device, Qnn_GraphHandle_t graph_handle,
+                                          std::shared_ptr<qnn_instance> qnn_instance,
+                                          std::shared_ptr<ggml_qnn_op_config> &gather_op_out) -> qnn_tensor_ptr_t {
+        auto gather_out =
+            std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::INTERMEDIATE, name + "_out", dimensions,
+                                              tensor_input->get_data_type(), rank, device, graph_handle, qnn_instance);
+        auto gather_op = std::make_shared<ggml_qnn_connectable_op_config>(name, QNN_OP_PACKAGE_NAME_QTI_AISW,
+                                                                          QNN_OP_GATHER, qnn_instance);
 
-    Qnn_Scalar_t scalar = QNN_SCALAR_INIT;
-    scalar.dataType = QNN_DATATYPE_UINT_32;
-    scalar.uint32Value = 3; // ASYMMETRIC = 3
-    resize_op->add_scalar_param(QNN_OP_RESIZE_PARAM_TRANSFORMATION_MODE, scalar);
+        Qnn_Scalar_t scalar = QNN_SCALAR_INIT;
+        scalar.dataType = QNN_DATATYPE_INT_32;
+        scalar.int32Value = axis;
+        gather_op->add_scalar_param(QNN_OP_GATHER_PARAM_AXIS, scalar);
+        gather_op->set_output_tensors({gather_out});
 
-    scalar.uint32Value = 0; // NEAREST = 0
-    resize_op->add_scalar_param(QNN_OP_RESIZE_PARAM_INTERPOLATION_MODE, scalar);
+        const auto scale = dimensions[axis] / tensor_input->get_dimensions()[axis];
+        std::vector<uint8_t> index_buffer(dimensions[axis] * sizeof(uint32_t));
+        for (uint32_t *curr = reinterpret_cast<uint32_t *>(index_buffer.data()), *end = curr + dimensions[axis];
+             curr < end; curr++) {
+            *curr = (curr - reinterpret_cast<uint32_t *>(index_buffer.data())) / scale;
+        }
 
-    scalar.uint32Value = 0; // ROUND_PREFER_FLOOR = 0
-    resize_op->add_scalar_param(QNN_OP_RESIZE_PARAM_NEAREST_MODE, scalar);
+        auto gather_index = std::make_shared<ggml_qnn_tensor>(
+            ggml_qnn_tensor::INPUT, name + "_index", qnn_dimension_array_t{dimensions[axis]}, QNN_DATATYPE_UINT_32, 1,
+            device, graph_handle, qnn_instance);
+        gather_index->set_data_buffer(std::move(index_buffer));
+        gather_op->set_input_tensors({tensor_input, gather_index});
 
-    _resize = resize_op;
-    return resize_out;
+        gather_op_out = gather_op;
+        return gather_out;
+    };
+
+    qnn_dimension_array_t intermediate_dimensions = input_dimensions;
+    intermediate_dimensions[rank - 3] = output_dimensions[rank - 3];
+    auto gather_out = create_node(_name + "_gather0", rank, rank - 3, intermediate_dimensions, tensor_input, device,
+                                  graph_handle, _qnn_instance, _gather0);
+    if (rank == 3) {
+        return gather_out;
+    }
+
+    return create_node(_name + "_gather1", rank, rank - 4, output_dimensions, gather_out, device, graph_handle,
+                       _qnn_instance, _gather1);
 }
 
 bool ggml_qnn_matmul_op_config::add_op_to_graph(Qnn_GraphHandle_t graph_handle) {
@@ -460,7 +483,11 @@ bool ggml_qnn_matmul_op_config::add_op_to_graph(Qnn_GraphHandle_t graph_handle) 
         }
     }
 
-    if (_resize && !_resize->add_op_to_graph(graph_handle)) {
+    if (_gather0 && !_gather0->add_op_to_graph(graph_handle)) {
+        return false;
+    }
+
+    if (_gather1 && !_gather1->add_op_to_graph(graph_handle)) {
         return false;
     }
 

@@ -48,7 +48,15 @@ public:
         : ggml_qnn_tensor(tensor_type, name, get_internal_dimension(dimensions, rank),
                           qnn_datatype_from_ggml_datatype(data_type), rank, device, graph_handle, qnn_instance) {}
 
-    ~ggml_qnn_tensor() { _qnn_rpc_buffer.reset(); }
+    ~ggml_qnn_tensor() {
+        unbind();
+        _qnn_rpc_buffer.reset();
+    }
+
+    bool set_data_buffer(std::vector<uint8_t> &&buffer) {
+        _buffer_storage = std::move(buffer);
+        return true;
+    }
 
     bool alloc_qnn_tensor_id() {
         if (QNN_TENSOR_GET_ID(_qnn_tensor)) {
@@ -69,10 +77,73 @@ public:
         QNN_LOG_DEBUG("create graph tensor %s, id: %d, rank: %d", _tensor_name.c_str(), QNN_TENSOR_GET_ID(qnn_tensor),
                       QNN_TENSOR_GET_RANK(qnn_tensor));
 
+        if (!_buffer_storage.empty()) {
+            QNN_LOG_DEBUG("tensor %s has buffer storage, will bind after id allocated", _tensor_name.c_str());
+            return bind_buffer_impl(_buffer_storage.data(), _buffer_storage.size());
+        }
+
         return true;
     }
 
     bool bind_buffer(uint8_t *buffer, const size_t buffer_size) {
+        if (!_buffer_storage.empty()) {
+            QNN_LOG_DEBUG("tensor %s has buffer storage, skip bind", _tensor_name.c_str());
+            return true;
+        }
+
+        return bind_buffer_impl(buffer, buffer_size);
+    }
+
+    bool bind_ggml_tensor(ggml_tensor *tensor) {
+        if (!bind_buffer(reinterpret_cast<uint8_t *>(tensor->data), ggml_nbytes(tensor))) {
+            QNN_LOG_WARN("Failed to bind tensor: %s to ggml tensor: %s", _tensor_name.c_str(), ggml_get_name(tensor));
+            return false;
+        }
+
+        QNN_LOG_DEBUG("Bind tensor %s to ggml tensor %s", _tensor_name.c_str(), ggml_get_name(tensor));
+        return true;
+    }
+
+    bool unbind() {
+        if (!_graph_handle) {
+            QNN_LOG_WARN("tensor %s not bound to any graph", _tensor_name.c_str());
+            return false;
+        }
+
+        if (!_buffer) {
+            QNN_LOG_DEBUG("tensor %s not bound to ggml tensor", _tensor_name.c_str());
+            return true;
+        }
+
+        if (!read_from_qnn_tensor()) {
+            QNN_LOG_WARN("read from qnn tensor failed, tensor %s", _tensor_name.c_str());
+            return false;
+        }
+
+        if (!_buffer_storage.empty()) {
+            QNN_LOG_DEBUG("tensor: %s has buffer storage, stop unbind", _tensor_name.c_str());
+            return true;
+        }
+
+        if (!should_use_mem_handle()) {
+            QNN_TENSOR_SET_MEM_TYPE(_qnn_tensor, QNN_TENSORMEMTYPE_RAW);
+            Qnn_ClientBuffer_t client_buf = {};
+            QNN_TENSOR_SET_CLIENT_BUF(_qnn_tensor, client_buf);
+            QNN_LOG_DEBUG("tensor %s, clear client buffer", _tensor_name.c_str());
+        }
+
+        QNN_LOG_DEBUG("unbind tensor: %s from buffer: %p, size: %d", _tensor_name.c_str(), _buffer, (int)_buffer_size);
+        _buffer = nullptr;
+        _buffer_size = 0;
+        return true;
+    }
+
+    const Qnn_Tensor_t &get_qnn_tensor() const { return _qnn_tensor; }
+    Qnn_DataType_t get_data_type() const { return QNN_TENSOR_GET_DATA_TYPE(_qnn_tensor); }
+    const qnn_dimension_array_t &get_dimensions() const { return _dimensions; }
+
+private:
+    bool bind_buffer_impl(uint8_t *buffer, const size_t buffer_size) {
         if (_buffer) {
             if (_buffer != buffer) {
                 QNN_LOG_WARN("tensor %s has been bound to another buffer %p", _tensor_name.c_str(), _buffer);
@@ -125,59 +196,6 @@ public:
         return true;
     }
 
-    bool bind_buffer(std::vector<uint8_t> &&buffer) {
-        if (!bind_buffer(buffer.data(), buffer.size())) {
-            return false;
-        }
-
-        _buffer_storage = std::move(buffer);
-        return true;
-    }
-
-    bool bind_ggml_tensor(ggml_tensor *tensor) {
-        if (!bind_buffer(reinterpret_cast<uint8_t *>(tensor->data), ggml_nbytes(tensor))) {
-            QNN_LOG_WARN("Failed to bind tensor: %s to ggml tensor: %s", _tensor_name.c_str(), ggml_get_name(tensor));
-            return false;
-        }
-
-        QNN_LOG_DEBUG("Bind tensor %s to ggml tensor %s", _tensor_name.c_str(), ggml_get_name(tensor));
-        return true;
-    }
-
-    bool unbind() {
-        if (!_graph_handle) {
-            QNN_LOG_WARN("tensor %s not bound to any graph", _tensor_name.c_str());
-            return false;
-        }
-
-        if (!_buffer) {
-            QNN_LOG_DEBUG("tensor %s not bound to ggml tensor", _tensor_name.c_str());
-            return true;
-        }
-
-        if (!read_from_qnn_tensor()) {
-            QNN_LOG_WARN("read from qnn tensor failed, tensor %s", _tensor_name.c_str());
-            return false;
-        }
-
-        if (!should_use_mem_handle()) {
-            QNN_TENSOR_SET_MEM_TYPE(_qnn_tensor, QNN_TENSORMEMTYPE_RAW);
-            Qnn_ClientBuffer_t client_buf = {};
-            QNN_TENSOR_SET_CLIENT_BUF(_qnn_tensor, client_buf);
-            QNN_LOG_DEBUG("tensor %s, clear client buffer", _tensor_name.c_str());
-        }
-
-        QNN_LOG_DEBUG("unbind tensor: %s from buffer: %p, size: %d", _tensor_name.c_str(), _buffer, (int)_buffer_size);
-        _buffer = nullptr;
-        _buffer_size = 0;
-        return true;
-    }
-
-    const Qnn_Tensor_t &get_qnn_tensor() const { return _qnn_tensor; }
-    Qnn_DataType_t get_data_type() const { return QNN_TENSOR_GET_DATA_TYPE(_qnn_tensor); }
-    const qnn_dimension_array_t &get_dimensions() const { return _dimensions; }
-
-private:
     bool write_to_qnn_tensor() {
         auto tensor_type = QNN_TENSOR_GET_TYPE(_qnn_tensor);
         if (tensor_type != QNN_TENSOR_TYPE_APP_WRITE && tensor_type != QNN_TENSOR_TYPE_APP_READWRITE) {
