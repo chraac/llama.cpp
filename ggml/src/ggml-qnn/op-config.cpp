@@ -443,6 +443,13 @@ ggml_qnn_tensor_ptr_t ggml_qnn_matmul_op_config::create_resize_node(QNNBackend d
     scalar.dataType = QNN_DATATYPE_UINT_32;
     scalar.uint32Value = 3; // ASYMMETRIC = 3
     resize_op->add_scalar_param(QNN_OP_RESIZE_PARAM_TRANSFORMATION_MODE, scalar);
+
+    scalar.uint32Value = 0; // NEAREST = 0
+    resize_op->add_scalar_param(QNN_OP_RESIZE_PARAM_INTERPOLATION_MODE, scalar);
+
+    scalar.uint32Value = 0; // ROUND_PREFER_FLOOR = 0
+    resize_op->add_scalar_param(QNN_OP_RESIZE_PARAM_NEAREST_MODE, scalar);
+
     _resize = resize_op;
     return resize_out;
 }
