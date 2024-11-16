@@ -573,7 +573,7 @@ bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context *ctx, const ggm
         return false;
     }
 
-    if ((src1->ne[2] % src0->ne[2] != 0) || (src1->ne[3] != src0->ne[3])) {
+    if ((src1->ne[2] % src0->ne[2]) != 0 || (src1->ne[3] % src0->ne[3]) != 0) {
         /*
          * TODO: remove the blocker here when qnn backend supports mul_mat like this:
          *   [ne03, ne02, n, k] * [ne03 * x, ne02 * y, m, k] -> [ne03 * x, ne02 * y, m, n]
