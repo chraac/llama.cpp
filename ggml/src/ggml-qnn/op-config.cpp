@@ -424,12 +424,12 @@ qnn_tensor_ptr_t ggml_qnn_matmul_op_config::create_gather_node(QNNBackend device
     output_dimensions[rank - 1] = input_dimensions[rank - 1];
     output_dimensions[rank - 2] = input_dimensions[rank - 2];
 
-    // create concat nodes, to convert tensor shape from [ne03, ne02, n, k] to [ne03 * x, ne02 * y, n, k]
     const auto y = output_dimensions[rank - 3] / input_dimensions[rank - 3];
     if (y == 1 && rank == 3) {
         return tensor_input;
     }
 
+    // create concat nodes, to convert tensor shape from [ne03, ne02, n, k] to [ne03 * x, ne02 * y, n, k]
     constexpr const auto create_node = [](const std::string &name, const int rank, const int axis,
                                           const qnn_dimension_array_t &dimensions, qnn_tensor_ptr_t tensor_input,
                                           QNNBackend device, Qnn_GraphHandle_t graph_handle,
@@ -448,7 +448,7 @@ qnn_tensor_ptr_t ggml_qnn_matmul_op_config::create_gather_node(QNNBackend device
         gather_op->set_output_tensors({gather_out});
 
         // here we calculate the index mapping, will generate a 1d tensor like [0, 0, 0, 1, 1, 1, 2, 2, 2, ...],
-        //   by repeating index [scale] times.
+        //   by repeating each index [scale] times.
         const auto scale = dimensions[axis] / tensor_input->get_dimensions()[axis];
         std::vector<uint8_t> index_buffer(dimensions[axis] * sizeof(uint32_t));
         for (uint32_t *curr = reinterpret_cast<uint32_t *>(index_buffer.data()), *end = curr + dimensions[axis];
