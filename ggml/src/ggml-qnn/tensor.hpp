@@ -49,6 +49,7 @@ public:
                           qnn_datatype_from_ggml_datatype(data_type), rank, device, graph_handle, qnn_instance) {}
 
     ~ggml_qnn_tensor() {
+        _buffer_storage.clear();
         unbind();
         _qnn_rpc_buffer.reset();
     }
