@@ -339,6 +339,7 @@ void ggml_backend_qnn_device_get_memory(ggml_backend_dev_t dev, size_t *free, si
     GGML_UNUSED(dev);
     *free = qnn::get_system_free_memory_in_bytes();
     *total = qnn::get_system_total_memory_in_bytes();
+    QNN_LOG_DEBUG("free memory: %ldMB, total memory: %ldMB", (*free / 1048576), (*total) / 1048576);
 }
 
 enum ggml_backend_dev_type ggml_backend_qnn_device_get_type(ggml_backend_dev_t dev) {

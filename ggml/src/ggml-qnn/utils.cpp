@@ -8,6 +8,7 @@
 #include "qnn-types.hpp"
 
 #ifdef __linux__
+#include <sys/sysinfo.h>
 #include <unistd.h>
 #endif
 
@@ -290,12 +291,22 @@ const char *get_qnn_error_string(Qnn_ErrorHandle_t error) {
 #ifdef __linux__
 
 size_t get_system_total_memory_in_bytes() {
+    struct sysinfo info = {};
+    if (sysinfo(&info) == 0) {
+        return (info.totalram + info.totalswap) * info.mem_unit;
+    }
+
     auto pages = (size_t)sysconf(_SC_PHYS_PAGES);
     auto page_size = (size_t)sysconf(_SC_PAGE_SIZE);
     return pages * page_size;
 }
 
 size_t get_system_free_memory_in_bytes() {
+    struct sysinfo info = {};
+    if (sysinfo(&info) == 0) {
+        return (info.freeram + info.freeswap) * info.mem_unit;
+    }
+
     auto avail_pages = (size_t)sysconf(_SC_AVPHYS_PAGES);
     auto page_size = (size_t)sysconf(_SC_PAGE_SIZE);
     return avail_pages * page_size;
