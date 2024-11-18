@@ -375,7 +375,7 @@ ggml_backend_t ggml_backend_qnn_init_with_device_context(ggml_backend_dev_t dev,
 
     auto *dev_ctx = get_device_context(dev);
     const auto device = dev_ctx->device;
-    QNN_LOG_DEBUG("device %d", device);
+    QNN_LOG_DEBUG("device %s", qnn::get_backend_name(device));
     QNN_LOG_DEBUG("extend_lib_search_path %s", extend_lib_search_path);
     std::string path = extend_lib_search_path;
 
@@ -496,13 +496,15 @@ struct ggml_backend_qnn_reg_impl : ggml_backend_reg {
         context = this;
         iface = interface;
 
+        QNN_LOG_DEBUG("qnn backend registry init");
         for (int i = 0; i < GGML_QNN_MAX_DEVICES; i++) {
             const auto device_enum = (QNNBackend)(GGML_QNN_MAX_DEVICES - 1 - i); // init from the last device, i.e. NPU
             device_contexts[i] = std::make_unique<ggml_backend_qnn_device_context>(
                 /* .device   = */ device_enum, // init from the last device, i.e. NPU
                 /* .threads  = */ 1,
                 /* .name     = */ qnn::get_backend_name(device_enum),
-                /* .lib_name = */ kDeviceCaps[device_enum].lib_name);
+                /* .lib_name = */ kDeviceCaps[device_enum].lib_name,
+                /* .supported_types = */ kDeviceCaps[device_enum].supported_types);
 
             auto &device = devices[i];
             device.iface = ggml_backend_qnn_device_interface;

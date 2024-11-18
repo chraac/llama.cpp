@@ -149,11 +149,11 @@ const char *get_ggml_type_name(ggml_type type) {
 const char *get_backend_name(QNNBackend device_index) {
     switch (device_index) {
         case QNN_BACKEND_CPU:
-            return "QNN-CPU";
+            return "qnn-cpu";
         case QNN_BACKEND_GPU:
-            return "QNN-GPU";
+            return "qnn-gpu";
         case QNN_BACKEND_NPU:
-            return "QNN-NPU";
+            return "qnn-npu";
         case QNN_BACKEND_COUNT:
         default:
             return "unknown";
