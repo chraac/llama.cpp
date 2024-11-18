@@ -543,7 +543,9 @@ bool ggml_qnn_supports_tensor(ggml_backend_qnn_device_context *ctx, const ggml_t
         return false;
     }
 
+#ifndef NDEBUG
     auto *type_name = ggml_get_type_traits(tensor->type)->type_name;
+#endif
     switch (tensor->type) {
         case GGML_TYPE_F32:
         case GGML_TYPE_F16:
