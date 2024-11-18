@@ -185,7 +185,7 @@ bool ggml_qnn_op_config_base::add_op_to_graph(Qnn_GraphHandle_t graph_handle) {
     GGML_ASSERT(_qnn_tensor_inputs.size() == _tensor_inputs.size());
     GGML_ASSERT(_qnn_tensor_outputs.size() == _tensor_outputs.size());
 
-    auto qnn_interface = _qnn_instance->get_qnn_interface();
+    QNN_LOG_DEBUG("[%s]add to graph start\n", _name.c_str());
     for (size_t i = 0; i < _tensor_inputs.size(); i++) {
         auto tensor = _tensor_inputs[i];
         if (!tensor->alloc_qnn_tensor_id()) {
@@ -193,6 +193,7 @@ bool ggml_qnn_op_config_base::add_op_to_graph(Qnn_GraphHandle_t graph_handle) {
             return false;
         }
 
+        QNN_LOG_DEBUG("[%s]input tensor id: %d\n", _name.c_str(), tensor->get_qnn_tensor_id());
         _qnn_tensor_inputs[i] = tensor->get_qnn_tensor();
     }
 
@@ -202,9 +203,12 @@ bool ggml_qnn_op_config_base::add_op_to_graph(Qnn_GraphHandle_t graph_handle) {
             QNN_LOG_ERROR("[%s]output tensor alloc_qnn_tensor_id failed\n", _name.c_str());
             return false;
         }
-        _qnn_tensor_outputs[i] = _tensor_outputs[i]->get_qnn_tensor();
+
+        QNN_LOG_DEBUG("[%s]output tensor id: %d\n", _name.c_str(), tensor->get_qnn_tensor_id());
+        _qnn_tensor_outputs[i] = tensor->get_qnn_tensor();
     }
 
+    auto qnn_interface = _qnn_instance->get_qnn_interface();
     auto error = qnn_interface->qnn_graph_add_node(graph_handle, get_op_config());
     if (error != QNN_SUCCESS) {
         auto *error_str = get_qnn_error_string(error);
@@ -216,7 +220,7 @@ bool ggml_qnn_op_config_base::add_op_to_graph(Qnn_GraphHandle_t graph_handle) {
         return false;
     }
 
-    QNN_LOG_DEBUG("[%s]added to graph\n", _name.c_str());
+    QNN_LOG_DEBUG("[%s]added to graph succeed\n", _name.c_str());
     return true;
 }
 

@@ -573,9 +573,9 @@ bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context *ctx, const ggm
         return false;
     }
 
-    if ((src1->ne[2] % src0->ne[2]) != 0 || (src1->ne[3] % src0->ne[3]) != 0) {
+    if ((src1->ne[2] % src0->ne[2]) != 0 || (src1->ne[3] % src0->ne[3]) != 0 || ctx->device == QNN_BACKEND_NPU) {
         /*
-         * TODO: remove the blocker here when qnn backend supports mul_mat like this:
+         * TODO: remove the blocker here when NPU backend supports mul_mat like this:
          *   [ne03, ne02, n, k] * [ne03 * x, ne02 * y, m, k] -> [ne03 * x, ne02 * y, m, n]
          */
         QNN_LOG_DEBUG("src0 and src1 dimensions are not equal");

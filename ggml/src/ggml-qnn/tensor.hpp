@@ -65,8 +65,7 @@ public:
 
     bool alloc_qnn_tensor_id() {
         if (QNN_TENSOR_GET_ID(_qnn_tensor)) {
-            QNN_LOG_WARN("graph tensor %s already created, id %d", _tensor_name.c_str(),
-                         QNN_TENSOR_GET_ID(_qnn_tensor));
+            QNN_LOG_WARN("[%s]tensor already has a id: %d", _tensor_name.c_str(), QNN_TENSOR_GET_ID(_qnn_tensor));
             return true;
         }
 
@@ -74,12 +73,12 @@ public:
         auto qnn_interface = _qnn_instance->get_qnn_interface();
         auto error = qnn_interface->qnn_tensor_create_graph_tensor(_graph_handle, &qnn_tensor);
         if (error != QNN_SUCCESS) {
-            QNN_LOG_WARN("create graph tensor failed, tensor %s, error: %d\n", _tensor_name.c_str(), error);
+            QNN_LOG_WARN("[%s]allocate id failed , error: %d\n", _tensor_name.c_str(), error);
             return false;
         }
 
         QNN_TENSOR_SET_ID(_qnn_tensor, QNN_TENSOR_GET_ID(qnn_tensor));
-        QNN_LOG_DEBUG("create graph tensor %s, id: %d, rank: %d", _tensor_name.c_str(), QNN_TENSOR_GET_ID(qnn_tensor),
+        QNN_LOG_DEBUG("[%s]allocated id: %d, rank: %d", _tensor_name.c_str(), QNN_TENSOR_GET_ID(qnn_tensor),
                       QNN_TENSOR_GET_RANK(qnn_tensor));
         return true;
     }
@@ -140,6 +139,7 @@ public:
     const Qnn_Tensor_t &get_qnn_tensor() const { return _qnn_tensor; }
     Qnn_DataType_t get_data_type() const { return QNN_TENSOR_GET_DATA_TYPE(_qnn_tensor); }
     const qnn_dimension_array_t &get_dimensions() const { return _dimensions; }
+    uint32_t get_qnn_tensor_id() const { return QNN_TENSOR_GET_ID(_qnn_tensor); }
 
 private:
     bool bind_buffer_impl(uint8_t *buffer, const size_t buffer_size) {
