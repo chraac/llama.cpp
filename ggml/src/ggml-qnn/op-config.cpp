@@ -98,9 +98,9 @@ public:
                                             const std::string &op_type, std::shared_ptr<qnn::qnn_instance> qnn_instance)
         : ggml_qnn_op_config_base(name, package_name, op_type, qnn_instance) {}
 
-    bool create_tensors(QNNBackend device, Qnn_GraphHandle_t graph_handle,
-                        const qnn::ggml_tensor_array_t &tensor_inputs,
-                        const qnn::ggml_tensor_array_t &tensor_outputs) override {
+    bool initialize_op_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle,
+                             const qnn::ggml_tensor_array_t &tensor_inputs,
+                             const qnn::ggml_tensor_array_t &tensor_outputs) override {
         GGML_UNUSED(device);
         GGML_UNUSED(graph_handle);
         GGML_UNUSED(tensor_inputs);
@@ -262,9 +262,9 @@ Qnn_OpConfig_t ggml_qnn_op_config_base::get_op_config() {
     return config;
 }
 
-bool ggml_qnn_single_op_config::create_tensors(QNNBackend device, Qnn_GraphHandle_t graph_handle,
-                                               const ggml_tensor_array_t &tensor_inputs,
-                                               const ggml_tensor_array_t &tensor_outputs) {
+bool ggml_qnn_single_op_config::initialize_op_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle,
+                                                    const ggml_tensor_array_t &tensor_inputs,
+                                                    const ggml_tensor_array_t &tensor_outputs) {
     const auto tensor_rank = get_rank(tensor_inputs, tensor_outputs);
     tensor_common_params params = {"src", tensor_rank, true, device, graph_handle, _qnn_instance};
     create_tensors_from_ggml_tensor(params, tensor_inputs, &_tensor_inputs, &_qnn_tensor_inputs);
@@ -285,9 +285,9 @@ bool ggml_qnn_single_op_config::create_tensors(QNNBackend device, Qnn_GraphHandl
     return true;
 }
 
-bool ggml_qnn_matmul_op_config::create_tensors(QNNBackend device, Qnn_GraphHandle_t graph_handle,
-                                               const ggml_tensor_array_t &tensor_inputs,
-                                               const ggml_tensor_array_t &tensor_outputs) {
+bool ggml_qnn_matmul_op_config::initialize_op_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle,
+                                                    const ggml_tensor_array_t &tensor_inputs,
+                                                    const ggml_tensor_array_t &tensor_outputs) {
     GGML_ASSERT(tensor_inputs.size() == 2);
     GGML_ASSERT(tensor_outputs.size() == 1);
     const auto tensor_rank = get_rank(tensor_inputs, tensor_outputs);

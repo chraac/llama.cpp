@@ -40,9 +40,9 @@ public:
      * @param tensor_outputs An array of output tensors.
      * @return true if tensors and nodes are successfully created, false otherwise.
      */
-    virtual bool create_tensors(QNNBackend device, Qnn_GraphHandle_t graph_handle,
-                                const ggml_tensor_array_t &tensor_inputs,
-                                const ggml_tensor_array_t &tensor_outputs) = 0;
+    virtual bool initialize_op_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle,
+                                     const ggml_tensor_array_t &tensor_inputs,
+                                     const ggml_tensor_array_t &tensor_outputs) = 0;
 
     /**
      * @brief Pure virtual function to retrieve the input tensors for QNN (Quantized Neural Network).
@@ -53,7 +53,6 @@ public:
      * @return A reference to a vector of Qnn_Tensor_t objects representing the input tensors.
      */
     virtual std::vector<Qnn_Tensor_t> &get_qnn_input_tensors() = 0;
-
 
     /**
      * @brief Pure virtual function to retrieve the output tensors of a QNN (Quantized Neural Network).
@@ -72,7 +71,7 @@ public:
      * This pure virtual function must be implemented by derived classes to add
      * a specific operation to the provided graph handle.
      *
-     * This function will be called after `create_tensors` during initialization.
+     * This function will be called after `initialize_op_nodes` during initialization.
      *
      * @param graph_handle The handle to the graph where the operation will be added.
      * @return true if the operation was successfully added to the graph, false otherwise.
@@ -185,8 +184,9 @@ public:
           _param_type(param_type),
           _param_buffer(param_size) {}
 
-    bool create_tensors(QNNBackend device, Qnn_GraphHandle_t graph_handle, const ggml_tensor_array_t &tensor_inputs,
-                        const ggml_tensor_array_t &tensor_outputs) override;
+    bool initialize_op_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle,
+                             const ggml_tensor_array_t &tensor_inputs,
+                             const ggml_tensor_array_t &tensor_outputs) override;
 
 private:
     const std::string _param_name;
@@ -202,8 +202,9 @@ public:
     ggml_qnn_matmul_op_config(const std::string &name, std::shared_ptr<qnn_instance> qnn_instance)
         : _name(name), _qnn_instance(qnn_instance) {}
 
-    bool create_tensors(QNNBackend device, Qnn_GraphHandle_t graph_handle, const ggml_tensor_array_t &tensor_inputs,
-                        const ggml_tensor_array_t &tensor_outputs) override;
+    bool initialize_op_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle,
+                             const ggml_tensor_array_t &tensor_inputs,
+                             const ggml_tensor_array_t &tensor_outputs) override;
     bool add_op_to_graph(Qnn_GraphHandle_t graph_handle) override;
     bool bind_input_tensors(const ggml_tensor_array_t &tensor_inputs) override;
     bool bind_output_tensors(const ggml_tensor_array_t &tensor_outputs) override;

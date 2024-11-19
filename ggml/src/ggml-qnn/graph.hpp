@@ -85,8 +85,8 @@ public:
 
         QNN_LOG_DEBUG("[%s]build_graph start", _graph_name.c_str());
         _op_config = op_constructor(_graph_name, _qnn_instance);
-        if (!_op_config->create_tensors(_device, _graph_handle, tensor_inputs, tensor_outputs)) {
-            QNN_LOG_ERROR("[%s]create_tensors failed\n", _graph_name.c_str());
+        if (!_op_config->initialize_op_nodes(_device, _graph_handle, tensor_inputs, tensor_outputs)) {
+            QNN_LOG_ERROR("[%s]initialize_op_nodes failed\n", _graph_name.c_str());
             return false;
         }
 
