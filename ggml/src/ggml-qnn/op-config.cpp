@@ -434,11 +434,10 @@ qnn_tensor_ptr_t ggml_qnn_matmul_op_config::create_gather_node(QNNBackend device
     }
 
     // create concat nodes, to convert tensor shape from [ne03, ne02, n, k] to [ne03 * x, ne02 * y, n, k]
-    constexpr const auto create_node = [](const std::string &name, const int rank, const int axis,
-                                          const qnn_dimension_array_t &dimensions, qnn_tensor_ptr_t tensor_input,
-                                          QNNBackend device, Qnn_GraphHandle_t graph_handle,
-                                          std::shared_ptr<qnn_instance> qnn_instance,
-                                          std::shared_ptr<ggml_qnn_op_config> &gather_op_out) -> qnn_tensor_ptr_t {
+    constexpr const auto create_node =
+        [](const std::string &name, const int rank, const int axis, const qnn_dimension_array_t &dimensions,
+           qnn_tensor_ptr_t tensor_input, QNNBackend device, Qnn_GraphHandle_t graph_handle,
+           std::shared_ptr<qnn_instance> qnn_instance, qnn_op_config_ptr_t &gather_op_out) -> qnn_tensor_ptr_t {
         auto gather_out =
             std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::INTERMEDIATE, name + "_out", dimensions,
                                               tensor_input->get_data_type(), rank, device, graph_handle, qnn_instance);
