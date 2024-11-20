@@ -437,7 +437,7 @@ qnn_tensor_ptr_t ggml_qnn_matmul_op_config::create_gather_node(QNNBackend device
     constexpr const auto create_node =
         [](const std::string &name, const int rank, const int axis, const qnn_dimension_array_t &dimensions,
            qnn_tensor_ptr_t tensor_input, QNNBackend device, Qnn_GraphHandle_t graph_handle,
-           std::shared_ptr<qnn_instance> qnn_instance, qnn_op_config_ptr_t &gather_op_out) -> qnn_tensor_ptr_t {
+           std::shared_ptr<qnn_instance> qnn_instance, qnn_tensor_ptr_t &tensor_output) -> qnn_op_config_ptr_t {
         auto gather_out =
             std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::INTERMEDIATE, name + "_out", dimensions,
                                               tensor_input->get_data_type(), rank, device, graph_handle, qnn_instance);
@@ -465,20 +465,23 @@ qnn_tensor_ptr_t ggml_qnn_matmul_op_config::create_gather_node(QNNBackend device
         gather_index->set_data_buffer(std::move(index_buffer));
         gather_op->set_input_tensors({tensor_input, gather_index});
 
-        gather_op_out = gather_op;
-        return gather_out;
+        tensor_output = gather_out;
+        return gather_op;
     };
 
     qnn_dimension_array_t intermediate_dimensions = input_dimensions;
     intermediate_dimensions[rank - 3] = output_dimensions[rank - 3];
-    auto gather_out = create_node(_name + "_gather0", rank, rank - 3, intermediate_dimensions, tensor_input, device,
-                                  graph_handle, _qnn_instance, _gather0);
+    qnn_tensor_ptr_t gather0_out;
+    _gather0 = create_node(_name + "_gather0", rank, rank - 3, intermediate_dimensions, tensor_input, device,
+                           graph_handle, _qnn_instance, gather0_out);
     if (rank == 3) {
-        return gather_out;
+        return gather0_out;
     }
 
-    return create_node(_name + "_gather1", rank, rank - 4, output_dimensions, gather_out, device, graph_handle,
-                       _qnn_instance, _gather1);
+    qnn_tensor_ptr_t gather1_out;
+    _gather1 = create_node(_name + "_gather1", rank, rank - 4, output_dimensions, gather0_out, device, graph_handle,
+                           _qnn_instance, gather1_out);
+    return gather1_out;
 }
 
 bool ggml_qnn_matmul_op_config::add_op_to_graph(Qnn_GraphHandle_t graph_handle) {
