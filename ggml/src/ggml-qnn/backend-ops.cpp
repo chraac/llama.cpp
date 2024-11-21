@@ -572,17 +572,20 @@ bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context *ctx, const ggm
     auto *src1 = op->src[1];
     if (ctx->device == QNN_BACKEND_GPU && (src0->type != src1->type || src0->type != op->type)) {
         // there's no convert op for GPU.
-        QNN_LOG_DEBUG("[QNN_BACKEND_GPU] src0 type %d and src1 type %d and op type %d are not equal", src0->type,
-                      src1->type, op->type);
+        QNN_LOG_DEBUG("[qnn-gpu] src0 type %d and src1 type %d and op type %d are not equal", src0->type, src1->type,
+                      op->type);
         return false;
     }
 
-    if ((src1->ne[2] % src0->ne[2]) != 0 || (src1->ne[3] % src0->ne[3]) != 0 || ctx->device == QNN_BACKEND_NPU) {
+    if (ctx->device == QNN_BACKEND_NPU && (src1->ne[2] != src0->ne[2] || src1->ne[3] != src0->ne[3])) {
+        QNN_LOG_DEBUG("[qnn-npu] src0 and src1 dimensions are not equal");
+        return false;
+    } else if ((src1->ne[2] % src0->ne[2]) != 0 || (src1->ne[3] % src0->ne[3]) != 0) {
         /*
          * TODO: remove the blocker here when NPU backend supports mul_mat like this:
          *   [ne03, ne02, n, k] * [ne03 * x, ne02 * y, m, k] -> [ne03 * x, ne02 * y, m, n]
          */
-        QNN_LOG_DEBUG("src0 and src1 dimensions are not equal");
+        QNN_LOG_DEBUG("[%s] src0 and src1 dimensions are not equal", qnn::get_backend_name(ctx->device));
         return false;
     }
 

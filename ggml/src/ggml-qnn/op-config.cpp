@@ -327,7 +327,7 @@ qnn_tensor_ptr_t ggml_qnn_matmul_op_config::create_gather_nodes(QNNBackend devic
     output_dimensions[rank - 2] = input_dimensions[rank - 2];
 
     const auto y = output_dimensions[rank - 3] / input_dimensions[rank - 3];
-    if (y == 1 && rank == 3) {
+    if (y == 1 && (rank == 3 || (rank == 4 && output_dimensions[rank - 4] == input_dimensions[rank - 4]))) {
         return tensor_input;
     }
 
