@@ -386,7 +386,7 @@ bool ggml_qnn_matmul_op_config::create_convert_nodes(QNNBackend device, Qnn_Grap
                                                      qnn_tensor_array_t &tensor_inputs,
                                                      qnn_tensor_array_t &tensor_outputs) {
     if (device == QNN_BACKEND_GPU) {
-        // there's no convert op for GPU, so we should create matmul nodes directl.
+        // there's no convert op for GPU, so we should create matmul nodes directly.
         return true;
     }
 

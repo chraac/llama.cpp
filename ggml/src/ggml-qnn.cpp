@@ -455,6 +455,7 @@ ggml_backend_buffer_t ggml_backend_qnn_device_buffer_from_ptr(ggml_backend_dev_t
 }
 
 bool ggml_backend_qnn_device_supports_op(ggml_backend_dev_t dev, const struct ggml_tensor *op) {
+    // Note that this function could be called before the device context is initialized
     auto *device_ctx = get_device_context(dev);
     return qnn::ggml_qnn_supports_op(device_ctx, op);
 }
