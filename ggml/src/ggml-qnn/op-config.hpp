@@ -99,10 +99,12 @@ public:
     std::vector<Qnn_Tensor_t> &get_qnn_output_tensors() override;
 
 private:
+    qnn_tensor_ptr_t create_gather_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle, const int rank,
+                                         qnn_tensor_ptr_t tensor_input, qnn_dimension_array_t output_dimensions);
+    bool create_convert_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle, const int rank,
+                              qnn_tensor_array_t &tensor_inputs, qnn_tensor_array_t &tensor_outputs);
     bool create_mat_mul_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle, const int rank,
                               qnn_tensor_array_t &tensor_inputs, qnn_tensor_array_t &tensor_outputs);
-    qnn_tensor_ptr_t create_gather_node(QNNBackend device, Qnn_GraphHandle_t graph_handle, const int rank,
-                                        qnn_tensor_ptr_t tensor_input, qnn_dimension_array_t output_dimensions);
 
     std::string _name;
     std::shared_ptr<qnn_instance> _qnn_instance;
