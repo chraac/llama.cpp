@@ -65,7 +65,7 @@ public:
 
     bool alloc_qnn_tensor_id() {
         if (QNN_TENSOR_GET_ID(_qnn_tensor)) {
-            QNN_LOG_WARN("[%s]tensor already has a id: %d", _tensor_name.c_str(), QNN_TENSOR_GET_ID(_qnn_tensor));
+            QNN_LOG_DEBUG("[%s]tensor already has a id: %d", _tensor_name.c_str(), QNN_TENSOR_GET_ID(_qnn_tensor));
             return true;
         }
 

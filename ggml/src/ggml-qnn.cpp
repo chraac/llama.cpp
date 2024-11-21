@@ -226,9 +226,8 @@ size_t ggml_backend_qnn_buffer_type_get_alignment(ggml_backend_buffer_type_t buf
 
 size_t ggml_backend_qnn_buffer_type_get_max_size(ggml_backend_buffer_type_t buft) {
     GGML_UNUSED(buft);
-    // TODO: this value is an experimental value, works fine with
-    // whisper/llm/minicpm-v inference on Android
-    return (96 * 1024 * 1024);
+    // TODO: get the max size from device
+    return (1024 * 1024 * 1024);
 }
 
 bool ggml_backend_qnn_buffer_is_host(ggml_backend_buffer_type_t buft) {
