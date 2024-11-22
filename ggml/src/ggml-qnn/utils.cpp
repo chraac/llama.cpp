@@ -5,6 +5,7 @@
 
 #include "ggml-qnn.h"
 
+#include "QnnGraph.h"
 #include "qnn-types.hpp"
 
 #ifdef __linux__
@@ -318,7 +319,7 @@ const char *get_qnn_error_string(Qnn_ErrorHandle_t error) {
             if (error >= QNN_GRAPH_MIN_ERROR && error < QNN_GRAPH_MAX_ERROR) {
                 snprintf(error_code, sizeof(error_code), "UNKNOWN_GRAPH_ERROR_%d", int(error - QNN_GRAPH_MIN_ERROR));
             } else {
-                snprintf(error_code, sizeof(error_code), "%d", error);
+                snprintf(error_code, sizeof(error_code), "%d", int(error));
             }
             return error_code;
     }

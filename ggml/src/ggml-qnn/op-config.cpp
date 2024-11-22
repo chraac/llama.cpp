@@ -386,17 +386,21 @@ bool ggml_qnn_matmul_op_config::create_convert_nodes(QNNBackend device, Qnn_Grap
     }
 
     // create tensors for convert node
-    auto input_tensor_type = get_tensor_type(tensor_inputs);
-    QNN_LOG_DEBUG("input tensor type: %s\n", qnn_datatype_to_string(input_tensor_type));
+    auto tensor_type = get_tensor_type(tensor_inputs);
+    QNN_LOG_DEBUG("input tensor type: %s\n", qnn_datatype_to_string(tensor_type));
 
     _input_converts.resize(tensor_inputs.size());
     for (size_t i = 0; i < tensor_inputs.size(); ++i) {
         // create input convert nodes
-        std::string convert_name("convert_src" + std::to_string(i));
         auto convert_in = tensor_inputs[i];
+        if (convert_in->get_data_type() == tensor_type) {
+            continue;
+        }
+
+        std::string convert_name("convert_src" + std::to_string(i));
         auto convert_out = std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::INTERMEDIATE, convert_name + "_out",
-                                                             convert_in->get_dimensions(), input_tensor_type, rank,
-                                                             device, graph_handle, _qnn_instance);
+                                                             convert_in->get_dimensions(), tensor_type, rank, device,
+                                                             graph_handle, _qnn_instance);
         auto convert = std::make_shared<ggml_qnn_connectable_op_config>(convert_name, QNN_OP_PACKAGE_NAME_QTI_AISW,
                                                                         QNN_OP_CONVERT, _qnn_instance);
         convert->set_input_tensors({convert_in});
@@ -405,13 +409,13 @@ bool ggml_qnn_matmul_op_config::create_convert_nodes(QNNBackend device, Qnn_Grap
         _input_converts[i] = convert;
     }
 
-    {
+    if (tensor_outputs.front()->get_data_type() != tensor_type) {
         // create output convert node
         std::string convert_name("convert_dst");
         auto convert_out = tensor_outputs.front();
         auto convert_in = std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::INTERMEDIATE, convert_name + "_in",
-                                                            convert_out->get_dimensions(), input_tensor_type, rank,
-                                                            device, graph_handle, _qnn_instance);
+                                                            convert_out->get_dimensions(), tensor_type, rank, device,
+                                                            graph_handle, _qnn_instance);
         auto output_convert = std::make_shared<ggml_qnn_connectable_op_config>(
             convert_name, QNN_OP_PACKAGE_NAME_QTI_AISW, QNN_OP_CONVERT, _qnn_instance);
         output_convert->set_input_tensors({convert_in});
