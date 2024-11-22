@@ -299,27 +299,17 @@ public:
             QNN_LOG_INFO("create QNN device successfully\n");
         }
 
-        if (qnn::sdk_profile_level::profile_off != _profile_level) {
+        if (_profile_level != sdk_profile_level::profile_off) {
             QNN_LOG_INFO("profiling turned on; level = %d", _profile_level);
-            if (qnn::sdk_profile_level::profile_basic == _profile_level) {
-                QNN_LOG_INFO("basic profiling requested. creating Qnn Profile object\n");
-                if (QNN_PROFILE_NO_ERROR != _qnn_interface->qnn_profile_create(
-                                                _qnn_backend_handle, QNN_PROFILE_LEVEL_BASIC, &_qnn_profile_handle)) {
-                    QNN_LOG_WARN("unable to create profile handle in the backend\n");
-                    return 6;
-                } else {
-                    QNN_LOG_DEBUG("initialize qnn profile successfully\n");
-                }
-            } else if (qnn::sdk_profile_level::profile_detail == _profile_level) {
-                QNN_LOG_INFO("detailed profiling requested. Creating Qnn Profile object\n");
-                if (QNN_PROFILE_NO_ERROR != _qnn_interface->qnn_profile_create(_qnn_backend_handle,
-                                                                               QNN_PROFILE_LEVEL_DETAILED,
-                                                                               &_qnn_profile_handle)) {
-                    QNN_LOG_WARN("unable to create profile handle in the backend\n");
-                    return 7;
-                } else {
-                    QNN_LOG_DEBUG("initialize qnn profile successfully\n");
-                }
+            auto profile_level = _profile_level == sdk_profile_level::profile_detail ? QNN_PROFILE_LEVEL_DETAILED
+                                                                                     : QNN_PROFILE_LEVEL_BASIC;
+
+            if (QNN_PROFILE_NO_ERROR !=
+                _qnn_interface->qnn_profile_create(_qnn_backend_handle, profile_level, &_qnn_profile_handle)) {
+                QNN_LOG_WARN("unable to create profile handle in the backend\n");
+                return 6;
+            } else {
+                QNN_LOG_DEBUG("initialize qnn profile successfully\n");
             }
         }
 

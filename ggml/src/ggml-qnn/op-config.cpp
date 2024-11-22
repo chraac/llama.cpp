@@ -211,12 +211,7 @@ bool ggml_qnn_op_config_base::add_op_to_graph(Qnn_GraphHandle_t graph_handle) {
     auto qnn_interface = _qnn_instance->get_qnn_interface();
     auto error = qnn_interface->qnn_graph_add_node(graph_handle, get_op_config());
     if (error != QNN_SUCCESS) {
-        auto *error_str = get_qnn_error_string(error);
-        if (error_str) {
-            QNN_LOG_ERROR("[%s]qnn_graph_add_node.error: %s\n", _name.c_str(), error_str);
-        } else {
-            QNN_LOG_ERROR("[%s]qnn_graph_add_node.error: %d\n", _name.c_str(), error);
-        }
+        QNN_LOG_ERROR("[%s]qnn_graph_add_node.error: %s", _name.c_str(), get_qnn_error_string(error));
         return false;
     }
 

@@ -19,7 +19,7 @@ public:
     explicit ggml_qnn_graph(const std::string &graph_name, QNNBackend device,
                             std::shared_ptr<qnn_instance> qnn_instance, size_t vtcm_size_in_mb)
         : _graph_name(graph_name), _device(device), _qnn_instance(qnn_instance) {
-        QNN_LOG_INFO("[%s]create", graph_name.c_str());
+        QNN_LOG_DEBUG("[%s]create", graph_name.c_str());
 
         auto qnn_interface = qnn_instance->get_qnn_interface();
         auto qnn_context = qnn_instance->get_qnn_context_handle();
@@ -64,7 +64,8 @@ public:
         }
 
         if (error != QNN_SUCCESS) {
-            QNN_LOG_ERROR("[%s]can't create qnn graph handle, error = %d\n", graph_name.c_str(), error);
+            QNN_LOG_ERROR("[%s]can't create qnn graph handle, error: %s\n", graph_name.c_str(),
+                          get_qnn_error_string(error));
             return;
         }
 
@@ -86,7 +87,7 @@ public:
         QNN_LOG_DEBUG("[%s]build_graph start", _graph_name.c_str());
         _op_config = op_constructor(_graph_name, _qnn_instance);
         if (!_op_config->initialize_op_nodes(_device, _graph_handle, tensor_inputs, tensor_outputs)) {
-            QNN_LOG_ERROR("[%s]initialize_op_nodes failed\n", _graph_name.c_str());
+            QNN_LOG_ERROR("[%s]initialize_op_nodes failed", _graph_name.c_str());
             return false;
         }
 
@@ -97,12 +98,7 @@ public:
 
         auto error = _qnn_interface->qnn_graph_finalize(_graph_handle, nullptr, nullptr);
         if (error != QNN_SUCCESS) {
-            auto *error_str = get_qnn_error_string(error);
-            if (error_str) {
-                QNN_LOG_ERROR("[%s]qnn_graph_finalize.error: %s\n", _graph_name.c_str(), error_str);
-            } else {
-                QNN_LOG_ERROR("[%s]qnn_graph_finalize.error: %d\n", _graph_name.c_str(), error);
-            }
+            QNN_LOG_ERROR("[%s]qnn_graph_finalize.error: %s", _graph_name.c_str(), get_qnn_error_string(error));
             return false;
         }
 

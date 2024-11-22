@@ -14,7 +14,7 @@ namespace qnn {
 // Qualcomm QNN(Qualcomm Neural Network, aka Qualcomm AI Engine Direct) SDK
 // ref:https://github.com/pytorch/executorch/tree/main/backends/qualcomm
 // =================================================================================================
-enum sdk_profile_level { profile_off = 0, profile_basic = 1, profile_detail = 2 };
+enum sdk_profile_level { profile_off = 0, profile_basic, profile_detail };
 
 enum qcom_htp_arch {
     NONE = 0,
