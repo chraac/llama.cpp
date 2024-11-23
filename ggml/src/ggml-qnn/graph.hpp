@@ -19,7 +19,7 @@ public:
     explicit ggml_qnn_graph(const std::string &graph_name, QNNBackend device,
                             std::shared_ptr<qnn_instance> qnn_instance, size_t vtcm_size_in_mb)
         : _graph_name(graph_name), _device(device), _qnn_instance(qnn_instance) {
-        QNN_LOG_DEBUG("[%s]create", graph_name.c_str());
+        QNN_LOG_DEBUG("[%s][%s]created", get_backend_name(device), graph_name.c_str());
 
         auto qnn_interface = qnn_instance->get_qnn_interface();
         auto qnn_context = qnn_instance->get_qnn_context_handle();
@@ -64,17 +64,17 @@ public:
         }
 
         if (error != QNN_SUCCESS) {
-            QNN_LOG_ERROR("[%s]can't create qnn graph handle, error: %s\n", graph_name.c_str(),
-                          get_qnn_error_string(error));
+            QNN_LOG_ERROR("[%s][%s]failed to create qnn graph, error: %s\n", get_backend_name(device),
+                          graph_name.c_str(), get_qnn_error_string(error));
             return;
         }
 
-        QNN_LOG_INFO("[%s]create succeed\n", graph_name.c_str());
+        QNN_LOG_INFO("[%s][%s]create succeed\n", get_backend_name(device), graph_name.c_str());
         _graph_handle = graph_handle;
         _qnn_interface = qnn_interface;
     }
 
-    ~ggml_qnn_graph() { QNN_LOG_DEBUG("[%s]destroy", _graph_name.c_str()); }
+    ~ggml_qnn_graph() { QNN_LOG_DEBUG("[%s][%s]destroy", get_backend_name(_device), _graph_name.c_str()); }
 
     bool build_graph(ggml_op_constructor_t op_constructor, const ggml_tensor_array_t &tensor_inputs,
                      const ggml_tensor_array_t &tensor_outputs) {
@@ -84,10 +84,10 @@ public:
             return false;
         }
 
-        QNN_LOG_DEBUG("[%s]build_graph start", _graph_name.c_str());
+        QNN_LOG_DEBUG("[%s][%s]build_graph start", get_backend_name(_device), _graph_name.c_str());
         _op_config = op_constructor(_graph_name, _qnn_instance);
         if (!_op_config->initialize_op_nodes(_device, _graph_handle, tensor_inputs, tensor_outputs)) {
-            QNN_LOG_ERROR("[%s]initialize_op_nodes failed", _graph_name.c_str());
+            QNN_LOG_ERROR("[%s][%s]initialize_op_nodes failed", get_backend_name(_device), _graph_name.c_str());
             return false;
         }
 
@@ -98,22 +98,23 @@ public:
 
         auto error = _qnn_interface->qnn_graph_finalize(_graph_handle, nullptr, nullptr);
         if (error != QNN_SUCCESS) {
-            QNN_LOG_ERROR("[%s]qnn_graph_finalize.error: %s", _graph_name.c_str(), get_qnn_error_string(error));
+            QNN_LOG_ERROR("[%s][%s]qnn_graph_finalize.error: %s", get_backend_name(_device), _graph_name.c_str(),
+                          get_qnn_error_string(error));
             return false;
         }
 
-        QNN_LOG_DEBUG("[%s]build_graph succeed", _graph_name.c_str());
+        QNN_LOG_DEBUG("[%s][%s]build_graph succeed", get_backend_name(_device), _graph_name.c_str());
         return true;
     }
 
     bool execute(const ggml_tensor_array_t &tensor_inputs, const ggml_tensor_array_t &tensor_outputs) {
         if (!_op_config->bind_input_tensors(tensor_inputs)) {
-            QNN_LOG_ERROR("[%s]bind input tensors failed\n", _graph_name.c_str());
+            QNN_LOG_ERROR("[%s][%s]bind input tensors failed\n", get_backend_name(_device), _graph_name.c_str());
             return false;
         }
 
         if (!_op_config->bind_output_tensors(tensor_outputs)) {
-            QNN_LOG_ERROR("[%s]bind output tensors failed\n", _graph_name.c_str());
+            QNN_LOG_ERROR("[%s][%s]bind output tensors failed\n", get_backend_name(_device), _graph_name.c_str());
             return false;
         }
 
@@ -123,20 +124,21 @@ public:
         auto error =
             _qnn_interface->qnn_graph_execute(_graph_handle, qnn_tensor_inputs.data(), qnn_tensor_inputs.size(),
                                               qnn_tensor_outputs.data(), qnn_tensor_outputs.size(), nullptr, nullptr);
-        if (_device == QNN_BACKEND_NPU) {
-            if (error == QNN_COMMON_ERROR_SYSTEM_COMMUNICATION) {
-                QNN_LOG_WARN("[%s]NPU crashed. SSR detected. Caused QNN graph execute error\n", _graph_name.c_str());
-            }
-        }
-
         _op_config->unbind_input_tensors();
         _op_config->unbind_output_tensors();
 
         if (error != QNN_SUCCESS) {
-            QNN_LOG_ERROR("[%s]error = %d\n", _graph_name.c_str(), error);
+            if (_device == QNN_BACKEND_NPU && error == QNN_COMMON_ERROR_SYSTEM_COMMUNICATION) {
+                QNN_LOG_WARN("[%s][%s]NPU crashed. SSR detected. Caused QNN graph execute error.",
+                             get_backend_name(_device), _graph_name.c_str());
+            } else {
+                QNN_LOG_ERROR("[%s][%s]error: %s", get_backend_name(_device), _graph_name.c_str(),
+                              get_qnn_error_string(error));
+            }
             return false;
         }
 
+        QNN_LOG_DEBUG("[%s][%s]execute succeed", get_backend_name(_device), _graph_name.c_str());
         return true;
     }
 
