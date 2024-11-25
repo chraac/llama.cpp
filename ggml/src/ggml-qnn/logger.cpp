@@ -65,7 +65,7 @@ void qnn::sdk_logcallback(const char *fmt, QnnLog_Level_t level, uint64_t /*time
 
         memset(s_ggml_qnn_logbuf, 0, QNN_LOGBUF_LEN);
         vsnprintf(reinterpret_cast<char *const>(s_ggml_qnn_logbuf), QNN_LOGBUF_LEN, fmt, argp);
-        QNN_LOG_INFO("[%-7s]%s", log_level_desc, s_ggml_qnn_logbuf);
+        QNN_LOG_INFO("[%s]%s", log_level_desc, s_ggml_qnn_logbuf);
     }
 }
 #else
