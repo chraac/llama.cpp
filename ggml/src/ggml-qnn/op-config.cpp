@@ -468,9 +468,8 @@ bool ggml_qnn_matmul_op_config::create_mat_mul_nodes(QNNBackend device, Qnn_Grap
      *   ```mermaid
      *   graph TD;
      *        i1>ggml_tensor_in0] --src0--> mat_mul0;
-     *        i2>ggml_tensor_in1] --src1--> transpose0;
-     *        transpose0 --src0_trans--> mat_mul0;
-     *        mat_mul0 --dst_trans--> transpose1;
+     *        i2>ggml_tensor_in1] --src1--> mat_mul0;
+     *        mat_mul0 --dst_trans--> transpose_out;
      *        transpose1 --dst0--> o1>ggml_tensor_out];
      *   ```
      */
@@ -487,9 +486,9 @@ bool ggml_qnn_matmul_op_config::create_mat_mul_nodes(QNNBackend device, Qnn_Grap
     auto dst_trans = std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::INTERMEDIATE, "dst_trans", dimensions,
                                                        dst->get_data_type(), rank, device, graph_handle, _qnn_instance);
 
-    // create transpose1
-    auto transpose1 = std::make_shared<ggml_qnn_connectable_op_config>(_name + "_trans1", QNN_OP_PACKAGE_NAME_QTI_AISW,
-                                                                       QNN_OP_TRANSPOSE, _qnn_instance);
+    // create transpose_out
+    auto transpose_out = std::make_shared<ggml_qnn_connectable_op_config>(
+        _name + "_trans1", QNN_OP_PACKAGE_NAME_QTI_AISW, QNN_OP_TRANSPOSE, _qnn_instance);
 
     // create mat_mul
     auto mat_mul = std::make_shared<ggml_qnn_connectable_op_config>(_name, QNN_OP_PACKAGE_NAME_QTI_AISW, QNN_OP_MAT_MUL,
@@ -500,24 +499,24 @@ bool ggml_qnn_matmul_op_config::create_mat_mul_nodes(QNNBackend device, Qnn_Grap
     scalar.bool8Value = 1;
     mat_mul->add_scalar_param(QNN_OP_MAT_MUL_PARAM_TRANSPOSE_IN1, scalar);
 
-    // set transpose1 parameters
+    // set transpose_out parameters
     auto *params_data = reinterpret_cast<const uint8_t *>(kTransposeParamData[rank - 1].data());
     const qnn_dimension_array_t param_dims = {(uint32_t)rank, 1, 1, 1};
-    transpose1->add_tensor_param(QNN_OP_TRANSPOSE_PARAM_PERM, param_dims, 1, params_data, QNN_DATATYPE_UINT_32, device,
-                                 graph_handle);
+    transpose_out->add_tensor_param(QNN_OP_TRANSPOSE_PARAM_PERM, param_dims, 1, params_data, QNN_DATATYPE_UINT_32,
+                                    device, graph_handle);
 
     // set tensor to mat_mul
     mat_mul->set_input_tensors(tensor_inputs);
     qnn_tensor_array_t tensors = {dst_trans};
     mat_mul->set_output_tensors(tensors);
 
-    // set tensor to transpose1
+    // set tensor to transpose_out
     tensors = {dst_trans};
-    transpose1->set_input_tensors(tensors);
-    transpose1->set_output_tensors(tensor_outputs);
+    transpose_out->set_input_tensors(tensors);
+    transpose_out->set_output_tensors(tensor_outputs);
 
     _mat_mul = mat_mul;
-    _transpose1 = transpose1;
+    _transpose_out = transpose_out;
     return true;
 }
 
@@ -536,7 +535,7 @@ bool ggml_qnn_matmul_op_config::add_op_to_graph(Qnn_GraphHandle_t graph_handle) 
         return false;
     }
 
-    return _mat_mul->add_op_to_graph(graph_handle) && _transpose1->add_op_to_graph(graph_handle) &&
+    return _mat_mul->add_op_to_graph(graph_handle) && _transpose_out->add_op_to_graph(graph_handle) &&
            (!_output_convert || _output_convert->add_op_to_graph(graph_handle));
 }
 
@@ -548,7 +547,7 @@ bool ggml_qnn_matmul_op_config::bind_output_tensors(const ggml_tensor_array_t &t
     if (_output_convert) {
         return _output_convert->bind_output_tensors(tensor_outputs);
     } else {
-        return _transpose1->bind_output_tensors(tensor_outputs);
+        return _transpose_out->bind_output_tensors(tensor_outputs);
     }
 }
 
@@ -562,7 +561,7 @@ void ggml_qnn_matmul_op_config::unbind_input_tensors() {
 }
 
 void ggml_qnn_matmul_op_config::unbind_output_tensors() {
-    _transpose1->unbind_output_tensors();
+    _transpose_out->unbind_output_tensors();
     if (_output_convert) {
         _output_convert->unbind_output_tensors();
     }
@@ -572,7 +571,7 @@ std::vector<Qnn_Tensor_t> &ggml_qnn_matmul_op_config::get_qnn_output_tensors() {
     if (_output_convert) {
         return _output_convert->get_qnn_output_tensors();
     } else {
-        return _transpose1->get_qnn_output_tensors();
+        return _transpose_out->get_qnn_output_tensors();
     }
 }
 
