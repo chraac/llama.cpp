@@ -1,6 +1,10 @@
 
 #pragma once
 
+#ifndef NDEBUG
+#include <atomic>
+#endif
+
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -32,6 +36,11 @@ struct ggml_backend_qnn_device_context {
     std::shared_ptr<qnn::qnn_interface> qnn_interface;
 
     qnn::ggml_qnn_graph_cache_t qnn_graph_cache;
+
+#ifndef NDEBUG
+    std::atomic_uint32_t support_op_count = 0;
+    std::atomic_uint32_t unsupported_op_count = 0;
+#endif
 
     explicit ggml_backend_qnn_device_context(QNNBackend device, size_t threads, const char *name, const char *lib_name,
                                              uint64_t supported_types)
