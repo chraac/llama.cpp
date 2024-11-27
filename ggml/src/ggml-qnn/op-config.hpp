@@ -108,7 +108,6 @@ private:
 
     std::string _name;
     std::shared_ptr<qnn_instance> _qnn_instance;
-    qnn_op_config_ptr_t _transpose0;
     qnn_op_config_ptr_t _transpose1;
     qnn_op_config_ptr_t _mat_mul;
     qnn_op_config_ptr_t _gather0;

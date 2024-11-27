@@ -480,19 +480,12 @@ bool ggml_qnn_matmul_op_config::create_mat_mul_nodes(QNNBackend device, Qnn_Grap
     static_assert(GGML_MAX_DIMS == 4, "GGML_MAX_DIMS does not match the expected value");
 
     qnn_dimension_array_t dimensions = get_transposed_dimensions(src1->get_dimensions(), rank);
-    auto src0_trans =
-        std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::INTERMEDIATE, "src0_trans", dimensions,
-                                          src1->get_data_type(), rank, device, graph_handle, _qnn_instance);
 
     // create dst_trans tensor
     auto dst = tensor_outputs.front();
     dimensions = get_transposed_dimensions(dst->get_dimensions(), rank);
     auto dst_trans = std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::INTERMEDIATE, "dst_trans", dimensions,
                                                        dst->get_data_type(), rank, device, graph_handle, _qnn_instance);
-
-    // create transpose0
-    auto transpose0 = std::make_shared<ggml_qnn_connectable_op_config>(_name + "_trans0", QNN_OP_PACKAGE_NAME_QTI_AISW,
-                                                                       QNN_OP_TRANSPOSE, _qnn_instance);
 
     // create transpose1
     auto transpose1 = std::make_shared<ggml_qnn_connectable_op_config>(_name + "_trans1", QNN_OP_PACKAGE_NAME_QTI_AISW,
@@ -502,26 +495,20 @@ bool ggml_qnn_matmul_op_config::create_mat_mul_nodes(QNNBackend device, Qnn_Grap
     auto mat_mul = std::make_shared<ggml_qnn_connectable_op_config>(_name, QNN_OP_PACKAGE_NAME_QTI_AISW, QNN_OP_MAT_MUL,
                                                                     _qnn_instance);
 
-    // set transpose0 parameters
-    auto *params_data = reinterpret_cast<const uint8_t *>(kTransposeParamData[rank - 1].data());
-    const qnn_dimension_array_t param_dims = {(uint32_t)rank, 1, 1, 1};
-    transpose0->add_tensor_param(QNN_OP_TRANSPOSE_PARAM_PERM, param_dims, 1, params_data, QNN_DATATYPE_UINT_32, device,
-                                 graph_handle);
+    Qnn_Scalar_t scalar = QNN_SCALAR_INIT;
+    scalar.dataType = QNN_DATATYPE_BOOL_8;
+    scalar.bool8Value = 1;
+    mat_mul->add_scalar_param(QNN_OP_MAT_MUL_PARAM_TRANSPOSE_IN1, scalar);
 
     // set transpose1 parameters
+    auto *params_data = reinterpret_cast<const uint8_t *>(kTransposeParamData[rank - 1].data());
+    const qnn_dimension_array_t param_dims = {(uint32_t)rank, 1, 1, 1};
     transpose1->add_tensor_param(QNN_OP_TRANSPOSE_PARAM_PERM, param_dims, 1, params_data, QNN_DATATYPE_UINT_32, device,
                                  graph_handle);
 
-    // set tensor to transpose0
-    qnn_tensor_array_t tensors = {tensor_inputs.back()};
-    transpose0->set_input_tensors(tensors);
-    tensors = {src0_trans};
-    transpose0->set_output_tensors(tensors);
-
     // set tensor to mat_mul
-    tensors = {tensor_inputs.front(), src0_trans};
-    mat_mul->set_input_tensors(tensors);
-    tensors = {dst_trans};
+    mat_mul->set_input_tensors(tensor_inputs);
+    qnn_tensor_array_t tensors = {dst_trans};
     mat_mul->set_output_tensors(tensors);
 
     // set tensor to transpose1
@@ -530,7 +517,6 @@ bool ggml_qnn_matmul_op_config::create_mat_mul_nodes(QNNBackend device, Qnn_Grap
     transpose1->set_output_tensors(tensor_outputs);
 
     _mat_mul = mat_mul;
-    _transpose0 = transpose0;
     _transpose1 = transpose1;
     return true;
 }
@@ -550,8 +536,7 @@ bool ggml_qnn_matmul_op_config::add_op_to_graph(Qnn_GraphHandle_t graph_handle) 
         return false;
     }
 
-    return _transpose0->add_op_to_graph(graph_handle) && _mat_mul->add_op_to_graph(graph_handle) &&
-           _transpose1->add_op_to_graph(graph_handle) &&
+    return _mat_mul->add_op_to_graph(graph_handle) && _transpose1->add_op_to_graph(graph_handle) &&
            (!_output_convert || _output_convert->add_op_to_graph(graph_handle));
 }
 
@@ -569,7 +554,6 @@ bool ggml_qnn_matmul_op_config::bind_output_tensors(const ggml_tensor_array_t &t
 
 void ggml_qnn_matmul_op_config::unbind_input_tensors() {
     _mat_mul->unbind_input_tensors();
-    _transpose0->unbind_input_tensors();
     for (auto &convert : _input_converts) {
         if (convert) {
             convert->unbind_input_tensors();
