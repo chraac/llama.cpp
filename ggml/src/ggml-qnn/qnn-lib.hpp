@@ -195,7 +195,7 @@ public:
 
     int qnn_init(const QnnSaver_Config_t **saver_config) {
         BackendIdType backend_id = QNN_BACKEND_ID_NULL;
-        QNN_LOG_DEBUG("enter qni_init\n");
+        QNN_LOG_DEBUG("enter qnn_init\n");
 
         std::lock_guard<std::mutex> lock(_init_mutex);
         if (load_system() != 0) {
@@ -382,7 +382,7 @@ public:
             }
         }
 
-        QNN_LOG_DEBUG("leave qni_init\n");
+        QNN_LOG_DEBUG("leave qnn_init\n");
 
         return 0;
     }
