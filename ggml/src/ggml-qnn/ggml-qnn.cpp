@@ -124,10 +124,6 @@ private:
     size_t _buffer_size = 0;
 };
 
-struct ggml_backend_qnn_buffer_type_context {
-    std::string name;
-};
-
 ggml_backend_qnn_device_context *get_device_context(ggml_backend_dev_t dev) {
     return reinterpret_cast<ggml_backend_qnn_device_context *>(dev->context);
 }
@@ -150,9 +146,9 @@ void *ggml_backend_qnn_buffer_get_base(ggml_backend_buffer_t buffer) {
 }
 
 void ggml_backend_qnn_buffer_init_tensor(ggml_backend_buffer_t buffer, ggml_tensor *tensor) {
-    // Do nothing here, the qnn tensor will be create along with the graph.
     GGML_UNUSED(buffer);
     GGML_UNUSED(tensor);
+    // TODO: we should create the qnn tensor along with the ggml tensor
 }
 
 void ggml_backend_qnn_buffer_set_tensor(ggml_backend_buffer_t buffer, ggml_tensor *tensor, const void *data,
@@ -255,31 +251,26 @@ void ggml_backend_qnn_free(ggml_backend_t backend) {
 }
 
 ggml_backend_buffer_type_t ggml_backend_qnn_buffer_type(ggml_backend_dev_t dev) {
-    static ggml_backend_qnn_buffer_type_context ggml_backend_qnn_buffer_type_contexts[GGML_QNN_MAX_DEVICES];
     static ggml_backend_buffer_type ggml_backend_qnn_buffer_types[GGML_QNN_MAX_DEVICES];
-    static bool ggml_backend_qnn_buffer_type_initialized = false;
     auto *dev_ctx = get_device_context(dev);
-    if (!ggml_backend_qnn_buffer_type_initialized) {
-        for (size_t i = 0; i < GGML_QNN_MAX_DEVICES; i++) {
-            auto &context = ggml_backend_qnn_buffer_type_contexts[i];
-            context = {std::string(QNN_BACKEND_NAME) + std::to_string(i)};
-            ggml_backend_qnn_buffer_types[i] = {
-                /* .iface   = */ {
-                    /* .get_name         = */ ggml_backend_qnn_buffer_type_name,
-                    /* .alloc_buffer     = */
-                    ggml_backend_qnn_buffer_type_alloc_buffer,
-                    /* .get_alignment    = */
-                    ggml_backend_qnn_buffer_type_get_alignment,
-                    /* .get_max_size     = */
-                    ggml_backend_qnn_buffer_type_get_max_size,
-                    /* .get_alloc_size   = */ nullptr, // defaults to ggml_nbytes
-                    /* .is_host          = */ ggml_backend_qnn_buffer_is_host,
-                },
-                /* .device */ dev,
-                /* .context = */ &context,
-            };
-        }
-        ggml_backend_qnn_buffer_type_initialized = true;
+    if (!ggml_backend_qnn_buffer_types[dev_ctx->device].device) {
+        ggml_backend_qnn_buffer_types[dev_ctx->device] = {
+            /* .iface   = */ {
+                /* .get_name         = */ ggml_backend_qnn_buffer_type_name,
+                /* .alloc_buffer     = */
+                ggml_backend_qnn_buffer_type_alloc_buffer,
+                /* .get_alignment    = */
+                ggml_backend_qnn_buffer_type_get_alignment,
+                /* .get_max_size     = */
+                ggml_backend_qnn_buffer_type_get_max_size,
+                /* .get_alloc_size   = */ nullptr, // defaults to ggml_nbytes
+                /* .is_host          = */ ggml_backend_qnn_buffer_is_host,
+            },
+            /* .device */ dev,
+            /* .context = */ nullptr,
+        };
+    } else {
+        GGML_ASSERT(ggml_backend_qnn_buffer_types[dev_ctx->device].device == dev);
     }
 
     return &ggml_backend_qnn_buffer_types[dev_ctx->device];
