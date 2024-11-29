@@ -1,7 +1,5 @@
 #include "ggml-qnn.h"
 
-#include <unistd.h>
-
 #include <cassert>
 #include <chrono>
 #include <condition_variable>
@@ -88,44 +86,12 @@ static_assert(sizeof(kDeviceCaps) / sizeof(kDeviceCaps[0]) == GGML_QNN_MAX_DEVIC
 static_assert(kDeviceCaps[QNN_BACKEND_NPU].type == GGML_BACKEND_DEVICE_TYPE_ACCEL,
               "The NPU device should be an accelerator device");
 
-class ggml_backend_qnn_buffer_context {
-public:
-    ggml_backend_qnn_buffer_context(QNNBackend device, std::shared_ptr<qnn::qnn_instance> instance, size_t size)
-        : _instance(instance), _name(QNN_BACKEND_NAME + std::to_string(device)) {
-        // TODO: fix this for other platforms
-        size_t size_page = sysconf(_SC_PAGESIZE);
-
-        // TODO: for qnn npu, a better way here is to reuse the buffer allocated by
-        // qnn rpc, will save an extra copy
-        _buffer = qnn::align_alloc(size_page, size);
-
-        if (!_buffer) {
-            QNN_LOG_WARN("failed to allocate %.2f MiB\n", float(size / (1 << 20)));
-            return;
-        }
-
-        _buffer_size = size;
-    }
-
-    ~ggml_backend_qnn_buffer_context() {
-        // the free will do nothing if the _buffer is nullptr
-        qnn::align_free(_buffer);
-    }
-
-    bool is_valid() const { return _buffer != nullptr; }
-
-    void *get_buffer() { return _buffer; }
-    size_t get_buffer_size() { return _buffer_size; }
-
-private:
-    std::shared_ptr<qnn::qnn_instance> _instance;
-    std::string _name;
-    void *_buffer = nullptr;
-    size_t _buffer_size = 0;
-};
-
 ggml_backend_qnn_device_context *get_device_context(ggml_backend_dev_t dev) {
     return reinterpret_cast<ggml_backend_qnn_device_context *>(dev->context);
+}
+
+qnn::qnn_buffer_interface *get_buffer_context(ggml_backend_buffer_t buffer) {
+    return reinterpret_cast<qnn::qnn_buffer_interface *>(buffer->context);
 }
 
 /*
@@ -134,14 +100,12 @@ ggml_backend_qnn_device_context *get_device_context(ggml_backend_dev_t dev) {
  * -----------------------------------------------------------------------------------------------
  */
 void ggml_backend_qnn_buffer_free_buffer(ggml_backend_buffer_t buffer) {
-    ggml_backend_qnn_buffer_context *ctx = (ggml_backend_qnn_buffer_context *)buffer->context;
-
+    auto *ctx = get_buffer_context(buffer);
     delete ctx;
 }
 
 void *ggml_backend_qnn_buffer_get_base(ggml_backend_buffer_t buffer) {
-    ggml_backend_qnn_buffer_context *ctx = (ggml_backend_qnn_buffer_context *)buffer->context;
-
+    auto *ctx = get_buffer_context(buffer);
     return ctx->get_buffer();
 }
 
@@ -154,7 +118,6 @@ void ggml_backend_qnn_buffer_init_tensor(ggml_backend_buffer_t buffer, ggml_tens
 void ggml_backend_qnn_buffer_set_tensor(ggml_backend_buffer_t buffer, ggml_tensor *tensor, const void *data,
                                         size_t offset, size_t size) {
     GGML_UNUSED(buffer);
-
     memcpy((char *)tensor->data + offset, data, size);
 }
 
@@ -176,9 +139,8 @@ bool ggml_backend_qnn_buffer_cpy_tensor(ggml_backend_buffer_t buffer, const stru
 }
 
 void ggml_backend_qnn_buffer_clear(ggml_backend_buffer_t buffer, uint8_t value) {
-    ggml_backend_qnn_buffer_context *ctx = (ggml_backend_qnn_buffer_context *)buffer->context;
-
-    memset(ctx->get_buffer(), value, ctx->get_buffer_size());
+    auto *ctx = get_buffer_context(buffer);
+    memset(ctx->get_buffer(), value, ctx->get_size());
 }
 
 ggml_backend_buffer_i ggml_backend_qnn_buffer_interface = {
@@ -204,9 +166,7 @@ const char *ggml_backend_qnn_buffer_type_name(ggml_backend_buffer_type_t buft) {
 }
 
 ggml_backend_buffer_t ggml_backend_qnn_buffer_type_alloc_buffer(ggml_backend_buffer_type_t buft, size_t size) {
-    auto *dev_ctx = get_device_context(buft->device);
-    ggml_backend_qnn_buffer_context *ctx =
-        new ggml_backend_qnn_buffer_context((QNNBackend)dev_ctx->device, dev_ctx->instance, size);
+    qnn::qnn_buffer_interface *ctx = new qnn::qnn_mem_buffer(size);
     if (!ctx->is_valid()) {
         return nullptr;
     }

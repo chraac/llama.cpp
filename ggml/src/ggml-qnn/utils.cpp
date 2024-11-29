@@ -1,6 +1,8 @@
 
 #include "utils.hpp"
 
+#include <unistd.h>
+
 #include <cstdlib>
 
 #include "ggml-qnn.h"
@@ -198,6 +200,12 @@ intptr_t align_to(size_t alignment, intptr_t offset) {
 }
 
 uint32_t get_ggml_tensor_data_size(const ggml_tensor *tensor) { return ggml_nbytes(tensor); }
+
+void *page_align_alloc(size_t size) {
+    // TODO: fix this for other platforms
+    const size_t alignment = sysconf(_SC_PAGESIZE);
+    return align_alloc(alignment, size);
+}
 
 void *align_alloc(size_t alignment, size_t size) {
     size_t size_aligned = size;

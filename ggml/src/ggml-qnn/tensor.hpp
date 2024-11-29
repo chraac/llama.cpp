@@ -51,7 +51,7 @@ public:
     ~ggml_qnn_tensor() {
         _buffer_storage.clear();
         unbind();
-        _qnn_rpc_buffer.reset();
+        _rpc_buffer.reset();
     }
 
     bool set_data_buffer(std::vector<uint8_t> &&buffer) {
@@ -162,20 +162,20 @@ private:
         }
 
         if (should_use_mem_handle()) {
-            if (!_qnn_rpc_buffer) {
-                auto qnn_rpc_buffer = std::make_unique<ggml_qnn_rpc_buffer>(
+            if (!_rpc_buffer) {
+                auto rpc_buffer = std::make_unique<qnn_rpc_buffer>(
                     _qnn_instance, buffer_size, QNN_TENSOR_GET_RANK(_qnn_tensor),
                     QNN_TENSOR_GET_DIMENSIONS(_qnn_tensor), QNN_TENSOR_GET_DATA_TYPE(_qnn_tensor));
-                if (!qnn_rpc_buffer->is_valid()) {
+                if (!rpc_buffer->is_valid()) {
                     QNN_LOG_WARN("[%s]alloc rpc mem failed", _tensor_name.c_str());
                     return false;
                 }
 
-                _qnn_rpc_buffer = std::move(qnn_rpc_buffer);
+                _rpc_buffer = std::move(rpc_buffer);
             }
 
             QNN_TENSOR_SET_MEM_TYPE(_qnn_tensor, QNN_TENSORMEMTYPE_MEMHANDLE);
-            QNN_TENSOR_SET_MEM_HANDLE(_qnn_tensor, _qnn_rpc_buffer->get_mem_handle());
+            QNN_TENSOR_SET_MEM_HANDLE(_qnn_tensor, _rpc_buffer->get_mem_handle());
             QNN_LOG_DEBUG("[%s]use mem handle %p", _tensor_name.c_str(), QNN_TENSOR_GET_MEM_HANDLE(_qnn_tensor));
         } else {
             QNN_TENSOR_SET_MEM_TYPE(_qnn_tensor, QNN_TENSORMEMTYPE_RAW);
@@ -206,8 +206,8 @@ private:
         }
 
         if (should_use_mem_handle()) {
-            if (_qnn_rpc_buffer) {
-                memcpy(_qnn_rpc_buffer->get_buffer(), _buffer, _buffer_size);
+            if (_rpc_buffer) {
+                memcpy(_rpc_buffer->get_buffer(), _buffer, _buffer_size);
             } else {
                 QNN_LOG_WARN("[%s]can't find rpcmem from qnn mem handle\n", _tensor_name.c_str());
                 return false;
@@ -227,8 +227,8 @@ private:
         }
 
         if (should_use_mem_handle()) {
-            if (_qnn_rpc_buffer) {
-                memcpy(_buffer, _qnn_rpc_buffer->get_buffer(), _buffer_size);
+            if (_rpc_buffer) {
+                memcpy(_buffer, _rpc_buffer->get_buffer(), _buffer_size);
             } else {
                 QNN_LOG_WARN("[%s]can't find rpcmem from qnn mem handle", _tensor_name.c_str());
                 return false;
@@ -283,7 +283,7 @@ private:
     Qnn_Tensor_t _qnn_tensor = qnn_tensor_init(kDefaultQnnTensorVersion);
     qnn_dimension_array_t _dimensions = {};
     Qnn_GraphHandle_t _graph_handle = nullptr;
-    std::unique_ptr<ggml_qnn_rpc_buffer> _qnn_rpc_buffer;
+    std::unique_ptr<qnn_rpc_buffer> _rpc_buffer;
 
     DISABLE_COPY(ggml_qnn_tensor);
     DISABLE_MOVE(ggml_qnn_tensor);
