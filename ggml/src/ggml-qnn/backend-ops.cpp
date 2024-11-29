@@ -248,7 +248,7 @@ qnn::ggml_qnn_graph *get_qnn_graph_from_cache(ggml_backend_qnn_device_context *c
     auto it = graph_cache.find(graph_key);
     qnn::ggml_qnn_graph *graph_ptr = nullptr;
     if (it != graph_cache.end()) {
-        QNN_LOG_DEBUG("found graph %s in cache\n", graph_key.c_str());
+        QNN_LOG_DEBUG("[%s]found graph %s in cache", qnn::get_backend_name(ctx->device), graph_key.c_str());
         graph_ptr = it->second.get();
     } else {
         auto graph =
@@ -260,7 +260,7 @@ qnn::ggml_qnn_graph *get_qnn_graph_from_cache(ggml_backend_qnn_device_context *c
         auto op_constructor = qnn::create_op_constructor(kGgmlOpToQnnOp[op]);
         if (!graph->build_graph(op_constructor, to_ggml_tensor_array<_InputSize>(inputs),
                                 to_ggml_tensor_array<1>({output}))) {
-            QNN_LOG_ERROR("build_graph failed\n");
+            QNN_LOG_ERROR("[%s]build_graph failed", qnn::get_backend_name(ctx->device));
             return nullptr;
         }
 

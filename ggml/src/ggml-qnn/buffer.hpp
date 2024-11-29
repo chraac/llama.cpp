@@ -21,7 +21,7 @@ class qnn_rpc_buffer : public qnn_buffer_interface {
 public:
     qnn_rpc_buffer(std::shared_ptr<qnn_instance> qnn_instance, const size_t size, const uint32_t rank,
                    uint32_t *dimensions, Qnn_DataType_t data_type)
-        : _qnn_instance(qnn_instance), _size(size) {
+        : _size(size), _qnn_instance(qnn_instance) {
 
         _qnn_rpc_buffer = static_cast<uint8_t *>(qnn_instance->alloc_rpcmem(size, alignof(void *)));
         _qnn_rpc_mem_handle = qnn_instance->register_rpcmem(_qnn_rpc_buffer, rank, dimensions, data_type);
@@ -52,10 +52,10 @@ public:
     Qnn_MemHandle_t get_mem_handle() const override { return _qnn_rpc_mem_handle; }
 
 private:
-    std::shared_ptr<qnn_instance> _qnn_instance;
     size_t _size = 0;
     uint8_t *_qnn_rpc_buffer = nullptr;
     Qnn_MemHandle_t _qnn_rpc_mem_handle = nullptr;
+    std::shared_ptr<qnn_instance> _qnn_instance;
 
     DISABLE_COPY(qnn_rpc_buffer);
     DISABLE_MOVE(qnn_rpc_buffer);
@@ -71,7 +71,7 @@ public:
             return;
         }
 
-        _buffer_size = size;
+        _size = size;
     }
 
     ~qnn_mem_buffer() {
@@ -82,12 +82,12 @@ public:
     bool is_valid() const override { return _buffer != nullptr; }
 
     uint8_t *get_buffer() override { return _buffer; }
-    size_t get_size() const override { return _buffer_size; }
+    size_t get_size() const override { return _size; }
     Qnn_MemHandle_t get_mem_handle() const override { return nullptr; }
 
 private:
+    size_t _size = 0;
     uint8_t *_buffer = nullptr;
-    size_t _buffer_size = 0;
 
     DISABLE_COPY(qnn_mem_buffer);
     DISABLE_MOVE(qnn_mem_buffer);
