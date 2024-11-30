@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 
 #include "logger.hpp"
 #include "qnn-lib.hpp"
@@ -16,6 +17,8 @@ public:
     virtual size_t get_size() const = 0;
     virtual Qnn_MemHandle_t get_mem_handle() const = 0;
 };
+
+using qnn_buffer_ptr = std::shared_ptr<qnn_buffer_interface>;
 
 class qnn_rpc_buffer : public qnn_buffer_interface {
 public:

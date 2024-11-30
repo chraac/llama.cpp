@@ -163,11 +163,11 @@ private:
 
         if (should_use_mem_handle()) {
             if (!_rpc_buffer) {
-                auto rpc_buffer = std::make_unique<qnn_rpc_buffer>(
+                auto rpc_buffer = std::make_shared<qnn_rpc_buffer>(
                     _qnn_instance, buffer_size, QNN_TENSOR_GET_RANK(_qnn_tensor),
                     QNN_TENSOR_GET_DIMENSIONS(_qnn_tensor), QNN_TENSOR_GET_DATA_TYPE(_qnn_tensor));
                 if (!rpc_buffer->is_valid()) {
-                    QNN_LOG_WARN("[%s]alloc rpc mem failed", _tensor_name.c_str());
+                    QNN_LOG_WARN("[%s][%s]alloc rpc mem failed", get_backend_name(_device), _tensor_name.c_str());
                     return false;
                 }
 
@@ -175,8 +175,16 @@ private:
             }
 
             QNN_TENSOR_SET_MEM_TYPE(_qnn_tensor, QNN_TENSORMEMTYPE_MEMHANDLE);
-            QNN_TENSOR_SET_MEM_HANDLE(_qnn_tensor, _rpc_buffer->get_mem_handle());
-            QNN_LOG_DEBUG("[%s]use mem handle %p", _tensor_name.c_str(), QNN_TENSOR_GET_MEM_HANDLE(_qnn_tensor));
+            auto mem_handle = _rpc_buffer->get_mem_handle();
+            if (!mem_handle) {
+                QNN_LOG_WARN("[%s][%s]can't find rpcmem from qnn mem handle", get_backend_name(_device),
+                             _tensor_name.c_str());
+                return false;
+            }
+
+            QNN_TENSOR_SET_MEM_HANDLE(_qnn_tensor, mem_handle);
+            QNN_LOG_DEBUG("[%s][%s]use mem handle %p", get_backend_name(_device), _tensor_name.c_str(),
+                          QNN_TENSOR_GET_MEM_HANDLE(_qnn_tensor));
         } else {
             QNN_TENSOR_SET_MEM_TYPE(_qnn_tensor, QNN_TENSORMEMTYPE_RAW);
             Qnn_ClientBuffer_t client_buf = {buffer, (uint32_t)buffer_size};
@@ -283,7 +291,7 @@ private:
     Qnn_Tensor_t _qnn_tensor = qnn_tensor_init(kDefaultQnnTensorVersion);
     qnn_dimension_array_t _dimensions = {};
     Qnn_GraphHandle_t _graph_handle = nullptr;
-    std::unique_ptr<qnn_rpc_buffer> _rpc_buffer;
+    qnn_buffer_ptr _rpc_buffer;
 
     DISABLE_COPY(ggml_qnn_tensor);
     DISABLE_MOVE(ggml_qnn_tensor);
