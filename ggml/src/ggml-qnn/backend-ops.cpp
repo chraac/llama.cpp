@@ -15,13 +15,13 @@ namespace {
 
 bool qnn_is_valid_params(ggml_backend_qnn_device_context *ctx, const ggml_tensor *src, ggml_tensor *dst) {
     if (!ctx || !src || !dst) {
-        QNN_LOG_WARN("invalid params\n");
+        QNN_LOG_WARN("invalid params");
         return false;
     }
 
     auto instance = ctx->instance;
     if (!instance) {
-        QNN_LOG_WARN("invalid instance\n");
+        QNN_LOG_WARN("invalid instance");
         return false;
     }
 
@@ -31,13 +31,13 @@ bool qnn_is_valid_params(ggml_backend_qnn_device_context *ctx, const ggml_tensor
 bool qnn_is_valid_params(ggml_backend_qnn_device_context *ctx, const ggml_tensor *src0, const ggml_tensor *src1,
                          ggml_tensor *dst) {
     if (!ctx || !src0 || !src1 || !dst) {
-        QNN_LOG_WARN("invalid params\n");
+        QNN_LOG_WARN("invalid params");
         return false;
     }
 
     auto instance = ctx->instance;
     if (!instance) {
-        QNN_LOG_WARN("invalid instance\n");
+        QNN_LOG_WARN("invalid instance");
         return false;
     }
 
@@ -45,7 +45,7 @@ bool qnn_is_valid_params(ggml_backend_qnn_device_context *ctx, const ggml_tensor
 }
 
 void print_ggml_tensor(const ggml_tensor *tensor) {
-    QNN_LOG_DEBUG("%s: type:%s ne: %ldx%ldx%ldx%ld, nb: %ldx%ldx%ldx%ld\n", tensor->name, ggml_type_name(tensor->type),
+    QNN_LOG_DEBUG("%s: type:%s ne: %ldx%ldx%ldx%ld, nb: %ldx%ldx%ldx%ld", tensor->name, ggml_type_name(tensor->type),
                   (long)tensor->ne[0], (long)tensor->ne[1], (long)tensor->ne[2], (long)tensor->ne[3],
                   (long)tensor->nb[0], (long)tensor->nb[1], (long)tensor->nb[2], (long)tensor->nb[3]);
 }
@@ -96,7 +96,7 @@ template <size_t _InputSize>
 bool execute_graph(qnn::ggml_qnn_graph *graph, const std::array<ggml_tensor *, _InputSize> &inputs,
                    ggml_tensor *output) {
     if (!graph->execute(to_ggml_tensor_array<_InputSize>(inputs), to_ggml_tensor_array<1>({output}))) {
-        QNN_LOG_WARN("execute failed\n");
+        QNN_LOG_WARN("execute failed");
         return false;
     }
 

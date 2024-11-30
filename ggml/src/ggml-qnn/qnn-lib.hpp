@@ -195,21 +195,21 @@ public:
 
     int qnn_init(const QnnSaver_Config_t **saver_config) {
         BackendIdType backend_id = QNN_BACKEND_ID_NULL;
-        QNN_LOG_DEBUG("enter qnn_init\n");
+        QNN_LOG_DEBUG("enter qnn_init");
 
         std::lock_guard<std::mutex> lock(_init_mutex);
         if (load_system() != 0) {
-            QNN_LOG_WARN("can not load QNN system lib, pls check why?\n");
+            QNN_LOG_WARN("can not load QNN system lib, pls check why?");
             return 1;
         } else {
-            QNN_LOG_DEBUG("load QNN system lib successfully\n");
+            QNN_LOG_DEBUG("load QNN system lib successfully");
         }
 
         std::string backend_lib_path = _lib_path + _backend_name;
         if (_lib_path_to_backend_id.count(backend_lib_path) == 0) {
             int is_load_ok = load_backend(backend_lib_path, saver_config);
             if (is_load_ok != 0) {
-                QNN_LOG_WARN("failed to load QNN backend\n");
+                QNN_LOG_WARN("failed to load QNN backend");
                 return 2;
             }
         }
@@ -218,7 +218,7 @@ public:
         if (_loaded_backend.count(backend_id) == 0 || _loaded_lib_handle.count(backend_id) == 0) {
             QNN_LOG_WARN(
                 "library %s is loaded but loaded backend count=%zu, "
-                "loaded lib_handle count=%zu\n",
+                "loaded lib_handle count=%zu",
                 backend_lib_path.c_str(), _loaded_backend.count(backend_id), _loaded_lib_handle.count(backend_id));
             return 3;
         }
@@ -227,28 +227,28 @@ public:
         _qnn_interface->qnn_log_create(qnn::sdk_logcallback, _qnn_log_level, &_qnn_log_handle);
         if (nullptr == _qnn_log_handle) {
             // NPU backend not work on Qualcomm SoC equipped low-end phone
-            QNN_LOG_WARN("why failed to initialize qnn log\n");
+            QNN_LOG_WARN("why failed to initialize qnn log");
             return 4;
         } else {
-            QNN_LOG_DEBUG("initialize qnn log successfully\n");
+            QNN_LOG_DEBUG("initialize qnn log successfully");
         }
 
         std::vector<const QnnBackend_Config_t *> temp_backend_config;
         _qnn_interface->qnn_backend_create(
             _qnn_log_handle, temp_backend_config.empty() ? nullptr : temp_backend_config.data(), &_qnn_backend_handle);
         if (nullptr == _qnn_backend_handle) {
-            QNN_LOG_WARN("why failed to initialize qnn backend\n");
+            QNN_LOG_WARN("why failed to initialize qnn backend");
             return 5;
         } else {
-            QNN_LOG_DEBUG("initialize qnn backend successfully\n");
+            QNN_LOG_DEBUG("initialize qnn backend successfully");
         }
 
         Qnn_ErrorHandle_t qnn_status = _qnn_interface->qnn_property_has_capability(QNN_PROPERTY_GROUP_DEVICE);
         if (QNN_PROPERTY_NOT_SUPPORTED == qnn_status) {
-            QNN_LOG_WARN("device property is not supported\n");
+            QNN_LOG_WARN("device property is not supported");
         }
         if (QNN_PROPERTY_ERROR_UNKNOWN_KEY == qnn_status) {
-            QNN_LOG_WARN("device property is not known to backend\n");
+            QNN_LOG_WARN("device property is not known to backend");
         }
 
         qnn_status = QNN_SUCCESS;
@@ -294,9 +294,9 @@ public:
             qnn_status = _qnn_interface->qnn_device_create(_qnn_log_handle, nullptr, &_qnn_device_handle);
         }
         if (QNN_SUCCESS != qnn_status && QNN_DEVICE_ERROR_UNSUPPORTED_FEATURE != qnn_status) {
-            QNN_LOG_WARN("failed to create QNN device\n");
+            QNN_LOG_WARN("failed to create QNN device");
         } else {
-            QNN_LOG_INFO("create QNN device successfully\n");
+            QNN_LOG_INFO("create QNN device successfully");
         }
 
         if (_profile_level != sdk_profile_level::profile_off) {
@@ -306,19 +306,19 @@ public:
 
             if (QNN_PROFILE_NO_ERROR !=
                 _qnn_interface->qnn_profile_create(_qnn_backend_handle, profile_level, &_qnn_profile_handle)) {
-                QNN_LOG_WARN("unable to create profile handle in the backend\n");
+                QNN_LOG_WARN("unable to create profile handle in the backend");
                 return 6;
             } else {
-                QNN_LOG_DEBUG("initialize qnn profile successfully\n");
+                QNN_LOG_DEBUG("initialize qnn profile successfully");
             }
         }
 
         _rpc_lib_handle = dl_load("libcdsprpc.so");
         if (nullptr == _rpc_lib_handle) {
-            QNN_LOG_WARN("failed to load qualcomm's rpc lib, error:%s\n", dl_error());
+            QNN_LOG_WARN("failed to load qualcomm's rpc lib, error:%s", dl_error());
             return 8;
         } else {
-            QNN_LOG_DEBUG("load rpcmem lib successfully\n");
+            QNN_LOG_DEBUG("load rpcmem lib successfully");
             set_rpcmem_initialized(true);
         }
         _pfn_rpc_mem_init = reinterpret_cast<qnn::pfn_rpc_mem_init>(dl_sym(_rpc_lib_handle, "rpcmem_init"));
@@ -343,10 +343,10 @@ public:
         */
         _qnn_interface->qnn_context_create(_qnn_backend_handle, _qnn_device_handle, nullptr, &_qnn_context_handle);
         if (nullptr == _qnn_context_handle) {
-            QNN_LOG_WARN("why failed to initialize qnn context\n");
+            QNN_LOG_WARN("why failed to initialize qnn context");
             return 10;
         } else {
-            QNN_LOG_DEBUG("initialize qnn context successfully\n");
+            QNN_LOG_DEBUG("initialize qnn context successfully");
         }
 
         if (_backend_name.find("Htp") != _backend_name.npos) {
@@ -359,7 +359,7 @@ public:
             for (size_t idx = 0; idx < probe_counts; idx++) {
                 rpc_buffer = static_cast<uint8_t *>(alloc_rpcmem(probe_slots[idx] * size_in_mb, sizeof(void *)));
                 if (!rpc_buffer) {
-                    QNN_LOG_DEBUG("alloc rpcmem %d (MB) failure, %s\n", probe_slots[idx], strerror(errno));
+                    QNN_LOG_DEBUG("alloc rpcmem %d (MB) failure, %s", probe_slots[idx], strerror(errno));
                     break;
                 } else {
                     candidate_size = probe_slots[idx];
@@ -369,7 +369,7 @@ public:
             }
 
             _rpcmem_capacity = std::max(candidate_size, _rpcmem_capacity);
-            QNN_LOG_INFO("capacity of QNN rpc ion memory is about %d MB\n", _rpcmem_capacity);
+            QNN_LOG_INFO("capacity of QNN rpc ion memory is about %d MB", _rpcmem_capacity);
 
             if (0 != init_htp_perfinfra()) {
                 QNN_LOG_WARN("initialize HTP performance failure");
@@ -382,7 +382,7 @@ public:
             }
         }
 
-        QNN_LOG_DEBUG("leave qnn_init\n");
+        QNN_LOG_DEBUG("leave qnn_init");
 
         return 0;
     }
@@ -395,9 +395,9 @@ public:
             _pfn_rpc_mem_deinit();
 
         if (dl_unload(_rpc_lib_handle) != 0) {
-            QNN_LOG_WARN("failed to unload qualcomm's rpc lib, error:%s\n", dl_error());
+            QNN_LOG_WARN("failed to unload qualcomm's rpc lib, error:%s", dl_error());
         } else {
-            QNN_LOG_DEBUG("succeed to close rpcmem lib\n");
+            QNN_LOG_DEBUG("succeed to close rpcmem lib");
         }
 
         if (_backend_name.find("Htp") != _backend_name.npos) {
@@ -407,7 +407,7 @@ public:
         if (nullptr != _qnn_context_handle) {
             error = _qnn_interface->qnn_context_free(_qnn_context_handle, _qnn_profile_handle);
             if (error != QNN_SUCCESS) {
-                QNN_LOG_WARN("failed to free QNN context_handle: ID %u, error %d\n", _qnn_interface->get_backend_id(),
+                QNN_LOG_WARN("failed to free QNN context_handle: ID %u, error %d", _qnn_interface->get_backend_id(),
                              QNN_GET_ERROR_CODE(error));
             }
             _qnn_context_handle = nullptr;
@@ -416,7 +416,7 @@ public:
         if (nullptr != _qnn_profile_handle) {
             error = _qnn_interface->qnn_profile_free(_qnn_profile_handle);
             if (error != QNN_SUCCESS) {
-                QNN_LOG_WARN("failed to free QNN profile_handle: ID %u, error %d\n", _qnn_interface->get_backend_id(),
+                QNN_LOG_WARN("failed to free QNN profile_handle: ID %u, error %d", _qnn_interface->get_backend_id(),
                              QNN_GET_ERROR_CODE(error));
             }
             _qnn_profile_handle = nullptr;
@@ -425,7 +425,7 @@ public:
         if (nullptr != _qnn_device_handle) {
             error = _qnn_interface->qnn_device_free(_qnn_device_handle);
             if (error != QNN_SUCCESS) {
-                QNN_LOG_WARN("failed to free QNN device_handle: ID %u, error %d\n", _qnn_interface->get_backend_id(),
+                QNN_LOG_WARN("failed to free QNN device_handle: ID %u, error %d", _qnn_interface->get_backend_id(),
                              QNN_GET_ERROR_CODE(error));
             }
             _qnn_device_handle = nullptr;
@@ -434,7 +434,7 @@ public:
         if (nullptr != _qnn_backend_handle) {
             error = _qnn_interface->qnn_backend_free(_qnn_backend_handle);
             if (error != QNN_SUCCESS) {
-                QNN_LOG_WARN("failed to free QNN backend_handle: ID %u, error %d\n", _qnn_interface->get_backend_id(),
+                QNN_LOG_WARN("failed to free QNN backend_handle: ID %u, error %d", _qnn_interface->get_backend_id(),
                              QNN_GET_ERROR_CODE(error));
             }
             _qnn_backend_handle = nullptr;
@@ -443,7 +443,7 @@ public:
         if (nullptr != _qnn_log_handle) {
             error = _qnn_interface->qnn_log_free(_qnn_log_handle);
             if (error != QNN_SUCCESS) {
-                QNN_LOG_WARN("failed to free QNN log_handle: ID %u, error %d\n", _qnn_interface->get_backend_id(),
+                QNN_LOG_WARN("failed to free QNN log_handle: ID %u, error %d", _qnn_interface->get_backend_id(),
                              QNN_GET_ERROR_CODE(error));
             }
             _qnn_log_handle = nullptr;
@@ -458,7 +458,7 @@ public:
 
     std::shared_ptr<qnn_interface> get_qnn_interface() {
         if (!_qnn_interface) {
-            QNN_LOG_WARN("pls check why _qnn_interface is not loaded\n");
+            QNN_LOG_WARN("pls check why _qnn_interface is not loaded");
         }
         return _qnn_interface;
     }
@@ -479,10 +479,10 @@ public:
         QnnDevice_Infrastructure_t device_infra = nullptr;
         int error = _qnn_interface->qnn_device_get_infrastructure(&device_infra);
         if (error != QNN_SUCCESS) {
-            QNN_LOG_WARN("failed to get qnn device infra\n");
+            QNN_LOG_WARN("failed to get qnn device infra");
             return 1;
         } else {
-            QNN_LOG_INFO("HTP backend perf_infrastructure creation ok\n");
+            QNN_LOG_INFO("HTP backend perf_infrastructure creation ok");
         }
 
         QnnHtpDevice_Infrastructure_t *htp_infra = static_cast<QnnHtpDevice_Infrastructure_t *>(device_infra);
@@ -494,7 +494,7 @@ public:
         if (htp_infra->infraType != QNN_HTP_DEVICE_INFRASTRUCTURE_TYPE_PERF) {
             QNN_LOG_INFO("HTP infra type = %d, which is not perf infra type", htp_infra->infraType);
         } else {
-            QNN_LOG_INFO("HTP infra type = %d, which is perf infra type\n", htp_infra->infraType);
+            QNN_LOG_INFO("HTP infra type = %d, which is perf infra type", htp_infra->infraType);
         }
         _qnn_htp_perfinfra = htp_perfinfra;
         _qnn_power_configid = power_configid;
@@ -520,12 +520,12 @@ public:
                                                                              nullptr};
             Qnn_ErrorHandle_t qnn_status = _qnn_htp_perfinfra->setPowerConfig(_qnn_power_configid, power_configs);
             if (qnn_status != QNN_SUCCESS) {
-                QNN_LOG_WARN("set htp perf failed\n");
+                QNN_LOG_WARN("set htp perf failed");
             } else {
-                QNN_LOG_DEBUG("set htp perf ok\n");
+                QNN_LOG_DEBUG("set htp perf ok");
             }
         } else {
-            QNN_LOG_WARN("can't set htp perf\n");
+            QNN_LOG_WARN("can't set htp perf");
         }
 
         return 0;
@@ -533,7 +533,7 @@ public:
 
     int set_high_performance_mode() {
         if (nullptr == _qnn_htp_perfinfra) {
-            QNN_LOG_WARN("perf intra is null\n");
+            QNN_LOG_WARN("perf intra is null");
             return 1;
         }
 
@@ -566,9 +566,9 @@ public:
         Qnn_ErrorHandle_t qnn_status = QNN_SUCCESS;
         qnn_status = _qnn_htp_perfinfra->setPowerConfig(_qnn_power_configid, power_configs);
         if (qnn_status != QNN_SUCCESS) {
-            QNN_LOG_WARN("set htp high performance mode failed\n");
+            QNN_LOG_WARN("set htp high performance mode failed");
         } else {
-            QNN_LOG_DEBUG("set htp high performance mode ok\n");
+            QNN_LOG_DEBUG("set htp high performance mode ok");
         }
 
         return 0;
@@ -584,21 +584,21 @@ public:
 
     void *alloc_rpcmem(size_t bytes, size_t alignment) {
         if (!_rpcmem_initialized) {
-            QNN_LOG_WARN("rpc memory not initialized\n");
+            QNN_LOG_WARN("rpc memory not initialized");
             return nullptr;
         }
 
         auto allocate_bytes = static_cast<int64_t>(bytes + alignment);
         void *buf = _pfn_rpc_mem_alloc(RPCMEM_HEAP_ID_SYSTEM, RPCMEM_DEFAULT_FLAGS, (int)allocate_bytes);
         if (!buf) {
-            QNN_LOG_WARN("failed to allocate rpc memory, size: %d MB\n", (int)(allocate_bytes / (1 << 20)));
+            QNN_LOG_WARN("failed to allocate rpc memory, size: %d MB", (int)(allocate_bytes / (1 << 20)));
             return nullptr;
         }
 
         auto aligned_buf = reinterpret_cast<void *>(qnn::align_to(alignment, reinterpret_cast<intptr_t>(buf)));
         bool status = _rpcmem_store_map.insert(std::pair<void *, void *>(aligned_buf, buf)).second;
         if (!status) {
-            QNN_LOG_WARN("failed to allocate rpc memory\n");
+            QNN_LOG_WARN("failed to allocate rpc memory");
             _pfn_rpc_mem_free(buf);
         }
 
@@ -607,9 +607,9 @@ public:
 
     void free_rpcmem(void *buf) {
         if (!_rpcmem_initialized) {
-            QNN_LOG_WARN("rpc memory not initialized\n");
+            QNN_LOG_WARN("rpc memory not initialized");
         } else if (_rpcmem_store_map.count(buf) == 0) {
-            QNN_LOG_WARN("no allocated tensor\n");
+            QNN_LOG_WARN("no allocated tensor");
         } else {
             _pfn_rpc_mem_free(_rpcmem_store_map[buf]);
             _rpcmem_store_map.erase(buf);
@@ -619,7 +619,7 @@ public:
     int32_t rpcmem_to_fd(void *buf) {
         int32_t mem_fd = -1;
         if (!is_rpcmem_initialized()) {
-            QNN_LOG_WARN("rpc memory not initialized\n");
+            QNN_LOG_WARN("rpc memory not initialized");
         } else {
             mem_fd = _pfn_rpc_mem_to_fd(buf);
         }
@@ -629,52 +629,51 @@ public:
 
     Qnn_MemHandle_t register_rpcmem(void *p_data, const uint32_t rank, uint32_t *dimensions, Qnn_DataType_t data_type) {
         if (!p_data) {
-            QNN_LOG_WARN("invalid param\n");
+            QNN_LOG_WARN("invalid param");
             return nullptr;
         }
 
         if (!is_rpcmem_initialized()) {
-            QNN_LOG_WARN("rpc memory not initialized\n");
+            QNN_LOG_WARN("rpc memory not initialized");
             return nullptr;
         }
 
         if (is_rpcmem_registered(p_data)) {
-            QNN_LOG_WARN("rpc memory already registered\n");
+            QNN_LOG_WARN("rpc memory already registered");
             return _qnn_rpc_buffer_to_handles[p_data];
         }
 
         auto mem_fd = rpcmem_to_fd(p_data);
         if (mem_fd == -1) {
-            QNN_LOG_WARN("failed to get file descriptor\n");
+            QNN_LOG_WARN("failed to get file descriptor");
             return nullptr;
         }
 
-        QNN_LOG_DEBUG("mem_fd %d\n", mem_fd);
+        QNN_LOG_DEBUG("mem_fd %d", mem_fd);
         Qnn_MemDescriptor_t descriptor = {{rank, dimensions, nullptr}, data_type, QNN_MEM_TYPE_ION, {{mem_fd}}};
         Qnn_MemHandle_t handle = nullptr;
         auto error = _qnn_interface->qnn_mem_register(_qnn_context_handle, &descriptor,
                                                       /*numDescriptors=*/1, &handle);
         if (error != QNN_SUCCESS) {
-            QNN_LOG_WARN("failed to register shared memory, error %d, %s\n", QNN_GET_ERROR_CODE(error),
-                         strerror(error));
+            QNN_LOG_WARN("failed to register shared memory, error %d, %s", QNN_GET_ERROR_CODE(error), strerror(error));
             return nullptr;
         }
 
         _qnn_rpc_buffer_to_handles.insert({p_data, handle});
-        QNN_LOG_DEBUG("successfully register shared memory handler: %p\n", handle);
+        QNN_LOG_DEBUG("successfully register shared memory handler: %p", handle);
         return handle;
     }
 
     void unregister_rpcmem(Qnn_MemHandle_t mem_handle) {
         Qnn_ErrorHandle_t error = _qnn_interface->qnn_mem_de_register(&mem_handle, 1);
         if (error != QNN_SUCCESS) {
-            QNN_LOG_WARN("failed to unregister shared memory, error %d\n", QNN_GET_ERROR_CODE(error));
+            QNN_LOG_WARN("failed to unregister shared memory, error %d", QNN_GET_ERROR_CODE(error));
         }
 
         auto it = std::find_if(_qnn_rpc_buffer_to_handles.begin(), _qnn_rpc_buffer_to_handles.end(),
                                [mem_handle](const auto &kv) { return kv.second == mem_handle; });
         if (it == _qnn_rpc_buffer_to_handles.end()) {
-            QNN_LOG_WARN("failed to find shared memory handler: %p\n", mem_handle);
+            QNN_LOG_WARN("failed to find shared memory handler: %p", mem_handle);
             return;
         }
 
@@ -691,18 +690,18 @@ private:
         Qnn_ErrorHandle_t error = QNN_SUCCESS;
 
         std::string system_lib_path = _lib_path + "libQnnSystem.so";
-        QNN_LOG_DEBUG("system_lib_path:%s\n", system_lib_path.c_str());
+        QNN_LOG_DEBUG("system_lib_path:%s", system_lib_path.c_str());
 
         auto system_lib_handle = dl_load(system_lib_path);
         if (!system_lib_handle) {
-            QNN_LOG_WARN("can not load QNN library %s, error: %s\n", system_lib_path.c_str(), dl_error());
+            QNN_LOG_WARN("can not load QNN library %s, error: %s", system_lib_path.c_str(), dl_error());
             return 1;
         }
 
         auto *get_providers = dl_sym_typed<qnn::pfn_qnnsysteminterface_getproviders *>(
             system_lib_handle, "QnnSystemInterface_getProviders");
         if (!get_providers) {
-            QNN_LOG_WARN("can not load QNN symbol QnnSystemInterface_getProviders: %s\n", dl_error());
+            QNN_LOG_WARN("can not load QNN symbol QnnSystemInterface_getProviders: %s", dl_error());
             return 2;
         }
 
@@ -710,17 +709,17 @@ private:
         const QnnSystemInterface_t **provider_list = nullptr;
         error = get_providers(&provider_list, &num_providers);
         if (error != QNN_SUCCESS) {
-            QNN_LOG_WARN("failed to get providers, error %d\n", QNN_GET_ERROR_CODE(error));
+            QNN_LOG_WARN("failed to get providers, error %d", QNN_GET_ERROR_CODE(error));
             return 3;
         }
 
         if (num_providers != _required_num_providers) {
-            QNN_LOG_WARN("providers is %d instead of required %d\n", num_providers, _required_num_providers);
+            QNN_LOG_WARN("providers is %d instead of required %d", num_providers, _required_num_providers);
             return 4;
         }
 
         if (!provider_list) {
-            QNN_LOG_WARN("can not get providers\n");
+            QNN_LOG_WARN("can not get providers");
             return 5;
         }
 
@@ -735,15 +734,15 @@ private:
             }
         }
         if (!found_valid_system_interface) {
-            QNN_LOG_WARN("unable to find a valid qnn system interface\n");
+            QNN_LOG_WARN("unable to find a valid qnn system interface");
             return 6;
         } else {
-            QNN_LOG_DEBUG("find a valid qnn system interface\n");
+            QNN_LOG_DEBUG("find a valid qnn system interface");
         }
 
         auto qnn_sys_interface = std::make_shared<qnn::qnn_system_interface>(*provider_list[0], system_lib_handle);
         if (!qnn_sys_interface->is_valid()) {
-            QNN_LOG_WARN("failed to create QNN system interface\n");
+            QNN_LOG_WARN("failed to create QNN system interface");
             return 7;
         }
 
@@ -753,7 +752,7 @@ private:
 
     int load_backend(std::string &lib_path, const QnnSaver_Config_t ** /*saver_config*/) {
         Qnn_ErrorHandle_t error = QNN_SUCCESS;
-        QNN_LOG_DEBUG("lib_path:%s\n", lib_path.c_str());
+        QNN_LOG_DEBUG("lib_path:%s", lib_path.c_str());
 
         auto lib_handle = dl_load(lib_path.c_str());
         if (!lib_handle) {
@@ -775,14 +774,14 @@ private:
             QNN_LOG_WARN("failed to get providers, error %d", QNN_GET_ERROR_CODE(error));
             return 3;
         }
-        QNN_LOG_DEBUG("num_providers=%d\n", num_providers);
+        QNN_LOG_DEBUG("num_providers=%d", num_providers);
         if (num_providers != _required_num_providers) {
             QNN_LOG_WARN("providers is %d instead of required %d", num_providers, _required_num_providers);
             return 4;
         }
 
         if (!provider_list) {
-            QNN_LOG_WARN("failed to get qnn interface providers\n");
+            QNN_LOG_WARN("failed to get qnn interface providers");
             return 5;
         }
         bool found_valid_interface = false;
@@ -797,23 +796,23 @@ private:
         }
 
         if (!found_valid_interface) {
-            QNN_LOG_WARN("unable to find a valid qnn interface\n");
+            QNN_LOG_WARN("unable to find a valid qnn interface");
             return 6;
         } else {
-            QNN_LOG_DEBUG("find a valid qnn interface\n");
+            QNN_LOG_DEBUG("find a valid qnn interface");
         }
 
         BackendIdType backend_id = provider_list[0]->backendId;
         _lib_path_to_backend_id[lib_path] = backend_id;
         if (_loaded_backend.count(backend_id) > 0) {
-            QNN_LOG_WARN("lib_path %s is loaded, but backend %d already exists\n", lib_path.c_str(), backend_id);
+            QNN_LOG_WARN("lib_path %s is loaded, but backend %d already exists", lib_path.c_str(), backend_id);
         }
         _loaded_backend[backend_id] = provider_list[0];
         if (_loaded_lib_handle.count(backend_id) > 0) {
-            QNN_LOG_WARN("closing %p\n", _loaded_lib_handle[backend_id]);
+            QNN_LOG_WARN("closing %p", _loaded_lib_handle[backend_id]);
             int dlclose_error = dl_unload(_loaded_lib_handle[backend_id]);
             if (dlclose_error != 0) {
-                QNN_LOG_WARN("fail to close %p with error %s\n", _loaded_lib_handle[backend_id], dl_error());
+                QNN_LOG_WARN("fail to close %p with error %s", _loaded_lib_handle[backend_id], dl_error());
             }
         }
         _loaded_lib_handle[backend_id] = lib_handle;
@@ -827,7 +826,7 @@ private:
         for (auto &it : _loaded_lib_handle) {
             dlclose_error = dl_unload(it.second);
             if (dlclose_error != 0) {
-                QNN_LOG_WARN("failed to close QNN backend %d, error %s\n", it.first, dl_error());
+                QNN_LOG_WARN("failed to close QNN backend %d, error %s", it.first, dl_error());
             }
         }
 

@@ -26,15 +26,15 @@ public:
                    uint32_t *dimensions, Qnn_DataType_t data_type)
         : _size(size), _qnn_instance(qnn_instance) {
 
-        _qnn_rpc_buffer = static_cast<uint8_t *>(qnn_instance->alloc_rpcmem(size, alignof(void *)));
+        _qnn_rpc_buffer = static_cast<uint8_t *>(qnn_instance->alloc_rpcmem(size, alignof(uint8_t *)));
         _qnn_rpc_mem_handle = qnn_instance->register_rpcmem(_qnn_rpc_buffer, rank, dimensions, data_type);
         if (!_qnn_rpc_buffer || !_qnn_rpc_mem_handle) {
-            QNN_LOG_WARN("register rpc mem failure\n");
+            QNN_LOG_WARN("register rpc mem failure");
             // let the destructor free the buffer
             return;
         }
 
-        QNN_LOG_DEBUG("alloc rpcmem(%p) successfully, size %d\n", _qnn_rpc_buffer, (int)size);
+        QNN_LOG_DEBUG("alloc rpcmem(%p) successfully, size %d", _qnn_rpc_buffer, (int)size);
     }
     ~qnn_rpc_buffer() {
         if (_qnn_instance) {
@@ -70,7 +70,7 @@ public:
         _buffer = reinterpret_cast<uint8_t *>(qnn::page_align_alloc(size));
 
         if (!_buffer) {
-            QNN_LOG_WARN("failed to allocate %.2f MiB\n", float(size / (1 << 20)));
+            QNN_LOG_WARN("failed to allocate %.2f MiB", float(size / (1 << 20)));
             return;
         }
 

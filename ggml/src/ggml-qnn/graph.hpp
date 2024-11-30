@@ -64,12 +64,12 @@ public:
         }
 
         if (error != QNN_SUCCESS) {
-            QNN_LOG_ERROR("[%s][%s]failed to create qnn graph, error: %s\n", get_backend_name(device),
-                          graph_name.c_str(), get_qnn_error_string(error));
+            QNN_LOG_ERROR("[%s][%s]failed to create qnn graph, error: %s", get_backend_name(device), graph_name.c_str(),
+                          get_qnn_error_string(error));
             return;
         }
 
-        QNN_LOG_INFO("[%s][%s]create succeed\n", get_backend_name(device), graph_name.c_str());
+        QNN_LOG_INFO("[%s][%s]create succeed", get_backend_name(device), graph_name.c_str());
         _graph_handle = graph_handle;
         _qnn_interface = qnn_interface;
     }
@@ -80,7 +80,7 @@ public:
                      const ggml_tensor_array_t &tensor_outputs) {
         GGML_ASSERT(op_constructor);
         if (!is_valid()) {
-            QNN_LOG_ERROR("Invalid graph\n");
+            QNN_LOG_ERROR("Invalid graph");
             return false;
         }
 
@@ -92,7 +92,7 @@ public:
         }
 
         if (!_op_config->add_op_to_graph(_graph_handle)) {
-            QNN_LOG_ERROR("[%s]add nodes failed\n", _graph_name.c_str());
+            QNN_LOG_ERROR("[%s]add nodes failed", _graph_name.c_str());
             return false;
         }
 
@@ -109,12 +109,12 @@ public:
 
     bool execute(const ggml_tensor_array_t &tensor_inputs, const ggml_tensor_array_t &tensor_outputs) {
         if (!_op_config->bind_input_tensors(tensor_inputs)) {
-            QNN_LOG_ERROR("[%s][%s]bind input tensors failed\n", get_backend_name(_device), _graph_name.c_str());
+            QNN_LOG_ERROR("[%s][%s]bind input tensors failed", get_backend_name(_device), _graph_name.c_str());
             return false;
         }
 
         if (!_op_config->bind_output_tensors(tensor_outputs)) {
-            QNN_LOG_ERROR("[%s][%s]bind output tensors failed\n", get_backend_name(_device), _graph_name.c_str());
+            QNN_LOG_ERROR("[%s][%s]bind output tensors failed", get_backend_name(_device), _graph_name.c_str());
             return false;
         }
 
