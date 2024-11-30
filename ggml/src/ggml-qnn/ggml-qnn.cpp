@@ -417,6 +417,12 @@ bool ggml_backend_qnn_device_supports_buft(ggml_backend_dev_t dev, ggml_backend_
     return ggml_backend_buft_is_host(buft);
 }
 
+bool ggml_backend_qnn_device_offload_op(ggml_backend_dev_t dev, const ggml_tensor *op) {
+    auto *device_ctx = get_device_context(dev);
+    QNN_LOG_DEBUG("[%s][%s]offload op", qnn::get_backend_name(device_ctx->device), ggml_op_name(op->op));
+    return false;
+}
+
 const struct ggml_backend_device_i ggml_backend_qnn_device_interface = {
     /* .get_name             = */ ggml_backend_qnn_device_get_name,
     /* .get_description      = */ ggml_backend_qnn_device_get_description,
@@ -429,7 +435,7 @@ const struct ggml_backend_device_i ggml_backend_qnn_device_interface = {
     /* .buffer_from_host_ptr = */ ggml_backend_qnn_device_buffer_from_ptr,
     /* .supports_op          = */ ggml_backend_qnn_device_supports_op,
     /* .supports_buft        = */ ggml_backend_qnn_device_supports_buft,
-    /* .offload_op           = */ nullptr,
+    /* .offload_op           = */ ggml_backend_qnn_device_offload_op,
     /* .event_new            = */ nullptr,
     /* .event_free           = */ nullptr,
     /* .event_synchronize    = */ nullptr,
