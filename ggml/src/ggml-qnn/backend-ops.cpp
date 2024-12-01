@@ -332,7 +332,7 @@ bool qnn_binary_nop_impl(ggml_backend_qnn_device_context *ctx, ggml_tensor *src0
 }
 
 constexpr const ggml_qnn_unary_op_t kQnnUnaryOpsTable[] = {
-    nullptr,                         // GGML_OP_NONE
+    qnn_unary_nop_impl,              // GGML_OP_NONE
     nullptr,                         // GGML_OP_DUP
     nullptr,                         // GGML_OP_ADD
     nullptr,                         // GGML_OP_ADD1

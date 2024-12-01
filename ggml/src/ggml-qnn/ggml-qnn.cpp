@@ -143,7 +143,7 @@ void ggml_backend_qnn_buffer_clear(ggml_backend_buffer_t buffer, uint8_t value) 
     memset(ctx->get_buffer(), value, ctx->get_size());
 }
 
-ggml_backend_buffer_i ggml_backend_qnn_buffer_interface = {
+constexpr const ggml_backend_buffer_i ggml_backend_qnn_buffer_interface = {
     /* .free_buffer     = */ ggml_backend_qnn_buffer_free_buffer,
     /* .get_base        = */ ggml_backend_qnn_buffer_get_base,
     /* .init_tensor     = */ ggml_backend_qnn_buffer_init_tensor,
@@ -243,8 +243,7 @@ ggml_status ggml_backend_qnn_graph_compute(ggml_backend_t backend, ggml_cgraph *
     auto *device_ctx = get_device_context(backend->device);
     for (int i = 0; i < cgraph->n_nodes; i++) {
         ggml_tensor *node = cgraph->nodes[i];
-        if (ggml_is_empty(node) || node->op == GGML_OP_RESHAPE || node->op == GGML_OP_TRANSPOSE ||
-            node->op == GGML_OP_PERMUTE || node->op == GGML_OP_NONE) {
+        if (ggml_is_empty(node)) {
             continue;
         }
         bool ok = qnn::ggml_qnn_forward(device_ctx, node);
@@ -256,7 +255,7 @@ ggml_status ggml_backend_qnn_graph_compute(ggml_backend_t backend, ggml_cgraph *
     return result;
 }
 
-ggml_backend_i ggml_backend_qnn_interface = {
+constexpr const ggml_backend_i ggml_backend_qnn_interface = {
     /* .get_name                = */ ggml_backend_qnn_name,
     /* .free                    = */ ggml_backend_qnn_free,
     /* .set_tensor_async        = */ nullptr,
