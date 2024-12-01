@@ -543,22 +543,39 @@ bool ggml_qnn_supports_tensor(ggml_backend_qnn_device_context *ctx, const ggml_t
         return false;
     }
 
-#ifndef NDEBUG
-    auto *type_name = ggml_get_type_traits(tensor->type)->type_name;
-#endif
     switch (tensor->type) {
         case GGML_TYPE_F32:
         case GGML_TYPE_F16:
         case GGML_TYPE_Q8_0:
         case GGML_TYPE_Q4_0:
             if (!(ctx->supported_types & (1 << tensor->type))) {
-                QNN_LOG_DEBUG("unsupported data type %s for backend %s, supported_types: 0x%x", type_name,
-                              qnn::get_backend_name(ctx->device), ctx->supported_types);
+                QNN_LOG_DEBUG("[%s]unsupported data type %s, supported_types: 0x%x", qnn::get_backend_name(ctx->device),
+                              ggml_type_name(tensor->type), ctx->supported_types);
                 return false;
+            }
+
+            if (tensor->ne[0] != ggml_type_size(tensor->type)) {
+                QNN_LOG_DEBUG("[%s]unsupported data type %s, ne0: %ld, type_size: %ld",
+                              qnn::get_backend_name(ctx->device), ggml_type_name(tensor->type), (long)tensor->ne[0],
+                              (long)ggml_type_size(tensor->type));
+                return false;
+            }
+
+            for (size_t i = 1; i < GGML_MAX_DIMS; ++i) {
+                const auto row_stride =
+                    tensor->nb[i - 1] * (i == 1 ? ((tensor->ne[0] / ggml_blck_size(tensor->type)) + tensor->padding[1])
+                                                : tensor->ne[i - 1]);
+                if (tensor->ne[i] != row_stride) {
+                    QNN_LOG_DEBUG("[%s]unsupported data type %s, ne%d: %ld, row_stride: %ld",
+                                  qnn::get_backend_name(ctx->device), ggml_type_name(tensor->type), (int)i,
+                                  (long)tensor->ne[i], (long)row_stride);
+                    return false;
+                }
             }
             break;
         default:
-            QNN_LOG_DEBUG("unsupported data type %s", type_name);
+            QNN_LOG_DEBUG("[%s]unsupported data type %s", qnn::get_backend_name(ctx->device),
+                          ggml_type_name(tensor->type));
             return false;
     }
 
@@ -566,6 +583,7 @@ bool ggml_qnn_supports_tensor(ggml_backend_qnn_device_context *ctx, const ggml_t
 }
 
 bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor *op) {
+    constexpr const size_t kMaxNpuTensorSize = 8192L * 2048 + 8192 * 512 + 2048 * 512;
     constexpr const auto get_tensor_size = [](const ggml_tensor *tensor) -> size_t {
         return tensor->ne[0] * tensor->ne[1] * tensor->ne[2] * tensor->ne[3];
     };
@@ -582,8 +600,7 @@ bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context *ctx, const ggm
                 QNN_LOG_DEBUG("[qnn-npu] src0 and src1 dimensions are not equal, support/unsupported: %d/%d",
                               ctx->support_op_count.load(), ++(ctx->unsupported_op_count));
                 return false;
-            } else if (get_tensor_size(src0) + get_tensor_size(src1) + get_tensor_size(op) >=
-                       (8192 * 2048 + 8192 * 512 + 2048 * 512)) {
+            } else if (get_tensor_size(src0) + get_tensor_size(src1) + get_tensor_size(op) >= kMaxNpuTensorSize) {
                 QNN_LOG_DEBUG("[qnn-npu] tensor size is too large, support/unsupported: %d/%d",
                               ctx->support_op_count.load(), ++(ctx->unsupported_op_count));
                 return false;
@@ -624,6 +641,7 @@ bool ggml_qnn_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tenso
         return true;
     }
 
+    auto *src0 = op->src[0];
     if (op->op == GGML_OP_UNARY) {
         const auto unary_op = ggml_get_unary_op(op);
         if (unary_op == GGML_UNARY_OP_GELU && ctx->device == QNN_BACKEND_NPU) {
@@ -637,7 +655,7 @@ bool ggml_qnn_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tenso
             return false;
         }
 
-        if (!op->src[0]) {
+        if (!ggml_qnn_supports_tensor(ctx, src0) || !ggml_qnn_supports_tensor(ctx, op)) {
             QNN_LOG_DEBUG("src0 is nullptr");
             return false;
         }
@@ -647,7 +665,6 @@ bool ggml_qnn_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tenso
             return false;
         }
 
-        auto *src0 = op->src[0];
         auto *src1 = op->src[1];
         if (!ggml_qnn_supports_tensor(ctx, src0) || !ggml_qnn_supports_tensor(ctx, op) ||
             (kQnnBinaryOpsTable[op->op] && !ggml_qnn_supports_tensor(ctx, src1))) {
