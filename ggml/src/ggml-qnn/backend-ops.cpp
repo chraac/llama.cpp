@@ -543,7 +543,7 @@ bool ggml_qnn_supports_tensor(ggml_backend_qnn_device_context *ctx, const ggml_t
         return false;
     }
 
-    if (tensor->view_src && tensor->view_offs) {
+    if (tensor->view_src) {
         QNN_LOG_DEBUG("[%s]tensor(%s) is a view", qnn::get_backend_name(ctx->device), ggml_type_name(tensor->type));
         return false;
     }
