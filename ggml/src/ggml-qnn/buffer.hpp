@@ -66,7 +66,7 @@ private:
 
 class qnn_mem_buffer : public qnn_buffer_interface {
 public:
-    qnn_mem_buffer(size_t size) {
+    explicit qnn_mem_buffer(const uint8_t *data, size_t size) {
         _buffer = reinterpret_cast<uint8_t *>(qnn::page_align_alloc(size));
 
         if (!_buffer) {
@@ -75,7 +75,13 @@ public:
         }
 
         _size = size;
+
+        if (data) {
+            memcpy(_buffer, data, size);
+        }
     }
+
+    explicit qnn_mem_buffer(size_t size) : qnn_mem_buffer(nullptr, size) {}
 
     ~qnn_mem_buffer() {
         // the free will do nothing if the _buffer is nullptr

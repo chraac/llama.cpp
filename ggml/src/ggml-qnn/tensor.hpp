@@ -213,13 +213,8 @@ private:
             return true;
         }
 
-        if (should_use_mem_handle()) {
-            if (_rpc_buffer) {
-                memcpy(_rpc_buffer->get_buffer(), _buffer, _buffer_size);
-            } else {
-                QNN_LOG_WARN("[%s]can't find rpcmem from qnn mem handle", _tensor_name.c_str());
-                return false;
-            }
+        if (_rpc_buffer) {
+            memcpy(_rpc_buffer->get_buffer(), _buffer, _buffer_size);
         }
 
         // For CPU and GPU, the data is already in the tensor.
@@ -234,13 +229,8 @@ private:
             return true;
         }
 
-        if (should_use_mem_handle()) {
-            if (_rpc_buffer) {
-                memcpy(_buffer, _rpc_buffer->get_buffer(), _buffer_size);
-            } else {
-                QNN_LOG_WARN("[%s]can't find rpcmem from qnn mem handle", _tensor_name.c_str());
-                return false;
-            }
+        if (_rpc_buffer) {
+            memcpy(_buffer, _rpc_buffer->get_buffer(), _buffer_size);
         }
 
         // For CPU and GPU, the data is already in the tensor.
