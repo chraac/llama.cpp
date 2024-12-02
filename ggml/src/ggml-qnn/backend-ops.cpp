@@ -543,6 +543,11 @@ bool ggml_qnn_supports_tensor(ggml_backend_qnn_device_context *ctx, const ggml_t
         return false;
     }
 
+    if (tensor->view_src && tensor->view_offs) {
+        QNN_LOG_DEBUG("[%s]tensor(%s) is a view", qnn::get_backend_name(ctx->device), ggml_type_name(tensor->type));
+        return false;
+    }
+
     switch (tensor->type) {
         case GGML_TYPE_F32:
         case GGML_TYPE_F16:
@@ -552,25 +557,6 @@ bool ggml_qnn_supports_tensor(ggml_backend_qnn_device_context *ctx, const ggml_t
                 QNN_LOG_DEBUG("[%s]unsupported data type %s, supported_types: 0x%x", qnn::get_backend_name(ctx->device),
                               ggml_type_name(tensor->type), ctx->supported_types);
                 return false;
-            }
-
-            if (tensor->ne[0] != ggml_type_size(tensor->type)) {
-                QNN_LOG_DEBUG("[%s]unsupported data type %s, ne0: %ld, type_size: %ld",
-                              qnn::get_backend_name(ctx->device), ggml_type_name(tensor->type), (long)tensor->ne[0],
-                              (long)ggml_type_size(tensor->type));
-                return false;
-            }
-
-            for (size_t i = 1; i < GGML_MAX_DIMS; ++i) {
-                const auto row_stride =
-                    tensor->nb[i - 1] * (i == 1 ? ((tensor->ne[0] / ggml_blck_size(tensor->type)) + tensor->padding[1])
-                                                : tensor->ne[i - 1]);
-                if (tensor->ne[i] != row_stride) {
-                    QNN_LOG_DEBUG("[%s]unsupported data type %s, ne%d: %ld, row_stride: %ld",
-                                  qnn::get_backend_name(ctx->device), ggml_type_name(tensor->type), (int)i,
-                                  (long)tensor->ne[i], (long)row_stride);
-                    return false;
-                }
             }
             break;
         default:
