@@ -549,7 +549,6 @@ bool ggml_qnn_supports_tensor(ggml_backend_qnn_device_context *ctx, const ggml_t
                       ggml_get_name(tensor), tensor->ne[0], tensor->ne[1], tensor->ne[2], tensor->ne[3],
                       ggml_get_name(src_tensor), src_tensor->ne[0], src_tensor->ne[1], src_tensor->ne[2],
                       src_tensor->ne[3]);
-        return false;
     }
 
     switch (tensor->type) {
@@ -672,6 +671,9 @@ bool ggml_qnn_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tenso
 
             case GGML_OP_MUL_MAT:
                 return ggml_qnn_supports_matmul_op(ctx, op);
+
+            case GGML_OP_VIEW:
+                return true;
 
             default:
                 return false;
