@@ -248,7 +248,7 @@ ggml_status ggml_backend_qnn_graph_compute(ggml_backend_t backend, ggml_cgraph *
         }
         bool ok = qnn::ggml_qnn_forward(device_ctx, node);
         if (!ok) {
-            QNN_LOG_DEBUG("error: op not supported %s (%s)\n", node->name, ggml_op_name(node->op));
+            QNN_LOG_DEBUG("error: op not supported %s (%s)", node->name, ggml_op_name(node->op));
         }
     }
 
@@ -353,9 +353,9 @@ ggml_backend_t ggml_backend_qnn_init_with_device_context(ggml_backend_dev_t dev,
         }
     } else {
         if (setenv("LD_LIBRARY_PATH", path.c_str(), 1) == 0) {
-            QNN_LOG_DEBUG("%s backend setenv successfully\n", qnn::get_backend_name(device));
+            QNN_LOG_DEBUG("%s backend setenv successfully", qnn::get_backend_name(device));
         } else {
-            QNN_LOG_ERROR("%s backend setenv failure\n", qnn::get_backend_name(device));
+            QNN_LOG_ERROR("%s backend setenv failure", qnn::get_backend_name(device));
         }
     }
 #endif
@@ -363,12 +363,12 @@ ggml_backend_t ggml_backend_qnn_init_with_device_context(ggml_backend_dev_t dev,
     auto instance = std::make_shared<qnn::qnn_instance>(path, dev_ctx->lib_name, "ggml");
     auto result = instance->qnn_init(nullptr);
     if (result != 0) {
-        QNN_LOG_WARN("init qnn subsystem failed with qnn backend %s, pls check why\n", qnn::get_backend_name(device));
+        QNN_LOG_WARN("init qnn subsystem failed with qnn backend %s, pls check why", qnn::get_backend_name(device));
         return nullptr;
     }
     auto qnn_interface = instance->get_qnn_interface();
     if (!qnn_interface) {
-        QNN_LOG_WARN("qnn subsystem failure\n");
+        QNN_LOG_WARN("qnn subsystem failure");
         return nullptr;
     }
 
