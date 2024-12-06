@@ -32,9 +32,8 @@ public:
         if (!_tensor_name.empty()) {
             QNN_TENSOR_SET_NAME(_qnn_tensor, _tensor_name.c_str());
         }
-        QNN_TENSOR_SET_DIMENSIONS(_qnn_tensor, _dimensions.data());
-        QNN_TENSOR_SET_DATA_FORMAT(_qnn_tensor, QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER);
 
+        QNN_TENSOR_SET_DATA_FORMAT(_qnn_tensor, QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER);
         _dimensions = dimensions;
         update_params_from_ggml_tensor(tensor_type, data_type, rank);
         QNN_LOG_DEBUG("[%s][%s]created, rank: %d, dims: [%d, %d, %d, %d], type: %s", get_backend_name(device),
@@ -69,7 +68,7 @@ public:
             return true;
         }
 
-        Qnn_Tensor_t qnn_tensor = _qnn_tensor;
+        Qnn_Tensor_t qnn_tensor = qnn_tensor_init(kDefaultQnnTensorVersion);
         auto qnn_interface = _qnn_instance->get_qnn_interface();
         auto error = qnn_interface->qnn_tensor_create_graph_tensor(_graph_handle, &qnn_tensor);
         if (error != QNN_SUCCESS) {
@@ -141,6 +140,7 @@ public:
     const Qnn_Tensor_t &get_qnn_tensor() const { return _qnn_tensor; }
     Qnn_DataType_t get_data_type() const { return QNN_TENSOR_GET_DATA_TYPE(_qnn_tensor); }
     const qnn_dimension_array_t &get_dimensions() const { return _dimensions; }
+    const qnn_dimension_array_t &get_dimension_strides() const { return _dimension_strides; }
     uint32_t get_qnn_tensor_id() const { return QNN_TENSOR_GET_ID(_qnn_tensor); }
 
 private:
@@ -161,6 +161,7 @@ private:
             return true;
         }
 
+        QNN_TENSOR_SET_DIMENSIONS(_qnn_tensor, _dimensions.data());
         if (should_use_mem_handle()) {
             if (!_rpc_buffer) {
                 auto rpc_buffer = std::make_shared<qnn_rpc_buffer>(
@@ -280,6 +281,7 @@ private:
     std::shared_ptr<qnn_instance> _qnn_instance;
     Qnn_Tensor_t _qnn_tensor = qnn_tensor_init(kDefaultQnnTensorVersion);
     qnn_dimension_array_t _dimensions = {};
+    qnn_dimension_array_t _dimension_strides = {};
     Qnn_GraphHandle_t _graph_handle = nullptr;
     qnn_buffer_ptr _rpc_buffer;
 
