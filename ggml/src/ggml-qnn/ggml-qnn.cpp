@@ -239,20 +239,8 @@ ggml_backend_buffer_type_t ggml_backend_qnn_buffer_type(ggml_backend_dev_t dev) 
 }
 
 ggml_status ggml_backend_qnn_graph_compute(ggml_backend_t backend, ggml_cgraph *cgraph) {
-    enum ggml_status result = GGML_STATUS_SUCCESS;
-    auto *device_ctx = get_device_context(backend->device);
-    for (int i = 0; i < cgraph->n_nodes; i++) {
-        ggml_tensor *node = cgraph->nodes[i];
-        if (ggml_is_empty(node)) {
-            continue;
-        }
-        bool ok = qnn::ggml_qnn_forward(device_ctx, node);
-        if (!ok) {
-            QNN_LOG_DEBUG("error: op not supported %s (%s)", node->name, ggml_op_name(node->op));
-        }
-    }
-
-    return result;
+    return qnn::device_compute_graph(get_device_context(backend->device), cgraph) ? GGML_STATUS_SUCCESS
+                                                                                  : GGML_STATUS_FAILED;
 }
 
 constexpr const ggml_backend_i ggml_backend_qnn_interface = {
@@ -408,7 +396,7 @@ ggml_backend_buffer_t ggml_backend_qnn_device_buffer_from_ptr(ggml_backend_dev_t
 bool ggml_backend_qnn_device_supports_op(ggml_backend_dev_t dev, const struct ggml_tensor *op) {
     // Note that this function could be called before the device context is initialized
     auto *device_ctx = get_device_context(dev);
-    return qnn::ggml_qnn_supports_op(device_ctx, op);
+    return qnn::device_supports_op(device_ctx, op);
 }
 
 bool ggml_backend_qnn_device_supports_buft(ggml_backend_dev_t dev, ggml_backend_buffer_type_t buft) {

@@ -6,7 +6,7 @@
 
 namespace qnn {
 
-bool ggml_qnn_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor *op);
-bool ggml_qnn_forward(ggml_backend_qnn_device_context *ctx, struct ggml_tensor *tensor);
+bool device_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor *op);
+bool device_compute_graph(ggml_backend_qnn_device_context *ctx, ggml_cgraph *cgraph);
 
 } // namespace qnn

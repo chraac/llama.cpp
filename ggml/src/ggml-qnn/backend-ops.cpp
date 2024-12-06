@@ -3,6 +3,8 @@
 
 #include <memory>
 
+#include "ggml-impl.h"
+
 #include "graph.hpp"
 #include "logger.hpp"
 #include "op-config.hpp"
@@ -624,7 +626,7 @@ bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context *ctx, const ggm
 
 namespace qnn {
 
-bool ggml_qnn_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor *op) {
+bool device_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor *op) {
     // Note that this function could be called before the device context is initialized
     if (op->op == GGML_OP_NONE) {
         return true;
@@ -683,24 +685,34 @@ bool ggml_qnn_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tenso
     return true;
 }
 
-bool ggml_qnn_forward(ggml_backend_qnn_device_context *ctx, struct ggml_tensor *tensor) {
-    size_t unary_op_idx = tensor->op;
-    if (tensor->op == GGML_OP_UNARY) {
-        unary_op_idx = kGgmlUnaryOpStart + ggml_get_unary_op(tensor);
+bool device_compute_graph(ggml_backend_qnn_device_context *ctx, ggml_cgraph *cgraph) {
+    for (int i = 0; i < cgraph->n_nodes; i++) {
+        ggml_tensor *tensor = cgraph->nodes[i];
+        if (ggml_is_empty(tensor)) {
+            continue;
+        }
+
+        size_t unary_op_idx = tensor->op;
+        if (tensor->op == GGML_OP_UNARY) {
+            unary_op_idx = kGgmlUnaryOpStart + ggml_get_unary_op(tensor);
+        }
+
+        bool ok = false;
+        auto unary_op = kQnnUnaryOpsTable[unary_op_idx];
+        auto binary_op = kQnnBinaryOpsTable[tensor->op];
+        if (unary_op) {
+            ok = unary_op(ctx, tensor->src[0], tensor);
+        } else if (binary_op) {
+            ok = binary_op(ctx, tensor->src[0], tensor->src[1], tensor);
+        }
+
+        if (!ok) {
+            QNN_LOG_WARN("[%s]unsupported op %s", qnn::get_backend_name(ctx->device), ggml_op_desc(tensor));
+            return false;
+        }
     }
 
-    auto unary_op = kQnnUnaryOpsTable[unary_op_idx];
-    if (unary_op) {
-        return unary_op(ctx, tensor->src[0], tensor);
-    }
-
-    auto binary_op = kQnnBinaryOpsTable[tensor->op];
-    if (binary_op) {
-        return binary_op(ctx, tensor->src[0], tensor->src[1], tensor);
-    }
-
-    QNN_LOG_WARN("[forward]unsupported op %s", ggml_op_desc(tensor));
-    return false;
+    return true;
 }
 
 } // namespace qnn
