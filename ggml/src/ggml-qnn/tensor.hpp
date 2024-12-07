@@ -97,7 +97,7 @@ public:
             return false;
         }
 
-        _buffer_dimensions = get_internal_dimension(tensor->nb, tensor->rank);
+        _view_source_dimensions = get_view_internal_dimension(tensor, _element_offset);
         QNN_LOG_DEBUG("[%s][%s]bind to ggml tensor(%s)", get_backend_name(_device), _tensor_name.c_str(),
                       ggml_get_name(tensor));
         return true;
@@ -141,7 +141,7 @@ public:
     const Qnn_Tensor_t &get_qnn_tensor() const { return _qnn_tensor; }
     Qnn_DataType_t get_data_type() const { return QNN_TENSOR_GET_DATA_TYPE(_qnn_tensor); }
     const qnn_dimension_array_t &get_dimensions() const { return _dimensions; }
-    const qnn_dimension_array_t &get_buffer_dimensions() const { return _buffer_dimensions; }
+    const qnn_dimension_array_t &get_view_source_dimensions() const { return _view_source_dimensions; }
     uint32_t get_qnn_tensor_id() const { return QNN_TENSOR_GET_ID(_qnn_tensor); }
 
 private:
@@ -282,7 +282,8 @@ private:
     std::shared_ptr<qnn_instance> _qnn_instance;
     Qnn_Tensor_t _qnn_tensor = qnn_tensor_init(kDefaultQnnTensorVersion);
     qnn_dimension_array_t _dimensions = {};
-    qnn_dimension_array_t _buffer_dimensions = {};
+    qnn_dimension_array_t _view_source_dimensions = {};
+    size_t _element_offset = 0;
     Qnn_GraphHandle_t _graph_handle = nullptr;
     qnn_buffer_ptr _rpc_buffer;
 

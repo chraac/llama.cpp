@@ -39,18 +39,29 @@ qnn_dimension_array_t get_internal_dimension(const ggml_dimension_array_t &dims,
     return internal_dims;
 }
 
-qnn_dimension_array_t get_internal_buffer_dimension(const ggml_stride_array_t &nb, ggml_type type, uint32_t rank) {
-    static_assert(GGML_MAX_DIMS == 4, "GGML_MAX_DIMS should be 4");
-    GGML_ASSERT(rank <= GGML_MAX_DIMS && rank > 0);
-
-    const auto block_size = ggml_blck_size(type);
-    qnn_dimension_array_t internal_dims = {};
-    internal_dims[rank - 1] = nb[1] * block_size / nb[0];
-    for (uint32_t i = 1; i < rank; i++) {
-        internal_dims[rank - i - 1] = nb[i] * block_size / mb[0];
+qnn_dimension_array_t get_view_internal_dimension(const ggml_tensor *tensor, size_t &element_offset_out) {
+    const auto rank = get_ggml_tensor_rank(tensor);
+    if (!tensor->view_src) {
+        element_offset_out = 0;
+        return get_internal_dimension(tensor->ne, rank);
     }
 
-    return internal_dims;
+    element_offset_out = 0;
+    auto *parent_tensor = tensor;
+    do {
+        element_offset_out += parent_tensor->view_offs;
+        parent_tensor = parent_tensor->view_src;
+    } while (parent_tensor->view_src);
+
+    const auto parent_rank = get_ggml_tensor_rank(parent_tensor);
+    GGML_ASSERT(parent_tensor->type == tensor->type);
+    GGML_ASSERT(parent_rank == rank);
+
+    const auto block_size = ggml_blck_size(tensor->type);
+    element_offset_out =
+        element_offset_out * block_size / tensor->nb[0]; // calculate the element offset in the view tensor
+
+    return get_internal_dimension(parent_tensor->ne, parent_rank);
 }
 
 // TODO: mapping more ggml data type to QNN data type
