@@ -21,9 +21,11 @@
 namespace qnn {
 
 using ggml_dimension_array_t = int64_t[GGML_MAX_DIMS];
+using ggml_stride_array_t = size_t[GGML_MAX_DIMS];
 using qnn_dimension_array_t = std::array<uint32_t, GGML_MAX_DIMS>;
 
 qnn_dimension_array_t get_internal_dimension(const ggml_dimension_array_t &dims, uint32_t rank);
+qnn_dimension_array_t get_internal_buffer_dimension(const ggml_stride_array_t &nb, ggml_type type, uint32_t rank);
 
 uint32_t get_ggml_tensor_rank(const ggml_tensor *tensor);
 const char *get_ggml_type_name(ggml_type type);

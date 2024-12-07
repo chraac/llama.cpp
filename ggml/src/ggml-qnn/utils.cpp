@@ -39,6 +39,20 @@ qnn_dimension_array_t get_internal_dimension(const ggml_dimension_array_t &dims,
     return internal_dims;
 }
 
+qnn_dimension_array_t get_internal_buffer_dimension(const ggml_stride_array_t &nb, ggml_type type, uint32_t rank) {
+    static_assert(GGML_MAX_DIMS == 4, "GGML_MAX_DIMS should be 4");
+    GGML_ASSERT(rank <= GGML_MAX_DIMS && rank > 0);
+
+    const auto block_size = ggml_blck_size(type);
+    qnn_dimension_array_t internal_dims = {};
+    internal_dims[rank - 1] = nb[1] * block_size / nb[0];
+    for (uint32_t i = 1; i < rank; i++) {
+        internal_dims[rank - i - 1] = nb[i] * block_size / mb[0];
+    }
+
+    return internal_dims;
+}
+
 // TODO: mapping more ggml data type to QNN data type
 // ref:explanation of k-quants, https://github.com/ggerganov/llama.cpp/pull/1684
 Qnn_DataType_t qnn_datatype_from_ggml_datatype(ggml_type ggml_type) {

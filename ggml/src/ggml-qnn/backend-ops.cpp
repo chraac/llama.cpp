@@ -444,7 +444,7 @@ constexpr const ggml_qnn_unary_op_t kQnnUnaryOpsTable[] = {
 static_assert(sizeof(kQnnUnaryOpsTable) / sizeof(kQnnUnaryOpsTable[0]) == (GGML_OP_COUNT + GGML_UNARY_OP_COUNT),
               "GGML_OP_COUNT does not match the size of the kQnnUnaryOpsTable table");
 
-static constexpr const ggml_qnn_binary_op_t kQnnBinaryOpsTable[] = {
+constexpr const ggml_qnn_binary_op_t kQnnBinaryOpsTable[] = {
     nullptr,                         // GGML_OP_NONE
     nullptr,                         // GGML_OP_DUP
     qnn_binary_op_impl<GGML_OP_ADD>, // GGML_OP_ADD
