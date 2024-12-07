@@ -35,6 +35,7 @@ public:
 
         QNN_TENSOR_SET_DATA_FORMAT(_qnn_tensor, QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER);
         _dimensions = dimensions;
+        _view_source_dimensions = dimensions;
         update_params_from_ggml_tensor(tensor_type, data_type, rank);
         QNN_LOG_DEBUG("[%s][%s]created, rank: %d, dims: [%d, %d, %d, %d], type: %s", get_backend_name(device),
                       _tensor_name.c_str(), rank, (int)_dimensions[0], (int)_dimensions[1], (int)_dimensions[2],
@@ -92,12 +93,12 @@ public:
     }
 
     bool bind_ggml_tensor(ggml_tensor *tensor) {
+        _view_source_dimensions = get_view_internal_dimension(tensor, _element_offset);
         if (!bind_buffer(reinterpret_cast<uint8_t *>(tensor->data), ggml_nbytes(tensor))) {
             QNN_LOG_WARN("[%s]failed to bind ggml tensor(%s)", _tensor_name.c_str(), ggml_get_name(tensor));
             return false;
         }
 
-        _view_source_dimensions = get_view_internal_dimension(tensor, _element_offset);
         QNN_LOG_DEBUG("[%s][%s]bind to ggml tensor(%s)", get_backend_name(_device), _tensor_name.c_str(),
                       ggml_get_name(tensor));
         return true;
@@ -162,7 +163,7 @@ private:
             return true;
         }
 
-        QNN_TENSOR_SET_DIMENSIONS(_qnn_tensor, _dimensions.data());
+        QNN_TENSOR_SET_DIMENSIONS(_qnn_tensor, _view_source_dimensions.data());
         if (should_use_mem_handle()) {
             if (!_rpc_buffer) {
                 auto rpc_buffer = std::make_shared<qnn_rpc_buffer>(

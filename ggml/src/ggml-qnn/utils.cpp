@@ -40,19 +40,16 @@ qnn_dimension_array_t get_internal_dimension(const ggml_dimension_array_t &dims,
 }
 
 qnn_dimension_array_t get_view_internal_dimension(const ggml_tensor *tensor, size_t &element_offset_out) {
-    const auto rank = get_ggml_tensor_rank(tensor);
-    if (!tensor->view_src) {
-        element_offset_out = 0;
-        return get_internal_dimension(tensor->ne, rank);
-    }
 
     element_offset_out = 0;
+
     auto *parent_tensor = tensor;
-    do {
+    while (parent_tensor->view_src) {
         element_offset_out += parent_tensor->view_offs;
         parent_tensor = parent_tensor->view_src;
-    } while (parent_tensor->view_src);
+    }
 
+    const auto rank = get_ggml_tensor_rank(tensor);
     const auto parent_rank = get_ggml_tensor_rank(parent_tensor);
     GGML_ASSERT(parent_tensor->type == tensor->type);
     GGML_ASSERT(parent_rank == rank);
