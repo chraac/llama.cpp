@@ -427,6 +427,14 @@ bool ggml_qnn_matmul_op_config::create_convert_nodes(QNNBackend device, Qnn_Grap
     return true;
 }
 
+bool ggml_qnn_aggregate_op_config::bind_input_tensors(const ggml_tensor_array_t &tensor_inputs) {
+    return bind_tensors(tensor_inputs, _tensor_inputs, _qnn_tensor_inputs);
+}
+
+bool ggml_qnn_aggregate_op_config::bind_output_tensors(const ggml_tensor_array_t &tensor_outputs) {
+    return bind_tensors(tensor_outputs, _tensor_outputs, _qnn_tensor_outputs);
+}
+
 bool ggml_qnn_matmul_op_config::create_mat_mul_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle, const int rank,
                                                      qnn_tensor_array_t &tensor_inputs,
                                                      qnn_tensor_array_t &tensor_outputs) {
