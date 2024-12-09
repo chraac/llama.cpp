@@ -440,7 +440,7 @@ bool ggml_qnn_matmul_op_config::create_mat_mul_nodes(QNNBackend device, Qnn_Grap
                                                      qnn_tensor_array_t &tensor_outputs) {
 
     /*
-     * First, both the ggml and qnn tensor in memory are stored as row-major format. (For more details, please also:
+     * First, both the ggml and qnn tensor in memory are stored as row-major format. (For more details, please refer to:
      * https://pytorch.org/blog/tensor-memory-format-matters/#:~:text=Column%20Major%20Order:%20In%20this%20format,%20the%20matrix)
      * But the dimensions of the tensor are stored in different order.
      * For example, a 2x3 matrix:
@@ -535,13 +535,6 @@ ggml_op_constructor_t create_op_constructor(const std::string &op_name) {
                   std::shared_ptr<qnn::qnn_instance> qnn_instance) -> std::unique_ptr<qnn::ggml_qnn_op_config> {
             QNN_LOG_DEBUG("create QNN_OP_MAT_MUL, name %s", instance_name.c_str());
             return std::make_unique<qnn::ggml_qnn_matmul_op_config>(instance_name, qnn_instance);
-        };
-    } else if (op_name == QNN_OP_TRANSPOSE) {
-        return [](const std::string &instance_name,
-                  std::shared_ptr<qnn::qnn_instance> qnn_instance) -> std::unique_ptr<qnn::ggml_qnn_op_config> {
-            return std::make_unique<qnn::ggml_qnn_single_op_config>(
-                instance_name, QNN_OP_PACKAGE_NAME_QTI_AISW, QNN_OP_TRANSPOSE, QNN_OP_TRANSPOSE_PARAM_PERM,
-                QNN_DATATYPE_UINT_32, 4 * sizeof(uint32_t), qnn_instance);
         };
     }
 
