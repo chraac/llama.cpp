@@ -450,27 +450,32 @@ constexpr const ggml_backend_device_i ggml_backend_qnn_device_interface = {
  */
 
 struct ggml_backend_qnn_reg_impl : ggml_backend_reg {
-    std::array<std::unique_ptr<ggml_backend_qnn_device_context>, GGML_QNN_MAX_DEVICES> device_contexts;
-    std::array<ggml_backend_device, GGML_QNN_MAX_DEVICES> devices;
+    std::vector<std::unique_ptr<ggml_backend_qnn_device_context>> device_contexts;
+    std::vector<ggml_backend_device> devices;
 
     explicit ggml_backend_qnn_reg_impl(ggml_backend_reg_i interface) {
         context = this;
         iface = interface;
 
         QNN_LOG_DEBUG("qnn backend registry init");
-        for (int i = 0; i < GGML_QNN_MAX_DEVICES; i++) {
-            const auto device_enum = (QNNBackend)(GGML_QNN_MAX_DEVICES - 1 - i); // init from the last device, i.e. NPU
-            device_contexts[i] = std::make_unique<ggml_backend_qnn_device_context>(
+        for (size_t i = 0; i < QNN_BACKEND_COUNT; i++) {
+            const auto device_enum = (QNNBackend)(QNN_BACKEND_COUNT - 1 - i); // init from the last device, i.e. NPU
+            if (device_enum == QNN_BACKEND_CPU) {
+                continue;
+            }
+
+            device_contexts.emplace_back(std::make_unique<ggml_backend_qnn_device_context>(
                 /* .device   = */ device_enum, // init from the last device, i.e. NPU
                 /* .threads  = */ 1,
                 /* .name     = */ qnn::get_backend_name(device_enum),
                 /* .lib_name = */ kDeviceCaps[device_enum].lib_name,
-                /* .supported_types = */ kDeviceCaps[device_enum].supported_types);
+                /* .supported_types = */ kDeviceCaps[device_enum].supported_types));
 
-            auto &device = devices[i];
-            device.iface = ggml_backend_qnn_device_interface;
-            device.reg = this;
-            device.context = device_contexts[i].get();
+            devices.emplace_back(ggml_backend_device{
+                /* iface = */ ggml_backend_qnn_device_interface,
+                /* reg = */ this,
+                /* context = */ device_contexts.back().get(),
+            });
         }
     }
 };
