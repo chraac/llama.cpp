@@ -87,6 +87,14 @@ public:
     explicit ggml_qnn_aggregate_op_config(const std::string &name, std::shared_ptr<qnn_instance> qnn_instance)
         : _name(name), _qnn_instance(qnn_instance) {}
 
+    ~ggml_qnn_aggregate_op_config() {
+        _qnn_tensor_inputs.clear();
+        _qnn_tensor_outputs.clear();
+        _tensor_inputs.clear();
+        _tensor_outputs.clear();
+        _operations.clear();
+    }
+
     bool add_op_to_graph(Qnn_GraphHandle_t graph_handle) override {
         for (auto &op : _operations) {
             if (!op->add_op_to_graph(graph_handle)) {
