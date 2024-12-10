@@ -33,9 +33,9 @@ public:
             QNN_TENSOR_SET_NAME(_qnn_tensor, _tensor_name.c_str());
         }
 
-        QNN_TENSOR_SET_DATA_FORMAT(_qnn_tensor, QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER);
         _dimensions = dimensions;
-        _view_source_dimensions = dimensions;
+        QNN_TENSOR_SET_DIMENSIONS(_qnn_tensor, _dimensions.data());
+        QNN_TENSOR_SET_DATA_FORMAT(_qnn_tensor, QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER);
         update_params_from_ggml_tensor(tensor_type, data_type, rank);
         QNN_LOG_DEBUG("[%s][%s]created, rank: %d, dims: [%d, %d, %d, %d], type: %s", get_backend_name(device),
                       _tensor_name.c_str(), rank, (int)_dimensions[0], (int)_dimensions[1], (int)_dimensions[2],
@@ -69,7 +69,7 @@ public:
             return true;
         }
 
-        Qnn_Tensor_t qnn_tensor = qnn_tensor_init(kDefaultQnnTensorVersion);
+        Qnn_Tensor_t qnn_tensor = _qnn_tensor;
         auto qnn_interface = _qnn_instance->get_qnn_interface();
         auto error = qnn_interface->qnn_tensor_create_graph_tensor(_graph_handle, &qnn_tensor);
         if (error != QNN_SUCCESS) {
@@ -93,7 +93,6 @@ public:
     }
 
     bool bind_ggml_tensor(ggml_tensor *tensor) {
-        _view_source_dimensions = get_view_internal_dimension(tensor, _element_offset);
         if (!bind_buffer(reinterpret_cast<uint8_t *>(tensor->data), ggml_nbytes(tensor))) {
             QNN_LOG_WARN("[%s]failed to bind ggml tensor(%s)", _tensor_name.c_str(), ggml_get_name(tensor));
             return false;
@@ -142,7 +141,6 @@ public:
     const Qnn_Tensor_t &get_qnn_tensor() const { return _qnn_tensor; }
     Qnn_DataType_t get_data_type() const { return QNN_TENSOR_GET_DATA_TYPE(_qnn_tensor); }
     const qnn_dimension_array_t &get_dimensions() const { return _dimensions; }
-    const qnn_dimension_array_t &get_view_source_dimensions() const { return _view_source_dimensions; }
     uint32_t get_qnn_tensor_id() const { return QNN_TENSOR_GET_ID(_qnn_tensor); }
 
 private:
@@ -163,7 +161,6 @@ private:
             return true;
         }
 
-        QNN_TENSOR_SET_DIMENSIONS(_qnn_tensor, _view_source_dimensions.data());
         if (should_use_mem_handle()) {
             if (!_rpc_buffer) {
                 auto rpc_buffer = std::make_shared<qnn_rpc_buffer>(
@@ -283,8 +280,6 @@ private:
     std::shared_ptr<qnn_instance> _qnn_instance;
     Qnn_Tensor_t _qnn_tensor = qnn_tensor_init(kDefaultQnnTensorVersion);
     qnn_dimension_array_t _dimensions = {};
-    qnn_dimension_array_t _view_source_dimensions = {};
-    size_t _element_offset = 0;
     Qnn_GraphHandle_t _graph_handle = nullptr;
     qnn_buffer_ptr _rpc_buffer;
 
