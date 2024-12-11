@@ -19,7 +19,7 @@
 #include "qnn-lib.hpp"
 
 namespace qnn {
-typedef std::unordered_map<std::string, std::unique_ptr<qnn::ggml_qnn_graph>> ggml_qnn_graph_cache_t;
+typedef std::unordered_map<std::string, std::unique_ptr<qnn::qnn_graph>> qnn_graph_cache_t;
 } // namespace qnn
 
 struct ggml_backend_qnn_device_context {
@@ -35,7 +35,7 @@ struct ggml_backend_qnn_device_context {
     std::shared_ptr<qnn::qnn_instance> instance;
     std::shared_ptr<qnn::qnn_interface> qnn_interface;
 
-    qnn::ggml_qnn_graph_cache_t qnn_graph_cache;
+    qnn::qnn_graph_cache_t qnn_graph_cache;
 
 #ifndef NDEBUG
     std::atomic_uint32_t support_op_count = 0;

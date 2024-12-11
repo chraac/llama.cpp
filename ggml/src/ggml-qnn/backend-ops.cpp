@@ -95,8 +95,7 @@ qnn::ggml_tensor_array_t to_ggml_tensor_array(const std::array<ggml_tensor *, _S
 }
 
 template <size_t _InputSize>
-bool execute_graph(qnn::ggml_qnn_graph *graph, const std::array<ggml_tensor *, _InputSize> &inputs,
-                   ggml_tensor *output) {
+bool execute_graph(qnn::qnn_graph *graph, const std::array<ggml_tensor *, _InputSize> &inputs, ggml_tensor *output) {
     if (!graph->execute(to_ggml_tensor_array<_InputSize>(inputs), to_ggml_tensor_array<1>({output}))) {
         QNN_LOG_WARN("execute failed");
         return false;
@@ -239,9 +238,8 @@ static_assert(kGgmlOpToQnnOp[GGML_UNARY_OP_GELU + kGgmlUnaryOpStart] != nullptr,
               "GGML_UNARY_OP_GELU does not correspond to QNN_OP_GELU");
 
 template <size_t _InputSize>
-qnn::ggml_qnn_graph *get_qnn_graph_from_cache(ggml_backend_qnn_device_context *ctx, size_t op,
-                                              const std::array<ggml_tensor *, _InputSize> &inputs,
-                                              ggml_tensor *output) {
+qnn::qnn_graph *get_qnn_graph_from_cache(ggml_backend_qnn_device_context *ctx, size_t op,
+                                         const std::array<ggml_tensor *, _InputSize> &inputs, ggml_tensor *output) {
     GGML_ASSERT(op < (GGML_OP_COUNT + GGML_UNARY_OP_COUNT));
 
     auto &graph_cache = ctx->qnn_graph_cache;
@@ -249,13 +247,13 @@ qnn::ggml_qnn_graph *get_qnn_graph_from_cache(ggml_backend_qnn_device_context *c
         op < kGgmlUnaryOpStart ? ggml_op_name(ggml_op(op)) : ggml_unary_op_name(ggml_unary_op(op - kGgmlUnaryOpStart));
     auto graph_key = get_graph_key<_InputSize, 1>(op_name, inputs, {output});
     auto it = graph_cache.find(graph_key);
-    qnn::ggml_qnn_graph *graph_ptr = nullptr;
+    qnn::qnn_graph *graph_ptr = nullptr;
     if (it != graph_cache.end()) {
         QNN_LOG_DEBUG("[%s]found graph %s in cache", qnn::get_backend_name(ctx->device), graph_key.c_str());
         graph_ptr = it->second.get();
     } else {
         auto graph =
-            std::make_unique<qnn::ggml_qnn_graph>(graph_key, ctx->device, ctx->instance, ctx->socinfo.vtcm_size_in_mb);
+            std::make_unique<qnn::qnn_graph>(graph_key, ctx->device, ctx->instance, ctx->socinfo.vtcm_size_in_mb);
         if (!graph->is_valid()) {
             return nullptr;
         }

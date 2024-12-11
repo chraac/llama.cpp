@@ -5,8 +5,8 @@
 
 namespace qnn {
 
-ggml_qnn_graph::ggml_qnn_graph(const std::string &graph_name, QNNBackend device,
-                               std::shared_ptr<qnn_instance> qnn_instance, size_t vtcm_size_in_mb)
+qnn_graph::qnn_graph(const std::string &graph_name, QNNBackend device, std::shared_ptr<qnn_instance> qnn_instance,
+                     size_t vtcm_size_in_mb)
     : _graph_name(graph_name), _device(device), _qnn_instance(qnn_instance) {
     QNN_LOG_DEBUG("[%s][%s]created", get_backend_name(device), graph_name.c_str());
 
@@ -63,10 +63,10 @@ ggml_qnn_graph::ggml_qnn_graph(const std::string &graph_name, QNNBackend device,
     _qnn_interface = qnn_interface;
 }
 
-ggml_qnn_graph::~ggml_qnn_graph() { QNN_LOG_DEBUG("[%s][%s]destroy", get_backend_name(_device), _graph_name.c_str()); }
+qnn_graph::~qnn_graph() { QNN_LOG_DEBUG("[%s][%s]destroy", get_backend_name(_device), _graph_name.c_str()); }
 
-bool ggml_qnn_graph::build_graph(ggml_op_constructor_t op_constructor, const ggml_tensor_array_t &tensor_inputs,
-                                 const ggml_tensor_array_t &tensor_outputs) {
+bool qnn_graph::build_graph(ggml_op_constructor_t op_constructor, const ggml_tensor_array_t &tensor_inputs,
+                            const ggml_tensor_array_t &tensor_outputs) {
     GGML_ASSERT(op_constructor);
     if (!is_valid()) {
         QNN_LOG_ERROR("Invalid graph");
@@ -96,7 +96,7 @@ bool ggml_qnn_graph::build_graph(ggml_op_constructor_t op_constructor, const ggm
     return true;
 }
 
-bool ggml_qnn_graph::execute(const ggml_tensor_array_t &tensor_inputs, const ggml_tensor_array_t &tensor_outputs) {
+bool qnn_graph::execute(const ggml_tensor_array_t &tensor_inputs, const ggml_tensor_array_t &tensor_outputs) {
     if (!_op_config->bind_input_tensors(tensor_inputs)) {
         QNN_LOG_ERROR("[%s][%s]bind input tensors failed", get_backend_name(_device), _graph_name.c_str());
         return false;
