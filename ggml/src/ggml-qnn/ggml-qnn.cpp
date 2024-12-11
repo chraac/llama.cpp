@@ -461,6 +461,10 @@ struct ggml_backend_qnn_reg_impl : ggml_backend_reg {
         for (size_t i = 0; i < QNN_BACKEND_COUNT; i++) {
             const auto device_enum = (QNNBackend)(QNN_BACKEND_COUNT - 1 - i); // init from the last device, i.e. NPU
             if (device_enum == QNN_BACKEND_CPU) {
+                /*
+                 * here we skip the initialization of CPU device,
+                 *   cause it'll block unsupported ops fallback to ggml cpu backend
+                 */
                 continue;
             }
 
