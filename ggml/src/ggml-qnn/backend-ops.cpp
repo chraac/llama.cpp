@@ -686,7 +686,7 @@ bool device_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor 
 }
 
 bool device_compute_graph(ggml_backend_qnn_device_context *ctx, ggml_cgraph *cgraph) {
-    QNN_LOG_DEBUG("[%s]compute graph, nodes count: %d", qnn::get_backend_name(ctx->device), (int)cgraph->n_nodes);
+    QNN_LOG_DEBUG("[%s]compute graph start, nodes count: %d", qnn::get_backend_name(ctx->device), (int)cgraph->n_nodes);
     for (int i = 0; i < cgraph->n_nodes; i++) {
         ggml_tensor *tensor = cgraph->nodes[i];
         if (ggml_is_empty(tensor)) {
@@ -713,6 +713,7 @@ bool device_compute_graph(ggml_backend_qnn_device_context *ctx, ggml_cgraph *cgr
         }
     }
 
+    QNN_LOG_DEBUG("[%s]compute graph success", qnn::get_backend_name(ctx->device));
     return true;
 }
 
