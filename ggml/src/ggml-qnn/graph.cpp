@@ -1,6 +1,8 @@
 
 #include "graph.hpp"
 
+#include "ggml-impl.h"
+
 #include "logger.hpp"
 
 namespace qnn {
@@ -74,13 +76,16 @@ bool qnn_graph::build_graph(ggml_op_constructor_t op_constructor, const ggml_ten
     }
 
     QNN_LOG_DEBUG("[%s][%s]build_graph start", get_backend_name(_device), _graph_name.c_str());
-    _op_config = op_constructor(_graph_name, _qnn_instance);
-    if (!_op_config->initialize_op_nodes(_device, _graph_handle, tensor_inputs, tensor_outputs)) {
+    auto operation = op_constructor(_graph_name, _qnn_instance);
+    if (!operation->initialize_op_nodes(_device, _graph_handle, tensor_inputs, tensor_outputs)) {
         QNN_LOG_ERROR("[%s][%s]initialize_op_nodes failed", get_backend_name(_device), _graph_name.c_str());
         return false;
     }
 
-    if (!_op_config->add_op_to_graph(_graph_handle)) {
+    _tensor_inputs = operation->get_input_tensors();
+    _tensor_outputs = operation->get_output_tensors();
+    _operations.push_back(std::move(operation));
+    if (!qnn::add_op_to_graph(_graph_handle, _operations)) {
         QNN_LOG_ERROR("[%s]add nodes failed", _graph_name.c_str());
         return false;
     }
@@ -97,24 +102,24 @@ bool qnn_graph::build_graph(ggml_op_constructor_t op_constructor, const ggml_ten
 }
 
 bool qnn_graph::execute(const ggml_tensor_array_t &tensor_inputs, const ggml_tensor_array_t &tensor_outputs) {
-    if (!_op_config->bind_input_tensors(tensor_inputs)) {
+    if (!qnn::bind_tensors(tensor_inputs, _tensor_inputs, _qnn_tensor_inputs)) {
         QNN_LOG_ERROR("[%s][%s]bind input tensors failed", get_backend_name(_device), _graph_name.c_str());
         return false;
     }
 
-    if (!_op_config->bind_output_tensors(tensor_outputs)) {
+    if (!qnn::bind_tensors(tensor_outputs, _tensor_outputs, _qnn_tensor_outputs)) {
         QNN_LOG_ERROR("[%s][%s]bind output tensors failed", get_backend_name(_device), _graph_name.c_str());
         return false;
     }
 
-    auto &qnn_tensor_inputs = _op_config->get_qnn_input_tensors();
-    auto &qnn_tensor_outputs = _op_config->get_qnn_output_tensors();
+    auto &qnn_tensor_inputs = _qnn_tensor_inputs;
+    auto &qnn_tensor_outputs = _qnn_tensor_outputs;
 
     auto error =
         _qnn_interface->qnn_graph_execute(_graph_handle, qnn_tensor_inputs.data(), qnn_tensor_inputs.size(),
                                           qnn_tensor_outputs.data(), qnn_tensor_outputs.size(), nullptr, nullptr);
-    _op_config->unbind_input_tensors();
-    _op_config->unbind_output_tensors();
+    unbind_tensors(_tensor_inputs);
+    unbind_tensors(_tensor_outputs);
 
     if (error != QNN_SUCCESS) {
         if (_device == QNN_BACKEND_NPU && error == QNN_COMMON_ERROR_SYSTEM_COMMUNICATION) {
@@ -129,6 +134,15 @@ bool qnn_graph::execute(const ggml_tensor_array_t &tensor_inputs, const ggml_ten
 
     QNN_LOG_DEBUG("[%s][%s]execute succeed", get_backend_name(_device), _graph_name.c_str());
     return true;
+}
+
+qnn_graph_ptr_t create_from_ggml_graph(const std::string &graph_name, QNNBackend device,
+                                       std::shared_ptr<qnn_instance> qnn_instance, const ggml_cgraph *cgraph) {
+    GGML_UNUSED(graph_name);
+    GGML_UNUSED(device);
+    GGML_UNUSED(qnn_instance);
+    GGML_UNUSED(cgraph);
+    return qnn_graph_ptr_t();
 }
 
 } // namespace qnn

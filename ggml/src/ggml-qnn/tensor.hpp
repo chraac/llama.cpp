@@ -289,5 +289,42 @@ private:
 
 using qnn_tensor_ptr_t = std::shared_ptr<ggml_qnn_tensor>;
 using qnn_tensor_array_t = std::vector<qnn_tensor_ptr_t>;
+using ggml_tensor_array_t = std::vector<ggml_tensor *>;
+
+inline bool bind_tensors(const ggml_tensor_array_t &ggml_tensors, qnn_tensor_array_t &tensor_wrappers,
+                         std::vector<Qnn_Tensor_t> &qnn_tensors) {
+    GGML_ASSERT(tensor_wrappers.size() == ggml_tensors.size());
+    GGML_ASSERT(qnn_tensors.size() == ggml_tensors.size());
+    for (size_t i = 0; i < ggml_tensors.size(); i++) {
+        auto *ggml_tensor = ggml_tensors[i];
+        if (!tensor_wrappers[i]->bind_ggml_tensor(ggml_tensor)) {
+            QNN_LOG_ERROR("bind tensor %s failed", ggml_get_name(ggml_tensor));
+            return false;
+        }
+
+        qnn_tensors[i] = tensor_wrappers[i]->get_qnn_tensor();
+    }
+
+    return true;
+}
+
+inline bool bind_tensors(const ggml_tensor_array_t &ggml_tensors, qnn_tensor_array_t &tensor_wrappers) {
+    GGML_ASSERT(tensor_wrappers.size() == ggml_tensors.size());
+    for (size_t i = 0; i < ggml_tensors.size(); i++) {
+        auto *ggml_tensor = ggml_tensors[i];
+        if (!tensor_wrappers[i]->bind_ggml_tensor(ggml_tensor)) {
+            QNN_LOG_ERROR("bind tensor %s failed", ggml_get_name(ggml_tensor));
+            return false;
+        }
+    }
+
+    return true;
+}
+
+inline void unbind_tensors(qnn_tensor_array_t &tensor_wrappers) {
+    for (auto &tensor : tensor_wrappers) {
+        tensor->unbind();
+    }
+}
 
 } // namespace qnn

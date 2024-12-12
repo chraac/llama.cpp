@@ -17,6 +17,16 @@ using ggml_op_constructor_t =
 
 ggml_op_constructor_t create_op_constructor(const std::string &op_name);
 
+inline bool add_op_to_graph(Qnn_GraphHandle_t graph_handle, std::vector<qnn_op_config_ptr_t> &operations) {
+    for (auto &op : operations) {
+        if (!op->add_op_to_graph(graph_handle)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 class ggml_qnn_op_config_base : public ggml_qnn_op_config {
 public:
     explicit ggml_qnn_op_config_base(const std::string &name, const std::string &package_name,
@@ -32,8 +42,8 @@ public:
     bool bind_output_tensors(const ggml_tensor_array_t &tensor_outputs) override;
     void unbind_input_tensors() override;
     void unbind_output_tensors() override;
-    std::vector<Qnn_Tensor_t> &get_qnn_input_tensors() override { return _qnn_tensor_inputs; }
-    std::vector<Qnn_Tensor_t> &get_qnn_output_tensors() override { return _qnn_tensor_outputs; }
+    const qnn_tensor_array_t &get_input_tensors() override { return _tensor_inputs; }
+    const qnn_tensor_array_t &get_output_tensors() override { return _tensor_outputs; }
 
 protected:
     Qnn_OpConfig_t get_op_config();
@@ -88,20 +98,13 @@ public:
         : _name(name), _qnn_instance(qnn_instance) {}
 
     ~ggml_qnn_aggregate_op_config() {
-        _qnn_tensor_inputs.clear();
-        _qnn_tensor_outputs.clear();
         _tensor_inputs.clear();
         _tensor_outputs.clear();
         _operations.clear();
     }
 
     bool add_op_to_graph(Qnn_GraphHandle_t graph_handle) override {
-        for (auto &op : _operations) {
-            if (!op->add_op_to_graph(graph_handle)) {
-                return false;
-            }
-        }
-        return true;
+        return qnn::add_op_to_graph(graph_handle, _operations);
     }
 
     bool bind_input_tensors(const ggml_tensor_array_t &tensor_inputs) override;
@@ -120,8 +123,8 @@ public:
         }
     }
 
-    std::vector<Qnn_Tensor_t> &get_qnn_input_tensors() override { return _qnn_tensor_inputs; }
-    std::vector<Qnn_Tensor_t> &get_qnn_output_tensors() override { return _qnn_tensor_outputs; }
+    const qnn_tensor_array_t &get_input_tensors() override { return _tensor_inputs; }
+    const qnn_tensor_array_t &get_output_tensors() override { return _tensor_outputs; }
 
 protected:
     std::string _name;
@@ -130,8 +133,6 @@ protected:
     std::vector<qnn_op_config_ptr_t> _operations;
     qnn_tensor_array_t _tensor_inputs;
     qnn_tensor_array_t _tensor_outputs;
-    std::vector<Qnn_Tensor_t> _qnn_tensor_inputs;
-    std::vector<Qnn_Tensor_t> _qnn_tensor_outputs;
 
 private:
     DISABLE_COPY(ggml_qnn_aggregate_op_config);

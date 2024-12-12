@@ -32,11 +32,20 @@ private:
     Qnn_GraphHandle_t _graph_handle = nullptr;
     std::shared_ptr<qnn_instance> _qnn_instance;
     std::shared_ptr<qnn_interface> _qnn_interface;
-    std::unique_ptr<ggml_qnn_op_config> _op_config;
-    std::vector<Qnn_Param_t> _param_types;
+    std::vector<qnn_op_config_ptr_t> _operations;
+
+    qnn_tensor_array_t _tensor_inputs;
+    qnn_tensor_array_t _tensor_outputs;
+    std::vector<Qnn_Tensor_t> _qnn_tensor_inputs;
+    std::vector<Qnn_Tensor_t> _qnn_tensor_outputs;
 
     DISABLE_COPY(qnn_graph);
     DISABLE_MOVE(qnn_graph);
 };
+
+using qnn_graph_ptr_t = std::shared_ptr<qnn_graph>;
+
+qnn_graph_ptr_t create_from_ggml_graph(const std::string &graph_name, QNNBackend device,
+                                       std::shared_ptr<qnn_instance> qnn_instance, const ggml_cgraph *cgraph);
 
 } // namespace qnn
