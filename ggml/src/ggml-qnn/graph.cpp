@@ -83,7 +83,9 @@ bool qnn_graph::build_graph(ggml_op_constructor_t op_constructor, const ggml_ten
     }
 
     _tensor_inputs = operation->get_input_tensors();
+    _qnn_tensor_inputs.resize(_tensor_inputs.size());
     _tensor_outputs = operation->get_output_tensors();
+    _qnn_tensor_outputs.resize(_tensor_outputs.size());
     _operations.push_back(std::move(operation));
     if (!qnn::add_op_to_graph(_graph_handle, _operations)) {
         QNN_LOG_ERROR("[%s]add nodes failed", _graph_name.c_str());
