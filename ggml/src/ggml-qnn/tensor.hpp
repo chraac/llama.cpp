@@ -327,4 +327,33 @@ inline void unbind_tensors(qnn_tensor_array_t &tensor_wrappers) {
     }
 }
 
+struct tensor_create_common_params {
+    const char *name_prefix;
+    int tensor_rank;
+    bool is_input;
+    QNNBackend device;
+    Qnn_GraphHandle_t graph_handle;
+    std::shared_ptr<qnn::qnn_instance> qnn_instance;
+};
+
+inline void create_tensors_from_ggml_tensor(const tensor_create_common_params &params,
+                                            const ggml_tensor_array_t &ggml_tensors,
+                                            qnn_tensor_array_t *tensor_wrappers,
+                                            std::vector<Qnn_Tensor_t> *qnn_tensors) {
+    tensor_wrappers->resize(ggml_tensors.size());
+    if (qnn_tensors) {
+        qnn_tensors->resize(ggml_tensors.size());
+    }
+
+    char buffer[GGML_MAX_NAME] = {};
+    auto tensor_type = params.is_input ? ggml_qnn_tensor::INPUT : ggml_qnn_tensor::OUTPUT;
+    for (size_t i = 0; i < ggml_tensors.size(); i++) {
+        snprintf(buffer, GGML_MAX_NAME, "%s%d", params.name_prefix, (int)i);
+        auto *ggml_tensor = ggml_tensors[i];
+        (*tensor_wrappers)[i] = std::make_shared<ggml_qnn_tensor>(tensor_type, std::string(buffer), ggml_tensor->ne,
+                                                                  ggml_tensor->type, params.tensor_rank, params.device,
+                                                                  params.graph_handle, params.qnn_instance);
+    }
+}
+
 } // namespace qnn
