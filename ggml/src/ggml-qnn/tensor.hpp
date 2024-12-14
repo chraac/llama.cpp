@@ -55,12 +55,24 @@ public:
     }
 
     bool set_data_buffer(std::vector<uint8_t> &&buffer) {
-        if (!bind_buffer_impl(buffer.data(), buffer.size())) {
-            return false;
+        _buffer_storage = std::move(buffer);
+
+        if (bind_buffer_impl(_buffer_storage.data(), _buffer_storage.size())) {
+            return true;
         }
 
-        _buffer_storage = std::move(buffer);
-        return true;
+        _buffer_storage.clear();
+        return false;
+    }
+
+    bool set_data_buffer(const uint8_t *buffer, const size_t buffer_size) {
+        _buffer_storage = std::vector<uint8_t>(buffer, buffer + buffer_size);
+        if (bind_buffer_impl(_buffer_storage.data(), _buffer_storage.size())) {
+            return true;
+        }
+
+        _buffer_storage.clear();
+        return false;
     }
 
     bool alloc_qnn_tensor_id() {
@@ -93,7 +105,12 @@ public:
     }
 
     bool bind_ggml_tensor(ggml_tensor *tensor) {
-        if (!bind_buffer(reinterpret_cast<uint8_t *>(tensor->data), ggml_nbytes(tensor))) {
+        if (!_buffer_storage.empty()) {
+            QNN_LOG_DEBUG("[%s]already has buffer storage, skip bind", _tensor_name.c_str());
+            return true;
+        }
+
+        if (!bind_buffer_impl(reinterpret_cast<uint8_t *>(tensor->data), ggml_nbytes(tensor))) {
             QNN_LOG_WARN("[%s]failed to bind ggml tensor(%s)", _tensor_name.c_str(), ggml_get_name(tensor));
             return false;
         }
