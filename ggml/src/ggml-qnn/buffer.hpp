@@ -8,18 +8,65 @@
 
 namespace qnn {
 
+/**
+ * @brief An interface for managing generic QNN buffers.
+ *
+ * This abstract class defines the interface for managing generic memory buffers in a QNN context.
+ */
 class qnn_buffer_interface {
 public:
     virtual ~qnn_buffer_interface() = default;
 
+    /**
+     * @brief Checks if the buffer is valid.
+     *
+     * This pure virtual function must be implemented by derived classes to check
+     * the validity of the buffer.
+     *
+     * @return true if the buffer is valid, false otherwise.
+     */
     virtual bool is_valid() const = 0;
+
+    /**
+     * @brief Gets the buffer pointer.
+     *
+     * This pure virtual function must be implemented by derived classes to return
+     * a pointer to the buffer.
+     *
+     * @return A pointer to the buffer.
+     */
     virtual uint8_t *get_buffer() = 0;
+
+    /**
+     * @brief Gets the buffer pointer.
+     *
+     * This pure virtual function must be implemented by derived classes to return
+     * a pointer to the buffer.
+     *
+     * @return A pointer to the buffer.
+     */
     virtual size_t get_size() const = 0;
+
+    /**
+     * @brief Gets the QNN memory handle associated with the buffer.
+     *
+     * This pure virtual function must be implemented by derived classes to return
+     * the memory handle associated with the buffer.
+     *
+     * @return The memory handle, or null if no valid QNN memory handle is attached.
+     */
     virtual Qnn_MemHandle_t get_mem_handle() const = 0;
 };
 
 using qnn_buffer_ptr = std::shared_ptr<qnn_buffer_interface>;
 
+/**
+ * @brief A class for managing QNN RPC memory buffers.
+ *
+ * This class is responsible for allocating, registering, and managing a buffer in RPC memory.
+ * It ensures that the buffer is properly allocated and registered with the QNN instance, and
+ * handles cleanup of the buffer and its associated memory handle upon destruction.
+ */
 class qnn_rpc_buffer : public qnn_buffer_interface {
 public:
     qnn_rpc_buffer(std::shared_ptr<qnn_instance> qnn_instance, const size_t size, const uint32_t rank,
@@ -29,7 +76,7 @@ public:
         _qnn_rpc_buffer = static_cast<uint8_t *>(qnn_instance->alloc_rpcmem(size, alignof(uint8_t *)));
         _qnn_rpc_mem_handle = qnn_instance->register_rpcmem(_qnn_rpc_buffer, rank, dimensions, data_type);
         if (!_qnn_rpc_buffer || !_qnn_rpc_mem_handle) {
-            QNN_LOG_WARN("register rpc mem failure");
+            QNN_LOG_WARN("Failed to register RPC memory: buffer or memory handle is null");
             // let the destructor free the buffer
             return;
         }
@@ -64,6 +111,13 @@ private:
     DISABLE_MOVE(qnn_rpc_buffer);
 };
 
+/**
+ * @brief A class for managing QNN memory buffers allocated in regular memory.
+ *
+ * This class is responsible for allocating, managing, and freeing memory buffers
+ * in regular (non-RPC) memory. It implements the qnn_buffer_interface to provide
+ * a consistent interface for buffer management.
+ */
 class qnn_mem_buffer : public qnn_buffer_interface {
 public:
     explicit qnn_mem_buffer(const uint8_t *data, size_t size) {
