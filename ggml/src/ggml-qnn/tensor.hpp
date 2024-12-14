@@ -20,7 +20,7 @@ namespace qnn {
 
 static_assert(GGML_MAX_DIMS == 4, "GGML_MAX_DIMS should be 4");
 
-class ggml_qnn_tensor {
+class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
 public:
     typedef enum _tensor_type { INPUT, OUTPUT, INTERMEDIATE, PARAMETER } tensor_type_t;
 
@@ -100,6 +100,8 @@ public:
 
         QNN_LOG_DEBUG("[%s][%s]bind to ggml tensor(%s)", get_backend_name(_device), _tensor_name.c_str(),
                       ggml_get_name(tensor));
+        tensor->extra = this;
+        _ggml_tensor = tensor;
         return true;
     }
 
@@ -135,6 +137,12 @@ public:
                       _buffer, (int)_buffer_size);
         _buffer = nullptr;
         _buffer_size = 0;
+
+        if (_ggml_tensor) {
+            _ggml_tensor->extra = nullptr;
+            _ggml_tensor = nullptr;
+        }
+
         return true;
     }
 
@@ -282,6 +290,7 @@ private:
     qnn_dimension_array_t _dimensions = {};
     Qnn_GraphHandle_t _graph_handle = nullptr;
     qnn_buffer_ptr _rpc_buffer;
+    ggml_tensor *_ggml_tensor = nullptr;
 
     DISABLE_COPY(ggml_qnn_tensor);
     DISABLE_MOVE(ggml_qnn_tensor);
@@ -290,6 +299,11 @@ private:
 using qnn_tensor_ptr_t = std::shared_ptr<ggml_qnn_tensor>;
 using qnn_tensor_array_t = std::vector<qnn_tensor_ptr_t>;
 using ggml_tensor_array_t = std::vector<ggml_tensor *>;
+
+inline qnn_tensor_ptr_t get_qnn_tensor_ptr(ggml_tensor *ggml_tensor) {
+    return ggml_tensor->extra ? reinterpret_cast<ggml_qnn_tensor *>(ggml_tensor->extra)->shared_from_this()
+                              : qnn_tensor_ptr_t();
+}
 
 inline bool bind_tensors(const ggml_tensor_array_t &ggml_tensors, qnn_tensor_array_t &tensor_wrappers,
                          std::vector<Qnn_Tensor_t> &qnn_tensors) {
