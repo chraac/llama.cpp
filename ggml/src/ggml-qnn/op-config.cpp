@@ -118,7 +118,7 @@ bool ggml_qnn_op_config_base::add_tensor_param(const std::string &name, const qn
     }
 
     GGML_ASSERT(data_size > 0);
-    if (!param_tensor->bind_buffer(const_cast<uint8_t *>(data), data_size)) {
+    if (!param_tensor->set_data_buffer(data, data_size)) {
         QNN_LOG_ERROR("parameter tensor bind_buffer failed");
         return false;
     }

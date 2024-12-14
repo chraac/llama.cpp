@@ -95,15 +95,6 @@ public:
         return true;
     }
 
-    bool bind_buffer(uint8_t *buffer, const size_t buffer_size) {
-        if (!_buffer_storage.empty()) {
-            QNN_LOG_DEBUG("[%s]already has buffer storage, skip bind", _tensor_name.c_str());
-            return true;
-        }
-
-        return bind_buffer_impl(buffer, buffer_size);
-    }
-
     bool bind_ggml_tensor(ggml_tensor *tensor) {
         if (!_buffer_storage.empty()) {
             QNN_LOG_DEBUG("[%s]already has buffer storage, skip bind", _tensor_name.c_str());
