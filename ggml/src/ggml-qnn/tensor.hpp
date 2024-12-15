@@ -49,29 +49,28 @@ public:
                           qnn_datatype_from_ggml_datatype(data_type), rank, device, graph_handle, qnn_instance) {}
 
     ~ggml_qnn_tensor() {
-        _buffer_storage.clear();
         unbind();
+        _buffer.reset();
         _rpc_buffer.reset();
     }
 
-    bool set_data_buffer(std::vector<uint8_t> &&buffer) {
-        _buffer_storage = std::move(buffer);
-
-        if (bind_buffer_impl(_buffer_storage.data(), _buffer_storage.size())) {
+    bool set_data_buffer(const uint8_t *buffer, const size_t buffer_size) {
+        auto qnn_buffer = std::make_shared<qnn_mem_buffer>(buffer, buffer_size);
+        if (bind_buffer_impl(qnn_buffer)) {
             return true;
         }
 
-        _buffer_storage.clear();
+        can_unbind = false;
         return false;
     }
 
-    bool set_data_buffer(const uint8_t *buffer, const size_t buffer_size) {
-        _buffer_storage = std::vector<uint8_t>(buffer, buffer + buffer_size);
-        if (bind_buffer_impl(_buffer_storage.data(), _buffer_storage.size())) {
+    bool set_data_buffer(std::vector<uint8_t> &&buffer) {
+        auto qnn_buffer = std::make_shared<qnn_mem_buffer>(buffer.data(), buffer.size());
+        if (bind_buffer_impl(qnn_buffer)) {
             return true;
         }
 
-        _buffer_storage.clear();
+        can_unbind = false;
         return false;
     }
 
@@ -96,12 +95,14 @@ public:
     }
 
     bool bind_ggml_tensor(ggml_tensor *tensor) {
-        if (!_buffer_storage.empty()) {
+        if (!can_unbind) {
             QNN_LOG_DEBUG("[%s]already has buffer storage, skip bind", _tensor_name.c_str());
             return true;
         }
 
-        if (!bind_buffer_impl(reinterpret_cast<uint8_t *>(tensor->data), ggml_nbytes(tensor))) {
+        auto buffer =
+            std::make_shared<qnn_mem_buffer_slice>(reinterpret_cast<uint8_t *>(tensor->data), ggml_nbytes(tensor));
+        if (!bind_buffer_impl(buffer)) {
             QNN_LOG_WARN("[%s]failed to bind ggml tensor(%s)", _tensor_name.c_str(), ggml_get_name(tensor));
             return false;
         }
@@ -129,7 +130,7 @@ public:
             return false;
         }
 
-        if (!_buffer_storage.empty()) {
+        if (!can_unbind) {
             QNN_LOG_DEBUG("[%s]already has buffer storage, stop unbind", _tensor_name.c_str());
             return true;
         }
@@ -142,9 +143,8 @@ public:
         }
 
         QNN_LOG_DEBUG("[%s][%s]unbind from buffer: %p, size: %d", get_backend_name(_device), _tensor_name.c_str(),
-                      _buffer, (int)_buffer_size);
-        _buffer = nullptr;
-        _buffer_size = 0;
+                      _buffer.get(), (int)_buffer->get_size());
+        _buffer.reset();
 
         if (_ggml_tensor) {
             _ggml_tensor->extra = nullptr;
@@ -160,14 +160,14 @@ public:
     uint32_t get_qnn_tensor_id() const { return QNN_TENSOR_GET_ID(_qnn_tensor); }
 
 private:
-    bool bind_buffer_impl(uint8_t *buffer, const size_t buffer_size) {
+    bool bind_buffer_impl(qnn_buffer_ptr buffer) {
         if (_buffer) {
             if (_buffer != buffer) {
-                QNN_LOG_WARN("[%s]has been bound to another buffer %p", _tensor_name.c_str(), _buffer);
+                QNN_LOG_WARN("[%s]has been bound to another buffer %p", _tensor_name.c_str(), _buffer.get());
                 return false;
             }
 
-            QNN_LOG_DEBUG("[%s]already bound to same ggml tensor %p", _tensor_name.c_str(), _buffer);
+            QNN_LOG_DEBUG("[%s]already bound to same ggml tensor %p", _tensor_name.c_str(), _buffer.get());
             return true;
         }
 
@@ -180,7 +180,7 @@ private:
         if (should_use_mem_handle()) {
             if (!_rpc_buffer) {
                 auto rpc_buffer = std::make_shared<qnn_rpc_buffer>(
-                    _qnn_instance, buffer_size, QNN_TENSOR_GET_RANK(_qnn_tensor),
+                    _qnn_instance, buffer->get_size(), QNN_TENSOR_GET_RANK(_qnn_tensor),
                     QNN_TENSOR_GET_DIMENSIONS(_qnn_tensor), QNN_TENSOR_GET_DATA_TYPE(_qnn_tensor));
                 if (!rpc_buffer->is_valid()) {
                     QNN_LOG_WARN("[%s][%s]alloc rpc mem failed", get_backend_name(_device), _tensor_name.c_str());
@@ -203,22 +203,21 @@ private:
                           QNN_TENSOR_GET_MEM_HANDLE(_qnn_tensor));
         } else {
             QNN_TENSOR_SET_MEM_TYPE(_qnn_tensor, QNN_TENSORMEMTYPE_RAW);
-            Qnn_ClientBuffer_t client_buf = {buffer, (uint32_t)buffer_size};
+            Qnn_ClientBuffer_t client_buf = {buffer->get_buffer(), (uint32_t)buffer->get_size()};
             QNN_TENSOR_SET_CLIENT_BUF(_qnn_tensor, client_buf);
             QNN_LOG_DEBUG("[%s]use client buffer %p size %d", _tensor_name.c_str(), client_buf.data,
                           (int)client_buf.dataSize);
         }
 
         _buffer = buffer;
-        _buffer_size = buffer_size;
 
         if (!write_to_qnn_tensor()) {
             QNN_LOG_WARN("[%s]write to qnn tensor failed", _tensor_name.c_str());
             return false;
         }
 
-        QNN_LOG_DEBUG("[%s][%s]bind to buffer: %p, size: %d", get_backend_name(_device), _tensor_name.c_str(), buffer,
-                      (int)buffer_size);
+        QNN_LOG_DEBUG("[%s][%s]bind to buffer: %p, size: %d", get_backend_name(_device), _tensor_name.c_str(),
+                      buffer.get(), (int)buffer->get_size());
         return true;
     }
 
@@ -230,7 +229,7 @@ private:
         }
 
         if (_rpc_buffer) {
-            memcpy(_rpc_buffer->get_buffer(), _buffer, _buffer_size);
+            memcpy(_rpc_buffer->get_buffer(), _buffer->get_buffer(), _buffer->get_size());
         }
 
         // For CPU and GPU, the data is already in the tensor.
@@ -246,7 +245,7 @@ private:
         }
 
         if (_rpc_buffer) {
-            memcpy(_buffer, _rpc_buffer->get_buffer(), _buffer_size);
+            memcpy(_buffer->get_buffer(), _rpc_buffer->get_buffer(), _buffer->get_size());
         }
 
         // For CPU and GPU, the data is already in the tensor.
@@ -289,9 +288,8 @@ private:
     }
 
     std::string _tensor_name;
-    uint8_t *_buffer = nullptr;
-    size_t _buffer_size = 0;
-    std::vector<uint8_t> _buffer_storage;
+    qnn_buffer_ptr _buffer;
+    bool can_unbind = true;
     QNNBackend _device;
     std::shared_ptr<qnn_instance> _qnn_instance;
     Qnn_Tensor_t _qnn_tensor = qnn_tensor_init(kDefaultQnnTensorVersion);
