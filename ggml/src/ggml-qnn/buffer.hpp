@@ -156,4 +156,24 @@ private:
     DISABLE_MOVE(qnn_mem_buffer);
 };
 
+class qnn_mem_buffer_slice : public qnn_buffer_interface {
+public:
+    qnn_mem_buffer_slice(const uint8_t *buffer, size_t size) : _buffer(const_cast<uint8_t *>(buffer)), _size(size) {}
+
+    bool is_valid() const override { return _buffer && _size; }
+
+    uint8_t *get_buffer() override { return _buffer; }
+
+    size_t get_size() const override { return _size; }
+
+    Qnn_MemHandle_t get_mem_handle() const override { return nullptr; }
+
+private:
+    uint8_t *_buffer = nullptr;
+    size_t _size = 0;
+
+    DISABLE_COPY(qnn_mem_buffer_slice);
+    DISABLE_MOVE(qnn_mem_buffer_slice);
+};
+
 } // namespace qnn
