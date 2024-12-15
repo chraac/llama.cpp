@@ -312,16 +312,16 @@ qnn_tensor_ptr_t ggml_qnn_matmul_op_config::create_gather_nodes(QNNBackend devic
         // here we calculate the index mapping, will generate a 1d tensor like [0, 0, 0, 1, 1, 1, 2, 2, 2, ...],
         //   by repeating each index [scale] times.
         const auto scale = dimensions[axis] / tensor_input->get_dimensions()[axis];
-        std::vector<uint8_t> index_buffer(dimensions[axis] * sizeof(uint32_t));
-        for (uint32_t *curr = reinterpret_cast<uint32_t *>(index_buffer.data()), *end = curr + dimensions[axis];
+        auto index_buffer = std::make_shared<qnn_mem_buffer>(dimensions[axis] * sizeof(uint32_t));
+        for (uint32_t *curr = reinterpret_cast<uint32_t *>(index_buffer->get_buffer()), *end = curr + dimensions[axis];
              curr < end; curr++) {
-            *curr = (curr - reinterpret_cast<uint32_t *>(index_buffer.data())) / scale;
+            *curr = (curr - reinterpret_cast<uint32_t *>(index_buffer->get_buffer())) / scale;
         }
 
         auto gather_index = std::make_shared<ggml_qnn_tensor>(
             ggml_qnn_tensor::PARAMETER, name + "_index", qnn_dimension_array_t{dimensions[axis]}, QNN_DATATYPE_UINT_32,
             1, device, graph_handle, qnn_instance);
-        gather_index->set_data_buffer(std::move(index_buffer));
+        gather_index->set_data_buffer(index_buffer);
         gather_op->set_input_tensors({tensor_input, gather_index});
 
         tensor_output = gather_out;

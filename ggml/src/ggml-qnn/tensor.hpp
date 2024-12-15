@@ -64,9 +64,8 @@ public:
         return false;
     }
 
-    bool set_data_buffer(std::vector<uint8_t> &&buffer) {
-        auto qnn_buffer = std::make_shared<qnn_mem_buffer>(buffer.data(), buffer.size());
-        if (bind_buffer_impl(qnn_buffer)) {
+    bool set_data_buffer(qnn_buffer_ptr buffer) {
+        if (bind_buffer_impl(buffer)) {
             return true;
         }
 
