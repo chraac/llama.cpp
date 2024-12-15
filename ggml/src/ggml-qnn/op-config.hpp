@@ -76,8 +76,11 @@ public:
                                        std::shared_ptr<qnn_instance> qnn_instance)
         : ggml_qnn_op_config_base(name, package_name, op_type, qnn_instance),
           _param_name(param_name),
-          _param_type(param_type),
-          _param_buffer(param_size) {}
+          _param_type(param_type) {
+        if (param_size > 0) {
+            _param_buffer = std::make_shared<qnn_mem_buffer>(param_size);
+        }
+    }
 
     bool initialize_op_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle,
                              const ggml_tensor_array_t &tensor_inputs,
@@ -86,7 +89,7 @@ public:
 private:
     const std::string _param_name;
     const Qnn_DataType_t _param_type = QNN_DATATYPE_UINT_32;
-    std::vector<uint8_t> _param_buffer;
+    qnn_buffer_ptr _param_buffer;
 
     DISABLE_COPY(ggml_qnn_single_op_config);
     DISABLE_MOVE(ggml_qnn_single_op_config);

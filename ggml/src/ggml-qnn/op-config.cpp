@@ -224,14 +224,14 @@ bool ggml_qnn_single_op_config::initialize_op_nodes(QNNBackend device, Qnn_Graph
     params.is_input = false;
     create_tensors_from_ggml_tensor(params, tensor_outputs, &_tensor_outputs, &_qnn_tensor_outputs);
 
-    if (_param_buffer.size() > 0) {
+    if (_param_buffer) {
         // handle parameters in output tensor
         auto *params = tensor_outputs.front()->op_params;
-        memcpy(_param_buffer.data(), params, _param_buffer.size());
+        memcpy(_param_buffer->get_buffer(), params, _param_buffer->get_size());
 
-        const uint32_t count = uint32_t(_param_buffer.size() / qnn_datatype_size(_param_type));
+        const uint32_t count = uint32_t(_param_buffer->get_size() / qnn_datatype_size(_param_type));
         const qnn_dimension_array_t param_dims = {count, 1, 1, 1};
-        add_tensor_param(_param_name, param_dims, 1, _param_buffer.data(), _param_type, device, graph_handle);
+        add_tensor_param(_param_name, param_dims, 1, _param_buffer->get_buffer(), _param_type, device, graph_handle);
     }
 
     return true;
