@@ -37,6 +37,11 @@ public:
     bool add_tensor_param(const std::string &name, const qnn_dimension_array_t &dimensions, int rank,
                           const uint8_t *data, const Qnn_DataType_t data_type, QNNBackend device,
                           Qnn_GraphHandle_t graph_handle);
+
+    void set_input_tensors(qnn::qnn_tensor_array_t &tensor_inputs) override;
+    void set_input_tensors(qnn::qnn_tensor_array_t &&tensor_inputs) override;
+    void set_output_tensors(qnn::qnn_tensor_array_t &tensor_inputs) override;
+    void set_output_tensors(qnn::qnn_tensor_array_t &&tensor_inputs) override;
     bool add_op_to_graph(Qnn_GraphHandle_t graph_handle) override;
     bool bind_input_tensors(const ggml_tensor_array_t &tensor_inputs) override;
     bool bind_output_tensors(const ggml_tensor_array_t &tensor_outputs) override;
@@ -106,14 +111,16 @@ public:
         _operations.clear();
     }
 
+    void set_input_tensors(qnn::qnn_tensor_array_t &tensor_inputs) override;
+    void set_input_tensors(qnn::qnn_tensor_array_t &&tensor_inputs) override;
+    void set_output_tensors(qnn::qnn_tensor_array_t &tensor_inputs) override;
+    void set_output_tensors(qnn::qnn_tensor_array_t &&tensor_inputs) override;
     bool add_op_to_graph(Qnn_GraphHandle_t graph_handle) override {
         return qnn::add_op_to_graph(graph_handle, _operations);
     }
 
     bool bind_input_tensors(const ggml_tensor_array_t &tensor_inputs) override;
-
     bool bind_output_tensors(const ggml_tensor_array_t &tensor_outputs) override;
-
     void unbind_input_tensors() override {
         for (auto &tensor : _tensor_inputs) {
             tensor->unbind();

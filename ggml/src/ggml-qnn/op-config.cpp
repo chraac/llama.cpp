@@ -65,29 +65,6 @@ public:
         return true;
     }
 
-    void set_input_tensors(qnn::qnn_tensor_array_t &tensor_inputs) {
-        _tensor_inputs = tensor_inputs;
-        _qnn_tensor_inputs.resize(_tensor_inputs.size());
-    }
-
-    void set_input_tensors(qnn::qnn_tensor_array_t &&tensor_inputs) {
-        _tensor_inputs = std::move(tensor_inputs);
-        _qnn_tensor_inputs.resize(_tensor_inputs.size());
-    }
-
-    void set_output_tensors(qnn::qnn_tensor_array_t &tensor_outputs) {
-        _tensor_outputs = tensor_outputs;
-        _qnn_tensor_outputs.resize(_tensor_outputs.size());
-    }
-
-    void set_output_tensors(qnn::qnn_tensor_array_t &&tensor_outputs) {
-        _tensor_outputs = std::move(tensor_outputs);
-        _qnn_tensor_outputs.resize(_tensor_outputs.size());
-    }
-
-    qnn::qnn_tensor_array_t &get_input_tensors() override { return _tensor_inputs; }
-    qnn::qnn_tensor_array_t &get_output_tensors() override { return _tensor_outputs; }
-
 private:
     DISABLE_COPY(ggml_qnn_connectable_op_config);
     DISABLE_MOVE(ggml_qnn_connectable_op_config);
@@ -136,6 +113,26 @@ bool ggml_qnn_op_config_base::add_tensor_param(const std::string &name, const qn
     param.tensorParam = param_tensor->get_qnn_tensor();
     _qnn_parameters.push_back(param);
     return true;
+}
+
+void ggml_qnn_op_config_base::set_input_tensors(qnn::qnn_tensor_array_t &tensor_inputs) {
+    _tensor_inputs = tensor_inputs;
+    _qnn_tensor_inputs.resize(_tensor_inputs.size());
+}
+
+void ggml_qnn_op_config_base::set_input_tensors(qnn::qnn_tensor_array_t &&tensor_inputs) {
+    _tensor_inputs = tensor_inputs;
+    _qnn_tensor_inputs.resize(_tensor_inputs.size());
+}
+
+void ggml_qnn_op_config_base::set_output_tensors(qnn::qnn_tensor_array_t &tensor_outputs) {
+    _tensor_outputs = std::move(tensor_outputs);
+    _qnn_tensor_outputs.resize(_tensor_outputs.size());
+}
+
+void ggml_qnn_op_config_base::set_output_tensors(qnn::qnn_tensor_array_t &&tensor_outputs) {
+    _tensor_outputs = std::move(tensor_outputs);
+    _qnn_tensor_outputs.resize(_tensor_outputs.size());
 }
 
 bool ggml_qnn_op_config_base::add_op_to_graph(Qnn_GraphHandle_t graph_handle) {
@@ -235,6 +232,22 @@ bool ggml_qnn_single_op_config::initialize_op_nodes(QNNBackend device, Qnn_Graph
     }
 
     return true;
+}
+
+void ggml_qnn_aggregate_op_config::set_input_tensors(qnn::qnn_tensor_array_t &tensor_inputs) {
+    _tensor_inputs = tensor_inputs;
+}
+
+void ggml_qnn_aggregate_op_config::set_input_tensors(qnn::qnn_tensor_array_t &&tensor_inputs) {
+    _tensor_inputs = std::move(tensor_inputs);
+}
+
+void ggml_qnn_aggregate_op_config::set_output_tensors(qnn::qnn_tensor_array_t &tensor_outputs) {
+    _tensor_outputs = tensor_outputs;
+}
+
+void ggml_qnn_aggregate_op_config::set_output_tensors(qnn::qnn_tensor_array_t &&tensor_outputs) {
+    _tensor_outputs = std::move(tensor_outputs);
 }
 
 bool ggml_qnn_aggregate_op_config::bind_input_tensors(const ggml_tensor_array_t &tensor_inputs) {

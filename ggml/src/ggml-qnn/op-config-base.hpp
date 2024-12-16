@@ -22,6 +22,34 @@ public:
     virtual ~ggml_qnn_op_config() {}
 
     /**
+     * @brief Sets custom input tensors for the operation. This method should be called before `initialize_op_nodes`.
+     * If no custom input tensors are provided, the input tensors will be automatically created from the input ggml
+     * tensors.
+     *
+     * This pure virtual function must be overridden by derived classes to set
+     * the input tensors for the operation. The function takes a reference to a
+     * vector of qnn_tensor_ptr_t objects, which represent the input tensors.
+     *
+     * @param tensor_inputs A reference to a vector of qnn_tensor_ptr_t objects representing the input tensors.
+     */
+    virtual void set_input_tensors(qnn::qnn_tensor_array_t &tensor_inputs) = 0;
+    virtual void set_input_tensors(qnn::qnn_tensor_array_t &&tensor_inputs) = 0;
+
+    /**
+     * @brief Sets custom output tensors for the operation. This method should be called before `initialize_op_nodes`.
+     * If no custom output tensors are provided, the output tensors will be automatically created from the output ggml
+     * tensors.
+     *
+     * This pure virtual function must be overridden by derived classes to set
+     * the output tensors for the operation. The function takes a reference to a
+     * vector of qnn_tensor_ptr_t objects, which represent the output tensors.
+     *
+     * @param tensor_outputs A reference to a vector of qnn_tensor_ptr_t objects representing the output tensors.
+     */
+    virtual void set_output_tensors(qnn::qnn_tensor_array_t &tensor_outputs) = 0;
+    virtual void set_output_tensors(qnn::qnn_tensor_array_t &&tensor_inputs) = 0;
+
+    /**
      * @brief Creates tensors and internal nodes for constructing the calculation graph.
      *
      * This pure virtual function is responsible for creating tensors on the given
