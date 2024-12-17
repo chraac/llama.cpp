@@ -359,10 +359,16 @@ inline void create_tensors_from_ggml_tensor(const tensor_create_common_params &p
                                             const ggml_tensor_array_t &ggml_tensors,
                                             qnn_tensor_array_t *tensor_wrappers,
                                             std::vector<Qnn_Tensor_t> *qnn_tensors) {
-    tensor_wrappers->resize(ggml_tensors.size());
     if (qnn_tensors) {
         qnn_tensors->resize(ggml_tensors.size());
     }
+
+    if (!tensor_wrappers->empty()) {
+        QNN_LOG_DEBUG("tensor_wrappers is not empty, skip create tensors");
+        return;
+    }
+
+    tensor_wrappers->resize(ggml_tensors.size());
 
     char buffer[GGML_MAX_NAME] = {};
     auto tensor_type = params.is_input ? ggml_qnn_tensor::INPUT : ggml_qnn_tensor::OUTPUT;

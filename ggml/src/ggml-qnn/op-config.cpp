@@ -49,27 +49,6 @@ Qnn_DataType_t get_tensor_type(const qnn::qnn_tensor_array_t &tensors) {
     return type;
 }
 
-class ggml_qnn_connectable_op_config : public qnn::ggml_qnn_op_config_base {
-public:
-    explicit ggml_qnn_connectable_op_config(const std::string &name, const std::string &package_name,
-                                            const std::string &op_type, std::shared_ptr<qnn::qnn_instance> qnn_instance)
-        : ggml_qnn_op_config_base(name, package_name, op_type, qnn_instance) {}
-
-    bool initialize_op_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle,
-                             const qnn::ggml_tensor_array_t &tensor_inputs,
-                             const qnn::ggml_tensor_array_t &tensor_outputs) override {
-        GGML_UNUSED(device);
-        GGML_UNUSED(graph_handle);
-        GGML_UNUSED(tensor_inputs);
-        GGML_UNUSED(tensor_outputs);
-        return true;
-    }
-
-private:
-    DISABLE_COPY(ggml_qnn_connectable_op_config);
-    DISABLE_MOVE(ggml_qnn_connectable_op_config);
-};
-
 } // namespace
 
 namespace qnn {
@@ -313,8 +292,8 @@ qnn_tensor_ptr_t ggml_qnn_matmul_op_config::create_gather_nodes(QNNBackend devic
         auto gather_out =
             std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::INTERMEDIATE, name + "_out", dimensions,
                                               tensor_input->get_data_type(), rank, device, graph_handle, qnn_instance);
-        auto gather_op = std::make_shared<ggml_qnn_connectable_op_config>(name, QNN_OP_PACKAGE_NAME_QTI_AISW,
-                                                                          QNN_OP_GATHER, qnn_instance);
+        auto gather_op = std::make_shared<ggml_qnn_single_op_config>(name, QNN_OP_PACKAGE_NAME_QTI_AISW, QNN_OP_GATHER,
+                                                                     qnn_instance);
 
         Qnn_Scalar_t scalar = QNN_SCALAR_INIT;
         scalar.dataType = QNN_DATATYPE_INT_32;
@@ -379,8 +358,8 @@ bool ggml_qnn_matmul_op_config::create_convert_nodes(QNNBackend device, Qnn_Grap
         auto convert_out = std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::INTERMEDIATE, convert_name + "_out",
                                                              convert_in->get_dimensions(), tensor_type, rank, device,
                                                              graph_handle, _qnn_instance);
-        auto convert = std::make_shared<ggml_qnn_connectable_op_config>(convert_name, QNN_OP_PACKAGE_NAME_QTI_AISW,
-                                                                        QNN_OP_CONVERT, _qnn_instance);
+        auto convert = std::make_shared<ggml_qnn_single_op_config>(convert_name, QNN_OP_PACKAGE_NAME_QTI_AISW,
+                                                                   QNN_OP_CONVERT, _qnn_instance);
         convert->set_input_tensors({convert_in});
         convert->set_output_tensors({convert_out});
         tensor_inputs[i] = convert_out;
@@ -394,8 +373,8 @@ bool ggml_qnn_matmul_op_config::create_convert_nodes(QNNBackend device, Qnn_Grap
         auto convert_in = std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::INTERMEDIATE, convert_name + "_in",
                                                             convert_out->get_dimensions(), tensor_type, rank, device,
                                                             graph_handle, _qnn_instance);
-        auto output_convert = std::make_shared<ggml_qnn_connectable_op_config>(
-            convert_name, QNN_OP_PACKAGE_NAME_QTI_AISW, QNN_OP_CONVERT, _qnn_instance);
+        auto output_convert = std::make_shared<ggml_qnn_single_op_config>(convert_name, QNN_OP_PACKAGE_NAME_QTI_AISW,
+                                                                          QNN_OP_CONVERT, _qnn_instance);
         output_convert->set_input_tensors({convert_in});
         output_convert->set_output_tensors({convert_out});
         tensor_outputs.front() = convert_in;
@@ -465,12 +444,12 @@ bool ggml_qnn_matmul_op_config::create_mat_mul_nodes(QNNBackend device, Qnn_Grap
                                                        dst->get_data_type(), rank, device, graph_handle, _qnn_instance);
 
     // create transpose_out
-    auto transpose_out = std::make_shared<ggml_qnn_connectable_op_config>(
-        _name + "_trans1", QNN_OP_PACKAGE_NAME_QTI_AISW, QNN_OP_TRANSPOSE, _qnn_instance);
+    auto transpose_out = std::make_shared<ggml_qnn_single_op_config>(_name + "_trans1", QNN_OP_PACKAGE_NAME_QTI_AISW,
+                                                                     QNN_OP_TRANSPOSE, _qnn_instance);
 
     // create mat_mul
-    auto mat_mul = std::make_shared<ggml_qnn_connectable_op_config>(_name, QNN_OP_PACKAGE_NAME_QTI_AISW, QNN_OP_MAT_MUL,
-                                                                    _qnn_instance);
+    auto mat_mul =
+        std::make_shared<ggml_qnn_single_op_config>(_name, QNN_OP_PACKAGE_NAME_QTI_AISW, QNN_OP_MAT_MUL, _qnn_instance);
 
     Qnn_Scalar_t scalar = QNN_SCALAR_INIT;
     scalar.dataType = QNN_DATATYPE_BOOL_8;
