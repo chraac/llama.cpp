@@ -365,6 +365,7 @@ inline void create_tensors_from_ggml_tensor(const tensor_create_common_params &p
 
     if (!tensor_wrappers->empty()) {
         QNN_LOG_DEBUG("tensor_wrappers is not empty, skip create tensors");
+        GGML_ASSERT(tensor_wrappers->size() == ggml_tensors.size());
         return;
     }
 
