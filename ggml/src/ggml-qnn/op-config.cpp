@@ -202,6 +202,7 @@ bool ggml_qnn_single_op_config::initialize_op_nodes(QNNBackend device, Qnn_Graph
 
     if (_param_buffer) {
         // handle parameters in output tensor
+        // TODO: fix this
         auto *params = tensor_outputs.front()->op_params;
         memcpy(_param_buffer->get_buffer(), params, _param_buffer->get_size());
 
@@ -210,6 +211,12 @@ bool ggml_qnn_single_op_config::initialize_op_nodes(QNNBackend device, Qnn_Graph
         add_tensor_param(_param_name, param_dims, 1, _param_buffer->get_buffer(), _param_type, device, graph_handle);
     }
 
+    return true;
+}
+
+bool ggml_qnn_single_op_config::initialize_op_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle) {
+    GGML_UNUSED(device);
+    GGML_UNUSED(graph_handle);
     return true;
 }
 
@@ -254,7 +261,15 @@ bool ggml_qnn_matmul_op_config::initialize_op_nodes(QNNBackend device, Qnn_Graph
     params.is_input = false;
     create_tensors_from_ggml_tensor(params, tensor_outputs, &_tensor_outputs, nullptr);
 
+    return initialize_op_nodes(device, graph_handle);
+}
+
+bool ggml_qnn_matmul_op_config::initialize_op_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle) {
+    GGML_ASSERT(_tensor_inputs.size() == 2);
+    GGML_ASSERT(_tensor_outputs.size() == 1);
+
     // create convert nodes
+    const auto tensor_rank = _tensor_inputs.front()->get_rank();
     qnn_tensor_array_t mat_mul_tensor_inputs = _tensor_inputs;
     qnn_tensor_array_t mat_mul_tensor_outputs = _tensor_outputs;
     if (!create_convert_nodes(device, graph_handle, tensor_rank, mat_mul_tensor_inputs, mat_mul_tensor_outputs)) {

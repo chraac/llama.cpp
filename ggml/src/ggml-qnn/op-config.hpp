@@ -91,6 +91,8 @@ public:
                              const ggml_tensor_array_t &tensor_inputs,
                              const ggml_tensor_array_t &tensor_outputs) override;
 
+    bool initialize_op_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle) override;
+
 private:
     const std::string _param_name;
     const Qnn_DataType_t _param_type = QNN_DATATYPE_UINT_32;
@@ -157,6 +159,8 @@ public:
     bool initialize_op_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle,
                              const ggml_tensor_array_t &tensor_inputs,
                              const ggml_tensor_array_t &tensor_outputs) override;
+
+    bool initialize_op_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle) override;
 
 private:
     qnn_tensor_ptr_t create_gather_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle, const int rank,

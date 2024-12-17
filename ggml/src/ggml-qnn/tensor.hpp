@@ -156,6 +156,7 @@ public:
     const Qnn_Tensor_t &get_qnn_tensor() const { return _qnn_tensor; }
     Qnn_DataType_t get_data_type() const { return QNN_TENSOR_GET_DATA_TYPE(_qnn_tensor); }
     const qnn_dimension_array_t &get_dimensions() const { return _dimensions; }
+    uint32_t get_rank() const { return QNN_TENSOR_GET_RANK(_qnn_tensor); }
     uint32_t get_qnn_tensor_id() const { return QNN_TENSOR_GET_ID(_qnn_tensor); }
 
 private:
