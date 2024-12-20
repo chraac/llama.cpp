@@ -15,6 +15,9 @@ namespace qnn {
 using ggml_op_constructor_t =
     std::function<std::unique_ptr<ggml_qnn_op_config>(const std::string &, std::shared_ptr<qnn_instance>)>;
 
+void get_ggml_op_output_dimensions(const std::vector<const ggml_dimension_array_t &> &input_dims, ggml_op op,
+                                   ggml_dimension_array_t &output_dims);
+
 ggml_op_constructor_t create_op_constructor(const std::string &op_name);
 
 inline bool add_op_to_graph(Qnn_GraphHandle_t graph_handle, std::vector<qnn_op_config_ptr_t> &operations) {

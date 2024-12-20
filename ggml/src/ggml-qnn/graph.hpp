@@ -1,7 +1,6 @@
 
 #pragma once
 
-#include <cstdio>
 #include <memory>
 #include <string>
 #include <vector>
@@ -21,10 +20,14 @@ public:
 
     bool build_graph(ggml_op_constructor_t op_constructor, const ggml_tensor_array_t &tensor_inputs,
                      const ggml_tensor_array_t &tensor_outputs);
+    bool build_graph(qnn_op_config_array_t &operations, qnn_tensor_array_t &intputs, qnn_tensor_array_t &outputs);
+
     bool execute(const ggml_tensor_array_t &tensor_inputs, const ggml_tensor_array_t &tensor_outputs);
     bool is_valid() const { return _graph_handle != nullptr; }
     Qnn_GraphHandle_t get_graph_handler() const { return _graph_handle; }
+    std::shared_ptr<qnn_instance> get_qnn_instance() { return _qnn_instance; }
     const std::string &get_name() const { return _graph_name; }
+    QNNBackend get_device() const { return _device; }
 
 private:
     const std::string _graph_name;
@@ -32,7 +35,7 @@ private:
     Qnn_GraphHandle_t _graph_handle = nullptr;
     std::shared_ptr<qnn_instance> _qnn_instance;
     std::shared_ptr<qnn_interface> _qnn_interface;
-    std::vector<qnn_op_config_ptr_t> _operations;
+    qnn_op_config_array_t _operations;
 
     qnn_tensor_array_t _tensor_inputs;
     qnn_tensor_array_t _tensor_outputs;
@@ -44,8 +47,9 @@ private:
 };
 
 using qnn_graph_ptr_t = std::shared_ptr<qnn_graph>;
+using ggml_to_qnn_op_array_t = const char * [GGML_OP_COUNT + GGML_UNARY_OP_COUNT];
 
-qnn_graph_ptr_t create_from_ggml_graph(const std::string &graph_name, QNNBackend device,
-                                       std::shared_ptr<qnn_instance> qnn_instance, const ggml_cgraph *cgraph);
+bool init_from_ggml_graph(const ggml_cgraph *cgraph, const ggml_to_qnn_op_array_t &ggml_to_qnn_op_map,
+                          qnn_graph_ptr_t graph);
 
 } // namespace qnn

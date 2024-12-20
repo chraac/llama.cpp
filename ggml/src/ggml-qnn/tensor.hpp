@@ -314,7 +314,7 @@ inline qnn_tensor_ptr_t get_qnn_tensor_ptr(ggml_tensor *ggml_tensor) {
 inline bool bind_tensors(const ggml_tensor_array_t &ggml_tensors, qnn_tensor_array_t &tensor_wrappers,
                          std::vector<Qnn_Tensor_t> &qnn_tensors) {
     GGML_ASSERT(tensor_wrappers.size() == ggml_tensors.size());
-    GGML_ASSERT(qnn_tensors.size() == ggml_tensors.size());
+    qnn_tensors.resize(ggml_tensors.size());
     for (size_t i = 0; i < ggml_tensors.size(); i++) {
         auto *ggml_tensor = ggml_tensors[i];
         if (!tensor_wrappers[i]->bind_ggml_tensor(ggml_tensor)) {

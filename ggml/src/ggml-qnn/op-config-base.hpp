@@ -165,5 +165,6 @@ public:
 };
 
 using qnn_op_config_ptr_t = std::shared_ptr<ggml_qnn_op_config>;
+using qnn_op_config_array_t = std::vector<qnn_op_config_ptr_t>;
 
 } // namespace qnn
