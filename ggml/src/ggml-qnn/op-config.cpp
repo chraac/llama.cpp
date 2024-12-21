@@ -509,7 +509,4 @@ ggml_op_constructor_t create_op_constructor(const std::string &op_name) {
     };
 }
 
-void get_ggml_op_output_dimensions(const std::vector<const ggml_dimension_array_t &> &input_dims, ggml_op op,
-                                   ggml_dimension_array_t &output_dims) {}
-
 } // namespace qnn
