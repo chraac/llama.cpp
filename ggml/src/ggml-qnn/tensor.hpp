@@ -22,7 +22,7 @@ static_assert(GGML_MAX_DIMS == 4, "GGML_MAX_DIMS should be 4");
 
 class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
 public:
-    typedef enum _tensor_type { INPUT, OUTPUT, INTERMEDIATE, PARAMETER } tensor_type_t;
+    typedef enum _tensor_type { INPUT, OUTPUT, INTERMEDIATE, PARAMETER, BIDIRECTION } tensor_type_t;
 
     explicit ggml_qnn_tensor(tensor_type_t tensor_type, const std::string &name,
                              const qnn_dimension_array_t &dimensions, Qnn_DataType_t data_type, int rank,
@@ -272,6 +272,9 @@ private:
                 break;
             case PARAMETER:
                 new_tensor_type = QNN_TENSOR_TYPE_STATIC;
+                break;
+            case BIDIRECTION:
+                new_tensor_type = QNN_TENSOR_TYPE_APP_READWRITE;
                 break;
             case INTERMEDIATE:
             default:

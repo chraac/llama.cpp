@@ -7,6 +7,30 @@
 
 #include "logger.hpp"
 #include "op-config.hpp"
+#include "tensor.hpp"
+
+namespace {
+using ggml_tensor_set_t = std::unordered_set<ggml_tensor *>;
+using qnn_tensor_cache_t = std::unordered_map<ggml_tensor *, qnn::qnn_tensor_ptr_t>;
+
+qnn::qnn_tensor_array_t create_tensors(const ggml_tensor_set_t &tensor_set, qnn::ggml_qnn_tensor::tensor_type_t type,
+                                       int rank, QNNBackend device, Qnn_GraphHandle_t graph_handle,
+                                       std::shared_ptr<qnn::qnn_instance> qnn_instance,
+                                       qnn_tensor_cache_t &tensor_cache) {
+    qnn::qnn_tensor_array_t tensors;
+    for (auto *tensor : tensor_set) {
+        if (tensor_cache.count(tensor)) {
+            tensors.push_back(tensor_cache[tensor]);
+        } else {
+            tensors.push_back(std::make_shared<qnn::ggml_qnn_tensor>(type, tensor->name, tensor->ne, tensor->type, rank,
+                                                                     device, graph_handle, qnn_instance));
+        }
+    }
+
+    return tensors;
+}
+
+} // namespace
 
 namespace qnn {
 
@@ -160,9 +184,9 @@ bool qnn_graph::execute(const ggml_tensor_array_t &tensor_inputs, const ggml_ten
 }
 
 bool init_from_ggml_graph(const ggml_cgraph *cgraph, qnn_graph_ptr_t graph) {
-    std::unordered_set<ggml_tensor *> input_set;
-    std::unordered_set<ggml_tensor *> output_set;
-    std::unordered_set<ggml_tensor *> visited_set;
+    ggml_tensor_set_t input_set;
+    ggml_tensor_set_t output_set;
+    ggml_tensor_set_t visited_set;
     int rank = 0;
     for (int i = 0; i < cgraph->n_nodes; i++) {
         ggml_tensor *dst = cgraph->nodes[i];
@@ -188,23 +212,11 @@ bool init_from_ggml_graph(const ggml_cgraph *cgraph, qnn_graph_ptr_t graph) {
         }
     }
 
-    constexpr const auto create_tensors = [](std::unordered_set<ggml_tensor *> &tensor_set,
-                                             ggml_qnn_tensor::tensor_type_t type, int rank, QNNBackend device,
-                                             Qnn_GraphHandle_t graph_handle,
-                                             std::shared_ptr<qnn_instance> qnn_instance) -> qnn_tensor_array_t {
-        qnn_tensor_array_t tensors;
-        for (auto *tensor : tensor_set) {
-            tensors.push_back(std::make_shared<ggml_qnn_tensor>(type, tensor->name, tensor->ne, tensor->type, rank,
-                                                                device, graph_handle, qnn_instance));
-        }
-
-        return tensors;
-    };
-
+    qnn_tensor_cache_t tensor_cache;
     auto intput_tensors = create_tensors(input_set, ggml_qnn_tensor::INPUT, rank, graph->get_device(),
-                                         graph->get_graph_handler(), graph->get_qnn_instance());
+                                         graph->get_graph_handler(), graph->get_qnn_instance(), tensor_cache);
     auto output_tensors = create_tensors(output_set, ggml_qnn_tensor::OUTPUT, rank, graph->get_device(),
-                                         graph->get_graph_handler(), graph->get_qnn_instance());
+                                         graph->get_graph_handler(), graph->get_qnn_instance(), tensor_cache);
 
     for (int i = 0; i < cgraph->n_nodes; i++) {
         ggml_tensor *dst = cgraph->nodes[i];

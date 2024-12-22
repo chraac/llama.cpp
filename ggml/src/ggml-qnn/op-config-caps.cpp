@@ -22,6 +22,7 @@ void mat_mul_op_dims(const std::vector<const qnn::ggml_dimension_array_t> &input
 
 struct qnn_op_caps_t {
     const char *qnn_op_name = nullptr;
+    const size_t param_count = 0;
     op_dims_calc_func_t calc_dims_func = nullptr;
 };
 
@@ -31,6 +32,7 @@ constexpr const qnn_op_caps_t kOpCaps[] = {
     {
         // GGML_OP_ADD
         QNN_OP_ELEMENT_WISE_ADD, // qnn_op_name
+        1,                       // param_count
         element_wise_op_dims,    // calc_dims_func
     },
     {}, // GGML_OP_ADD1
@@ -38,27 +40,32 @@ constexpr const qnn_op_caps_t kOpCaps[] = {
     {
         // GGML_OP_SUB
         QNN_OP_ELEMENT_WISE_SUBTRACT, // qnn_op_name
+        1,                            // param_count
         element_wise_op_dims,         // calc_dims_func
     },
     {
         // GGML_OP_MUL
         QNN_OP_ELEMENT_WISE_MULTIPLY, // qnn_op_name
+        1,                            // param_count
         element_wise_op_dims,         // calc_dims_func
     },
     {
         // GGML_OP_DIV
         QNN_OP_ELEMENT_WISE_DIVIDE, // qnn_op_name
+        1,                          // param_count
         element_wise_op_dims,       // calc_dims_func
     },
     {}, // GGML_OP_SQR
     {
         // GGML_OP_SQRT
         QNN_OP_ELEMENT_WISE_SQUARE_ROOT, // qnn_op_name
+        1,                               // param_count
         element_wise_op_dims,            // calc_dims_func
     },
     {
         // GGML_OP_LOG
         QNN_OP_ELEMENT_WISE_LOG, // qnn_op_name
+        1,                       // param_count
         element_wise_op_dims,    // calc_dims_func
     },
     {}, // GGML_OP_SIN
@@ -79,6 +86,7 @@ constexpr const qnn_op_caps_t kOpCaps[] = {
     {
         // GGML_OP_MUL_MAT
         QNN_OP_MAT_MUL,  // qnn_op_name
+        2,               // param_count
         mat_mul_op_dims, // calc_dims_func
     },
     {}, // GGML_OP_MUL_MAT_ID
@@ -156,6 +164,7 @@ constexpr const qnn_op_caps_t kOpCaps[] = {
     {
         // GGML_UNARY_OP_GELU
         QNN_OP_GELU, // qnn_op_name
+        1,           // param_count
         nullptr,     // TODO: calc_dims_func
     },
     {}, // GGML_UNARY_OP_GELU_QUICK
