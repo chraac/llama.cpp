@@ -321,7 +321,7 @@ constexpr const ggml_qnn_unary_op_t kQnnUnaryOpsTable[] = {
     nullptr,                                                        // GGML_UNARY_OP_EXP
 };
 
-static_assert(sizeof(kQnnUnaryOpsTable) / sizeof(kQnnUnaryOpsTable[0]) == (GGML_OP_COUNT + GGML_UNARY_OP_COUNT),
+static_assert(std::size(kQnnUnaryOpsTable) == (GGML_OP_COUNT + GGML_UNARY_OP_COUNT),
               "GGML_OP_COUNT does not match the size of the kQnnUnaryOpsTable table");
 
 constexpr const ggml_qnn_binary_op_t kQnnBinaryOpsTable[] = {
@@ -417,7 +417,7 @@ constexpr const ggml_qnn_binary_op_t kQnnBinaryOpsTable[] = {
     nullptr, // GGML_OP_OPT_STEP_ADAMW
 };
 
-static_assert(sizeof(kQnnBinaryOpsTable) / sizeof(kQnnBinaryOpsTable[0]) == GGML_OP_COUNT,
+static_assert(std::size(kQnnBinaryOpsTable) == GGML_OP_COUNT,
               "GGML_OP_COUNT does not match the size of the kQnnBinaryOpsTable table");
 
 bool ggml_qnn_supports_tensor(ggml_backend_qnn_device_context *ctx, const ggml_tensor *tensor) {

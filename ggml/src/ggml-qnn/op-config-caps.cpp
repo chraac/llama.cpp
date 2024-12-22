@@ -165,14 +165,15 @@ constexpr const qnn_op_caps_t kOpCaps[] = {
     {}, // GGML_UNARY_OP_EXP
 };
 
-static_assert(sizeof(kOpCaps) / sizeof(kOpCaps[0]) == (GGML_OP_COUNT + GGML_UNARY_OP_COUNT),
-              "GGML_OP_COUNT does not match the size of the kOpCaps table");
+static_assert(kOpCaps[GGML_OP_NONE].calc_dims_func == nullptr, "GGML_OP_NONE should not have calc_dims_func function");
 static_assert(kOpCaps[GGML_OP_ADD].calc_dims_func == element_wise_op_dims,
               "GGML_OP_ADD does not have element_wise_op_dims function");
 static_assert(kOpCaps[GGML_OP_MUL_MAT].calc_dims_func == mat_mul_op_dims,
               "GGML_OP_ADD does not have element_wise_op_dims function");
 static_assert(kOpCaps[GGML_OP_LOG].calc_dims_func == element_wise_op_dims,
               "GGML_OP_LOG does not have element_wise_op_dims function");
+static_assert(std::size(kOpCaps) == (GGML_OP_COUNT + GGML_UNARY_OP_COUNT),
+              "GGML_OP_COUNT does not match the size of the kOpCaps table");
 
 } // namespace
 
