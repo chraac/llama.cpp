@@ -159,8 +159,7 @@ bool qnn_graph::execute(const ggml_tensor_array_t &tensor_inputs, const ggml_ten
     return true;
 }
 
-bool init_from_ggml_graph(const ggml_cgraph *cgraph, const ggml_to_qnn_op_array_t &ggml_to_qnn_op_map,
-                          qnn_graph_ptr_t graph) {
+bool init_from_ggml_graph(const ggml_cgraph *cgraph, qnn_graph_ptr_t graph) {
     std::unordered_set<ggml_tensor *> input_set;
     std::unordered_set<ggml_tensor *> output_set;
     std::unordered_set<ggml_tensor *> visited_set;
@@ -213,10 +212,8 @@ bool init_from_ggml_graph(const ggml_cgraph *cgraph, const ggml_to_qnn_op_array_
             continue;
         }
 
-        const auto *op_name = ggml_to_qnn_op_map[dst->op];
-        GGML_ASSERT(op_name);
-        QNN_LOG_DEBUG("[%s]create op: %s", get_backend_name(graph->get_device()), op_name);
-        auto op_constructor = create_op_constructor(op_name);
+        QNN_LOG_DEBUG("[%s]create op: %s", get_backend_name(graph->get_device()), get_qnn_op_name(dst->op));
+        auto qnn_op = create_op_constructor(dst->op);
     }
 
     return true;

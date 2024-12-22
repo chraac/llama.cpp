@@ -47,9 +47,7 @@ private:
 };
 
 using qnn_graph_ptr_t = std::shared_ptr<qnn_graph>;
-using ggml_to_qnn_op_array_t = const char * [GGML_OP_COUNT + GGML_UNARY_OP_COUNT];
 
-bool init_from_ggml_graph(const ggml_cgraph *cgraph, const ggml_to_qnn_op_array_t &ggml_to_qnn_op_map,
-                          qnn_graph_ptr_t graph);
+bool init_from_ggml_graph(const ggml_cgraph *cgraph, qnn_graph_ptr_t graph);
 
 } // namespace qnn

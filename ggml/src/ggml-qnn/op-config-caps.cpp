@@ -169,6 +169,8 @@ static_assert(sizeof(kOpCaps) / sizeof(kOpCaps[0]) == (GGML_OP_COUNT + GGML_UNAR
               "GGML_OP_COUNT does not match the size of the kOpCaps table");
 static_assert(kOpCaps[GGML_OP_ADD].calc_dims_func == element_wise_op_dims,
               "GGML_OP_ADD does not have element_wise_op_dims function");
+static_assert(kOpCaps[GGML_OP_MUL_MAT].calc_dims_func == mat_mul_op_dims,
+              "GGML_OP_ADD does not have element_wise_op_dims function");
 static_assert(kOpCaps[GGML_OP_LOG].calc_dims_func == element_wise_op_dims,
               "GGML_OP_LOG does not have element_wise_op_dims function");
 
@@ -180,5 +182,11 @@ void get_ggml_op_output_dimensions(const std::vector<const ggml_dimension_array_
     auto get_dims = kOpCaps[op].calc_dims_func;
     GGML_ASSERT(get_dims);
     get_dims(input_dims, output_dims);
+}
+
+const char *get_qnn_op_name(size_t op) {
+    GGML_ASSERT(op < std::size(kOpCaps));
+    GGML_ASSERT(kOpCaps[op].qnn_op_name);
+    return kOpCaps[op].qnn_op_name;
 }
 } // namespace qnn

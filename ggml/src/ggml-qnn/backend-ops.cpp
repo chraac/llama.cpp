@@ -87,8 +87,6 @@ typedef bool (*ggml_qnn_binary_op_t)(ggml_backend_qnn_device_context *ctx, ggml_
 typedef const ggml_qnn_unary_op_t (&ggml_qnn_unary_op_array_t)[GGML_OP_COUNT + GGML_UNARY_OP_COUNT];
 typedef const ggml_qnn_binary_op_t (&ggml_qnn_binary_op_array_t)[GGML_OP_COUNT];
 
-constexpr const size_t kGgmlUnaryOpStart = GGML_OP_COUNT;
-
 template <size_t _Size>
 qnn::ggml_tensor_array_t to_ggml_tensor_array(const std::array<ggml_tensor *, _Size> &array) {
     return qnn::ggml_tensor_array_t(array.data(), array.data() + _Size);
@@ -123,128 +121,14 @@ std::string get_graph_key(const std::string &op_name, const std::array<ggml_tens
     return graph_key;
 }
 
-constexpr const char *kGgmlOpToQnnOp[] = {
-    nullptr,                         // GGML_OP_NONE
-    nullptr,                         // GGML_OP_DUP
-    QNN_OP_ELEMENT_WISE_ADD,         // GGML_OP_ADD
-    nullptr,                         // GGML_OP_ADD1
-    nullptr,                         // GGML_OP_ACC
-    QNN_OP_ELEMENT_WISE_SUBTRACT,    // GGML_OP_SUB
-    QNN_OP_ELEMENT_WISE_MULTIPLY,    // GGML_OP_MUL
-    QNN_OP_ELEMENT_WISE_DIVIDE,      // GGML_OP_DIV
-    nullptr,                         // GGML_OP_SQR
-    QNN_OP_ELEMENT_WISE_SQUARE_ROOT, // GGML_OP_SQRT
-    QNN_OP_ELEMENT_WISE_LOG,         // GGML_OP_LOG
-    nullptr,                         // GGML_OP_SIN
-    nullptr,                         // GGML_OP_COS
-    nullptr,                         // GGML_OP_SUM
-    nullptr,                         // GGML_OP_SUM_ROWS
-    nullptr,                         // GGML_OP_MEAN
-    nullptr,                         // GGML_OP_ARGMAX
-    nullptr,                         // GGML_OP_COUNT_EQUAL
-    nullptr,                         // GGML_OP_REPEAT
-    nullptr,                         // GGML_OP_REPEAT_BACK
-    nullptr,                         // GGML_OP_CONCAT
-    nullptr,                         // GGML_OP_SILU_BACK
-    nullptr,                         // GGML_OP_NORM
-    nullptr,                         // GGML_OP_RMS_NORM
-    nullptr,                         // GGML_OP_RMS_NORM_BACK
-    nullptr,                         // GGML_OP_GROUP_NORM
-
-    QNN_OP_MAT_MUL, // GGML_OP_MUL_MAT
-    nullptr,        // GGML_OP_MUL_MAT_ID
-    nullptr,        // GGML_OP_OUT_PROD
-
-    nullptr,          // GGML_OP_SCALE
-    nullptr,          // GGML_OP_SET
-    nullptr,          // GGML_OP_CPY
-    nullptr,          // GGML_OP_CONT
-    nullptr,          // GGML_OP_RESHAPE
-    nullptr,          // GGML_OP_VIEW
-    QNN_OP_TRANSPOSE, // GGML_OP_PERMUTE
-    nullptr,          // GGML_OP_TRANSPOSE
-    nullptr,          // GGML_OP_GET_ROWS
-    nullptr,          // GGML_OP_GET_ROWS_BACK
-    nullptr,          // GGML_OP_DIAG
-    nullptr,          // GGML_OP_DIAG_MASK_INF
-    nullptr,          // GGML_OP_DIAG_MASK_ZERO
-    nullptr,          // GGML_OP_SOFT_MAX
-    nullptr,          // GGML_OP_SOFT_MAX_BACK
-    nullptr,          // GGML_OP_ROPE
-    nullptr,          // GGML_OP_ROPE_BACK
-    nullptr,          // GGML_OP_CLAMP
-    nullptr,          // GGML_OP_CONV_TRANSPOSE_1D
-    nullptr,          // GGML_OP_IM2COL
-    nullptr,          // GGML_OP_IM2COL_BACK
-    nullptr,          // GGML_OP_CONV_TRANSPOSE_2D
-    nullptr,          // GGML_OP_POOL_1D
-    nullptr,          // GGML_OP_POOL_2D
-    nullptr,          // GGML_OP_POOL_2D_BACK
-    nullptr,          // GGML_OP_UPSCALE
-    nullptr,          // GGML_OP_PAD
-    nullptr,          // GGML_OP_PAD_REFLECT_1D
-    nullptr,          // GGML_OP_ARANGE
-    nullptr,          // GGML_OP_TIMESTEP_EMBEDDING
-    nullptr,          // GGML_OP_ARGSORT
-    nullptr,          // GGML_OP_LEAKY_RELU
-
-    nullptr, // GGML_OP_FLASH_ATTN_EXT
-    nullptr, // GGML_OP_FLASH_ATTN_BACK
-    nullptr, // GGML_OP_SSM_CONV
-    nullptr, // GGML_OP_SSM_SCAN
-    nullptr, // GGML_OP_WIN_PART
-    nullptr, // GGML_OP_WIN_UNPART
-    nullptr, // GGML_OP_GET_REL_POS
-    nullptr, // GGML_OP_ADD_REL_POS
-    nullptr, // GGML_OP_RWKV_WKV6
-
-    nullptr, // GGML_OP_UNARY
-
-    nullptr, // GGML_OP_MAP_UNARY
-    nullptr, // GGML_OP_MAP_BINARY
-
-    nullptr, // GGML_OP_MAP_CUSTOM1_F32
-    nullptr, // GGML_OP_MAP_CUSTOM2_F32
-    nullptr, // GGML_OP_MAP_CUSTOM3_F32
-
-    nullptr, // GGML_OP_MAP_CUSTOM1
-    nullptr, // GGML_OP_MAP_CUSTOM2
-    nullptr, // GGML_OP_MAP_CUSTOM3
-
-    nullptr, // GGML_OP_CROSS_ENTROPY_LOSS
-    nullptr, // GGML_OP_CROSS_ENTROPY_LOSS_BACK
-    nullptr, // GGML_OP_OPT_STEP_ADAMW
-
-    // ggml_unary_op
-    nullptr,     // GGML_UNARY_OP_ABS
-    nullptr,     // GGML_UNARY_OP_SGN
-    nullptr,     // GGML_UNARY_OP_NEG
-    nullptr,     // GGML_UNARY_OP_STEP
-    nullptr,     // GGML_UNARY_OP_TANH
-    nullptr,     // GGML_UNARY_OP_ELU
-    nullptr,     // GGML_UNARY_OP_RELU
-    nullptr,     // GGML_UNARY_OP_SIGMOID
-    QNN_OP_GELU, // GGML_UNARY_OP_GELU
-    nullptr,     // GGML_UNARY_OP_GELU_QUICK
-    nullptr,     // GGML_UNARY_OP_SILU
-    nullptr,     // GGML_UNARY_OP_HARDSWISH
-    nullptr,     // GGML_UNARY_OP_HARDSIGMOID
-    nullptr,     // GGML_UNARY_OP_EXP
-};
-
-static_assert(sizeof(kGgmlOpToQnnOp) / sizeof(kGgmlOpToQnnOp[0]) == (GGML_OP_COUNT + GGML_UNARY_OP_COUNT),
-              "GGML_OP_COUNT does not match the size of the kGgmlOpToQnnOp table");
-static_assert(kGgmlOpToQnnOp[GGML_UNARY_OP_GELU + kGgmlUnaryOpStart] != nullptr,
-              "GGML_UNARY_OP_GELU does not correspond to QNN_OP_GELU");
-
 template <size_t _InputSize>
 qnn::qnn_graph *get_qnn_graph_from_cache(ggml_backend_qnn_device_context *ctx, size_t op,
                                          const std::array<ggml_tensor *, _InputSize> &inputs, ggml_tensor *output) {
     GGML_ASSERT(op < (GGML_OP_COUNT + GGML_UNARY_OP_COUNT));
 
     auto &graph_cache = ctx->qnn_graph_cache;
-    const auto *op_name =
-        op < kGgmlUnaryOpStart ? ggml_op_name(ggml_op(op)) : ggml_unary_op_name(ggml_unary_op(op - kGgmlUnaryOpStart));
+    const auto *op_name = op < qnn::kGgmlUnaryOpStart ? ggml_op_name(ggml_op(op))
+                                                      : ggml_unary_op_name(ggml_unary_op(op - qnn::kGgmlUnaryOpStart));
     auto graph_key = get_graph_key<_InputSize, 1>(op_name, inputs, {output});
     auto it = graph_cache.find(graph_key);
     qnn::qnn_graph *graph_ptr = nullptr;
@@ -258,7 +142,7 @@ qnn::qnn_graph *get_qnn_graph_from_cache(ggml_backend_qnn_device_context *ctx, s
             return nullptr;
         }
 
-        auto op_constructor = qnn::create_op_constructor(kGgmlOpToQnnOp[op]);
+        auto op_constructor = qnn::create_op_constructor(op);
         if (!graph->build_graph(op_constructor, to_ggml_tensor_array<_InputSize>(inputs),
                                 to_ggml_tensor_array<1>({output}))) {
             QNN_LOG_ERROR("[%s]build_graph failed", qnn::get_backend_name(ctx->device));
@@ -274,8 +158,6 @@ qnn::qnn_graph *get_qnn_graph_from_cache(ggml_backend_qnn_device_context *ctx, s
 
 template <ggml_op _GgmlOp>
 bool qnn_binary_op_impl(ggml_backend_qnn_device_context *ctx, ggml_tensor *src0, ggml_tensor *src1, ggml_tensor *dst) {
-    static_assert(kGgmlOpToQnnOp[_GgmlOp] != nullptr, "GGML_OP does not have a corresponding QNN_OP");
-
     CHECK_PARAMS(ctx, src0, src1, dst);
 
     bool succeed = false;
@@ -297,8 +179,6 @@ bool qnn_binary_op_impl(ggml_backend_qnn_device_context *ctx, ggml_tensor *src0,
 
 template <size_t _GgmlOp>
 bool qnn_unary_op_impl(ggml_backend_qnn_device_context *ctx, ggml_tensor *src, ggml_tensor *dst) {
-    static_assert(kGgmlOpToQnnOp[_GgmlOp] != nullptr, "GGML_OP does not have a corresponding QNN_OP");
-
     CHECK_PARAMS(ctx, src, dst);
 
     bool succeed = false;
@@ -425,20 +305,20 @@ constexpr const ggml_qnn_unary_op_t kQnnUnaryOpsTable[] = {
     nullptr, // GGML_OP_OPT_STEP_ADAMW
 
     // ggml_unary_op
-    nullptr,                                                   // GGML_UNARY_OP_ABS
-    nullptr,                                                   // GGML_UNARY_OP_SGN
-    nullptr,                                                   // GGML_UNARY_OP_NEG
-    nullptr,                                                   // GGML_UNARY_OP_STEP
-    nullptr,                                                   // GGML_UNARY_OP_TANH
-    nullptr,                                                   // GGML_UNARY_OP_ELU
-    nullptr,                                                   // GGML_UNARY_OP_RELU
-    nullptr,                                                   // GGML_UNARY_OP_SIGMOID
-    qnn_unary_op_impl<GGML_UNARY_OP_GELU + kGgmlUnaryOpStart>, // GGML_UNARY_OP_GELU
-    nullptr,                                                   // GGML_UNARY_OP_GELU_QUICK
-    nullptr,                                                   // GGML_UNARY_OP_SILU
-    nullptr,                                                   // GGML_UNARY_OP_HARDSWISH
-    nullptr,                                                   // GGML_UNARY_OP_HARDSIGMOID
-    nullptr,                                                   // GGML_UNARY_OP_EXP
+    nullptr,                                                        // GGML_UNARY_OP_ABS
+    nullptr,                                                        // GGML_UNARY_OP_SGN
+    nullptr,                                                        // GGML_UNARY_OP_NEG
+    nullptr,                                                        // GGML_UNARY_OP_STEP
+    nullptr,                                                        // GGML_UNARY_OP_TANH
+    nullptr,                                                        // GGML_UNARY_OP_ELU
+    nullptr,                                                        // GGML_UNARY_OP_RELU
+    nullptr,                                                        // GGML_UNARY_OP_SIGMOID
+    qnn_unary_op_impl<GGML_UNARY_OP_GELU + qnn::kGgmlUnaryOpStart>, // GGML_UNARY_OP_GELU
+    nullptr,                                                        // GGML_UNARY_OP_GELU_QUICK
+    nullptr,                                                        // GGML_UNARY_OP_SILU
+    nullptr,                                                        // GGML_UNARY_OP_HARDSWISH
+    nullptr,                                                        // GGML_UNARY_OP_HARDSIGMOID
+    nullptr,                                                        // GGML_UNARY_OP_EXP
 };
 
 static_assert(sizeof(kQnnUnaryOpsTable) / sizeof(kQnnUnaryOpsTable[0]) == (GGML_OP_COUNT + GGML_UNARY_OP_COUNT),
@@ -642,7 +522,7 @@ bool device_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor 
             return false;
         }
 
-        if (!kQnnUnaryOpsTable[kGgmlUnaryOpStart + unary_op]) {
+        if (!kQnnUnaryOpsTable[qnn::kGgmlUnaryOpStart + unary_op]) {
             QNN_LOG_DEBUG("unsupported unary op %d", unary_op);
             return false;
         }
@@ -693,7 +573,7 @@ bool device_compute_graph(ggml_backend_qnn_device_context *ctx, ggml_cgraph *cgr
 
         size_t unary_op_idx = tensor->op;
         if (tensor->op == GGML_OP_UNARY) {
-            unary_op_idx = kGgmlUnaryOpStart + ggml_get_unary_op(tensor);
+            unary_op_idx = qnn::kGgmlUnaryOpStart + ggml_get_unary_op(tensor);
         }
 
         bool ok = false;

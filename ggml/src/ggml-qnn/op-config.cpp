@@ -492,7 +492,8 @@ bool ggml_qnn_matmul_op_config::create_mat_mul_nodes(QNNBackend device, Qnn_Grap
     return true;
 }
 
-ggml_op_constructor_t create_op_constructor(const std::string &op_name) {
+ggml_op_constructor_t create_op_constructor(size_t op) {
+    std::string op_name = get_qnn_op_name(op);
     if (op_name == QNN_OP_MAT_MUL) {
         // For QNN_OP_MAT_MUL, we need to transpose the input tensor
         return [](const std::string &instance_name,
