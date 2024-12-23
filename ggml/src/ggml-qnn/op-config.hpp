@@ -1,7 +1,7 @@
 #pragma once
 
-#include <array>
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -13,7 +13,7 @@
 namespace qnn {
 
 using ggml_op_constructor_t =
-    std::function<std::unique_ptr<ggml_qnn_op_config>(const std::string &, std::shared_ptr<qnn_instance>)>;
+    std::function<std::shared_ptr<ggml_qnn_op_config>(const std::string &, std::shared_ptr<qnn_instance>)>;
 
 constexpr const size_t kGgmlUnaryOpStart = GGML_OP_COUNT;
 
@@ -21,6 +21,8 @@ void get_ggml_op_output_dimensions(const std::vector<const ggml_dimension_array_
                                    ggml_dimension_array_t &output_dims);
 
 const char *get_qnn_op_name(size_t op);
+size_t get_qnn_op_input_param_count(size_t op);
+
 ggml_op_constructor_t create_op_constructor(size_t op);
 
 inline bool add_op_to_graph(Qnn_GraphHandle_t graph_handle, std::vector<qnn_op_config_ptr_t> &operations) {

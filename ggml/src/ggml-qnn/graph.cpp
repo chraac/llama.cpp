@@ -1,6 +1,7 @@
 
 #include "graph.hpp"
 
+#include <unordered_map>
 #include <unordered_set>
 
 #include "ggml-impl.h"
@@ -13,18 +14,29 @@ namespace {
 using ggml_tensor_set_t = std::unordered_set<ggml_tensor *>;
 using qnn_tensor_cache_t = std::unordered_map<ggml_tensor *, qnn::qnn_tensor_ptr_t>;
 
+qnn::qnn_tensor_ptr_t create_tensor_with_cache(ggml_tensor *tensor, qnn::ggml_qnn_tensor::tensor_type_t type, int rank,
+                                               QNNBackend device, Qnn_GraphHandle_t graph_handle,
+                                               std::shared_ptr<qnn::qnn_instance> qnn_instance,
+                                               qnn_tensor_cache_t &tensor_cache) {
+    GGML_ASSERT(tensor);
+    if (tensor_cache.count(tensor)) {
+        return tensor_cache[tensor];
+    }
+
+    auto qnn_tensor = std::make_shared<qnn::ggml_qnn_tensor>(type, tensor->name, tensor->ne, tensor->type, rank, device,
+                                                             graph_handle, qnn_instance);
+    tensor_cache[tensor] = qnn_tensor;
+    return qnn_tensor;
+}
+
 qnn::qnn_tensor_array_t create_tensors(const ggml_tensor_set_t &tensor_set, qnn::ggml_qnn_tensor::tensor_type_t type,
                                        int rank, QNNBackend device, Qnn_GraphHandle_t graph_handle,
                                        std::shared_ptr<qnn::qnn_instance> qnn_instance,
                                        qnn_tensor_cache_t &tensor_cache) {
     qnn::qnn_tensor_array_t tensors;
     for (auto *tensor : tensor_set) {
-        if (tensor_cache.count(tensor)) {
-            tensors.push_back(tensor_cache[tensor]);
-        } else {
-            tensors.push_back(std::make_shared<qnn::ggml_qnn_tensor>(type, tensor->name, tensor->ne, tensor->type, rank,
-                                                                     device, graph_handle, qnn_instance));
-        }
+        tensors.push_back(
+            create_tensor_with_cache(tensor, type, rank, device, graph_handle, qnn_instance, tensor_cache));
     }
 
     return tensors;
@@ -217,7 +229,7 @@ bool init_from_ggml_graph(const ggml_cgraph *cgraph, qnn_graph_ptr_t graph) {
                                          graph->get_graph_handler(), graph->get_qnn_instance(), tensor_cache);
     auto output_tensors = create_tensors(output_set, ggml_qnn_tensor::OUTPUT, rank, graph->get_device(),
                                          graph->get_graph_handler(), graph->get_qnn_instance(), tensor_cache);
-
+    qnn_op_config_array_t operations;
     for (int i = 0; i < cgraph->n_nodes; i++) {
         ggml_tensor *dst = cgraph->nodes[i];
         if (ggml_is_empty(dst)) {
@@ -226,6 +238,30 @@ bool init_from_ggml_graph(const ggml_cgraph *cgraph, qnn_graph_ptr_t graph) {
 
         QNN_LOG_DEBUG("[%s]create op: %s", get_backend_name(graph->get_device()), get_qnn_op_name(dst->op));
         auto qnn_op = create_op_constructor(dst->op);
+        auto operation = qnn_op(dst->name, graph->get_qnn_instance()); // TODO: fix the name here
+
+        // input tensors
+        qnn_tensor_array_t input_qnn_tensors;
+        for (size_t i = 0; i < get_qnn_op_input_param_count(dst->op); ++i) {
+            auto input_qnn_tensor =
+                create_tensor_with_cache(dst->src[i], ggml_qnn_tensor::INTERMEDIATE, rank, graph->get_device(),
+                                         graph->get_graph_handler(), graph->get_qnn_instance(), tensor_cache);
+            input_qnn_tensors.push_back(input_qnn_tensor);
+        }
+        operation->set_input_tensors(input_qnn_tensors);
+
+        // output tensor
+        qnn_tensor_array_t output_qnn_tensors =
+            create_tensors({dst}, ggml_qnn_tensor::INTERMEDIATE, rank, graph->get_device(), graph->get_graph_handler(),
+                           graph->get_qnn_instance(), tensor_cache);
+        operation->set_output_tensors(output_qnn_tensors);
+
+        operations.push_back(operation);
+    }
+
+    if (!graph->build_graph(operations, intput_tensors, output_tensors)) {
+        QNN_LOG_ERROR("[%s]build graph failed", get_backend_name(graph->get_device()));
+        return false;
     }
 
     return true;
