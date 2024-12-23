@@ -516,8 +516,8 @@ bool device_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor 
     auto *src0 = op->src[0];
     if (op->op == GGML_OP_UNARY) {
         const auto unary_op = ggml_get_unary_op(op);
-        if (unary_op == GGML_UNARY_OP_GELU && ctx->device == QNN_BACKEND_NPU) {
-            // TODO: fix this when NPU supports GELU
+        if (unary_op == GGML_UNARY_OP_GELU) {
+            // TODO: fix this
             QNN_LOG_DEBUG("unsupported unary op GGML_UNARY_OP_GELU for NPU");
             return false;
         }
