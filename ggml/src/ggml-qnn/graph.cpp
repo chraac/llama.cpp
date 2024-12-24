@@ -248,6 +248,9 @@ bool init_from_ggml_graph(const ggml_cgraph *cgraph, qnn_graph_ptr_t graph) {
         }
     }
 
+    QNN_LOG_DEBUG("[%s]rank: %d, input_set: %d, output_set: %d", get_backend_name(graph->get_device()), rank,
+                  int(input_set.size()), int(output_set.size()));
+
     qnn_tensor_cache_t tensor_cache;
     auto intput_tensors = create_tensors(input_set, ggml_qnn_tensor::INPUT, rank, graph->get_device(),
                                          graph->get_graph_handler(), graph->get_qnn_instance(), tensor_cache);
@@ -263,7 +266,7 @@ bool init_from_ggml_graph(const ggml_cgraph *cgraph, qnn_graph_ptr_t graph) {
         QNN_LOG_DEBUG("[%s]create op: %s", get_backend_name(graph->get_device()), get_qnn_op_name(dst->op));
         auto operation =
             create_operation_from_op_tensor(dst, dst->name, rank, graph->get_device(), graph->get_graph_handler(),
-                                            graph->get_qnn_instance(), tensor_cache);
+                                            graph->get_qnn_instance(), tensor_cache); // TODO: fix op name
         operations.push_back(operation);
     }
 
