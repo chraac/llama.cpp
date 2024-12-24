@@ -130,15 +130,15 @@ qnn_graph::qnn_graph(const std::string &graph_name, QNNBackend device, std::shar
 
 qnn_graph::~qnn_graph() { QNN_LOG_DEBUG("[%s][%s]destroy", get_backend_name(_device), _graph_name.c_str()); }
 
-bool qnn_graph::build_graph(ggml_op_constructor_t op_constructor, const ggml_tensor_array_t &tensor_inputs,
+bool qnn_graph::build_graph(ggml_tensor *op, const ggml_tensor_array_t &tensor_inputs,
                             const ggml_tensor_array_t &tensor_outputs) {
-    GGML_ASSERT(op_constructor);
     if (!is_valid()) {
         QNN_LOG_ERROR("Invalid graph");
         return false;
     }
 
     QNN_LOG_DEBUG("[%s][%s]build_graph start", get_backend_name(_device), _graph_name.c_str());
+    auto op_constructor = create_op_constructor(get_qnn_op_index(op));
     auto operation = op_constructor(_graph_name, _qnn_instance);
     if (!operation->initialize_op_nodes(_device, _graph_handle, tensor_inputs, tensor_outputs)) {
         QNN_LOG_ERROR("[%s][%s]initialize_op_nodes failed", get_backend_name(_device), _graph_name.c_str());

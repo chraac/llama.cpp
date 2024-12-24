@@ -18,7 +18,7 @@ public:
                        size_t vtcm_size_in_mb);
     ~qnn_graph();
 
-    bool build_graph(ggml_op_constructor_t op_constructor, const ggml_tensor_array_t &tensor_inputs,
+    bool build_graph(ggml_tensor *op, const ggml_tensor_array_t &tensor_inputs,
                      const ggml_tensor_array_t &tensor_outputs);
     bool build_graph(qnn_op_config_array_t &operations, qnn_tensor_array_t &intputs, qnn_tensor_array_t &outputs);
 

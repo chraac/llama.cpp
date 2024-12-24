@@ -142,9 +142,7 @@ qnn::qnn_graph *get_qnn_graph_from_cache(ggml_backend_qnn_device_context *ctx, s
             return nullptr;
         }
 
-        auto op_constructor = qnn::create_op_constructor(op);
-        if (!graph->build_graph(op_constructor, to_ggml_tensor_array<_InputSize>(inputs),
-                                to_ggml_tensor_array<1>({output}))) {
+        if (!graph->build_graph(output, to_ggml_tensor_array<_InputSize>(inputs), to_ggml_tensor_array<1>({output}))) {
             QNN_LOG_ERROR("[%s]build_graph failed", qnn::get_backend_name(ctx->device));
             return nullptr;
         }
