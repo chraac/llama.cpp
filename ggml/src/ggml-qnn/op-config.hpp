@@ -17,7 +17,8 @@ using ggml_op_constructor_t =
 
 constexpr const size_t kGgmlUnaryOpStart = GGML_OP_COUNT;
 
-void get_ggml_op_output_dimensions(const std::vector<const ggml_dimension_array_t> &input_dims, ggml_op op,
+size_t get_qnn_op_index(const ggml_tensor *tensor);
+void get_ggml_op_output_dimensions(const std::vector<const ggml_dimension_array_t> &input_dims, size_t op,
                                    ggml_dimension_array_t &output_dims);
 
 const char *get_qnn_op_name(size_t op);

@@ -571,14 +571,10 @@ bool device_compute_graph(ggml_backend_qnn_device_context *ctx, ggml_cgraph *cgr
             continue;
         }
 
-        size_t unary_op_idx = tensor->op;
-        if (tensor->op == GGML_OP_UNARY) {
-            unary_op_idx = qnn::kGgmlUnaryOpStart + ggml_get_unary_op(tensor);
-        }
-
+        size_t op_idx = get_qnn_op_index(tensor);
         bool ok = false;
-        auto unary_op = kQnnUnaryOpsTable[unary_op_idx];
-        auto binary_op = kQnnBinaryOpsTable[tensor->op];
+        auto unary_op = kQnnUnaryOpsTable[op_idx];
+        auto binary_op = kQnnBinaryOpsTable[op_idx];
         if (unary_op) {
             ok = unary_op(ctx, tensor->src[0], tensor);
         } else if (binary_op) {

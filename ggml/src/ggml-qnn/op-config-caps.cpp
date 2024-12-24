@@ -187,8 +187,18 @@ static_assert(std::size(kOpCaps) == (GGML_OP_COUNT + GGML_UNARY_OP_COUNT),
 } // namespace
 
 namespace qnn {
-void get_ggml_op_output_dimensions(const std::vector<const ggml_dimension_array_t> &input_dims, ggml_op op,
+
+size_t get_qnn_op_index(const ggml_tensor *tensor) {
+    if (tensor->op == GGML_OP_UNARY) {
+        return kGgmlUnaryOpStart + ggml_get_unary_op(tensor);
+    }
+
+    return tensor->op;
+}
+
+void get_ggml_op_output_dimensions(const std::vector<const ggml_dimension_array_t> &input_dims, size_t op,
                                    ggml_dimension_array_t &output_dims) {
+    GGML_ASSERT(op < std::size(kOpCaps));
     auto get_dims = kOpCaps[op].calc_dims_func;
     GGML_ASSERT(get_dims);
     get_dims(input_dims, output_dims);
