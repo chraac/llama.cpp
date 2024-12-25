@@ -84,18 +84,6 @@ public:
                                        const std::string &op_type, std::shared_ptr<qnn_instance> qnn_instance)
         : ggml_qnn_op_config_base(name, package_name, op_type, qnn_instance) {}
 
-    explicit ggml_qnn_single_op_config(const std::string &name, const std::string &package_name,
-                                       const std::string &op_type, const std::string &param_name,
-                                       const Qnn_DataType_t param_type, const size_t param_size,
-                                       std::shared_ptr<qnn_instance> qnn_instance)
-        : ggml_qnn_op_config_base(name, package_name, op_type, qnn_instance),
-          _param_name(param_name),
-          _param_type(param_type) {
-        if (param_size > 0) {
-            _param_buffer = std::make_shared<qnn_mem_buffer>(param_size);
-        }
-    }
-
     bool initialize_op_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle,
                              const ggml_tensor_array_t &tensor_inputs,
                              const ggml_tensor_array_t &tensor_outputs) override;
