@@ -50,24 +50,6 @@ public:
     virtual void set_output_tensors(qnn::qnn_tensor_array_t &&tensor_inputs) = 0;
 
     /**
-     * @brief Creates tensors and internal nodes for constructing the calculation graph. obsoleted
-     *
-     * This pure virtual function is responsible for creating tensors on the given
-     * backend device, associating them with the provided graph handle, and creating
-     * the internal nodes necessary for constructing the calculation graph. It takes
-     * input and output tensor arrays as parameters.
-     *
-     * @param device The backend device where tensors will be created.
-     * @param graph_handle The handle to the graph where tensors and nodes will be associated.
-     * @param tensor_inputs An array of input tensors.
-     * @param tensor_outputs An array of output tensors.
-     * @return true if tensors and nodes are successfully created, false otherwise.
-     */
-    virtual bool initialize_op_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle,
-                                     const ggml_tensor_array_t &tensor_inputs,
-                                     const ggml_tensor_array_t &tensor_outputs) = 0;
-
-    /**
      * @brief Creates tensors and internal nodes for constructing the calculation graph.
      *
      * This pure virtual function is responsible for creating tensors on the given

@@ -84,17 +84,9 @@ public:
                                        const std::string &op_type, std::shared_ptr<qnn_instance> qnn_instance)
         : ggml_qnn_op_config_base(name, package_name, op_type, qnn_instance) {}
 
-    bool initialize_op_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle,
-                             const ggml_tensor_array_t &tensor_inputs,
-                             const ggml_tensor_array_t &tensor_outputs) override;
-
     bool initialize_op_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle) override;
 
 private:
-    const std::string _param_name;
-    const Qnn_DataType_t _param_type = QNN_DATATYPE_UINT_32;
-    qnn_buffer_ptr _param_buffer;
-
     DISABLE_COPY(ggml_qnn_single_op_config);
     DISABLE_MOVE(ggml_qnn_single_op_config);
 };
@@ -152,10 +144,6 @@ class ggml_qnn_matmul_op_config : public ggml_qnn_aggregate_op_config {
 public:
     ggml_qnn_matmul_op_config(const std::string &name, std::shared_ptr<qnn_instance> qnn_instance)
         : ggml_qnn_aggregate_op_config(name, qnn_instance) {}
-
-    bool initialize_op_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle,
-                             const ggml_tensor_array_t &tensor_inputs,
-                             const ggml_tensor_array_t &tensor_outputs) override;
 
     bool initialize_op_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle) override;
 

@@ -181,30 +181,6 @@ Qnn_OpConfig_t ggml_qnn_op_config_base::get_op_config() {
     return config;
 }
 
-bool ggml_qnn_single_op_config::initialize_op_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle,
-                                                    const ggml_tensor_array_t &tensor_inputs,
-                                                    const ggml_tensor_array_t &tensor_outputs) {
-    const auto tensor_rank = get_rank(tensor_inputs, tensor_outputs);
-    tensor_create_common_params params = {"src", tensor_rank, true, device, graph_handle, _qnn_instance};
-    create_tensors_from_ggml_tensor(params, tensor_inputs, &_tensor_inputs, &_qnn_tensor_inputs);
-    params.name_prefix = "dst";
-    params.is_input = false;
-    create_tensors_from_ggml_tensor(params, tensor_outputs, &_tensor_outputs, &_qnn_tensor_outputs);
-
-    if (_param_buffer) {
-        // handle parameters in output tensor
-        // TODO: fix this
-        auto *params = tensor_outputs.front()->op_params;
-        memcpy(_param_buffer->get_buffer(), params, _param_buffer->get_size());
-
-        const uint32_t count = uint32_t(_param_buffer->get_size() / qnn_datatype_size(_param_type));
-        const qnn_dimension_array_t param_dims = {count, 1, 1, 1};
-        add_tensor_param(_param_name, param_dims, 1, _param_buffer->get_buffer(), _param_type, device, graph_handle);
-    }
-
-    return true;
-}
-
 bool ggml_qnn_single_op_config::initialize_op_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle) {
     GGML_UNUSED(device);
     GGML_UNUSED(graph_handle);
@@ -233,26 +209,6 @@ bool ggml_qnn_aggregate_op_config::bind_input_tensors(const ggml_tensor_array_t 
 
 bool ggml_qnn_aggregate_op_config::bind_output_tensors(const ggml_tensor_array_t &tensor_outputs) {
     return qnn::bind_tensors(tensor_outputs, _tensor_outputs);
-}
-
-bool ggml_qnn_matmul_op_config::initialize_op_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle,
-                                                    const ggml_tensor_array_t &tensor_inputs,
-                                                    const ggml_tensor_array_t &tensor_outputs) {
-    GGML_ASSERT(tensor_inputs.size() == 2);
-    GGML_ASSERT(tensor_outputs.size() == 1);
-    const auto tensor_rank = get_rank(tensor_inputs, tensor_outputs);
-    GGML_ASSERT(tensor_rank >= 2);
-
-    // create input tensors
-    tensor_create_common_params params = {"src", tensor_rank, true, device, graph_handle, _qnn_instance};
-    create_tensors_from_ggml_tensor(params, tensor_inputs, &_tensor_inputs, nullptr);
-
-    // create output tensor
-    params.name_prefix = "dst";
-    params.is_input = false;
-    create_tensors_from_ggml_tensor(params, tensor_outputs, &_tensor_outputs, nullptr);
-
-    return initialize_op_nodes(device, graph_handle);
 }
 
 bool ggml_qnn_matmul_op_config::initialize_op_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle) {

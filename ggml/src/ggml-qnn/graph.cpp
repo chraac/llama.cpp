@@ -152,7 +152,7 @@ bool qnn_graph::build_graph(ggml_tensor *op, const ggml_tensor_array_t &tensor_i
     auto operation = create_operation_from_op_tensor(op, _graph_name, rank, _device, _graph_handle, _qnn_instance,
                                                      false, tensor_cache);
     if (!operation) {
-        QNN_LOG_ERROR("[%s][%s]initialize_op_nodes failed", get_backend_name(_device), _graph_name.c_str());
+        QNN_LOG_ERROR("[%s][%s]create_operation_from_op_tensor failed", get_backend_name(_device), _graph_name.c_str());
         return false;
     }
 
