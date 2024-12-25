@@ -45,23 +45,32 @@ qnn::qnn_tensor_array_t create_tensors(const ggml_tensor_set_t &tensor_set, qnn:
 qnn::qnn_op_config_ptr_t create_operation_from_op_tensor(ggml_tensor *dst, const std::string &name, int rank,
                                                          QNNBackend device, Qnn_GraphHandle_t graph_handle,
                                                          std::shared_ptr<qnn::qnn_instance> qnn_instance,
-                                                         qnn_tensor_cache_t &tensor_cache) {
-    auto qnn_op = qnn::create_op_constructor(dst->op);
+                                                         bool is_intermediate, qnn_tensor_cache_t &tensor_cache) {
+    const auto op_index = qnn::get_qnn_op_index(dst);
+    auto qnn_op = qnn::create_op_constructor(op_index);
     auto operation = qnn_op(name, qnn_instance);
 
     // input tensors
     qnn::qnn_tensor_array_t input_qnn_tensors;
-    for (size_t i = 0; i < qnn::get_qnn_op_input_param_count(dst->op); ++i) {
-        auto input_qnn_tensor = create_tensor_with_cache(dst->src[i], qnn::ggml_qnn_tensor::INTERMEDIATE, rank, device,
-                                                         graph_handle, qnn_instance, tensor_cache);
+    auto tensor_type = is_intermediate ? qnn::ggml_qnn_tensor::INTERMEDIATE : qnn::ggml_qnn_tensor::INPUT;
+    for (size_t i = 0; i < qnn::get_qnn_op_input_param_count(op_index); ++i) {
+        auto input_qnn_tensor =
+            create_tensor_with_cache(dst->src[i], tensor_type, rank, device, graph_handle, qnn_instance, tensor_cache);
         input_qnn_tensors.push_back(input_qnn_tensor);
     }
     operation->set_input_tensors(input_qnn_tensors);
 
     // output tensor
-    qnn::qnn_tensor_array_t output_qnn_tensors = create_tensors({dst}, qnn::ggml_qnn_tensor::INTERMEDIATE, rank, device,
-                                                                graph_handle, qnn_instance, tensor_cache);
+    tensor_type = is_intermediate ? qnn::ggml_qnn_tensor::INTERMEDIATE : qnn::ggml_qnn_tensor::OUTPUT;
+    qnn::qnn_tensor_array_t output_qnn_tensors =
+        create_tensors({dst}, tensor_type, rank, device, graph_handle, qnn_instance, tensor_cache);
     operation->set_output_tensors(output_qnn_tensors);
+
+    // initialize operation
+    if (!operation->initialize_op_nodes(device, graph_handle)) {
+        QNN_LOG_ERROR("[%s][%s]initialize_op_nodes failed", qnn::get_backend_name(device), name.c_str());
+        return nullptr;
+    }
 
     return operation;
 }
@@ -138,9 +147,11 @@ bool qnn_graph::build_graph(ggml_tensor *op, const ggml_tensor_array_t &tensor_i
     }
 
     QNN_LOG_DEBUG("[%s][%s]build_graph start", get_backend_name(_device), _graph_name.c_str());
-    auto op_constructor = create_op_constructor(get_qnn_op_index(op));
-    auto operation = op_constructor(_graph_name, _qnn_instance);
-    if (!operation->initialize_op_nodes(_device, _graph_handle, tensor_inputs, tensor_outputs)) {
+    qnn_tensor_cache_t tensor_cache;
+    const auto rank = std::max(get_ggml_tensors_max_rank(tensor_inputs), get_ggml_tensors_max_rank(tensor_outputs));
+    auto operation = create_operation_from_op_tensor(op, _graph_name, rank, _device, _graph_handle, _qnn_instance,
+                                                     false, tensor_cache);
+    if (!operation) {
         QNN_LOG_ERROR("[%s][%s]initialize_op_nodes failed", get_backend_name(_device), _graph_name.c_str());
         return false;
     }
@@ -266,7 +277,7 @@ bool init_from_ggml_graph(const ggml_cgraph *cgraph, qnn_graph_ptr_t graph) {
         QNN_LOG_DEBUG("[%s]create op: %s", get_backend_name(graph->get_device()), get_qnn_op_name(dst->op));
         auto operation =
             create_operation_from_op_tensor(dst, dst->name, rank, graph->get_device(), graph->get_graph_handler(),
-                                            graph->get_qnn_instance(), tensor_cache); // TODO: fix op name
+                                            graph->get_qnn_instance(), true, tensor_cache); // TODO: fix op name
         operations.push_back(operation);
     }
 

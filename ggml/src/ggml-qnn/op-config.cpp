@@ -24,16 +24,7 @@ qnn::qnn_dimension_array_t get_transposed_dimensions(const qnn::qnn_dimension_ar
 }
 
 int get_rank(const qnn::ggml_tensor_array_t &tensor_inputs, const qnn::ggml_tensor_array_t &tensor_outputs) {
-    int tensor_rank = 0;
-    // get the max tensor rank
-    for (auto tensor : tensor_inputs) {
-        tensor_rank = std::max(tensor_rank, ggml_n_dims(tensor));
-    }
-    for (auto tensor : tensor_outputs) {
-        tensor_rank = std::max(tensor_rank, ggml_n_dims(tensor));
-    }
-
-    return tensor_rank;
+    return std::max(qnn::get_ggml_tensors_max_rank(tensor_inputs), qnn::get_ggml_tensors_max_rank(tensor_outputs));
 }
 
 Qnn_DataType_t get_tensor_type(const qnn::qnn_tensor_array_t &tensors) {

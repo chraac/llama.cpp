@@ -314,6 +314,15 @@ inline qnn_tensor_ptr_t get_qnn_tensor_ptr(ggml_tensor *ggml_tensor) {
                               : qnn_tensor_ptr_t();
 }
 
+inline int get_ggml_tensors_max_rank(const qnn::ggml_tensor_array_t &tensors) {
+    int max_rank = 0;
+    for (auto tensor : tensors) {
+        max_rank = std::max(max_rank, ggml_n_dims(tensor));
+    }
+
+    return max_rank;
+}
+
 inline bool bind_tensors(const ggml_tensor_array_t &ggml_tensors, qnn_tensor_array_t &tensor_wrappers,
                          std::vector<Qnn_Tensor_t> &qnn_tensors) {
     GGML_ASSERT(tensor_wrappers.size() == ggml_tensors.size());
