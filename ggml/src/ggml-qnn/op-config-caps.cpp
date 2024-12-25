@@ -32,7 +32,7 @@ constexpr const qnn_op_caps_t kOpCaps[] = {
     {
         // GGML_OP_ADD
         QNN_OP_ELEMENT_WISE_ADD, // qnn_op_name
-        1,                       // input_param_count
+        2,                       // input_param_count
         element_wise_op_dims,    // calc_dims_func
     },
     {}, // GGML_OP_ADD1
@@ -40,19 +40,19 @@ constexpr const qnn_op_caps_t kOpCaps[] = {
     {
         // GGML_OP_SUB
         QNN_OP_ELEMENT_WISE_SUBTRACT, // qnn_op_name
-        1,                            // input_param_count
+        2,                            // input_param_count
         element_wise_op_dims,         // calc_dims_func
     },
     {
         // GGML_OP_MUL
         QNN_OP_ELEMENT_WISE_MULTIPLY, // qnn_op_name
-        1,                            // input_param_count
+        2,                            // input_param_count
         element_wise_op_dims,         // calc_dims_func
     },
     {
         // GGML_OP_DIV
         QNN_OP_ELEMENT_WISE_DIVIDE, // qnn_op_name
-        1,                          // input_param_count
+        2,                          // input_param_count
         element_wise_op_dims,       // calc_dims_func
     },
     {}, // GGML_OP_SQR
