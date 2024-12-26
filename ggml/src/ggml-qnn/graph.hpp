@@ -20,7 +20,7 @@ public:
 
     bool build_graph(ggml_tensor *op, const ggml_tensor_array_t &tensor_inputs,
                      const ggml_tensor_array_t &tensor_outputs);
-    bool build_graph(qnn_op_config_array_t &operations, qnn_tensor_array_t &intputs, qnn_tensor_array_t &outputs);
+    bool build_graph_from_ggml_graph(const ggml_cgraph *cgraph);
 
     bool execute(const ggml_tensor_array_t &tensor_inputs, const ggml_tensor_array_t &tensor_outputs);
     bool is_valid() const { return _graph_handle != nullptr; }
@@ -47,7 +47,5 @@ private:
 };
 
 using qnn_graph_ptr_t = std::shared_ptr<qnn_graph>;
-
-bool init_from_ggml_graph(const ggml_cgraph *cgraph, qnn_graph_ptr_t graph);
 
 } // namespace qnn

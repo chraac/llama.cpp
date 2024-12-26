@@ -175,11 +175,62 @@ bool qnn_graph::build_graph(ggml_tensor *op, const ggml_tensor_array_t &tensor_i
     return true;
 }
 
-bool qnn_graph::build_graph(qnn_op_config_array_t &operations, qnn_tensor_array_t &intputs,
-                            qnn_tensor_array_t &outputs) {
-    _tensor_inputs = intputs;
-    _tensor_outputs = outputs;
-    _operations = operations;
+bool qnn_graph::build_graph_from_ggml_graph(const ggml_cgraph *cgraph) {
+    ggml_tensor_set_t input_set;
+    ggml_tensor_set_t output_set;
+    ggml_tensor_set_t visited_set;
+    int rank = 0;
+    for (int i = 0; i < cgraph->n_nodes; i++) {
+        ggml_tensor *dst = cgraph->nodes[i];
+        if (ggml_is_empty(dst)) {
+            continue;
+        }
+
+        rank = std::max(rank, ggml_n_dims(dst));
+        input_set.erase(dst);
+        if (!visited_set.count(dst)) {
+            output_set.insert(dst);
+            visited_set.insert(dst);
+        }
+
+        for (size_t i = 0; i < GGML_MAX_DIMS && dst->src[i]; ++i) {
+            auto *src = dst->src[i];
+            rank = std::max(rank, ggml_n_dims(src));
+            output_set.erase(src);
+            if (!visited_set.count(src)) {
+                input_set.insert(src);
+                visited_set.insert(src);
+            }
+        }
+    }
+
+    QNN_LOG_DEBUG("[%s]rank: %d, input_set: %d, output_set: %d", get_backend_name(_device), rank, int(input_set.size()),
+                  int(output_set.size()));
+
+    {
+        qnn_tensor_cache_t tensor_cache;
+        auto intput_tensors = create_tensors(input_set, ggml_qnn_tensor::INPUT, rank, _device, _graph_handle,
+                                             _qnn_instance, tensor_cache);
+        auto output_tensors = create_tensors(output_set, ggml_qnn_tensor::OUTPUT, rank, _device, _graph_handle,
+                                             _qnn_instance, tensor_cache);
+        qnn_op_config_array_t operations;
+        for (int i = 0; i < cgraph->n_nodes; i++) {
+            ggml_tensor *dst = cgraph->nodes[i];
+            if (ggml_is_empty(dst)) {
+                continue;
+            }
+
+            QNN_LOG_DEBUG("[%s]create op: %s", get_backend_name(_device), get_qnn_op_name(dst->op));
+            auto operation = create_operation_from_op_tensor(dst, dst->name, rank, _device, _graph_handle,
+                                                             _qnn_instance, true, tensor_cache); // TODO: fix op name
+            operations.push_back(operation);
+        }
+
+        _tensor_inputs = std::move(intput_tensors);
+        _tensor_outputs = std::move(output_tensors);
+        _operations = std::move(operations);
+    }
+
     if (!qnn::add_op_to_graph(_graph_handle, _operations)) {
         QNN_LOG_ERROR("[%s]add nodes failed", _graph_name.c_str());
         return false;
@@ -227,65 +278,6 @@ bool qnn_graph::execute(const ggml_tensor_array_t &tensor_inputs, const ggml_ten
     }
 
     QNN_LOG_DEBUG("[%s][%s]execute succeed", get_backend_name(_device), _graph_name.c_str());
-    return true;
-}
-
-bool init_from_ggml_graph(const ggml_cgraph *cgraph, qnn_graph_ptr_t graph) {
-    ggml_tensor_set_t input_set;
-    ggml_tensor_set_t output_set;
-    ggml_tensor_set_t visited_set;
-    int rank = 0;
-    for (int i = 0; i < cgraph->n_nodes; i++) {
-        ggml_tensor *dst = cgraph->nodes[i];
-        if (ggml_is_empty(dst)) {
-            continue;
-        }
-
-        rank = std::max(rank, ggml_n_dims(dst));
-        input_set.erase(dst);
-        if (!visited_set.count(dst)) {
-            output_set.insert(dst);
-            visited_set.insert(dst);
-        }
-
-        for (size_t i = 0; i < GGML_MAX_DIMS && dst->src[i]; ++i) {
-            auto *src = dst->src[i];
-            rank = std::max(rank, ggml_n_dims(src));
-            output_set.erase(src);
-            if (!visited_set.count(src)) {
-                input_set.insert(src);
-                visited_set.insert(src);
-            }
-        }
-    }
-
-    QNN_LOG_DEBUG("[%s]rank: %d, input_set: %d, output_set: %d", get_backend_name(graph->get_device()), rank,
-                  int(input_set.size()), int(output_set.size()));
-
-    qnn_tensor_cache_t tensor_cache;
-    auto intput_tensors = create_tensors(input_set, ggml_qnn_tensor::INPUT, rank, graph->get_device(),
-                                         graph->get_graph_handler(), graph->get_qnn_instance(), tensor_cache);
-    auto output_tensors = create_tensors(output_set, ggml_qnn_tensor::OUTPUT, rank, graph->get_device(),
-                                         graph->get_graph_handler(), graph->get_qnn_instance(), tensor_cache);
-    qnn_op_config_array_t operations;
-    for (int i = 0; i < cgraph->n_nodes; i++) {
-        ggml_tensor *dst = cgraph->nodes[i];
-        if (ggml_is_empty(dst)) {
-            continue;
-        }
-
-        QNN_LOG_DEBUG("[%s]create op: %s", get_backend_name(graph->get_device()), get_qnn_op_name(dst->op));
-        auto operation =
-            create_operation_from_op_tensor(dst, dst->name, rank, graph->get_device(), graph->get_graph_handler(),
-                                            graph->get_qnn_instance(), true, tensor_cache); // TODO: fix op name
-        operations.push_back(operation);
-    }
-
-    if (!graph->build_graph(operations, intput_tensors, output_tensors)) {
-        QNN_LOG_ERROR("[%s]build graph failed", get_backend_name(graph->get_device()));
-        return false;
-    }
-
     return true;
 }
 
