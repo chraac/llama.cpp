@@ -159,15 +159,7 @@ bool qnn_graph::build_graph(ggml_tensor *op, const ggml_tensor_array_t &tensor_i
     _tensor_inputs = operation->get_input_tensors();
     _tensor_outputs = operation->get_output_tensors();
     _operations.push_back(std::move(operation));
-    if (!qnn::add_op_to_graph(_graph_handle, _operations)) {
-        QNN_LOG_ERROR("[%s]add nodes failed", _graph_name.c_str());
-        return false;
-    }
-
-    auto error = _qnn_interface->qnn_graph_finalize(_graph_handle, nullptr, nullptr);
-    if (error != QNN_SUCCESS) {
-        QNN_LOG_ERROR("[%s][%s]qnn_graph_finalize.error: %s", get_backend_name(_device), _graph_name.c_str(),
-                      get_qnn_error_string(error));
+    if (!finalize()) {
         return false;
     }
 
@@ -209,8 +201,8 @@ bool qnn_graph::build_graph_from_ggml_graph(const ggml_cgraph *cgraph) {
 
     {
         qnn_tensor_cache_t tensor_cache;
-        auto intput_tensors = create_tensors(input_set, ggml_qnn_tensor::INPUT, rank, _device, _graph_handle,
-                                             _qnn_instance, tensor_cache);
+        auto input_tensors = create_tensors(input_set, ggml_qnn_tensor::INPUT, rank, _device, _graph_handle,
+                                            _qnn_instance, tensor_cache);
         auto output_tensors = create_tensors(output_set, ggml_qnn_tensor::OUTPUT, rank, _device, _graph_handle,
                                              _qnn_instance, tensor_cache);
         qnn_op_config_array_t operations;
@@ -226,21 +218,12 @@ bool qnn_graph::build_graph_from_ggml_graph(const ggml_cgraph *cgraph) {
             operations.push_back(operation);
         }
 
-        _tensor_inputs = std::move(intput_tensors);
+        _tensor_inputs = std::move(input_tensors);
         _tensor_outputs = std::move(output_tensors);
         _operations = std::move(operations);
-    }
-
-    if (!qnn::add_op_to_graph(_graph_handle, _operations)) {
-        QNN_LOG_ERROR("[%s]add nodes failed", _graph_name.c_str());
-        return false;
-    }
-
-    auto error = _qnn_interface->qnn_graph_finalize(_graph_handle, nullptr, nullptr);
-    if (error != QNN_SUCCESS) {
-        QNN_LOG_ERROR("[%s][%s]qnn_graph_finalize.error: %s", get_backend_name(_device), _graph_name.c_str(),
-                      get_qnn_error_string(error));
-        return false;
+        if (!finalize()) {
+            return false;
+        }
     }
 
     QNN_LOG_DEBUG("[%s][%s]build_graph succeed", get_backend_name(_device), _graph_name.c_str());
@@ -278,6 +261,23 @@ bool qnn_graph::execute(const ggml_tensor_array_t &tensor_inputs, const ggml_ten
     }
 
     QNN_LOG_DEBUG("[%s][%s]execute succeed", get_backend_name(_device), _graph_name.c_str());
+    return true;
+}
+
+bool qnn_graph::finalize() {
+    if (!qnn::add_op_to_graph(_graph_handle, _operations)) {
+        QNN_LOG_ERROR("[%s]add nodes failed", _graph_name.c_str());
+        return false;
+    }
+
+    auto error = _qnn_interface->qnn_graph_finalize(_graph_handle, nullptr, nullptr);
+    if (error != QNN_SUCCESS) {
+        QNN_LOG_ERROR("[%s][%s]qnn_graph_finalize.error: %s", get_backend_name(_device), _graph_name.c_str(),
+                      get_qnn_error_string(error));
+        return false;
+    }
+
+    QNN_LOG_DEBUG("[%s][%s]finalize succeed", get_backend_name(_device), _graph_name.c_str());
     return true;
 }
 

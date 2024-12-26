@@ -30,6 +30,8 @@ public:
     QNNBackend get_device() const { return _device; }
 
 private:
+    bool finalize();
+
     const std::string _graph_name;
     const QNNBackend _device;
     Qnn_GraphHandle_t _graph_handle = nullptr;
