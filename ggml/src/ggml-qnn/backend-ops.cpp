@@ -104,8 +104,25 @@ bool execute_graph(qnn::qnn_graph *graph, const std::array<ggml_tensor *, _Input
 
 void append_tensor_dimensions(const ggml_tensor *tensor, std::string &output) {
     char buffer[256] = {};
-    int len = snprintf(buffer, sizeof(buffer), "%ldx%ldx%ldx%ld%s", (long)tensor->ne[0], (long)tensor->ne[1],
-                       (long)tensor->ne[2], (long)tensor->ne[3], qnn::get_ggml_type_name(tensor->type));
+    const auto *type_name = qnn::get_ggml_type_name(tensor->type);
+    int len = 0;
+    switch (ggml_n_dims(tensor)) {
+        case 1:
+            len = snprintf(buffer, sizeof(buffer), "%ld%s", (long)tensor->ne[0], type_name);
+            break;
+        case 2:
+            len = snprintf(buffer, sizeof(buffer), "%ldx%ld%s", (long)tensor->ne[0], (long)tensor->ne[1], type_name);
+            break;
+        case 3:
+            len = snprintf(buffer, sizeof(buffer), "%ldx%ldx%ld%s", (long)tensor->ne[0], (long)tensor->ne[1],
+                           (long)tensor->ne[2], type_name);
+            break;
+        case 4:
+        default:
+            len = snprintf(buffer, sizeof(buffer), "%ldx%ldx%ldx%ld%s", (long)tensor->ne[0], (long)tensor->ne[1],
+                           (long)tensor->ne[2], (long)tensor->ne[3], type_name);
+            break;
+    }
     GGML_ASSERT(len > 0 && len < (int)sizeof(buffer));
     output.append(buffer, len);
 }
