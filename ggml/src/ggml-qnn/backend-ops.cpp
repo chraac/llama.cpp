@@ -102,23 +102,22 @@ bool execute_graph(qnn::qnn_graph *graph, const std::array<ggml_tensor *, _Input
     return true;
 }
 
-template <size_t _InputSize, size_t _OutputSize>
-std::string get_graph_key(const std::string &op_name, const std::array<ggml_tensor *, _InputSize> &inputs,
-                          const std::array<ggml_tensor *, _OutputSize> &outputs) {
-    constexpr static const auto append_dimensions = [](std::string &key, const ggml_tensor *tensor) {
-        char buffer[256] = {};
-        snprintf(buffer, sizeof(buffer), "_%ldx%ldx%ldx%ld%s", (long)tensor->ne[0], (long)tensor->ne[1],
-                 (long)tensor->ne[2], (long)tensor->ne[3], qnn::get_ggml_type_name(tensor->type));
-        key += buffer;
-    };
+void append_tensor_dimensions(const ggml_tensor *tensor, std::string &output) {
+    char buffer[256] = {};
+    snprintf(buffer, sizeof(buffer), "%ldx%ldx%ldx%ld%s", (long)tensor->ne[0], (long)tensor->ne[1], (long)tensor->ne[2],
+             (long)tensor->ne[3], qnn::get_ggml_type_name(tensor->type));
+    output += buffer;
+}
 
-    std::string graph_key(op_name);
-    for (auto &input : inputs) {
-        append_dimensions(graph_key, input);
+void get_graph_key_from_op(const ggml_tensor *op, std::string &output) {
+    GGML_ASSERT(op->op != GGML_OP_NONE);
+    output += ggml_op_desc(op);
+    const auto param_count = qnn::get_qnn_op_input_param_count(qnn::get_qnn_op_index(op));
+    for (size_t i = 0; i < param_count; ++i) {
+        auto *input = op->src[i];
+        output += '_';
+        append_tensor_dimensions(input, output);
     }
-
-    graph_key += qnn::get_ggml_type_name(outputs.front()->type);
-    return graph_key;
 }
 
 template <size_t _InputSize>
@@ -127,9 +126,8 @@ qnn::qnn_graph *get_qnn_graph_from_cache(ggml_backend_qnn_device_context *ctx, s
     GGML_ASSERT(op < (GGML_OP_COUNT + GGML_UNARY_OP_COUNT));
 
     auto &graph_cache = ctx->qnn_graph_cache;
-    const auto *op_name = op < qnn::kGgmlUnaryOpStart ? ggml_op_name(ggml_op(op))
-                                                      : ggml_unary_op_name(ggml_unary_op(op - qnn::kGgmlUnaryOpStart));
-    auto graph_key = get_graph_key<_InputSize, 1>(op_name, inputs, {output});
+    std::string graph_key;
+    get_graph_key_from_op(output, graph_key);
     auto it = graph_cache.find(graph_key);
     qnn::qnn_graph *graph_ptr = nullptr;
     if (it != graph_cache.end()) {
