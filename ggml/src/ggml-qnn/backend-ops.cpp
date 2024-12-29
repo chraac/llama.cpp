@@ -104,14 +104,16 @@ bool execute_graph(qnn::qnn_graph *graph, const std::array<ggml_tensor *, _Input
 
 void append_tensor_dimensions(const ggml_tensor *tensor, std::string &output) {
     char buffer[256] = {};
-    snprintf(buffer, sizeof(buffer), "%ldx%ldx%ldx%ld%s", (long)tensor->ne[0], (long)tensor->ne[1], (long)tensor->ne[2],
-             (long)tensor->ne[3], qnn::get_ggml_type_name(tensor->type));
-    output += buffer;
+    int len = snprintf(buffer, sizeof(buffer), "%ldx%ldx%ldx%ld%s", (long)tensor->ne[0], (long)tensor->ne[1],
+                       (long)tensor->ne[2], (long)tensor->ne[3], qnn::get_ggml_type_name(tensor->type));
+    GGML_ASSERT(len > 0 && len < (int)sizeof(buffer));
+    output.append(buffer, len);
 }
 
 void get_graph_key_from_op(const ggml_tensor *op, std::string &output) {
     GGML_ASSERT(op->op != GGML_OP_NONE);
     output += ggml_op_desc(op);
+    output += qnn::get_ggml_type_name(op->type);
     const auto param_count = qnn::get_qnn_op_input_param_count(qnn::get_qnn_op_index(op));
     for (size_t i = 0; i < param_count; ++i) {
         auto *input = op->src[i];
