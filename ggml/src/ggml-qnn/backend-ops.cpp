@@ -342,6 +342,25 @@ bool ggml_qnn_supports_tensor(ggml_backend_qnn_device_context *ctx, const ggml_t
     return true;
 }
 
+bool ggnl_qnn_supports_op_tensor(ggml_backend_qnn_device_context *ctx, const ggml_tensor *op) {
+    if (op->op == GGML_OP_NONE) {
+        return true;
+    }
+
+    if (!ggml_qnn_supports_tensor(ctx, op)) {
+        return false;
+    }
+
+    const auto param_count = qnn::get_qnn_op_input_param_count(qnn::get_qnn_op_index(op));
+    for (size_t i = 0; i < param_count; ++i) {
+        if (!ggml_qnn_supports_tensor(ctx, op->src[i])) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor *op) {
     constexpr const size_t kMaxNpuTensorSize = 8192L * 2048 + 8192 * 512 + 2048 * 512;
     constexpr const auto get_tensor_size = [](const ggml_tensor *tensor) -> size_t {
@@ -401,7 +420,16 @@ bool device_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor 
         return true;
     }
 
-    auto *src0 = op->src[0];
+    if (!kQnnOpsTable[qnn::get_qnn_op_index(op)]) {
+        QNN_LOG_DEBUG("[%s] unsupported op", ggml_op_name(op->op));
+        return false;
+    }
+
+    if (!ggnl_qnn_supports_op_tensor(ctx, op)) {
+        QNN_LOG_DEBUG("[%s] unsupported tensor", ggml_op_name(op->op));
+        return false;
+    }
+
     if (op->op == GGML_OP_UNARY) {
         const auto unary_op = ggml_get_unary_op(op);
         if (unary_op == GGML_UNARY_OP_GELU) {
@@ -409,29 +437,9 @@ bool device_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor 
             QNN_LOG_DEBUG("unsupported unary op GGML_UNARY_OP_GELU for NPU");
             return false;
         }
-
-        if (!kQnnOpsTable[qnn::kGgmlUnaryOpStart + unary_op]) {
-            QNN_LOG_DEBUG("unsupported unary op %d", unary_op);
-            return false;
-        }
-
-        if (!ggml_qnn_supports_tensor(ctx, src0) || !ggml_qnn_supports_tensor(ctx, op)) {
-            QNN_LOG_DEBUG("src0 is nullptr");
-            return false;
-        }
     } else {
-        if (!kQnnOpsTable[op->op]) {
-            QNN_LOG_DEBUG("[%s] unsupported op", ggml_op_name(op->op));
-            return false;
-        }
-
+        auto *src0 = op->src[0];
         auto *src1 = op->src[1];
-        if (!ggml_qnn_supports_tensor(ctx, src0) || !ggml_qnn_supports_tensor(ctx, op) ||
-            (kQnnOpsTable[op->op] && !ggml_qnn_supports_tensor(ctx, src1))) {
-            QNN_LOG_DEBUG("[%s] unsupported tensor", ggml_op_name(op->op));
-            return false;
-        }
-
         switch (op->op) {
             case GGML_OP_ADD:
                 if (!is_tensor_dimensions_equal(src0, src1)) {
