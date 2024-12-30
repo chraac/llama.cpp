@@ -139,6 +139,33 @@ void get_graph_key_from_op(const ggml_tensor *op, std::string &output) {
     }
 }
 
+void get_graph_key_from_cgraph(const ggml_cgraph *cgraph, std::string &output) {
+    // generate key from the graph, the key is used to cache the graph, like:
+    //   "MUL_MATf32_256x16x10f32_256x1x10f32#LOG#ADD#ADDf32_16x1x10f32"
+    if (cgraph->n_nodes == 0) {
+        QNN_LOG_DEBUG("empty cgraph");
+        return;
+    }
+
+    get_graph_key_from_op(cgraph->nodes[0], output);
+    for (int i = 1; i < cgraph->n_nodes; ++i) {
+        auto *op = cgraph->nodes[i];
+        if (ggml_is_empty(op)) {
+            continue;
+        }
+
+        output += '#';
+        output += ggml_op_desc(op);
+    }
+
+    if (cgraph->n_nodes > 1) {
+        auto *last_op = cgraph->nodes[cgraph->n_nodes - 1];
+        output += qnn::get_ggml_type_name(last_op->type);
+        output += '_';
+        append_tensor_dimensions(last_op, output);
+    }
+}
+
 template <size_t _InputSize>
 qnn::qnn_graph *get_qnn_graph_from_cache(ggml_backend_qnn_device_context *ctx, size_t op,
                                          const std::array<ggml_tensor *, _InputSize> &inputs, ggml_tensor *output) {
