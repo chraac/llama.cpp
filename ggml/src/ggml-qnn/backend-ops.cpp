@@ -87,22 +87,8 @@ typedef bool (*ggml_qnn_binary_op_t)(ggml_backend_qnn_device_context *ctx, ggml_
 typedef const ggml_qnn_unary_op_t (&ggml_qnn_unary_op_array_t)[GGML_OP_COUNT + GGML_UNARY_OP_COUNT];
 typedef const ggml_qnn_binary_op_t (&ggml_qnn_binary_op_array_t)[GGML_OP_COUNT];
 
-template <size_t _Size>
-qnn::ggml_tensor_array_t to_ggml_tensor_array(ggml_tensor *dst);
-
-template <>
-qnn::ggml_tensor_array_t to_ggml_tensor_array<2>(ggml_tensor *dst) {
-    return {dst->src[0], dst->src[1]};
-}
-
-template <>
-qnn::ggml_tensor_array_t to_ggml_tensor_array<1>(ggml_tensor *dst) {
-    return {dst->src[0]};
-}
-
-template <size_t _InputSize>
 bool execute_graph(qnn::qnn_graph *graph, ggml_tensor *output) {
-    if (!graph->execute(to_ggml_tensor_array<_InputSize>(output), {output})) {
+    if (!graph->execute(output)) {
         QNN_LOG_WARN("execute failed");
         return false;
     }
@@ -209,7 +195,7 @@ bool qnn_binary_op_impl(ggml_backend_qnn_device_context *ctx, ggml_tensor *src0,
     bool succeed = false;
     auto *graph_ptr = get_qnn_graph_from_cache(ctx, dst);
     if (graph_ptr) {
-        succeed = execute_graph<2>(graph_ptr, dst);
+        succeed = execute_graph(graph_ptr, dst);
     }
 
 #ifndef NDEBUG
@@ -230,7 +216,7 @@ bool qnn_unary_op_impl(ggml_backend_qnn_device_context *ctx, ggml_tensor *src, g
     bool succeed = false;
     auto *graph_ptr = get_qnn_graph_from_cache(ctx, dst);
     if (graph_ptr) {
-        succeed = execute_graph<1>(graph_ptr, dst);
+        succeed = execute_graph(graph_ptr, dst);
     }
 
 #ifndef NDEBUG

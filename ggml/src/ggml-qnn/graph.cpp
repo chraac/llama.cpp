@@ -85,6 +85,29 @@ qnn::qnn_op_config_ptr_t create_operation_from_op_tensor(ggml_tensor *dst, const
     return operation;
 }
 
+bool bind_src_tensors(ggml_tensor *op, qnn::qnn_tensor_array_t &tensor_wrappers,
+                      std::vector<Qnn_Tensor_t> &qnn_tensors) {
+    if (op->op == GGML_OP_NONE) {
+        QNN_LOG_DEBUG("op %s is not a valid op", ggml_get_name(op));
+        return false;
+    }
+
+    const auto param_count = qnn::get_qnn_op_input_param_count(qnn::get_qnn_op_index(op));
+    GGML_ASSERT(tensor_wrappers.size() == param_count);
+    qnn_tensors.resize(param_count);
+    for (size_t i = 0; i < param_count; ++i) {
+        auto *ggml_tensor = op->src[i];
+        if (!tensor_wrappers[i]->bind_ggml_tensor(ggml_tensor)) {
+            QNN_LOG_ERROR("bind tensor %s failed", ggml_get_name(ggml_tensor));
+            return false;
+        }
+
+        qnn_tensors[i] = tensor_wrappers[i]->get_qnn_tensor();
+    }
+
+    return true;
+}
+
 } // namespace
 
 namespace qnn {
@@ -241,13 +264,13 @@ bool qnn_graph::build_graph_from_ggml_graph(const ggml_cgraph *cgraph) {
     return true;
 }
 
-bool qnn_graph::execute(const ggml_tensor_array_t &tensor_inputs, const ggml_tensor_array_t &tensor_outputs) {
-    if (!qnn::bind_tensors(tensor_inputs, _tensor_inputs, _qnn_tensor_inputs)) {
+bool qnn_graph::execute(ggml_tensor *op) {
+    if (!bind_src_tensors(op, _tensor_inputs, _qnn_tensor_inputs)) {
         QNN_LOG_ERROR("[%s][%s]bind input tensors failed", get_backend_name(_device), _graph_name.c_str());
         return false;
     }
 
-    if (!qnn::bind_tensors(tensor_outputs, _tensor_outputs, _qnn_tensor_outputs)) {
+    if (!qnn::bind_tensors({op}, _tensor_outputs, _qnn_tensor_outputs)) {
         QNN_LOG_ERROR("[%s][%s]bind output tensors failed", get_backend_name(_device), _graph_name.c_str());
         return false;
     }
