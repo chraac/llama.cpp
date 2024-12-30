@@ -174,7 +174,6 @@ void get_graph_key_from_cgraph(const ggml_cgraph *cgraph, std::string &output) {
     }
 }
 
-template <size_t _InputSize>
 qnn::qnn_graph *get_qnn_graph_from_cache(ggml_backend_qnn_device_context *ctx, ggml_tensor *output) {
     auto &graph_cache = ctx->qnn_graph_cache;
     std::string graph_key;
@@ -191,8 +190,8 @@ qnn::qnn_graph *get_qnn_graph_from_cache(ggml_backend_qnn_device_context *ctx, g
             return nullptr;
         }
 
-        if (!graph->build_graph(output, to_ggml_tensor_array<_InputSize>(output), {output})) {
-            QNN_LOG_ERROR("[%s]build_graph failed", qnn::get_backend_name(ctx->device));
+        if (!graph->build_graph_from_op(output)) {
+            QNN_LOG_ERROR("[%s]build_graph_from_op failed", qnn::get_backend_name(ctx->device));
             return nullptr;
         }
 
@@ -208,7 +207,7 @@ bool qnn_binary_op_impl(ggml_backend_qnn_device_context *ctx, ggml_tensor *src0,
     CHECK_PARAMS(ctx, src0, src1, dst);
 
     bool succeed = false;
-    auto *graph_ptr = get_qnn_graph_from_cache<2>(ctx, dst);
+    auto *graph_ptr = get_qnn_graph_from_cache(ctx, dst);
     if (graph_ptr) {
         succeed = execute_graph<2>(graph_ptr, dst);
     }
@@ -229,7 +228,7 @@ bool qnn_unary_op_impl(ggml_backend_qnn_device_context *ctx, ggml_tensor *src, g
     CHECK_PARAMS(ctx, src, dst);
 
     bool succeed = false;
-    auto *graph_ptr = get_qnn_graph_from_cache<1>(ctx, dst);
+    auto *graph_ptr = get_qnn_graph_from_cache(ctx, dst);
     if (graph_ptr) {
         succeed = execute_graph<1>(graph_ptr, dst);
     }

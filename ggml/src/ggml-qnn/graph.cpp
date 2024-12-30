@@ -14,6 +14,16 @@ namespace {
 using ggml_tensor_set_t = std::unordered_set<ggml_tensor *>;
 using qnn_tensor_cache_t = std::unordered_map<ggml_tensor *, qnn::qnn_tensor_ptr_t>;
 
+int get_op_max_rank(const ggml_tensor *op) {
+    int max_rank = ggml_n_dims(op);
+    const int count = (int)qnn::get_qnn_op_input_param_count(qnn::get_qnn_op_index(op));
+    for (int i = 0; i < count; ++i) {
+        max_rank = std::max(max_rank, ggml_n_dims(op->src[i]));
+    }
+
+    return max_rank;
+}
+
 qnn::qnn_tensor_ptr_t create_tensor_with_cache(ggml_tensor *tensor, qnn::ggml_qnn_tensor::tensor_type_t type, int rank,
                                                QNNBackend device, Qnn_GraphHandle_t graph_handle,
                                                std::shared_ptr<qnn::qnn_instance> qnn_instance,
@@ -139,16 +149,15 @@ qnn_graph::qnn_graph(const std::string &graph_name, QNNBackend device, std::shar
 
 qnn_graph::~qnn_graph() { QNN_LOG_DEBUG("[%s][%s]destroy", get_backend_name(_device), _graph_name.c_str()); }
 
-bool qnn_graph::build_graph(ggml_tensor *op, const ggml_tensor_array_t &tensor_inputs,
-                            const ggml_tensor_array_t &tensor_outputs) {
+bool qnn_graph::build_graph_from_op(ggml_tensor *op) {
     if (!is_valid()) {
         QNN_LOG_ERROR("Invalid graph");
         return false;
     }
 
-    QNN_LOG_DEBUG("[%s][%s]build_graph start", get_backend_name(_device), _graph_name.c_str());
+    QNN_LOG_DEBUG("[%s][%s]build start", get_backend_name(_device), _graph_name.c_str());
     qnn_tensor_cache_t tensor_cache;
-    const auto rank = std::max(get_ggml_tensors_max_rank(tensor_inputs), get_ggml_tensors_max_rank(tensor_outputs));
+    const auto rank = get_op_max_rank(op);
     auto operation = create_operation_from_op_tensor(op, _graph_name, rank, _device, _graph_handle, _qnn_instance,
                                                      false, tensor_cache);
     if (!operation) {
@@ -163,11 +172,13 @@ bool qnn_graph::build_graph(ggml_tensor *op, const ggml_tensor_array_t &tensor_i
         return false;
     }
 
-    QNN_LOG_DEBUG("[%s][%s]build_graph succeed", get_backend_name(_device), _graph_name.c_str());
+    QNN_LOG_DEBUG("[%s][%s]build succeed", get_backend_name(_device), _graph_name.c_str());
     return true;
 }
 
 bool qnn_graph::build_graph_from_ggml_graph(const ggml_cgraph *cgraph) {
+    QNN_LOG_DEBUG("[%s][%s]build start", get_backend_name(_device), _graph_name.c_str());
+
     ggml_tensor_set_t input_set;
     ggml_tensor_set_t output_set;
     ggml_tensor_set_t visited_set;
@@ -226,7 +237,7 @@ bool qnn_graph::build_graph_from_ggml_graph(const ggml_cgraph *cgraph) {
         }
     }
 
-    QNN_LOG_DEBUG("[%s][%s]build_graph succeed", get_backend_name(_device), _graph_name.c_str());
+    QNN_LOG_DEBUG("[%s][%s]build succeed", get_backend_name(_device), _graph_name.c_str());
     return true;
 }
 
