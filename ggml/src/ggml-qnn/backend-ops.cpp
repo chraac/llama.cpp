@@ -169,7 +169,7 @@ qnn::qnn_graph *get_qnn_graph_from_cache(ggml_backend_qnn_device_context *ctx, g
     return graph_ptr;
 }
 
-bool qnn_op_impl(ggml_backend_qnn_device_context *ctx, ggml_tensor *dst) {
+bool qnn_generic_op_impl(ggml_backend_qnn_device_context *ctx, ggml_tensor *dst) {
     if (!qnn_is_op_valid(ctx, dst)) {
         return false;
     }
@@ -197,36 +197,36 @@ bool qnn_nop_impl(ggml_backend_qnn_device_context *ctx, ggml_tensor *dst) {
 }
 
 constexpr const ggml_qnn_op_t kQnnOpsTable[] = {
-    qnn_nop_impl, // GGML_OP_NONE
-    nullptr,      // GGML_OP_DUP
-    qnn_op_impl,  // GGML_OP_ADD
-    nullptr,      // GGML_OP_ADD1
-    nullptr,      // GGML_OP_ACC
-    qnn_op_impl,  // GGML_OP_SUB
-    qnn_op_impl,  // GGML_OP_MUL
-    qnn_op_impl,  // GGML_OP_DIV
-    nullptr,      // GGML_OP_SQR
-    qnn_op_impl,  // GGML_OP_SQRT
-    qnn_op_impl,  // GGML_OP_LOG
-    nullptr,      // GGML_OP_SIN
-    nullptr,      // GGML_OP_COS
-    nullptr,      // GGML_OP_SUM
-    nullptr,      // GGML_OP_SUM_ROWS
-    nullptr,      // GGML_OP_MEAN
-    nullptr,      // GGML_OP_ARGMAX
-    nullptr,      // GGML_OP_COUNT_EQUAL
-    nullptr,      // GGML_OP_REPEAT
-    nullptr,      // GGML_OP_REPEAT_BACK
-    nullptr,      // GGML_OP_CONCAT
-    nullptr,      // GGML_OP_SILU_BACK
-    nullptr,      // GGML_OP_NORM
-    nullptr,      // GGML_OP_RMS_NORM
-    nullptr,      // GGML_OP_RMS_NORM_BACK
-    nullptr,      // GGML_OP_GROUP_NORM
+    qnn_nop_impl,        // GGML_OP_NONE
+    nullptr,             // GGML_OP_DUP
+    qnn_generic_op_impl, // GGML_OP_ADD
+    nullptr,             // GGML_OP_ADD1
+    nullptr,             // GGML_OP_ACC
+    qnn_generic_op_impl, // GGML_OP_SUB
+    qnn_generic_op_impl, // GGML_OP_MUL
+    qnn_generic_op_impl, // GGML_OP_DIV
+    nullptr,             // GGML_OP_SQR
+    qnn_generic_op_impl, // GGML_OP_SQRT
+    qnn_generic_op_impl, // GGML_OP_LOG
+    nullptr,             // GGML_OP_SIN
+    nullptr,             // GGML_OP_COS
+    nullptr,             // GGML_OP_SUM
+    nullptr,             // GGML_OP_SUM_ROWS
+    nullptr,             // GGML_OP_MEAN
+    nullptr,             // GGML_OP_ARGMAX
+    nullptr,             // GGML_OP_COUNT_EQUAL
+    nullptr,             // GGML_OP_REPEAT
+    nullptr,             // GGML_OP_REPEAT_BACK
+    nullptr,             // GGML_OP_CONCAT
+    nullptr,             // GGML_OP_SILU_BACK
+    nullptr,             // GGML_OP_NORM
+    nullptr,             // GGML_OP_RMS_NORM
+    nullptr,             // GGML_OP_RMS_NORM_BACK
+    nullptr,             // GGML_OP_GROUP_NORM
 
-    qnn_op_impl, // GGML_OP_MUL_MAT
-    nullptr,     // GGML_OP_MUL_MAT_ID
-    nullptr,     // GGML_OP_OUT_PROD
+    qnn_generic_op_impl, // GGML_OP_MUL_MAT
+    nullptr,             // GGML_OP_MUL_MAT_ID
+    nullptr,             // GGML_OP_OUT_PROD
 
     nullptr,      // GGML_OP_SCALE
     nullptr,      // GGML_OP_SET
@@ -289,20 +289,20 @@ constexpr const ggml_qnn_op_t kQnnOpsTable[] = {
     nullptr, // GGML_OP_OPT_STEP_ADAMW
 
     // ggml_unary_op
-    nullptr,     // GGML_UNARY_OP_ABS
-    nullptr,     // GGML_UNARY_OP_SGN
-    nullptr,     // GGML_UNARY_OP_NEG
-    nullptr,     // GGML_UNARY_OP_STEP
-    nullptr,     // GGML_UNARY_OP_TANH
-    nullptr,     // GGML_UNARY_OP_ELU
-    nullptr,     // GGML_UNARY_OP_RELU
-    nullptr,     // GGML_UNARY_OP_SIGMOID
-    qnn_op_impl, // GGML_UNARY_OP_GELU
-    nullptr,     // GGML_UNARY_OP_GELU_QUICK
-    nullptr,     // GGML_UNARY_OP_SILU
-    nullptr,     // GGML_UNARY_OP_HARDSWISH
-    nullptr,     // GGML_UNARY_OP_HARDSIGMOID
-    nullptr,     // GGML_UNARY_OP_EXP
+    nullptr,             // GGML_UNARY_OP_ABS
+    nullptr,             // GGML_UNARY_OP_SGN
+    nullptr,             // GGML_UNARY_OP_NEG
+    nullptr,             // GGML_UNARY_OP_STEP
+    nullptr,             // GGML_UNARY_OP_TANH
+    nullptr,             // GGML_UNARY_OP_ELU
+    nullptr,             // GGML_UNARY_OP_RELU
+    nullptr,             // GGML_UNARY_OP_SIGMOID
+    qnn_generic_op_impl, // GGML_UNARY_OP_GELU
+    nullptr,             // GGML_UNARY_OP_GELU_QUICK
+    nullptr,             // GGML_UNARY_OP_SILU
+    nullptr,             // GGML_UNARY_OP_HARDSWISH
+    nullptr,             // GGML_UNARY_OP_HARDSIGMOID
+    nullptr,             // GGML_UNARY_OP_EXP
 };
 
 static_assert(std::size(kQnnOpsTable) == (GGML_OP_COUNT + GGML_UNARY_OP_COUNT),

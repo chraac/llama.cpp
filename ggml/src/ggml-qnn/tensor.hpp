@@ -49,9 +49,8 @@ public:
                           qnn_datatype_from_ggml_datatype(data_type), rank, device, graph_handle, qnn_instance) {}
 
     ~ggml_qnn_tensor() {
-        unbind();
-        _buffer.reset();
         _rpc_buffer.reset();
+        unbind();
     }
 
     bool set_data_buffer(const uint8_t *buffer, const size_t buffer_size) {
@@ -120,7 +119,7 @@ public:
         }
 
         if (!_buffer) {
-            QNN_LOG_DEBUG("[%s]bound to ggml tensor", _tensor_name.c_str());
+            QNN_LOG_DEBUG("[%s]unbind to ggml tensor", _tensor_name.c_str());
             return true;
         }
 
