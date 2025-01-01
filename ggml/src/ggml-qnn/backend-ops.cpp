@@ -51,21 +51,6 @@ void print_ggml_tensor(const ggml_tensor *tensor) {
 
 namespace {
 
-bool is_tensor_dimensions_equal(const ggml_tensor *l, const ggml_tensor *r) {
-    const auto dim_l = ggml_n_dims(l);
-    if (dim_l != ggml_n_dims(r)) {
-        return false;
-    }
-
-    for (int i = 0; i < dim_l; i++) {
-        if (l->ne[i] != r->ne[i]) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
 typedef bool (*ggml_qnn_op_t)(ggml_backend_qnn_device_context *ctx, ggml_tensor *dst);
 
 bool execute_graph(qnn::qnn_graph *graph, ggml_tensor *output) {
@@ -442,7 +427,7 @@ bool device_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor 
         auto *src1 = op->src[1];
         switch (op->op) {
             case GGML_OP_ADD:
-                if (!is_tensor_dimensions_equal(src0, src1)) {
+                if (!ggml_are_same_shape(src0, src1)) {
                     QNN_LOG_DEBUG("src0 and src1 dimensions are not equal");
                     return false;
                 }
