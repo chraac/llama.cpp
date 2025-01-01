@@ -290,6 +290,16 @@ constexpr const ggml_qnn_op_t kQnnOpsTable[] = {
     nullptr,             // GGML_UNARY_OP_EXP
 };
 
+static_assert(kQnnOpsTable[GGML_OP_NONE] == qnn_nop_impl, "GGML_OP_NONE does not match the qnn_nop_impl function");
+static_assert(kQnnOpsTable[GGML_OP_ADD] == qnn_generic_op_impl,
+              "GGML_OP_ADD does not match the qnn_generic_op_impl function");
+static_assert(kQnnOpsTable[GGML_OP_MUL] == qnn_generic_op_impl,
+              "GGML_OP_MUL does not match the qnn_generic_op_impl function");
+static_assert(kQnnOpsTable[GGML_OP_MUL_MAT] == qnn_generic_op_impl,
+              "GGML_OP_MUL_MAT does not match the qnn_generic_op_impl function");
+static_assert(kQnnOpsTable[GGML_OP_VIEW] == qnn_nop_impl, "GGML_OP_VIEW does not match the qnn_nop_impl function");
+static_assert(kQnnOpsTable[GGML_OP_GET_ROWS] == qnn_nop_impl,
+              "GGML_OP_GET_ROWS does not match the qnn_nop_impl function");
 static_assert(std::size(kQnnOpsTable) == (GGML_OP_COUNT + GGML_UNARY_OP_COUNT),
               "GGML_OP_COUNT does not match the size of the kQnnOpsTable table");
 
