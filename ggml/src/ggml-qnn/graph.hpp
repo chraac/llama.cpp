@@ -22,6 +22,7 @@ public:
     bool build_graph_from_ggml_graph(const ggml_cgraph *cgraph);
 
     bool execute(ggml_tensor *op);
+    bool execute(const ggml_cgraph *cgraph);
     bool is_valid() const { return _graph_handle != nullptr; }
     Qnn_GraphHandle_t get_graph_handler() const { return _graph_handle; }
     std::shared_ptr<qnn_instance> get_qnn_instance() { return _qnn_instance; }

@@ -310,6 +310,48 @@ bool qnn_graph::execute(ggml_tensor *op) {
     return true;
 }
 
+bool qnn_graph::execute(const ggml_cgraph *cgraph) {
+    ggml_tensor_array_t inputs;
+    ggml_tensor_array_t outputs;
+    int rank = get_io_tensors_from_graph(cgraph, inputs, outputs);
+    QNN_LOG_DEBUG("[%s]rank: %d, input_set: %d, output_set: %d", get_backend_name(_device), rank, int(inputs.size()),
+                  int(outputs.size()));
+
+    {
+        if (!qnn::bind_tensors(inputs, _tensor_inputs, _qnn_tensor_inputs)) {
+            QNN_LOG_ERROR("[%s][%s]bind input tensors failed", get_backend_name(_device), _graph_name.c_str());
+            return false;
+        }
+
+        if (!qnn::bind_tensors(outputs, _tensor_outputs, _qnn_tensor_outputs)) {
+            QNN_LOG_ERROR("[%s][%s]bind output tensors failed", get_backend_name(_device), _graph_name.c_str());
+            return false;
+        }
+
+        auto &qnn_tensor_inputs = _qnn_tensor_inputs;
+        auto &qnn_tensor_outputs = _qnn_tensor_outputs;
+        auto error =
+            _qnn_interface->qnn_graph_execute(_graph_handle, qnn_tensor_inputs.data(), qnn_tensor_inputs.size(),
+                                              qnn_tensor_outputs.data(), qnn_tensor_outputs.size(), nullptr, nullptr);
+        unbind_tensors(_tensor_inputs);
+        unbind_tensors(_tensor_outputs);
+
+        if (error != QNN_SUCCESS) {
+            if (_device == QNN_BACKEND_NPU && error == QNN_COMMON_ERROR_SYSTEM_COMMUNICATION) {
+                QNN_LOG_WARN("[%s][%s]NPU crashed. SSR detected. Caused QNN graph execute error.",
+                             get_backend_name(_device), _graph_name.c_str());
+            } else {
+                QNN_LOG_ERROR("[%s][%s]error: %s", get_backend_name(_device), _graph_name.c_str(),
+                              get_qnn_error_string(error));
+            }
+            return false;
+        }
+
+        QNN_LOG_DEBUG("[%s][%s]execute succeed", get_backend_name(_device), _graph_name.c_str());
+        return true;
+    }
+}
+
 bool qnn_graph::finalize() {
     if (!qnn::add_op_to_graph(_graph_handle, _operations)) {
         QNN_LOG_ERROR("[%s]add nodes failed", _graph_name.c_str());
