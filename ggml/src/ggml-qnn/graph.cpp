@@ -11,7 +11,6 @@
 #include "tensor.hpp"
 
 namespace {
-using ggml_tensor_set_t = std::unordered_set<ggml_tensor *>;
 using qnn_tensor_cache_t = std::unordered_map<ggml_tensor *, qnn::qnn_tensor_ptr_t>;
 
 int get_op_max_rank(const ggml_tensor *op) {
@@ -39,12 +38,13 @@ qnn::qnn_tensor_ptr_t create_tensor_with_cache(ggml_tensor *tensor, qnn::ggml_qn
     return qnn_tensor;
 }
 
-qnn::qnn_tensor_array_t create_tensors(const ggml_tensor_set_t &tensor_set, qnn::ggml_qnn_tensor::tensor_type_t type,
-                                       int rank, QNNBackend device, Qnn_GraphHandle_t graph_handle,
-                                       std::shared_ptr<qnn::qnn_instance> qnn_instance,
-                                       qnn_tensor_cache_t &tensor_cache) {
+qnn::qnn_tensor_array_t create_tensors_with_cache(const qnn::ggml_tensor_array_t &ggml_tensors,
+                                                  qnn::ggml_qnn_tensor::tensor_type_t type, int rank, QNNBackend device,
+                                                  Qnn_GraphHandle_t graph_handle,
+                                                  std::shared_ptr<qnn::qnn_instance> qnn_instance,
+                                                  qnn_tensor_cache_t &tensor_cache) {
     qnn::qnn_tensor_array_t tensors;
-    for (auto *tensor : tensor_set) {
+    for (auto *tensor : ggml_tensors) {
         tensors.push_back(
             create_tensor_with_cache(tensor, type, rank, device, graph_handle, qnn_instance, tensor_cache));
     }
@@ -73,7 +73,7 @@ qnn::qnn_op_config_ptr_t create_operation_from_op_tensor(ggml_tensor *dst, const
     // output tensor
     tensor_type = is_intermediate ? qnn::ggml_qnn_tensor::INTERMEDIATE : qnn::ggml_qnn_tensor::OUTPUT;
     qnn::qnn_tensor_array_t output_qnn_tensors =
-        create_tensors({dst}, tensor_type, rank, device, graph_handle, qnn_instance, tensor_cache);
+        create_tensors_with_cache({dst}, tensor_type, rank, device, graph_handle, qnn_instance, tensor_cache);
     operation->set_output_tensors(output_qnn_tensors);
 
     // initialize operation
@@ -108,7 +108,12 @@ bool bind_src_tensors(ggml_tensor *op, qnn::qnn_tensor_array_t &tensor_wrappers,
     return true;
 }
 
-int get_io_tensors_from_graph(const ggml_cgraph *cgraph, ggml_tensor_set_t &input_set, ggml_tensor_set_t &output_set) {
+int get_io_tensors_from_graph(const ggml_cgraph *cgraph, qnn::ggml_tensor_array_t &inputs,
+                              qnn::ggml_tensor_array_t &outputs) {
+    using ggml_tensor_set_t = std::unordered_set<ggml_tensor *>;
+
+    ggml_tensor_set_t input_set;
+    ggml_tensor_set_t output_set;
     ggml_tensor_set_t visited_set;
     int rank = 0;
     for (int i = 0; i < cgraph->n_nodes; i++) {
@@ -135,6 +140,8 @@ int get_io_tensors_from_graph(const ggml_cgraph *cgraph, ggml_tensor_set_t &inpu
         }
     }
 
+    inputs.assign(input_set.begin(), input_set.end());
+    outputs.assign(output_set.begin(), output_set.end());
     return rank;
 }
 
@@ -232,18 +239,18 @@ bool qnn_graph::build_graph_from_op(ggml_tensor *op) {
 bool qnn_graph::build_graph_from_ggml_graph(const ggml_cgraph *cgraph) {
     QNN_LOG_DEBUG("[%s][%s]build start", get_backend_name(_device), _graph_name.c_str());
 
-    ggml_tensor_set_t input_set;
-    ggml_tensor_set_t output_set;
-    int rank = get_io_tensors_from_graph(cgraph, input_set, output_set);
-    QNN_LOG_DEBUG("[%s]rank: %d, input_set: %d, output_set: %d", get_backend_name(_device), rank, int(input_set.size()),
-                  int(output_set.size()));
+    ggml_tensor_array_t inputs;
+    ggml_tensor_array_t outputs;
+    int rank = get_io_tensors_from_graph(cgraph, inputs, outputs);
+    QNN_LOG_DEBUG("[%s]rank: %d, input_set: %d, output_set: %d", get_backend_name(_device), rank, int(inputs.size()),
+                  int(outputs.size()));
 
     {
         qnn_tensor_cache_t tensor_cache;
-        auto input_tensors = create_tensors(input_set, ggml_qnn_tensor::INPUT, rank, _device, _graph_handle,
-                                            _qnn_instance, tensor_cache);
-        auto output_tensors = create_tensors(output_set, ggml_qnn_tensor::OUTPUT, rank, _device, _graph_handle,
-                                             _qnn_instance, tensor_cache);
+        auto input_tensors = create_tensors_with_cache(inputs, ggml_qnn_tensor::INPUT, rank, _device, _graph_handle,
+                                                       _qnn_instance, tensor_cache);
+        auto output_tensors = create_tensors_with_cache(outputs, ggml_qnn_tensor::OUTPUT, rank, _device, _graph_handle,
+                                                        _qnn_instance, tensor_cache);
         qnn_op_config_array_t operations;
         for (int i = 0; i < cgraph->n_nodes; i++) {
             ggml_tensor *dst = cgraph->nodes[i];
