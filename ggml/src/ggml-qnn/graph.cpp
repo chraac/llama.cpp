@@ -108,6 +108,36 @@ bool bind_src_tensors(ggml_tensor *op, qnn::qnn_tensor_array_t &tensor_wrappers,
     return true;
 }
 
+int get_io_tensors_from_graph(const ggml_cgraph *cgraph, ggml_tensor_set_t &input_set, ggml_tensor_set_t &output_set) {
+    ggml_tensor_set_t visited_set;
+    int rank = 0;
+    for (int i = 0; i < cgraph->n_nodes; i++) {
+        ggml_tensor *dst = cgraph->nodes[i];
+        if (ggml_is_empty(dst)) {
+            continue;
+        }
+
+        rank = std::max(rank, ggml_n_dims(dst));
+        input_set.erase(dst);
+        if (!visited_set.count(dst)) {
+            output_set.insert(dst);
+            visited_set.insert(dst);
+        }
+
+        for (size_t i = 0; i < GGML_MAX_DIMS && dst->src[i]; ++i) {
+            auto *src = dst->src[i];
+            rank = std::max(rank, ggml_n_dims(src));
+            output_set.erase(src);
+            if (!visited_set.count(src)) {
+                input_set.insert(src);
+                visited_set.insert(src);
+            }
+        }
+    }
+
+    return rank;
+}
+
 } // namespace
 
 namespace qnn {
@@ -204,32 +234,7 @@ bool qnn_graph::build_graph_from_ggml_graph(const ggml_cgraph *cgraph) {
 
     ggml_tensor_set_t input_set;
     ggml_tensor_set_t output_set;
-    ggml_tensor_set_t visited_set;
-    int rank = 0;
-    for (int i = 0; i < cgraph->n_nodes; i++) {
-        ggml_tensor *dst = cgraph->nodes[i];
-        if (ggml_is_empty(dst)) {
-            continue;
-        }
-
-        rank = std::max(rank, ggml_n_dims(dst));
-        input_set.erase(dst);
-        if (!visited_set.count(dst)) {
-            output_set.insert(dst);
-            visited_set.insert(dst);
-        }
-
-        for (size_t i = 0; i < GGML_MAX_DIMS && dst->src[i]; ++i) {
-            auto *src = dst->src[i];
-            rank = std::max(rank, ggml_n_dims(src));
-            output_set.erase(src);
-            if (!visited_set.count(src)) {
-                input_set.insert(src);
-                visited_set.insert(src);
-            }
-        }
-    }
-
+    int rank = get_io_tensors_from_graph(cgraph, input_set, output_set);
     QNN_LOG_DEBUG("[%s]rank: %d, input_set: %d, output_set: %d", get_backend_name(_device), rank, int(input_set.size()),
                   int(output_set.size()));
 
