@@ -154,6 +154,34 @@ qnn::qnn_graph *get_qnn_graph_from_cache(ggml_backend_qnn_device_context *ctx, g
     return graph_ptr;
 }
 
+qnn::qnn_graph *get_qnn_graph_from_cache(ggml_backend_qnn_device_context *ctx, const ggml_cgraph *cgraph) {
+    auto &graph_cache = ctx->qnn_graph_cache;
+    std::string graph_key;
+    get_graph_key_from_cgraph(cgraph, graph_key);
+    auto it = graph_cache.find(graph_key);
+    qnn::qnn_graph *graph_ptr = nullptr;
+    if (it != graph_cache.end()) {
+        QNN_LOG_DEBUG("[%s]found graph %s in cache", qnn::get_backend_name(ctx->device), graph_key.c_str());
+        graph_ptr = it->second.get();
+    } else {
+        auto graph =
+            std::make_unique<qnn::qnn_graph>(graph_key, ctx->device, ctx->instance, ctx->socinfo.vtcm_size_in_mb);
+        if (!graph->is_valid()) {
+            return nullptr;
+        }
+
+        if (!graph->build_graph_from_ggml_graph(cgraph)) {
+            QNN_LOG_ERROR("[%s]build_graph_from_op failed", qnn::get_backend_name(ctx->device));
+            return nullptr;
+        }
+
+        graph_ptr = graph.get();
+        graph_cache[graph_key] = std::move(graph);
+    }
+
+    return graph_ptr;
+}
+
 bool qnn_generic_op_impl(ggml_backend_qnn_device_context *ctx, ggml_tensor *dst) {
     if (!qnn_is_op_valid(ctx, dst)) {
         return false;
