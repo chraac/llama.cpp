@@ -122,6 +122,10 @@ int get_io_tensors_from_graph(const ggml_cgraph *cgraph, qnn::ggml_tensor_array_
             continue;
         }
 
+        if (dst->op == GGML_OP_NONE) {
+            continue;
+        }
+
         rank = std::max(rank, ggml_n_dims(dst));
         input_set.erase(dst);
         if (!visited_set.count(dst)) {
@@ -255,6 +259,10 @@ bool qnn_graph::build_graph_from_ggml_graph(const ggml_cgraph *cgraph) {
         for (int i = 0; i < cgraph->n_nodes; i++) {
             ggml_tensor *dst = cgraph->nodes[i];
             if (ggml_is_empty(dst)) {
+                continue;
+            }
+
+            if (dst->op == GGML_OP_NONE) {
                 continue;
             }
 
