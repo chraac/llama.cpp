@@ -171,6 +171,12 @@ qnn::qnn_graph *get_qnn_graph_from_cache(ggml_backend_qnn_device_context *ctx, c
     auto &graph_cache = ctx->qnn_graph_cache;
     std::string graph_key;
     get_graph_key_from_cgraph(cgraph, graph_key);
+    if (graph_key.empty()) {
+        QNN_LOG_DEBUG("[%s]empty graph key for cgraph: %p, size: %d", qnn::get_backend_name(ctx->device), cgraph,
+                      (int)cgraph->n_nodes);
+        return nullptr;
+    }
+
     auto it = graph_cache.find(graph_key);
     qnn::qnn_graph *graph_ptr = nullptr;
     if (it != graph_cache.end()) {
@@ -425,9 +431,9 @@ bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context *ctx, const ggm
         case QNN_BACKEND_GPU:
             if (src0->type != src1->type || src0->type != op->type) {
                 // there's no convert op for GPU.
-                QNN_LOG_DEBUG("[qnn-gpu][MUL_MAT]type src0(%d), src1(%d) and op(%d) are not equal, support/unsupported: %d/%d",
-                              src0->type, src1->type, op->type, ctx->support_op_count.load(),
-                              ++(ctx->unsupported_op_count));
+                QNN_LOG_DEBUG(
+                    "[qnn-gpu][MUL_MAT]type src0(%d), src1(%d) and op(%d) are not equal, support/unsupported: %d/%d",
+                    src0->type, src1->type, op->type, ctx->support_op_count.load(), ++(ctx->unsupported_op_count));
                 return false;
             }
             break;
