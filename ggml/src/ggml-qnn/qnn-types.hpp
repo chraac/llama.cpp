@@ -12,7 +12,9 @@ namespace qnn {
 //
 // helper data type / data structure / macros / functions of
 // Qualcomm QNN(Qualcomm Neural Network, aka Qualcomm AI Engine Direct) SDK
-// ref:https://github.com/pytorch/executorch/tree/main/backends/qualcomm
+// ref:
+//   https://github.com/pytorch/executorch/blob/ae3d558d5e6aa04fc52a3065399fe6a773702f52/backends/qualcomm/serialization/qc_schema.py#L53
+//   https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/overview.html#supported-snapdragon-devices
 // =================================================================================================
 enum sdk_profile_level { profile_off = 0, profile_basic, profile_detail };
 
@@ -22,14 +24,18 @@ enum qcom_htp_arch {
     V69 = 69,
     V73 = 73,
     V75 = 75,
+    V79 = 79, // SD 8 Gen 4 (SM8750)
 };
 
 enum qcom_chipset {
     UNKNOWN_SM = 0,
-    SM8450 = 36, // v69
-    SM8475 = 42, // v69
-    SM8550 = 43, // v73
-    SM8650 = 57, // v75
+    SM8450 = 36,   // v69, SD 8 Gen 1
+    SM8475 = 42,   // v69, SD 8+ Gen 1
+    SM8550 = 43,   // v73, SD 8 Gen 2
+    SSG2115P = 46, // v73
+    SM8650 = 57,   // v75, SD 8 Gen 3
+    SA8295 = 39,   // v68
+    SM8750 = 69,   // v79, SD 8 Gen 4
 };
 
 struct qcom_socinfo {

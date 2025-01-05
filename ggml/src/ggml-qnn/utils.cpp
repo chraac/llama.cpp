@@ -188,13 +188,15 @@ const char *get_backend_name(QNNBackend device_index) {
 const char *get_chipset_desc(uint32_t chipset_id) {
     switch (chipset_id) {
         case SM8450:
-            return "SM8450";
+            return "SD 8 Gen 1 (SM8450)";
         case SM8475:
-            return "SM8475";
+            return "SD 8+ Gen 1 (SM8475)";
         case SM8550:
-            return "SM8550";
+            return "SD 8 Gen 2 (SM8550)";
         case SM8650:
-            return "SM8650";
+            return "SD 8 Gen 3 (SM8650)";
+        case SM8750:
+            return "SD 8 Gen 4 (SM8750)";
         default:
             return "unknown";
     }
@@ -210,6 +212,8 @@ const char *get_htparch_desc(size_t htp_arch) {
             return "QCOM_HTP_V73";
         case V75:
             return "QCOM_HTP_V75";
+        case V79:
+            return "QCOM_HTP_V79";
         default:
             return "unknown";
     }
