@@ -265,10 +265,10 @@ constexpr const ggml_qnn_op_t kQnnOpsTable[] = {
     nullptr,      // GGML_OP_CPY
     nullptr,      // GGML_OP_CONT
     qnn_nop_impl, // GGML_OP_RESHAPE
-    qnn_nop_impl, // GGML_OP_VIEW
-    qnn_nop_impl, // GGML_OP_PERMUTE
-    qnn_nop_impl, // GGML_OP_TRANSPOSE
-    qnn_nop_impl, // GGML_OP_GET_ROWS
+    nullptr,      // GGML_OP_VIEW
+    nullptr,      // GGML_OP_PERMUTE
+    nullptr,      // GGML_OP_TRANSPOSE
+    nullptr,      // GGML_OP_GET_ROWS
     nullptr,      // GGML_OP_GET_ROWS_BACK
     nullptr,      // GGML_OP_DIAG
     nullptr,      // GGML_OP_DIAG_MASK_INF
@@ -344,9 +344,9 @@ static_assert(kQnnOpsTable[GGML_OP_MUL] == qnn_generic_op_impl,
               "GGML_OP_MUL does not match the qnn_generic_op_impl function");
 static_assert(kQnnOpsTable[GGML_OP_MUL_MAT] == qnn_generic_op_impl,
               "GGML_OP_MUL_MAT does not match the qnn_generic_op_impl function");
-static_assert(kQnnOpsTable[GGML_OP_VIEW] == qnn_nop_impl, "GGML_OP_VIEW does not match the qnn_nop_impl function");
-static_assert(kQnnOpsTable[GGML_OP_GET_ROWS] == qnn_nop_impl,
-              "GGML_OP_GET_ROWS does not match the qnn_nop_impl function");
+static_assert(kQnnOpsTable[GGML_OP_RESHAPE] == qnn_nop_impl,
+              "GGML_OP_RESHAPE does not match the qnn_nop_impl function");
+static_assert(kQnnOpsTable[GGML_OP_VIEW] == nullptr, "GGML_OP_VIEW is not nullptr");
 static_assert(std::size(kQnnOpsTable) == (GGML_OP_COUNT + GGML_UNARY_OP_COUNT),
               "GGML_OP_COUNT does not match the size of the kQnnOpsTable table");
 
@@ -463,12 +463,12 @@ bool device_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor 
     }
 
     if (!kQnnOpsTable[qnn::get_qnn_op_index(op)]) {
-        QNN_LOG_DEBUG("[%s] unsupported op", ggml_op_name(op->op));
+        QNN_LOG_DEBUG("[%s]unsupported op", ggml_op_name(op->op));
         return false;
     }
 
     if (!ggnl_qnn_supports_op_tensor(ctx, op)) {
-        QNN_LOG_DEBUG("[%s] unsupported tensor", ggml_op_name(op->op));
+        QNN_LOG_DEBUG("[%s]unsupported tensor", ggml_op_name(op->op));
         return false;
     }
 
@@ -505,10 +505,10 @@ bool device_compute_graph(ggml_backend_qnn_device_context *ctx, ggml_cgraph *cgr
     QNN_LOG_DEBUG("[%s]compute graph start, nodes count: %d", qnn::get_backend_name(ctx->device), (int)cgraph->n_nodes);
 
     auto qnn_graph = get_qnn_graph_from_cache(ctx, cgraph);
-    bool result = qnn_graph && qnn_graph->execute(cgraph);
+    bool success = qnn_graph && qnn_graph->execute(cgraph);
 
-    QNN_LOG_DEBUG("[%s]compute graph, result: %d", qnn::get_backend_name(ctx->device), (int)result);
-    return result;
+    QNN_LOG_DEBUG("[%s]compute graph, success: %d", qnn::get_backend_name(ctx->device), (int)success);
+    return success;
 }
 
 } // namespace qnn
