@@ -95,7 +95,12 @@ constexpr const qnn_op_caps_t kOpCaps[] = {
     {}, // GGML_OP_SET
     {}, // GGML_OP_CPY
     {}, // GGML_OP_CONT
-    {}, // GGML_OP_RESHAPE
+    {
+        // GGML_OP_RESHAPE
+        QNN_OP_RESHAPE, // qnn_op_name
+        1,              // input_param_count
+        nullptr,        // TODO: calc_dims_func
+    },
     {}, // GGML_OP_VIEW
     {}, // GGML_OP_PERMUTE
     {}, // GGML_OP_TRANSPOSE
