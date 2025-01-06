@@ -98,6 +98,15 @@ public:
             return true;
         }
 
+#ifndef NDEBUG
+        if (tensor->view_src) {
+            auto *src = tensor->view_src;
+            QNN_LOG_DEBUG("[%s]tensor(%s_%dx%dx%dx%d) is a view, src: %s_%dx%dx%dx%d", get_backend_name(_device),
+                          tensor->name, tensor->ne[0], tensor->ne[1], tensor->ne[2], tensor->ne[3], src->name,
+                          src->ne[0], src->ne[1], src->ne[2], src->ne[3]);
+        }
+#endif
+
         auto buffer =
             std::make_shared<qnn_mem_buffer_slice>(reinterpret_cast<uint8_t *>(tensor->data), ggml_nbytes(tensor));
         if (!bind_buffer_impl(buffer)) {
