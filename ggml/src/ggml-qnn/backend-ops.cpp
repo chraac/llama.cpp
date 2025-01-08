@@ -369,6 +369,7 @@ bool ggml_qnn_supports_tensor(ggml_backend_qnn_device_context *ctx, const ggml_t
         return false;
     }
 
+#ifndef NDEBUG
     if (tensor->view_src) {
         auto *src_tensor = tensor->view_src;
         QNN_LOG_DEBUG("[%s]tensor(%s_%dx%dx%dx%d) is a view, src: %s_%dx%dx%dx%d", qnn::get_backend_name(ctx->device),
@@ -376,6 +377,7 @@ bool ggml_qnn_supports_tensor(ggml_backend_qnn_device_context *ctx, const ggml_t
                       ggml_get_name(src_tensor), src_tensor->ne[0], src_tensor->ne[1], src_tensor->ne[2],
                       src_tensor->ne[3]);
     }
+#endif
 
     switch (tensor->type) {
         case GGML_TYPE_F32:

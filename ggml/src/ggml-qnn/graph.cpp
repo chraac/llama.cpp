@@ -323,9 +323,13 @@ bool qnn_graph::execute(ggml_tensor *op) {
 bool qnn_graph::execute(const ggml_cgraph *cgraph) {
     ggml_tensor_array_t inputs;
     ggml_tensor_array_t outputs;
+#ifdef NDEBUG
+    get_io_tensors_from_graph(cgraph, inputs, outputs);
+#else
     int rank = get_io_tensors_from_graph(cgraph, inputs, outputs);
     QNN_LOG_DEBUG("[%s]rank: %d, input_set: %d, output_set: %d", get_backend_name(_device), rank, int(inputs.size()),
                   int(outputs.size()));
+#endif
 
     {
         if (!qnn::bind_tensors(inputs, _tensor_inputs, _qnn_tensor_inputs)) {

@@ -421,8 +421,13 @@ bool ggml_backend_qnn_device_supports_buft(ggml_backend_dev_t dev, ggml_backend_
 }
 
 bool ggml_backend_qnn_device_offload_op(ggml_backend_dev_t dev, const ggml_tensor *op) {
+#ifdef NDEBUG
+    GGML_UNUSED(dev);
+    GGML_UNUSED(op);
+#else
     auto *device_ctx = get_device_context(dev);
     QNN_LOG_DEBUG("[%s][%s]offload op", qnn::get_backend_name(device_ctx->device), ggml_op_name(op->op));
+#endif
     return false;
 }
 
