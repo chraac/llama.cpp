@@ -99,6 +99,19 @@ void get_graph_key_from_op(const ggml_tensor *op, std::string &output) {
     }
 }
 
+void get_op_key_with_src_op_desc(const ggml_tensor *op, std::string &output) {
+    output += ggml_op_desc(op);
+    output += '(';
+    if (op->src[0]) {
+        output += ggml_op_desc(op->src[0]);
+    }
+    for (size_t i = 1; i < GGML_MAX_DIMS && op->src[i]; ++i) {
+        output += ',';
+        output += ggml_op_desc(op->src[i]);
+    }
+    output += ')';
+}
+
 void get_graph_key_from_cgraph(const ggml_cgraph *cgraph, std::string &output) {
     // generate key from the graph, the key is used to cache the graph, like:
     //   "MUL_MATf32_256x16x10f32_256x1x10f32#LOG#ADD#ADDf32_16x1x10f32"
@@ -126,7 +139,7 @@ void get_graph_key_from_cgraph(const ggml_cgraph *cgraph, std::string &output) {
                 is_start = false;
             } else {
                 output += '#';
-                output += ggml_op_desc(op);
+                get_op_key_with_src_op_desc(op, output);
             }
         }
     }
