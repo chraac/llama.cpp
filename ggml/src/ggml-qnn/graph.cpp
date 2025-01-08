@@ -1,8 +1,8 @@
 
 #include "graph.hpp"
 
+#include <set>
 #include <unordered_map>
-#include <unordered_set>
 
 #include "ggml-impl.h"
 
@@ -110,7 +110,7 @@ bool bind_src_tensors(ggml_tensor *op, qnn::qnn_tensor_array_t &tensor_wrappers,
 
 int get_io_tensors_from_graph(const ggml_cgraph *cgraph, qnn::ggml_tensor_array_t &inputs,
                               qnn::ggml_tensor_array_t &outputs) {
-    using ggml_tensor_set_t = std::unordered_set<ggml_tensor *>;
+    using ggml_tensor_set_t = std::set<ggml_tensor *>;
 
     ggml_tensor_set_t input_set;
     ggml_tensor_set_t output_set;
