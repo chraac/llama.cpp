@@ -479,7 +479,9 @@ bool device_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor 
     }
 
     if (!kQnnOpsTable[qnn::get_qnn_op_index(op)]) {
-        QNN_LOG_DEBUG("[%s]unsupported op", ggml_op_name(op->op));
+        std::string op_key;
+        get_graph_key_from_op(op, op_key);
+        QNN_LOG_DEBUG("[%s]unsupported op", op_key.c_str());
         return false;
     }
 
