@@ -94,6 +94,10 @@ void get_graph_key_from_op(const ggml_tensor *op, std::string &output) {
     const auto param_count = qnn::get_qnn_op_input_param_count(qnn::get_qnn_op_index(op));
     for (size_t i = 0; i < param_count; ++i) {
         auto *input = op->src[i];
+        if (!input) {
+            break;
+        }
+
         output += '_';
         append_tensor_dimensions(input, output);
     }
