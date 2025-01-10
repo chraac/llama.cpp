@@ -294,9 +294,7 @@ private:
                       new_tensor_type);
     }
 
-    bool should_use_mem_handle() const {
-        return _device == QNN_BACKEND_NPU && QNN_TENSOR_GET_TYPE(_qnn_tensor) != QNN_TENSOR_TYPE_STATIC;
-    }
+    bool should_use_mem_handle() const { return false; }
 
     std::string _tensor_name;
     qnn_buffer_ptr _buffer;
