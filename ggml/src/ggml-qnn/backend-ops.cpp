@@ -479,14 +479,20 @@ bool device_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor 
     }
 
     if (!kQnnOpsTable[qnn::get_qnn_op_index(op)]) {
+#ifndef NDEBUG
         std::string op_key;
         get_graph_key_from_op(op, op_key);
         QNN_LOG_DEBUG("[%s]unsupported op", op_key.c_str());
+#endif
         return false;
     }
 
     if (!ggnl_qnn_supports_op_tensor(ctx, op)) {
-        QNN_LOG_DEBUG("[%s]unsupported tensor", ggml_op_name(op->op));
+#ifndef NDEBUG
+        std::string tensor_dims;
+        append_tensor_dimensions(op, tensor_dims);
+        QNN_LOG_DEBUG("[%s]unsupported tensor(%s)", ggml_op_name(op->op), tensor_dims.c_str());
+#endif
         return false;
     }
 
