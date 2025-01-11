@@ -3,7 +3,7 @@
 
 namespace {
 
-using op_constructor_t = std::shared_ptr<qnn::ggml_qnn_op_config> (*)(const std::string &,
+using op_constructor_t = std::shared_ptr<qnn::ggml_qnn_op_config> (*)(const ggml_tensor *, const std::string &,
                                                                       std::shared_ptr<qnn::qnn_instance>);
 using op_dims_calc_func_t = void (*)(const std::vector<const qnn::ggml_dimension_array_t> &input_dims,
                                      qnn::ggml_dimension_array_t &output_dims);
@@ -194,19 +194,35 @@ static_assert(kOpCaps[GGML_OP_COUNT + GGML_UNARY_OP_GELU].input_param_count == 1
 static_assert(std::size(kOpCaps) == (GGML_OP_COUNT + GGML_UNARY_OP_COUNT),
               "GGML_OP_COUNT does not match the size of the kOpCaps table");
 
-std::shared_ptr<qnn::ggml_qnn_op_config> mat_mul_op_constructor(const std::string &instance_name,
+std::shared_ptr<qnn::ggml_qnn_op_config> mat_mul_op_constructor(const ggml_tensor *op, const std::string &instance_name,
                                                                 std::shared_ptr<qnn::qnn_instance> qnn_instance) {
+    GGML_UNUSED(op);
     QNN_LOG_DEBUG("create QNN_OP_MAT_MUL, name %s", instance_name.c_str());
     return std::make_shared<qnn::ggml_qnn_matmul_op_config>(instance_name, qnn_instance);
 }
 
 template <size_t _op>
-std::shared_ptr<qnn::ggml_qnn_op_config> generic_op_constructor(const std::string &instance_name,
+std::shared_ptr<qnn::ggml_qnn_op_config> generic_op_constructor(const ggml_tensor *op, const std::string &instance_name,
                                                                 std::shared_ptr<qnn::qnn_instance> qnn_instance) {
+    GGML_UNUSED(op);
     static_assert(_op < std::size(kOpCaps));
     static_assert(kOpCaps[_op].qnn_op_name != nullptr);
     return std::make_shared<qnn::ggml_qnn_single_op_config>(instance_name, QNN_OP_PACKAGE_NAME_QTI_AISW,
                                                             kOpCaps[_op].qnn_op_name, qnn_instance);
+}
+
+template <size_t _op, typename _ggml_op_param_type>
+std::shared_ptr<qnn::ggml_qnn_op_config> op_constructor_with_type_param(
+    const ggml_tensor *op, const std::string &instance_name, std::shared_ptr<qnn::qnn_instance> qnn_instance) {
+    static_assert(_op < std::size(kOpCaps));
+    static_assert(kOpCaps[_op].qnn_op_name != nullptr);
+
+    _ggml_op_param_type op_param;
+    memcpy(&op_param, op->op_params, sizeof(op_param));
+    auto qnn_op = std::make_shared<qnn::ggml_qnn_single_op_config>(instance_name, QNN_OP_PACKAGE_NAME_QTI_AISW,
+                                                                   kOpCaps[_op].qnn_op_name, qnn_instance);
+
+    return qnn_op;
 }
 
 constexpr const op_constructor_t kOpConstructors[] = {
@@ -367,7 +383,7 @@ std::shared_ptr<ggml_qnn_op_config> create_op(const ggml_tensor *op, const std::
     GGML_ASSERT(op_index < std::size(kOpCaps));
     auto op_constructor = kOpConstructors[op_index];
     GGML_ASSERT(op_constructor);
-    return op_constructor(name, qnn_instance);
+    return op_constructor(op, name, qnn_instance);
 }
 
 } // namespace qnn
