@@ -25,7 +25,7 @@ bool qnn_is_op_valid(ggml_backend_qnn_device_context *ctx, const ggml_tensor *ds
         return false;
     }
 
-    const auto param_count = qnn::get_qnn_op_input_param_count(qnn::get_qnn_op_index(dst));
+    const auto param_count = qnn::get_qnn_op_input_param_count(dst);
     switch (param_count) {
         case 1:
             return dst->src[0];
@@ -91,7 +91,7 @@ void get_graph_key_from_op(const ggml_tensor *op, std::string &output) {
     GGML_ASSERT(op->op != GGML_OP_NONE);
     output += ggml_op_desc(op);
     output += qnn::get_ggml_type_name(op->type);
-    const auto param_count = qnn::get_qnn_op_input_param_count(qnn::get_qnn_op_index(op));
+    const auto param_count = qnn::get_qnn_op_input_param_count(op);
     for (size_t i = 0; i < param_count; ++i) {
         auto *input = op->src[i];
         if (!input) {
@@ -228,7 +228,7 @@ bool qnn_generic_op_impl(ggml_backend_qnn_device_context *ctx, ggml_tensor *dst)
 
 #ifndef NDEBUG
     if (!succeed) {
-        const auto param_count = qnn::get_qnn_op_input_param_count(qnn::get_qnn_op_index(dst));
+        const auto param_count = qnn::get_qnn_op_input_param_count(dst);
         for (size_t i = 0; i < param_count; ++i) {
             print_ggml_tensor(dst->src[i]);
         }
@@ -413,7 +413,7 @@ bool ggnl_qnn_supports_op_tensor(ggml_backend_qnn_device_context *ctx, const ggm
         return false;
     }
 
-    const auto param_count = qnn::get_qnn_op_input_param_count(qnn::get_qnn_op_index(op));
+    const auto param_count = qnn::get_qnn_op_input_param_count(op);
     for (size_t i = 0; i < param_count; ++i) {
         if (!ggml_qnn_supports_tensor(ctx, op->src[i])) {
             return false;

@@ -1,6 +1,5 @@
 
 #include "op-config-impl.hpp"
-#include "op-config.hpp"
 
 namespace {
 
@@ -340,29 +339,33 @@ size_t get_qnn_op_index(const ggml_tensor *tensor) {
     return tensor->op;
 }
 
-void get_ggml_op_output_dimensions(const std::vector<const ggml_dimension_array_t> &input_dims, size_t op,
+void get_ggml_op_output_dimensions(const std::vector<const ggml_dimension_array_t> &input_dims, const ggml_tensor *op,
                                    ggml_dimension_array_t &output_dims) {
-    GGML_ASSERT(op < std::size(kOpCaps));
-    auto get_dims = kOpCaps[op].calc_dims_func;
+    auto op_index = get_qnn_op_index(op);
+    GGML_ASSERT(op_index < std::size(kOpCaps));
+    auto get_dims = kOpCaps[op_index].calc_dims_func;
     GGML_ASSERT(get_dims);
     get_dims(input_dims, output_dims);
 }
 
-const char *get_qnn_op_name(size_t op) {
-    GGML_ASSERT(op < std::size(kOpCaps));
-    GGML_ASSERT(kOpCaps[op].qnn_op_name);
-    return kOpCaps[op].qnn_op_name;
+const char *get_qnn_op_name(const ggml_tensor *op) {
+    auto op_index = get_qnn_op_index(op);
+    GGML_ASSERT(op_index < std::size(kOpCaps));
+    GGML_ASSERT(kOpCaps[op_index].qnn_op_name);
+    return kOpCaps[op_index].qnn_op_name;
 }
 
-size_t get_qnn_op_input_param_count(size_t op) {
-    GGML_ASSERT(op < std::size(kOpCaps));
-    return kOpCaps[op].input_param_count;
+size_t get_qnn_op_input_param_count(const ggml_tensor *op) {
+    auto op_index = get_qnn_op_index(op);
+    GGML_ASSERT(op_index < std::size(kOpCaps));
+    return kOpCaps[op_index].input_param_count;
 }
 
-std::shared_ptr<ggml_qnn_op_config> create_op(size_t op, const std::string &name,
+std::shared_ptr<ggml_qnn_op_config> create_op(const ggml_tensor *op, const std::string &name,
                                               std::shared_ptr<qnn_instance> qnn_instance) {
-    GGML_ASSERT(op < std::size(kOpCaps));
-    auto op_constructor = kOpConstructors[op];
+    auto op_index = get_qnn_op_index(op);
+    GGML_ASSERT(op_index < std::size(kOpCaps));
+    auto op_constructor = kOpConstructors[op_index];
     GGML_ASSERT(op_constructor);
     return op_constructor(name, qnn_instance);
 }
