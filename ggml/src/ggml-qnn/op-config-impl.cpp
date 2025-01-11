@@ -1,4 +1,4 @@
-#include "op-config.hpp"
+#include "op-config-impl.hpp"
 
 #include <cstdint>
 
@@ -437,24 +437,6 @@ bool ggml_qnn_matmul_op_config::create_mat_mul_nodes(QNNBackend device, Qnn_Grap
     _operations.push_back(mat_mul);
     _operations.push_back(transpose_out);
     return true;
-}
-
-ggml_op_constructor_t create_op_constructor(size_t op) {
-    std::string op_name = get_qnn_op_name(op);
-    if (op_name == QNN_OP_MAT_MUL) {
-        // For QNN_OP_MAT_MUL, we need to transpose the input tensor
-        return [](const std::string &instance_name,
-                  std::shared_ptr<qnn::qnn_instance> qnn_instance) -> std::shared_ptr<qnn::ggml_qnn_op_config> {
-            QNN_LOG_DEBUG("create QNN_OP_MAT_MUL, name %s", instance_name.c_str());
-            return std::make_shared<qnn::ggml_qnn_matmul_op_config>(instance_name, qnn_instance);
-        };
-    }
-
-    return [op_name](const std::string &instance_name,
-                     std::shared_ptr<qnn::qnn_instance> qnn_instance) -> std::shared_ptr<qnn::ggml_qnn_op_config> {
-        return std::make_shared<qnn::ggml_qnn_single_op_config>(instance_name, QNN_OP_PACKAGE_NAME_QTI_AISW, op_name,
-                                                                qnn_instance);
-    };
 }
 
 } // namespace qnn

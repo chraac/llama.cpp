@@ -57,8 +57,7 @@ qnn::qnn_op_config_ptr_t create_operation_from_op_tensor(ggml_tensor *dst, const
                                                          std::shared_ptr<qnn::qnn_instance> qnn_instance,
                                                          bool is_intermediate, qnn_tensor_cache_t &tensor_cache) {
     const auto op_index = qnn::get_qnn_op_index(dst);
-    auto qnn_op = qnn::create_op_constructor(op_index);
-    auto operation = qnn_op(name, qnn_instance);
+    auto operation = qnn::create_op(op_index, name, qnn_instance);
 
     // input tensors
     qnn::qnn_tensor_array_t input_qnn_tensors;
