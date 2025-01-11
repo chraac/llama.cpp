@@ -242,38 +242,38 @@ constexpr const op_constructor_t kOpConstructors[] = {
     nullptr,                // GGML_OP_MUL_MAT_ID
     nullptr,                // GGML_OP_OUT_PROD
 
-    nullptr, // GGML_OP_SCALE
-    nullptr, // GGML_OP_SET
-    nullptr, // GGML_OP_CPY
-    nullptr, // GGML_OP_CONT
-    nullptr, // GGML_OP_RESHAPE
-    nullptr, // GGML_OP_VIEW
-    nullptr, // GGML_OP_PERMUTE
-    nullptr, // GGML_OP_TRANSPOSE
-    nullptr, // GGML_OP_GET_ROWS
-    nullptr, // GGML_OP_GET_ROWS_BACK
-    nullptr, // GGML_OP_DIAG
-    nullptr, // GGML_OP_DIAG_MASK_INF
-    nullptr, // GGML_OP_DIAG_MASK_ZERO
-    nullptr, // GGML_OP_SOFT_MAX
-    nullptr, // GGML_OP_SOFT_MAX_BACK
-    nullptr, // GGML_OP_ROPE
-    nullptr, // GGML_OP_ROPE_BACK
-    nullptr, // GGML_OP_CLAMP
-    nullptr, // GGML_OP_CONV_TRANSPOSE_1D
-    nullptr, // GGML_OP_IM2COL
-    nullptr, // GGML_OP_IM2COL_BACK
-    nullptr, // GGML_OP_CONV_TRANSPOSE_2D
-    nullptr, // GGML_OP_POOL_1D
-    nullptr, // GGML_OP_POOL_2D
-    nullptr, // GGML_OP_POOL_2D_BACK
-    nullptr, // GGML_OP_UPSCALE
-    nullptr, // GGML_OP_PAD
-    nullptr, // GGML_OP_PAD_REFLECT_1D
-    nullptr, // GGML_OP_ARANGE
-    nullptr, // GGML_OP_TIMESTEP_EMBEDDING
-    nullptr, // GGML_OP_ARGSORT
-    nullptr, // GGML_OP_LEAKY_RELU
+    nullptr,                                 // GGML_OP_SCALE
+    nullptr,                                 // GGML_OP_SET
+    nullptr,                                 // GGML_OP_CPY
+    nullptr,                                 // GGML_OP_CONT
+    generic_op_constructor<GGML_OP_RESHAPE>, // GGML_OP_RESHAPE
+    nullptr,                                 // GGML_OP_VIEW
+    nullptr,                                 // GGML_OP_PERMUTE
+    nullptr,                                 // GGML_OP_TRANSPOSE
+    nullptr,                                 // GGML_OP_GET_ROWS
+    nullptr,                                 // GGML_OP_GET_ROWS_BACK
+    nullptr,                                 // GGML_OP_DIAG
+    nullptr,                                 // GGML_OP_DIAG_MASK_INF
+    nullptr,                                 // GGML_OP_DIAG_MASK_ZERO
+    nullptr,                                 // GGML_OP_SOFT_MAX
+    nullptr,                                 // GGML_OP_SOFT_MAX_BACK
+    nullptr,                                 // GGML_OP_ROPE
+    nullptr,                                 // GGML_OP_ROPE_BACK
+    nullptr,                                 // GGML_OP_CLAMP
+    nullptr,                                 // GGML_OP_CONV_TRANSPOSE_1D
+    nullptr,                                 // GGML_OP_IM2COL
+    nullptr,                                 // GGML_OP_IM2COL_BACK
+    nullptr,                                 // GGML_OP_CONV_TRANSPOSE_2D
+    nullptr,                                 // GGML_OP_POOL_1D
+    nullptr,                                 // GGML_OP_POOL_2D
+    nullptr,                                 // GGML_OP_POOL_2D_BACK
+    nullptr,                                 // GGML_OP_UPSCALE
+    nullptr,                                 // GGML_OP_PAD
+    nullptr,                                 // GGML_OP_PAD_REFLECT_1D
+    nullptr,                                 // GGML_OP_ARANGE
+    nullptr,                                 // GGML_OP_TIMESTEP_EMBEDDING
+    nullptr,                                 // GGML_OP_ARGSORT
+    nullptr,                                 // GGML_OP_LEAKY_RELU
 
     nullptr, // GGML_OP_FLASH_ATTN_EXT
     nullptr, // GGML_OP_FLASH_ATTN_BACK
