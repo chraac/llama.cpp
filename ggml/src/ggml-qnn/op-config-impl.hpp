@@ -67,6 +67,19 @@ private:
     DISABLE_MOVE(ggml_qnn_single_op_config);
 };
 
+class ggml_qnn_rmsnorm_op_config : public ggml_qnn_op_config_base {
+public:
+    explicit ggml_qnn_rmsnorm_op_config(const std::string &name, const std::string &package_name,
+                                        const std::string &op_type, std::shared_ptr<qnn_instance> qnn_instance)
+        : ggml_qnn_op_config_base(name, package_name, op_type, qnn_instance) {}
+
+    bool initialize_op_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle) override;
+
+private:
+    DISABLE_COPY(ggml_qnn_rmsnorm_op_config);
+    DISABLE_MOVE(ggml_qnn_rmsnorm_op_config);
+};
+
 class ggml_qnn_aggregate_op_config : public ggml_qnn_op_config {
 public:
     explicit ggml_qnn_aggregate_op_config(const std::string &name, std::shared_ptr<qnn_instance> qnn_instance)

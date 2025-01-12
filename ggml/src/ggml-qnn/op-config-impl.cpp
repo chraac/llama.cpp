@@ -187,6 +187,13 @@ bool ggml_qnn_single_op_config::initialize_op_nodes(QNNBackend device, Qnn_Graph
     return true;
 }
 
+bool ggml_qnn_rmsnorm_op_config::initialize_op_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle) {
+    constexpr const uint32_t kAxes[] = {0};
+    add_tensor_param(QNN_OP_RMS_NORM_PARAM_AXES, {1}, 1, reinterpret_cast<const uint8_t *>(kAxes), QNN_DATATYPE_UINT_32,
+                     device, graph_handle);
+    return true;
+}
+
 void ggml_qnn_aggregate_op_config::set_input_tensors(qnn::qnn_tensor_array_t &tensor_inputs) {
     _tensor_inputs = tensor_inputs;
 }

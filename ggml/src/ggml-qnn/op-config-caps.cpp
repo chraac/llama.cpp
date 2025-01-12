@@ -26,6 +26,7 @@ struct qnn_op_caps_t {
     const char *qnn_op_name = nullptr;
     const size_t input_param_count = 0;
     op_dims_calc_func_t calc_dims_func = nullptr;
+    const char *qnn_param_name = nullptr;
 };
 
 constexpr const qnn_op_caps_t kOpCaps[] = {
@@ -82,7 +83,13 @@ constexpr const qnn_op_caps_t kOpCaps[] = {
     {}, // GGML_OP_CONCAT
     {}, // GGML_OP_SILU_BACK
     {}, // GGML_OP_NORM
-    {}, // GGML_OP_RMS_NORM
+    {
+        // GGML_OP_RMS_NORM
+        QNN_OP_RMS_NORM,               // qnn_op_name
+        1,                             // input_param_count
+        nullptr,                       // TODO: calc_dims_func
+        QNN_OP_RMS_NORM_PARAM_EPSILON, // qnn_param_name
+    },
     {}, // GGML_OP_RMS_NORM_BACK
     {}, // GGML_OP_GROUP_NORM
     {
@@ -211,47 +218,59 @@ std::shared_ptr<qnn::ggml_qnn_op_config> generic_op_constructor(const ggml_tenso
                                                             kOpCaps[_op].qnn_op_name, qnn_instance);
 }
 
-template <size_t _op, typename _ggml_op_param_type>
+void add_type_parameters(std::shared_ptr<qnn::ggml_qnn_op_config_base> op, const char *name, float value) {
+    Qnn_Scalar_t scalar = QNN_SCALAR_INIT;
+    scalar.dataType = QNN_DATATYPE_FLOAT_32;
+    scalar.floatValue = value;
+    op->add_scalar_param(name, scalar);
+}
+
+template <size_t _op, typename _ggml_op_param_type, typename _qnn_op_type_name>
 std::shared_ptr<qnn::ggml_qnn_op_config> op_constructor_with_type_param(
     const ggml_tensor *op, const std::string &instance_name, std::shared_ptr<qnn::qnn_instance> qnn_instance) {
+    static_assert(std::is_base_of<qnn::ggml_qnn_op_config_base, _qnn_op_type_name>::value);
     static_assert(_op < std::size(kOpCaps));
-    static_assert(kOpCaps[_op].qnn_op_name != nullptr);
+
+    constexpr auto &op_caps = kOpCaps[_op];
+    static_assert(op_caps.qnn_op_name != nullptr);
 
     _ggml_op_param_type op_param;
     memcpy(&op_param, op->op_params, sizeof(op_param));
-    auto qnn_op = std::make_shared<qnn::ggml_qnn_single_op_config>(instance_name, QNN_OP_PACKAGE_NAME_QTI_AISW,
-                                                                   kOpCaps[_op].qnn_op_name, qnn_instance);
-
+    auto qnn_op = std::make_shared<_qnn_op_type_name>(instance_name, QNN_OP_PACKAGE_NAME_QTI_AISW, op_caps.qnn_op_name,
+                                                      qnn_instance);
+    if (op_caps.qnn_param_name) {
+        add_type_parameters(qnn_op, op_caps.qnn_param_name, op_param);
+    }
     return qnn_op;
 }
 
 constexpr const op_constructor_t kOpConstructors[] = {
-    nullptr,                              // GGML_OP_NONE
-    nullptr,                              // GGML_OP_DUP
-    generic_op_constructor<GGML_OP_ADD>,  // GGML_OP_ADD
-    nullptr,                              // GGML_OP_ADD1
-    nullptr,                              // GGML_OP_ACC
-    generic_op_constructor<GGML_OP_SUB>,  // GGML_OP_SUB
-    generic_op_constructor<GGML_OP_MUL>,  // GGML_OP_MUL
-    generic_op_constructor<GGML_OP_DIV>,  // GGML_OP_DIV
-    nullptr,                              // GGML_OP_SQR
-    generic_op_constructor<GGML_OP_SQRT>, // GGML_OP_SQRT
-    generic_op_constructor<GGML_OP_LOG>,  // GGML_OP_LOG
-    nullptr,                              // GGML_OP_SIN
-    nullptr,                              // GGML_OP_COS
-    nullptr,                              // GGML_OP_SUM
-    nullptr,                              // GGML_OP_SUM_ROWS
-    nullptr,                              // GGML_OP_MEAN
-    nullptr,                              // GGML_OP_ARGMAX
-    nullptr,                              // GGML_OP_COUNT_EQUAL
-    nullptr,                              // GGML_OP_REPEAT
-    nullptr,                              // GGML_OP_REPEAT_BACK
-    nullptr,                              // GGML_OP_CONCAT
-    nullptr,                              // GGML_OP_SILU_BACK
-    nullptr,                              // GGML_OP_NORM
-    nullptr,                              // GGML_OP_RMS_NORM
-    nullptr,                              // GGML_OP_RMS_NORM_BACK
-    nullptr,                              // GGML_OP_GROUP_NORM
+    nullptr,                                                                                  // GGML_OP_NONE
+    nullptr,                                                                                  // GGML_OP_DUP
+    generic_op_constructor<GGML_OP_ADD>,                                                      // GGML_OP_ADD
+    nullptr,                                                                                  // GGML_OP_ADD1
+    nullptr,                                                                                  // GGML_OP_ACC
+    generic_op_constructor<GGML_OP_SUB>,                                                      // GGML_OP_SUB
+    generic_op_constructor<GGML_OP_MUL>,                                                      // GGML_OP_MUL
+    generic_op_constructor<GGML_OP_DIV>,                                                      // GGML_OP_DIV
+    nullptr,                                                                                  // GGML_OP_SQR
+    generic_op_constructor<GGML_OP_SQRT>,                                                     // GGML_OP_SQRT
+    generic_op_constructor<GGML_OP_LOG>,                                                      // GGML_OP_LOG
+    nullptr,                                                                                  // GGML_OP_SIN
+    nullptr,                                                                                  // GGML_OP_COS
+    nullptr,                                                                                  // GGML_OP_SUM
+    nullptr,                                                                                  // GGML_OP_SUM_ROWS
+    nullptr,                                                                                  // GGML_OP_MEAN
+    nullptr,                                                                                  // GGML_OP_ARGMAX
+    nullptr,                                                                                  // GGML_OP_COUNT_EQUAL
+    nullptr,                                                                                  // GGML_OP_REPEAT
+    nullptr,                                                                                  // GGML_OP_REPEAT_BACK
+    nullptr,                                                                                  // GGML_OP_CONCAT
+    nullptr,                                                                                  // GGML_OP_SILU_BACK
+    nullptr,                                                                                  // GGML_OP_NORM
+    op_constructor_with_type_param<GGML_OP_RMS_NORM, float, qnn::ggml_qnn_rmsnorm_op_config>, // GGML_OP_RMS_NORM
+    nullptr,                                                                                  // GGML_OP_RMS_NORM_BACK
+    nullptr,                                                                                  // GGML_OP_GROUP_NORM
 
     mat_mul_op_constructor, // GGML_OP_MUL_MAT
     nullptr,                // GGML_OP_MUL_MAT_ID
