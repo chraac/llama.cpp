@@ -13,55 +13,6 @@
 
 namespace {
 
-bool qnn_is_op_valid(ggml_backend_qnn_device_context *ctx, const ggml_tensor *dst) {
-    if (!ctx || !dst) {
-        QNN_LOG_WARN("invalid params");
-        return false;
-    }
-
-    auto instance = ctx->instance;
-    if (!instance) {
-        QNN_LOG_WARN("invalid instance");
-        return false;
-    }
-
-    const auto param_count = qnn::get_qnn_op_input_param_count(dst);
-    switch (param_count) {
-        case 1:
-            return dst->src[0];
-        case 2:
-            return dst->src[0] && dst->src[1];
-        default:
-            QNN_LOG_WARN("invalid op param count %d", (int)param_count);
-            break;
-    }
-
-    return false;
-}
-
-#ifndef NDEBUG
-void print_ggml_tensor(const ggml_tensor *tensor) {
-    QNN_LOG_DEBUG("%s: type:%s ne: %ldx%ldx%ldx%ld, nb: %ldx%ldx%ldx%ld", tensor->name, ggml_type_name(tensor->type),
-                  (long)tensor->ne[0], (long)tensor->ne[1], (long)tensor->ne[2], (long)tensor->ne[3],
-                  (long)tensor->nb[0], (long)tensor->nb[1], (long)tensor->nb[2], (long)tensor->nb[3]);
-}
-#endif
-
-} // namespace
-
-namespace {
-
-typedef bool (*ggml_qnn_op_t)(ggml_backend_qnn_device_context *ctx, ggml_tensor *dst);
-
-bool execute_graph(qnn::qnn_graph *graph, ggml_tensor *output) {
-    if (!graph->execute(output)) {
-        QNN_LOG_WARN("execute failed");
-        return false;
-    }
-
-    return true;
-}
-
 void append_tensor_dimensions(const ggml_tensor *tensor, std::string &output) {
     char buffer[256] = {};
     const auto *type_name = qnn::get_ggml_type_name(tensor->type);
