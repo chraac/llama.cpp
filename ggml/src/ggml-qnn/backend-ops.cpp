@@ -317,7 +317,7 @@ bool ggnl_qnn_supports_op_tensor(ggml_backend_qnn_device_context *ctx, const ggm
 }
 
 bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor *op) {
-    constexpr const size_t kMaxNpuTensorSize = 8192L * 2048 + 8192 * 512 + 2048 * 512;
+    constexpr const size_t kMaxNpuTensorSize = 8192L * 2048 + 8192 * 512 + 2048 * 512; // TODO: fix this
     constexpr const auto get_tensor_size = [](const ggml_tensor *tensor) -> size_t {
         return tensor->ne[0] * tensor->ne[1] * tensor->ne[2] * tensor->ne[3];
     };
@@ -334,6 +334,7 @@ bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context *ctx, const ggm
                 QNN_LOG_DEBUG("[qnn-npu][MUL_MAT]src0 and src1 dimensions are not equal");
                 return false;
             } else if (get_tensor_size(src0) + get_tensor_size(src1) + get_tensor_size(op) >= kMaxNpuTensorSize) {
+                // TODO: fix this
                 QNN_LOG_DEBUG("[qnn-npu][MUL_MAT]tensor size is too large");
                 return false;
             }
@@ -342,8 +343,9 @@ bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context *ctx, const ggm
         case QNN_BACKEND_GPU:
             if (src0->type != src1->type || src0->type != op->type) {
                 // there's no convert op for GPU.
-                QNN_LOG_DEBUG("[qnn-gpu][MUL_MAT]type src0(%d), src1(%d) and op(%d) are not equal", src0->type,
-                              src1->type, op->type);
+                QNN_LOG_DEBUG("[qnn-gpu][MUL_MAT]type src0(%s), src1(%s) and op(%s) are not equal",
+                              qnn::get_ggml_type_name(src0->type), qnn::get_ggml_type_name(src1->type),
+                              qnn::get_ggml_type_name(op->type));
                 return false;
             }
             break;
