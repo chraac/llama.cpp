@@ -376,8 +376,8 @@ bool device_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor 
 #ifndef NDEBUG
         std::string op_key;
         get_graph_key_from_op(op, op_key);
-        QNN_LOG_DEBUG("[%s]unsupported op, support/unsupported: %d/%d", op_key.c_str(),
-                      int(ctx->support_op_count.load()), int(++(ctx->unsupported_op_count)));
+        QNN_LOG_DEBUG("[%s][%s]unsupported op, support/unsupported: %d/%d", qnn::get_backend_name(ctx->device),
+                      op_key.c_str(), int(ctx->support_op_count.load()), int(++(ctx->unsupported_op_count)));
 #endif
         return false;
     }
@@ -386,8 +386,9 @@ bool device_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor 
 #ifndef NDEBUG
         std::string tensor_dims;
         append_tensor_dimensions(op, tensor_dims);
-        QNN_LOG_DEBUG("[%s]unsupported tensor(%s), support/unsupported: %d/%d", ggml_op_name(op->op),
-                      tensor_dims.c_str(), int(ctx->support_op_count.load()), int(++(ctx->unsupported_op_count)));
+        QNN_LOG_DEBUG("[%s][%s]unsupported tensor(%s), support/unsupported: %d/%d", qnn::get_backend_name(ctx->device),
+                      ggml_op_name(op->op), tensor_dims.c_str(), int(ctx->support_op_count.load()),
+                      int(++(ctx->unsupported_op_count)));
 #endif
         return false;
     }
@@ -396,8 +397,9 @@ bool device_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor 
         const auto unary_op = ggml_get_unary_op(op);
         if (unary_op == GGML_UNARY_OP_GELU) {
             // TODO: fix this
-            QNN_LOG_DEBUG("[GELU]unsupported unary op GGML_UNARY_OP_GELU for NPU, support/unsupported: %d/%d",
-                          int(ctx->support_op_count.load()), int(++(ctx->unsupported_op_count)));
+            QNN_LOG_DEBUG("[%s][GELU]unsupported unary op GGML_UNARY_OP_GELU for NPU, support/unsupported: %d/%d",
+                          qnn::get_backend_name(ctx->device), int(ctx->support_op_count.load()),
+                          int(++(ctx->unsupported_op_count)));
             return false;
         }
     } else {
@@ -406,20 +408,23 @@ bool device_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor 
         switch (op->op) {
             case GGML_OP_ADD:
                 if (!ggml_are_same_shape(src0, src1)) {
-                    QNN_LOG_DEBUG("[ADD] src0 and src1 dimensions are not equal, support/unsupported: %d/%d",
-                                  int(ctx->support_op_count.load()), int(++(ctx->unsupported_op_count)));
+                    QNN_LOG_DEBUG("[%s][ADD] src0 and src1 dimensions are not equal, support/unsupported: %d/%d",
+                                  qnn::get_backend_name(ctx->device), int(ctx->support_op_count.load()),
+                                  int(++(ctx->unsupported_op_count)));
                     return false;
                 }
                 break;
 
             case GGML_OP_MUL_MAT:
                 if (ggml_qnn_supports_matmul_op(ctx, op)) {
-                    QNN_LOG_DEBUG("[MUL_MAT]supported matmul op, support/unsupported: %d/%d",
-                                  int(++(ctx->support_op_count)), int(ctx->unsupported_op_count.load()));
+                    QNN_LOG_DEBUG("[%s][MUL_MAT]supported matmul op, support/unsupported: %d/%d",
+                                  qnn::get_backend_name(ctx->device), int(++(ctx->support_op_count)),
+                                  int(ctx->unsupported_op_count.load()));
                     return true;
                 } else {
-                    QNN_LOG_DEBUG("[MUL_MAT]unsupported matmul op, support/unsupported: %d/%d",
-                                  int(ctx->support_op_count.load()), int(++(ctx->unsupported_op_count)));
+                    QNN_LOG_DEBUG("[%s][MUL_MAT]unsupported matmul op, support/unsupported: %d/%d",
+                                  qnn::get_backend_name(ctx->device), int(ctx->support_op_count.load()),
+                                  int(++(ctx->unsupported_op_count)));
                     return false;
                 }
 
