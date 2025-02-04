@@ -141,125 +141,31 @@ qnn::qnn_graph *get_qnn_graph_from_cache(ggml_backend_qnn_device_context *ctx, c
     return graph_ptr;
 }
 
-constexpr const bool kQnnSupportedOps[] = {
-    true,  // GGML_OP_NONE
-    false, // GGML_OP_DUP
-    true,  // GGML_OP_ADD
-    false, // GGML_OP_ADD1
-    false, // GGML_OP_ACC
-    true,  // GGML_OP_SUB
-    true,  // GGML_OP_MUL
-    true,  // GGML_OP_DIV
-    false, // GGML_OP_SQR
-    true,  // GGML_OP_SQRT
-    true,  // GGML_OP_LOG
-    false, // GGML_OP_SIN
-    false, // GGML_OP_COS
-    false, // GGML_OP_SUM
-    false, // GGML_OP_SUM_ROWS
-    false, // GGML_OP_MEAN
-    false, // GGML_OP_ARGMAX
-    false, // GGML_OP_COUNT_EQUAL
-    false, // GGML_OP_REPEAT
-    false, // GGML_OP_REPEAT_BACK
-    false, // GGML_OP_CONCAT
-    false, // GGML_OP_SILU_BACK
-    false, // GGML_OP_NORM
-    false, // GGML_OP_RMS_NORM
-    false, // GGML_OP_RMS_NORM_BACK
-    false, // GGML_OP_GROUP_NORM
+constexpr bool isQnnSupportedOp(size_t op_index) {
+    switch (op_index) {
+        case GGML_OP_NONE:
+        case GGML_OP_ADD:
+        case GGML_OP_SUB:
+        case GGML_OP_MUL:
+        case GGML_OP_DIV:
+        case GGML_OP_SQRT:
+        case GGML_OP_LOG:
+        case GGML_OP_MUL_MAT:
+        case GGML_OP_RESHAPE:
+        case (GGML_OP_COUNT + GGML_UNARY_OP_GELU):
+            return true;
+        default:
+            return false;
+    }
+}
 
-    true,  // GGML_OP_MUL_MAT
-    false, // GGML_OP_MUL_MAT_ID
-    false, // GGML_OP_OUT_PROD
-
-    false, // GGML_OP_SCALE
-    false, // GGML_OP_SET
-    false, // GGML_OP_CPY
-    false, // GGML_OP_CONT
-    true,  // GGML_OP_RESHAPE
-    false, // GGML_OP_VIEW
-    false, // GGML_OP_PERMUTE
-    false, // GGML_OP_TRANSPOSE
-    false, // GGML_OP_GET_ROWS
-    false, // GGML_OP_GET_ROWS_BACK
-    false, // GGML_OP_DIAG
-    false, // GGML_OP_DIAG_MASK_INF
-    false, // GGML_OP_DIAG_MASK_ZERO
-    false, // GGML_OP_SOFT_MAX
-    false, // GGML_OP_SOFT_MAX_BACK
-    false, // GGML_OP_ROPE
-    false, // GGML_OP_ROPE_BACK
-    false, // GGML_OP_CLAMP
-    false, // GGML_OP_CONV_TRANSPOSE_1D
-    false, // GGML_OP_IM2COL
-    false, // GGML_OP_IM2COL_BACK
-    false, // GGML_OP_CONV_TRANSPOSE_2D
-    false, // GGML_OP_POOL_1D
-    false, // GGML_OP_POOL_2D
-    false, // GGML_OP_POOL_2D_BACK
-    false, // GGML_OP_UPSCALE
-    false, // GGML_OP_PAD
-    false, // GGML_OP_PAD_REFLECT_1D
-    false, // GGML_OP_ARANGE
-    false, // GGML_OP_TIMESTEP_EMBEDDING
-    false, // GGML_OP_ARGSORT
-    false, // GGML_OP_LEAKY_RELU
-
-    false, // GGML_OP_FLASH_ATTN_EXT
-    false, // GGML_OP_FLASH_ATTN_BACK
-    false, // GGML_OP_SSM_CONV
-    false, // GGML_OP_SSM_SCAN
-    false, // GGML_OP_WIN_PART
-    false, // GGML_OP_WIN_UNPART
-    false, // GGML_OP_GET_REL_POS
-    false, // GGML_OP_ADD_REL_POS
-    false, // GGML_OP_RWKV_WKV6
-    false, // GGML_OP_GATED_LINEAR_ATTN
-
-    false, // GGML_OP_UNARY
-
-    false, // GGML_OP_MAP_UNARY
-    false, // GGML_OP_MAP_BINARY
-
-    false, // GGML_OP_MAP_CUSTOM1_F32
-    false, // GGML_OP_MAP_CUSTOM2_F32
-    false, // GGML_OP_MAP_CUSTOM3_F32
-
-    false, // GGML_OP_MAP_CUSTOM1
-    false, // GGML_OP_MAP_CUSTOM2
-    false, // GGML_OP_MAP_CUSTOM3
-
-    false, // GGML_OP_CROSS_ENTROPY_LOSS
-    false, // GGML_OP_CROSS_ENTROPY_LOSS_BACK
-    false, // GGML_OP_OPT_STEP_ADAMW
-
-    // ggml_unary_op
-    false, // GGML_UNARY_OP_ABS
-    false, // GGML_UNARY_OP_SGN
-    false, // GGML_UNARY_OP_NEG
-    false, // GGML_UNARY_OP_STEP
-    false, // GGML_UNARY_OP_TANH
-    false, // GGML_UNARY_OP_ELU
-    false, // GGML_UNARY_OP_RELU
-    false, // GGML_UNARY_OP_SIGMOID
-    true,  // GGML_UNARY_OP_GELU
-    false, // GGML_UNARY_OP_GELU_QUICK
-    false, // GGML_UNARY_OP_SILU
-    false, // GGML_UNARY_OP_HARDSWISH
-    false, // GGML_UNARY_OP_HARDSIGMOID
-    false, // GGML_UNARY_OP_EXP
-};
-
-static_assert(kQnnSupportedOps[GGML_OP_NONE], "GGML_OP_NONE is not true");
-static_assert(kQnnSupportedOps[GGML_OP_ADD], "GGML_OP_ADD is not true");
-static_assert(kQnnSupportedOps[GGML_OP_MUL], "GGML_OP_MUL is not true");
-static_assert(kQnnSupportedOps[GGML_OP_MUL_MAT],
+static_assert(isQnnSupportedOp(GGML_OP_NONE), "GGML_OP_NONE is not true");
+static_assert(isQnnSupportedOp(GGML_OP_ADD), "GGML_OP_ADD is not true");
+static_assert(isQnnSupportedOp(GGML_OP_MUL), "GGML_OP_MUL is not true");
+static_assert(isQnnSupportedOp(GGML_OP_MUL_MAT),
               "GGML_OP_MUL_MAT is not true, please check the kQnnSupportedOps table in the backend-ops.cpp file");
-static_assert(kQnnSupportedOps[GGML_OP_RESHAPE], "GGML_OP_RESHAPE is not true");
-static_assert(!kQnnSupportedOps[GGML_OP_VIEW], "GGML_OP_VIEW is not false");
-static_assert(std::size(kQnnSupportedOps) == (GGML_OP_COUNT + GGML_UNARY_OP_COUNT),
-              "GGML_OP_COUNT does not match the size of the kQnnSupportedOps table");
+static_assert(isQnnSupportedOp(GGML_OP_RESHAPE), "GGML_OP_RESHAPE is not true");
+static_assert(!isQnnSupportedOp(GGML_OP_VIEW), "GGML_OP_VIEW is not false");
 
 bool ggml_qnn_supports_tensor(ggml_backend_qnn_device_context *ctx, const ggml_tensor *tensor) {
     if (!tensor) {
@@ -372,7 +278,7 @@ bool device_supports_op(ggml_backend_qnn_device_context *ctx, const ggml_tensor 
         return true;
     }
 
-    if (!kQnnSupportedOps[qnn::get_qnn_op_index(op)]) {
+    if (!isQnnSupportedOp(qnn::get_qnn_op_index(op))) {
 #ifndef NDEBUG
         std::string op_key;
         get_graph_key_from_op(op, op_key);
