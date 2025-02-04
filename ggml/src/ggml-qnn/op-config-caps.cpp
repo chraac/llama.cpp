@@ -374,15 +374,6 @@ size_t get_qnn_op_index(const ggml_tensor *tensor) {
     return tensor->op;
 }
 
-void get_ggml_op_output_dimensions(const std::vector<const ggml_dimension_array_t> &input_dims, const ggml_tensor *op,
-                                   ggml_dimension_array_t &output_dims) {
-    auto op_index = get_qnn_op_index(op);
-    GGML_ASSERT(op_index < std::size(kOpCaps));
-    auto get_dims = kOpCaps[op_index].calc_dims_func;
-    GGML_ASSERT(get_dims);
-    get_dims(input_dims, output_dims);
-}
-
 const char *get_qnn_op_name(const ggml_tensor *op) {
     auto op_index = get_qnn_op_index(op);
     GGML_ASSERT(op_index < std::size(kOpCaps));
