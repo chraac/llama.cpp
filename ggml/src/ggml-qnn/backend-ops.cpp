@@ -130,7 +130,7 @@ qnn::qnn_graph *get_qnn_graph_from_cache(ggml_backend_qnn_device_context *ctx, c
         }
 
         if (!graph->build_graph_from_ggml_graph(cgraph)) {
-            QNN_LOG_ERROR("[%s]build_graph_from_op failed", qnn::get_backend_name(ctx->device));
+            QNN_LOG_ERROR("[%s]build_graph_from_ggml_graph failed", qnn::get_backend_name(ctx->device));
             return nullptr;
         }
 
