@@ -15,6 +15,8 @@
 #include <unistd.h>
 #endif
 
+namespace qnn {
+
 static inline void* aligned_alloc(size_t alignment, size_t size) {
     void* ptr = nullptr;
     if (posix_memalign(&ptr, alignment, size) != 0) {
@@ -22,8 +24,6 @@ static inline void* aligned_alloc(size_t alignment, size_t size) {
     }
     return ptr;
 }
-
-namespace qnn {
 
 qnn_dimension_array_t get_internal_dimension(const ggml_dimension_array_t &dims, uint32_t rank) {
     static_assert(GGML_MAX_DIMS == 4, "GGML_MAX_DIMS should be 4");
