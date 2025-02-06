@@ -1,9 +1,8 @@
 #pragma once
 
-#include <inttypes.h>
-#include <stddef.h>
-
 #include <array>
+#include <cinttypes>
+#include <cstddef>
 #include <cstdint>
 #include <string>
 
