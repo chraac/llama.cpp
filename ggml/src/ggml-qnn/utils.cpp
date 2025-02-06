@@ -15,6 +15,14 @@
 #include <unistd.h>
 #endif
 
+static inline void* aligned_alloc(size_t alignment, size_t size) {
+    void* ptr = nullptr;
+    if (posix_memalign(&ptr, alignment, size) != 0) {
+        return nullptr;
+    }
+    return ptr;
+}
+
 namespace qnn {
 
 qnn_dimension_array_t get_internal_dimension(const ggml_dimension_array_t &dims, uint32_t rank) {
@@ -239,7 +247,7 @@ void *align_alloc(size_t alignment, size_t size) {
         size_aligned += (alignment - (size_aligned % alignment));
     }
 
-    void *data = std::aligned_alloc(alignment, size_aligned);
+    void *data = aligned_alloc(alignment, size_aligned);
     if (!data) {
         QNN_LOG_WARN("aligned_alloc failed\n");
         return nullptr;
