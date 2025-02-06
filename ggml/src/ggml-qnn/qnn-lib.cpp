@@ -1,10 +1,29 @@
 
 #include "qnn-lib.hpp"
 
+namespace {
+
+inline qnn::dl_handler_t dl_load(const std::string &lib_path) {
+    return dlopen(lib_path.c_str(), RTLD_NOW | RTLD_LOCAL);
+}
+
+inline void *dl_sym(qnn::dl_handler_t handle, const std::string &symbol) { return dlsym(handle, symbol.c_str()); }
+
+inline int dl_unload(qnn::dl_handler_t handle) { return dlclose(handle); }
+
+inline const char *dl_error() { return dlerror(); }
+
+template <typename Fn>
+Fn dl_sym_typed(qnn::dl_handler_t handle, const std::string &function_name) {
+    return reinterpret_cast<Fn>(dl_sym(handle, function_name));
+}
+
+} // namespace
+
 namespace qnn {
 
-qnn_system_interface::qnn_system_interface(const QnnSystemInterface_t &qnn_sys_interface, dl_handler_t lib_handle) :
-    _qnn_sys_interface(qnn_sys_interface), _lib_handle(lib_handle) {
+qnn_system_interface::qnn_system_interface(const QnnSystemInterface_t &qnn_sys_interface, dl_handler_t lib_handle)
+    : _qnn_sys_interface(qnn_sys_interface), _lib_handle(lib_handle) {
     qnn_system_context_create(&_qnn_system_handle);
     if (_qnn_system_handle) {
         QNN_LOG_INFO("initialize qnn system successfully\n");
@@ -30,6 +49,419 @@ qnn_system_interface::~qnn_system_interface() {
     } else {
         QNN_LOG_WARN("system lib handle is null\n");
     }
+}
+
+int qnn_instance::qnn_init(const QnnSaver_Config_t **saver_config) {
+    BackendIdType backend_id = QNN_BACKEND_ID_NULL;
+    QNN_LOG_DEBUG("enter qnn_init");
+
+    std::lock_guard<std::mutex> lock(_init_mutex);
+    if (load_system() != 0) {
+        QNN_LOG_WARN("can not load QNN system lib, pls check why?");
+        return 1;
+    } else {
+        QNN_LOG_DEBUG("load QNN system lib successfully");
+    }
+
+    std::string backend_lib_path = _lib_path + _backend_name;
+    if (_lib_path_to_backend_id.count(backend_lib_path) == 0) {
+        int is_load_ok = load_backend(backend_lib_path, saver_config);
+        if (is_load_ok != 0) {
+            QNN_LOG_WARN("failed to load QNN backend");
+            return 2;
+        }
+    }
+
+    backend_id = _lib_path_to_backend_id[backend_lib_path];
+    if (_loaded_backend.count(backend_id) == 0 || _loaded_lib_handle.count(backend_id) == 0) {
+        QNN_LOG_WARN(
+            "library %s is loaded but loaded backend count=%zu, "
+            "loaded lib_handle count=%zu",
+            backend_lib_path.c_str(), _loaded_backend.count(backend_id), _loaded_lib_handle.count(backend_id));
+        return 3;
+    }
+
+    _qnn_interface = std::make_shared<qnn_interface>(*_loaded_backend[backend_id]);
+    _qnn_interface->qnn_log_create(qnn::sdk_logcallback, _qnn_log_level, &_qnn_log_handle);
+    if (nullptr == _qnn_log_handle) {
+        // NPU backend not work on Qualcomm SoC equipped low-end phone
+        QNN_LOG_WARN("why failed to initialize qnn log");
+        return 4;
+    } else {
+        QNN_LOG_DEBUG("initialize qnn log successfully");
+    }
+
+    std::vector<const QnnBackend_Config_t *> temp_backend_config;
+    _qnn_interface->qnn_backend_create(
+        _qnn_log_handle, temp_backend_config.empty() ? nullptr : temp_backend_config.data(), &_qnn_backend_handle);
+    if (nullptr == _qnn_backend_handle) {
+        QNN_LOG_WARN("why failed to initialize qnn backend");
+        return 5;
+    } else {
+        QNN_LOG_DEBUG("initialize qnn backend successfully");
+    }
+
+    Qnn_ErrorHandle_t qnn_status = _qnn_interface->qnn_property_has_capability(QNN_PROPERTY_GROUP_DEVICE);
+    if (QNN_PROPERTY_NOT_SUPPORTED == qnn_status) {
+        QNN_LOG_WARN("device property is not supported");
+    }
+    if (QNN_PROPERTY_ERROR_UNKNOWN_KEY == qnn_status) {
+        QNN_LOG_WARN("device property is not known to backend");
+    }
+
+    qnn_status = QNN_SUCCESS;
+    if (_backend_name.find("Htp") != _backend_name.npos) {
+        const QnnDevice_PlatformInfo_t *p_info = nullptr;
+        _qnn_interface->qnn_device_get_platform_info(nullptr, &p_info);
+        QNN_LOG_INFO("device counts %d", p_info->v1.numHwDevices);
+        QnnDevice_HardwareDeviceInfo_t *infos = p_info->v1.hwDevices;
+        QnnHtpDevice_OnChipDeviceInfoExtension_t chipinfo = {};
+        for (uint32_t i = 0; i < p_info->v1.numHwDevices; i++) {
+            QNN_LOG_INFO("deviceID:%d, deviceType:%d, numCores %d", infos[i].v1.deviceId, infos[i].v1.deviceType,
+                         infos[i].v1.numCores);
+            QnnDevice_DeviceInfoExtension_t devinfo = infos[i].v1.deviceInfoExtension;
+            chipinfo = devinfo->onChipDevice;
+            QnnHtpDevice_Arch_t htp_arch = chipinfo.arch;
+            QNN_LOG_INFO("htp_type:%d(%s)", devinfo->devType,
+                         (devinfo->devType == QNN_HTP_DEVICE_TYPE_ON_CHIP) ? "ON_CHIP" : "");
+            QNN_LOG_INFO("qualcomm soc_model:%d(%s), htp_arch:%d(%s), vtcm_size:%d MB", chipinfo.socModel,
+                         qnn::get_chipset_desc(chipinfo.socModel), htp_arch, qnn::get_htparch_desc(htp_arch),
+                         chipinfo.vtcmSize);
+            _soc_info = {chipinfo.socModel, htp_arch, chipinfo.vtcmSize};
+        }
+        _qnn_interface->qnn_device_free_platform_info(nullptr, p_info);
+
+        QnnHtpDevice_CustomConfig_t soc_customconfig;
+        soc_customconfig.option = QNN_HTP_DEVICE_CONFIG_OPTION_SOC;
+        soc_customconfig.socModel = chipinfo.socModel;
+        QnnDevice_Config_t soc_devconfig;
+        soc_devconfig.option = QNN_DEVICE_CONFIG_OPTION_CUSTOM;
+        soc_devconfig.customConfig = &soc_customconfig;
+
+        QnnHtpDevice_CustomConfig_t arch_customconfig;
+        arch_customconfig.option = QNN_HTP_DEVICE_CONFIG_OPTION_ARCH;
+        arch_customconfig.arch.arch = chipinfo.arch;
+        arch_customconfig.arch.deviceId = 0; // Id of device to be used. If single device is used by default 0.
+        QnnDevice_Config_t arch_devconfig;
+        arch_devconfig.option = QNN_DEVICE_CONFIG_OPTION_CUSTOM;
+        arch_devconfig.customConfig = &arch_customconfig;
+
+        const QnnDevice_Config_t *p_deviceconfig[] = {&soc_devconfig, &arch_devconfig, nullptr};
+        qnn_status = _qnn_interface->qnn_device_create(_qnn_log_handle, p_deviceconfig, &_qnn_device_handle);
+    } else {
+        qnn_status = _qnn_interface->qnn_device_create(_qnn_log_handle, nullptr, &_qnn_device_handle);
+    }
+    if (QNN_SUCCESS != qnn_status && QNN_DEVICE_ERROR_UNSUPPORTED_FEATURE != qnn_status) {
+        QNN_LOG_WARN("failed to create QNN device");
+    } else {
+        QNN_LOG_INFO("create QNN device successfully");
+    }
+
+    if (_profile_level != sdk_profile_level::profile_off) {
+        QNN_LOG_INFO("profiling turned on; level = %d", _profile_level);
+        auto profile_level =
+            _profile_level == sdk_profile_level::profile_detail ? QNN_PROFILE_LEVEL_DETAILED : QNN_PROFILE_LEVEL_BASIC;
+
+        if (QNN_PROFILE_NO_ERROR !=
+            _qnn_interface->qnn_profile_create(_qnn_backend_handle, profile_level, &_qnn_profile_handle)) {
+            QNN_LOG_WARN("unable to create profile handle in the backend");
+            return 6;
+        } else {
+            QNN_LOG_DEBUG("initialize qnn profile successfully");
+        }
+    }
+
+    _rpc_lib_handle = dl_load("libcdsprpc.so");
+    if (nullptr == _rpc_lib_handle) {
+        QNN_LOG_WARN("failed to load qualcomm's rpc lib, error:%s", dl_error());
+        return 8;
+    } else {
+        QNN_LOG_DEBUG("load rpcmem lib successfully");
+        set_rpcmem_initialized(true);
+    }
+    _pfn_rpc_mem_init = reinterpret_cast<qnn::pfn_rpc_mem_init>(dl_sym(_rpc_lib_handle, "rpcmem_init"));
+    _pfn_rpc_mem_deinit = reinterpret_cast<qnn::pfn_rpc_mem_deinit>(dl_sym(_rpc_lib_handle, "rpcmem_deinit"));
+    _pfn_rpc_mem_alloc = reinterpret_cast<qnn::pfn_rpc_mem_alloc>(dl_sym(_rpc_lib_handle, "rpcmem_alloc"));
+    _pfn_rpc_mem_free = reinterpret_cast<qnn::pfn_rpc_mem_free>(dl_sym(_rpc_lib_handle, "rpcmem_free"));
+    _pfn_rpc_mem_to_fd = reinterpret_cast<qnn::pfn_rpc_mem_to_fd>(dl_sym(_rpc_lib_handle, "rpcmem_to_fd"));
+    if (nullptr == _pfn_rpc_mem_alloc || nullptr == _pfn_rpc_mem_free || nullptr == _pfn_rpc_mem_to_fd) {
+        QNN_LOG_WARN("unable to access symbols in QNN RPC lib. error: %s", dl_error());
+        dl_unload(_rpc_lib_handle);
+        return 9;
+    }
+
+    if (nullptr != _pfn_rpc_mem_init) { // make Qualcomm's SoC equipped low-end phone happy
+        _pfn_rpc_mem_init();
+    }
+
+    /* TODO: not used, keep it for further usage
+             QnnContext_Config_t qnn_context_config = QNN_CONTEXT_CONFIG_INIT;
+             qnn_context_config.priority = QNN_PRIORITY_DEFAULT;
+             const QnnContext_Config_t * context_configs[] = {&qnn_context_config, nullptr};
+    */
+    _qnn_interface->qnn_context_create(_qnn_backend_handle, _qnn_device_handle, nullptr, &_qnn_context_handle);
+    if (nullptr == _qnn_context_handle) {
+        QNN_LOG_WARN("why failed to initialize qnn context");
+        return 10;
+    } else {
+        QNN_LOG_DEBUG("initialize qnn context successfully");
+    }
+
+    if (_backend_name.find("Htp") != _backend_name.npos) {
+        // TODO: faster approach to probe the accurate capacity of rpc ion memory
+        size_t candidate_size = 0;
+        uint8_t *rpc_buffer = nullptr;
+        const int size_in_mb = (1 << 20);
+        size_t probe_slots[] = {1024, 1536, 2048 - 48, 2048};
+        size_t probe_counts = sizeof(probe_slots) / sizeof(size_t);
+        for (size_t idx = 0; idx < probe_counts; idx++) {
+            rpc_buffer = static_cast<uint8_t *>(alloc_rpcmem(probe_slots[idx] * size_in_mb, sizeof(void *)));
+            if (!rpc_buffer) {
+                QNN_LOG_DEBUG("alloc rpcmem %d (MB) failure, %s", probe_slots[idx], strerror(errno));
+                break;
+            } else {
+                candidate_size = probe_slots[idx];
+                free_rpcmem(rpc_buffer);
+                rpc_buffer = nullptr;
+            }
+        }
+
+        _rpcmem_capacity = std::max(candidate_size, _rpcmem_capacity);
+        QNN_LOG_INFO("capacity of QNN rpc ion memory is about %d MB", _rpcmem_capacity);
+
+        if (0 != init_htp_perfinfra()) {
+            QNN_LOG_WARN("initialize HTP performance failure");
+        }
+        if (0 != set_rpc_polling()) {
+            QNN_LOG_WARN("set RPC polling failure");
+        }
+        if (0 != set_high_performance_mode()) {
+            QNN_LOG_WARN("set HTP high performance mode failure");
+        }
+    }
+
+    QNN_LOG_DEBUG("leave qnn_init");
+
+    return 0;
+}
+
+int qnn_instance::qnn_finalize() {
+    int ret_status = 0;
+    Qnn_ErrorHandle_t error = QNN_SUCCESS;
+
+    if (nullptr != _pfn_rpc_mem_deinit) // make Qualcomm's SoC equipped low-end phone happy
+        _pfn_rpc_mem_deinit();
+
+    if (dl_unload(_rpc_lib_handle) != 0) {
+        QNN_LOG_WARN("failed to unload qualcomm's rpc lib, error:%s", dl_error());
+    } else {
+        QNN_LOG_DEBUG("succeed to close rpcmem lib");
+    }
+
+    if (_backend_name.find("Htp") != _backend_name.npos) {
+        _qnn_htp_perfinfra->destroyPowerConfigId(_qnn_power_configid);
+    }
+
+    if (nullptr != _qnn_context_handle) {
+        error = _qnn_interface->qnn_context_free(_qnn_context_handle, _qnn_profile_handle);
+        if (error != QNN_SUCCESS) {
+            QNN_LOG_WARN("failed to free QNN context_handle: ID %u, error %d", _qnn_interface->get_backend_id(),
+                         QNN_GET_ERROR_CODE(error));
+        }
+        _qnn_context_handle = nullptr;
+    }
+
+    if (nullptr != _qnn_profile_handle) {
+        error = _qnn_interface->qnn_profile_free(_qnn_profile_handle);
+        if (error != QNN_SUCCESS) {
+            QNN_LOG_WARN("failed to free QNN profile_handle: ID %u, error %d", _qnn_interface->get_backend_id(),
+                         QNN_GET_ERROR_CODE(error));
+        }
+        _qnn_profile_handle = nullptr;
+    }
+
+    if (nullptr != _qnn_device_handle) {
+        error = _qnn_interface->qnn_device_free(_qnn_device_handle);
+        if (error != QNN_SUCCESS) {
+            QNN_LOG_WARN("failed to free QNN device_handle: ID %u, error %d", _qnn_interface->get_backend_id(),
+                         QNN_GET_ERROR_CODE(error));
+        }
+        _qnn_device_handle = nullptr;
+    }
+
+    if (nullptr != _qnn_backend_handle) {
+        error = _qnn_interface->qnn_backend_free(_qnn_backend_handle);
+        if (error != QNN_SUCCESS) {
+            QNN_LOG_WARN("failed to free QNN backend_handle: ID %u, error %d", _qnn_interface->get_backend_id(),
+                         QNN_GET_ERROR_CODE(error));
+        }
+        _qnn_backend_handle = nullptr;
+    }
+
+    if (nullptr != _qnn_log_handle) {
+        error = _qnn_interface->qnn_log_free(_qnn_log_handle);
+        if (error != QNN_SUCCESS) {
+            QNN_LOG_WARN("failed to free QNN log_handle: ID %u, error %d", _qnn_interface->get_backend_id(),
+                         QNN_GET_ERROR_CODE(error));
+        }
+        _qnn_log_handle = nullptr;
+    }
+
+    unload_backend();
+
+    _qnn_sys_interface.reset();
+
+    return ret_status;
+}
+
+int qnn_instance::load_system() {
+    Qnn_ErrorHandle_t error = QNN_SUCCESS;
+
+    std::string system_lib_path = _lib_path + "libQnnSystem.so";
+    QNN_LOG_DEBUG("system_lib_path:%s", system_lib_path.c_str());
+
+    auto system_lib_handle = dl_load(system_lib_path);
+    if (!system_lib_handle) {
+        QNN_LOG_WARN("can not load QNN library %s, error: %s", system_lib_path.c_str(), dl_error());
+        return 1;
+    }
+
+    auto *get_providers =
+        dl_sym_typed<qnn::pfn_qnnsysteminterface_getproviders *>(system_lib_handle, "QnnSystemInterface_getProviders");
+    if (!get_providers) {
+        QNN_LOG_WARN("can not load QNN symbol QnnSystemInterface_getProviders: %s", dl_error());
+        return 2;
+    }
+
+    uint32_t num_providers = 0;
+    const QnnSystemInterface_t **provider_list = nullptr;
+    error = get_providers(&provider_list, &num_providers);
+    if (error != QNN_SUCCESS) {
+        QNN_LOG_WARN("failed to get providers, error %d", QNN_GET_ERROR_CODE(error));
+        return 3;
+    }
+
+    if (num_providers != _required_num_providers) {
+        QNN_LOG_WARN("providers is %d instead of required %d", num_providers, _required_num_providers);
+        return 4;
+    }
+
+    if (!provider_list) {
+        QNN_LOG_WARN("can not get providers");
+        return 5;
+    }
+
+    QNN_SYSTEM_INTERFACE_VER_TYPE qnn_system_interface;
+    bool found_valid_system_interface = false;
+    for (size_t idx = 0; idx < num_providers; idx++) {
+        if (QNN_SYSTEM_API_VERSION_MAJOR == provider_list[idx]->systemApiVersion.major &&
+            QNN_SYSTEM_API_VERSION_MINOR <= provider_list[idx]->systemApiVersion.minor) {
+            found_valid_system_interface = true;
+            qnn_system_interface = provider_list[idx]->QNN_SYSTEM_INTERFACE_VER_NAME;
+            break;
+        }
+    }
+    if (!found_valid_system_interface) {
+        QNN_LOG_WARN("unable to find a valid qnn system interface");
+        return 6;
+    } else {
+        QNN_LOG_DEBUG("find a valid qnn system interface");
+    }
+
+    auto qnn_sys_interface = std::make_shared<qnn::qnn_system_interface>(*provider_list[0], system_lib_handle);
+    if (!qnn_sys_interface->is_valid()) {
+        QNN_LOG_WARN("failed to create QNN system interface");
+        return 7;
+    }
+
+    _qnn_sys_interface = qnn_sys_interface;
+    return 0;
+}
+
+int qnn_instance::load_backend(std::string &lib_path, const QnnSaver_Config_t ** /*saver_config*/) {
+    Qnn_ErrorHandle_t error = QNN_SUCCESS;
+    QNN_LOG_DEBUG("lib_path:%s", lib_path.c_str());
+
+    auto lib_handle = dl_load(lib_path.c_str());
+    if (!lib_handle) {
+        QNN_LOG_WARN("can not open QNN library %s, with error: %s", lib_path.c_str(), dl_error());
+        return 1;
+    }
+
+    auto get_providers = dl_sym_typed<qnn::pfn_qnninterface_getproviders *>(lib_handle, "QnnInterface_getProviders");
+    if (!get_providers) {
+        QNN_LOG_WARN("can not load symbol QnnInterface_getProviders : %s", dl_error());
+        return 2;
+    }
+
+    std::uint32_t num_providers = 0;
+    const QnnInterface_t **provider_list = nullptr;
+    error = get_providers(&provider_list, &num_providers);
+    if (error != QNN_SUCCESS) {
+        QNN_LOG_WARN("failed to get providers, error %d", QNN_GET_ERROR_CODE(error));
+        return 3;
+    }
+    QNN_LOG_DEBUG("num_providers=%d", num_providers);
+    if (num_providers != _required_num_providers) {
+        QNN_LOG_WARN("providers is %d instead of required %d", num_providers, _required_num_providers);
+        return 4;
+    }
+
+    if (!provider_list) {
+        QNN_LOG_WARN("failed to get qnn interface providers");
+        return 5;
+    }
+    bool found_valid_interface = false;
+    QNN_INTERFACE_VER_TYPE qnn_interface;
+    for (size_t idx = 0; idx < num_providers; idx++) {
+        if (QNN_API_VERSION_MAJOR == provider_list[idx]->apiVersion.coreApiVersion.major &&
+            QNN_API_VERSION_MINOR <= provider_list[idx]->apiVersion.coreApiVersion.minor) {
+            found_valid_interface = true;
+            qnn_interface = provider_list[idx]->QNN_INTERFACE_VER_NAME;
+            break;
+        }
+    }
+
+    if (!found_valid_interface) {
+        QNN_LOG_WARN("unable to find a valid qnn interface");
+        return 6;
+    } else {
+        QNN_LOG_DEBUG("find a valid qnn interface");
+    }
+
+    BackendIdType backend_id = provider_list[0]->backendId;
+    _lib_path_to_backend_id[lib_path] = backend_id;
+    if (_loaded_backend.count(backend_id) > 0) {
+        QNN_LOG_WARN("lib_path %s is loaded, but backend %d already exists", lib_path.c_str(), backend_id);
+    }
+    _loaded_backend[backend_id] = provider_list[0];
+    if (_loaded_lib_handle.count(backend_id) > 0) {
+        QNN_LOG_WARN("closing %p", _loaded_lib_handle[backend_id]);
+        int dlclose_error = dl_unload(_loaded_lib_handle[backend_id]);
+        if (dlclose_error != 0) {
+            QNN_LOG_WARN("fail to close %p with error %s", _loaded_lib_handle[backend_id], dl_error());
+        }
+    }
+    _loaded_lib_handle[backend_id] = lib_handle;
+    _backend_id = backend_id;
+
+    return 0;
+}
+
+int qnn_instance::unload_backend() {
+    int dlclose_error = 0;
+    for (auto &it : _loaded_lib_handle) {
+        dlclose_error = dl_unload(it.second);
+        if (dlclose_error != 0) {
+            QNN_LOG_WARN("failed to close QNN backend %d, error %s", it.first, dl_error());
+        }
+    }
+
+    _loaded_lib_handle.clear();
+    _lib_path_to_backend_id.clear();
+    _loaded_backend.clear();
+
+    return 0;
 }
 
 } // namespace qnn
