@@ -1,6 +1,9 @@
 
 #include "qnn-lib.hpp"
 
+#include <dlfcn.h>
+#include <fcntl.h>
+
 namespace {
 
 inline qnn::dl_handler_t dl_load(const std::string &lib_path) {

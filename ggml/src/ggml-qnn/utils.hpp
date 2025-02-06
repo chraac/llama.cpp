@@ -1,12 +1,10 @@
 #pragma once
 
-#include <dlfcn.h>
-#include <fcntl.h>
 #include <inttypes.h>
 #include <stddef.h>
-#include <stdint.h>
 
 #include <array>
+#include <cstdint>
 #include <string>
 
 #include "ggml.h"
