@@ -1,7 +1,6 @@
 #pragma once
 
 #include <array>
-#include <cinttypes>
 #include <cstddef>
 #include <cstdint>
 #include <string>

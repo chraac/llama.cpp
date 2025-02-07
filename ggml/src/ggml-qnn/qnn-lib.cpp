@@ -1,28 +1,6 @@
 
 #include "qnn-lib.hpp"
 
-#include <dlfcn.h>
-#include <fcntl.h>
-
-namespace {
-
-inline qnn::dl_handler_t dl_load(const std::string &lib_path) {
-    return dlopen(lib_path.c_str(), RTLD_NOW | RTLD_LOCAL);
-}
-
-inline void *dl_sym(qnn::dl_handler_t handle, const std::string &symbol) { return dlsym(handle, symbol.c_str()); }
-
-inline int dl_unload(qnn::dl_handler_t handle) { return dlclose(handle); }
-
-inline const char *dl_error() { return dlerror(); }
-
-template <typename Fn>
-Fn dl_sym_typed(qnn::dl_handler_t handle, const std::string &function_name) {
-    return reinterpret_cast<Fn>(dl_sym(handle, function_name));
-}
-
-} // namespace
-
 namespace qnn {
 
 qnn_system_interface::qnn_system_interface(const QnnSystemInterface_t &qnn_sys_interface, dl_handler_t lib_handle)

@@ -22,13 +22,11 @@
 #include <QnnTypes.h>
 #include <System/QnnSystemInterface.h>
 
+#include "dl_loader.hpp"
 #include "qnn-types.hpp"
 #include "utils.hpp"
 
 namespace qnn {
-
-// TODO: those function should be moved to a separate file, and have separate implementation for each platform
-typedef void *dl_handler_t;
 
 // =================================================================================================
 //
