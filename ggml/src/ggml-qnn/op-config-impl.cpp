@@ -307,10 +307,9 @@ qnn_tensor_ptr_t ggml_qnn_matmul_op_config::create_gather_nodes(QNNBackend devic
 bool ggml_qnn_matmul_op_config::create_convert_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle, const int rank,
                                                      qnn_tensor_array_t &tensor_inputs,
                                                      qnn_tensor_array_t &tensor_outputs) {
-    if (device == QNN_BACKEND_GPU) {
-        // there's no convert op for GPU, so we should create matmul nodes directly.
-        return true;
-    }
+    // there's no convert op for GPU, so we use cast instead
+    // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/MasterOpDef.html#cast
+    const std::string convert_op_name = (device == QNN_BACKEND_GPU) ? QNN_OP_CAST : QNN_OP_CONVERT;
 
     // create tensors for convert node
     auto tensor_type = get_tensor_type(tensor_inputs);
@@ -328,7 +327,7 @@ bool ggml_qnn_matmul_op_config::create_convert_nodes(QNNBackend device, Qnn_Grap
                                                              convert_in->get_dimensions(), tensor_type, rank, device,
                                                              graph_handle, _qnn_instance);
         auto convert = std::make_shared<ggml_qnn_single_op_config>(convert_name, QNN_OP_PACKAGE_NAME_QTI_AISW,
-                                                                   QNN_OP_CONVERT, _qnn_instance);
+                                                                   convert_op_name, _qnn_instance);
         convert->set_input_tensors({convert_in});
         convert->set_output_tensors({convert_out});
         tensor_inputs[i] = convert_out;
@@ -343,7 +342,7 @@ bool ggml_qnn_matmul_op_config::create_convert_nodes(QNNBackend device, Qnn_Grap
                                                             convert_out->get_dimensions(), tensor_type, rank, device,
                                                             graph_handle, _qnn_instance);
         auto output_convert = std::make_shared<ggml_qnn_single_op_config>(convert_name, QNN_OP_PACKAGE_NAME_QTI_AISW,
-                                                                          QNN_OP_CONVERT, _qnn_instance);
+                                                                          convert_op_name, _qnn_instance);
         output_convert->set_input_tensors({convert_in});
         output_convert->set_output_tensors({convert_out});
         tensor_outputs.front() = convert_in;
