@@ -8,7 +8,9 @@
 #include "QnnGraph.h"
 #include "qnn-types.hpp"
 
-#ifdef __linux__
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <sys/sysinfo.h>
 #include <unistd.h>
 #endif
@@ -225,19 +227,9 @@ intptr_t align_to(size_t alignment, intptr_t offset) {
 
 uint32_t get_ggml_tensor_data_size(const ggml_tensor *tensor) { return ggml_nbytes(tensor); }
 
-void *page_align_alloc(size_t size) {
-    // TODO: fix this for other platforms
-    const size_t alignment = sysconf(_SC_PAGESIZE);
-    return align_alloc(alignment, size);
-}
-
-void *align_alloc(size_t alignment, size_t size) {
-    size_t size_aligned = size;
-    if ((size_aligned % alignment) != 0) {
-        size_aligned += (alignment - (size_aligned % alignment));
-    }
-
-    void *data = std::aligned_alloc(alignment, size_aligned);
+#ifdef _WIN32
+static void *_align_alloc(size_t alignment, size_t size) {
+    void *data = _aligned_malloc(size, alignment);
     if (!data) {
         QNN_LOG_WARN("aligned_alloc failed\n");
         return nullptr;
@@ -246,7 +238,33 @@ void *align_alloc(size_t alignment, size_t size) {
     return data;
 }
 
+static size_t _get_page_size() {
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    return si.dwPageSize;
+}
+
+void align_free(void *ptr) { _aligned_free(ptr); }
+#else
+static void *_align_alloc(size_t alignment, size_t size) {
+    void *data = std::aligned_alloc(alignment, size);
+    if (!data) {
+        QNN_LOG_WARN("aligned_alloc failed\n");
+        return nullptr;
+    }
+
+    return data;
+}
+
+static size_t _get_page_size() { return sysconf(_SC_PAGESIZE); }
+
 void align_free(void *ptr) { std::free(ptr); }
+#endif
+
+void *page_align_alloc(size_t size) {
+    const size_t alignment = _get_page_size();
+    return _align_alloc(alignment, size);
+}
 
 // =================================================================================================
 //
