@@ -201,7 +201,7 @@ public:
 
     int init_htp_perfinfra() {
         QnnDevice_Infrastructure_t device_infra = nullptr;
-        int error = _qnn_interface->qnn_device_get_infrastructure(&device_infra);
+        auto error = _qnn_interface->qnn_device_get_infrastructure(&device_infra);
         if (error != QNN_SUCCESS) {
             QNN_LOG_WARN("failed to get qnn device infra");
             return 1;
@@ -389,7 +389,7 @@ public:
     }
 
     void unregister_rpcmem(Qnn_MemHandle_t mem_handle) {
-        Qnn_ErrorHandle_t error = _qnn_interface->qnn_mem_de_register(&mem_handle, 1);
+        auto error = _qnn_interface->qnn_mem_de_register(&mem_handle, 1);
         if (error != QNN_SUCCESS) {
             QNN_LOG_WARN("failed to unregister shared memory, error %d", QNN_GET_ERROR_CODE(error));
         }
