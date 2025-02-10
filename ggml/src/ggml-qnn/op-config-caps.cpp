@@ -5,17 +5,17 @@ namespace {
 
 using op_constructor_t = std::shared_ptr<qnn::ggml_qnn_op_config> (*)(const ggml_tensor *, const std::string &,
                                                                       std::shared_ptr<qnn::qnn_instance>);
-using op_dims_calc_func_t = void (*)(const std::vector<const qnn::ggml_dimension_array_t> &input_dims,
+using op_dims_calc_func_t = void (*)(const std::vector<qnn::ggml_dimension_array_t> &input_dims,
                                      qnn::ggml_dimension_array_t &output_dims);
 
-void element_wise_op_dims(const std::vector<const qnn::ggml_dimension_array_t> &input_dims,
+void element_wise_op_dims(const std::vector<qnn::ggml_dimension_array_t> &input_dims,
                           qnn::ggml_dimension_array_t &output_dims) {
     for (size_t i = 1; i < std::size(output_dims); i++) {
         output_dims[i] = input_dims.front()[i];
     }
 }
 
-void mat_mul_op_dims(const std::vector<const qnn::ggml_dimension_array_t> &input_dims,
+void mat_mul_op_dims(const std::vector<qnn::ggml_dimension_array_t> &input_dims,
                      qnn::ggml_dimension_array_t &output_dims) {
     GGML_ASSERT(input_dims.size() == 2);
     output_dims[0] = input_dims.front()[1];
@@ -372,15 +372,6 @@ size_t get_qnn_op_index(const ggml_tensor *tensor) {
     }
 
     return tensor->op;
-}
-
-void get_ggml_op_output_dimensions(const std::vector<const ggml_dimension_array_t> &input_dims, const ggml_tensor *op,
-                                   ggml_dimension_array_t &output_dims) {
-    auto op_index = get_qnn_op_index(op);
-    GGML_ASSERT(op_index < std::size(kOpCaps));
-    auto get_dims = kOpCaps[op_index].calc_dims_func;
-    GGML_ASSERT(get_dims);
-    get_dims(input_dims, output_dims);
 }
 
 const char *get_qnn_op_name(const ggml_tensor *op) {
