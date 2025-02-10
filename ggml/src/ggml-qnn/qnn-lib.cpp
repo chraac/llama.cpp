@@ -102,7 +102,7 @@ int qnn_instance::qnn_init(const QnnSaver_Config_t **saver_config) {
                          infos[i].v1.numCores);
             QnnDevice_DeviceInfoExtension_t devinfo = infos[i].v1.deviceInfoExtension;
             chipinfo = devinfo->onChipDevice;
-            QnnHtpDevice_Arch_t htp_arch = chipinfo.arch;
+            size_t htp_arch = (size_t)chipinfo.arch;
             QNN_LOG_INFO("htp_type:%d(%s)", devinfo->devType,
                          (devinfo->devType == QNN_HTP_DEVICE_TYPE_ON_CHIP) ? "ON_CHIP" : "");
             QNN_LOG_INFO("qualcomm soc_model:%d(%s), htp_arch:%d(%s), vtcm_size:%d MB", chipinfo.socModel,

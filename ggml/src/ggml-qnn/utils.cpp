@@ -1,8 +1,6 @@
 
 #include "utils.hpp"
 
-#include <unistd.h>
-
 #include <cstdlib>
 
 #include "ggml-qnn.h"

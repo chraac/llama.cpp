@@ -451,7 +451,7 @@ private:
     std::unordered_map<void *, Qnn_MemHandle_t> _qnn_rpc_buffer_to_handles;
 
     std::mutex _init_mutex;
-    std::unordered_map<BackendIdType, void *> _loaded_lib_handle;
+    std::unordered_map<BackendIdType, dl_handler_t> _loaded_lib_handle;
     std::unordered_map<std::string, BackendIdType> _lib_path_to_backend_id;
     std::unordered_map<BackendIdType, const QnnInterface_t *> _loaded_backend;
 
