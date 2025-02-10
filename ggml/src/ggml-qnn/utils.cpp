@@ -375,7 +375,29 @@ const char *get_qnn_error_string(Qnn_ErrorHandle_t error) {
     }
 }
 
-#ifdef __linux__
+#ifdef _WIN32
+
+size_t get_system_total_memory_in_bytes() {
+    MEMORYSTATUSEX mem = {};
+    mem.dwLength = sizeof(mem);
+    if (GlobalMemoryStatusEx(&mem)) {
+        return mem.ullTotalPhys;
+    }
+
+    return 0;
+}
+
+size_t get_system_free_memory_in_bytes() {
+    MEMORYSTATUSEX mem = {};
+    mem.dwLength = sizeof(mem);
+    if (GlobalMemoryStatusEx(&mem)) {
+        return mem.ullAvailPhys;
+    }
+
+    return 0;
+}
+
+#else
 
 size_t get_system_total_memory_in_bytes() {
     struct sysinfo info = {};
