@@ -276,7 +276,7 @@ qnn_tensor_ptr_t ggml_qnn_matmul_op_config::create_gather_nodes(QNNBackend devic
         auto index_buffer = std::make_shared<qnn_mem_buffer>(dimensions[axis] * sizeof(uint32_t));
         for (uint32_t *curr = reinterpret_cast<uint32_t *>(index_buffer->get_buffer()), *end = curr + dimensions[axis];
              curr < end; curr++) {
-            *curr = (curr - reinterpret_cast<uint32_t *>(index_buffer->get_buffer())) / scale;
+            *curr = uint32_t((curr - reinterpret_cast<uint32_t *>(index_buffer->get_buffer())) / scale);
         }
 
         auto gather_index = std::make_shared<ggml_qnn_tensor>(

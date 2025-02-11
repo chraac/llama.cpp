@@ -33,7 +33,7 @@ qnn_dimension_array_t get_internal_dimension(const ggml_dimension_array_t &dims,
      * The ggml tensor will have dimensions [3, 2], while the qnn tensor will have dimensions [2, 3].
      */
     for (uint32_t i = 0; i < rank; i++) {
-        internal_dims[i] = std::max<uint32_t>(dims[rank - 1 - i], 1);
+        internal_dims[i] = std::max<uint32_t>((uint32_t)dims[rank - 1 - i], 1);
     }
 
     return internal_dims;
@@ -225,7 +225,7 @@ intptr_t align_to(size_t alignment, intptr_t offset) {
                : offset + (static_cast<intptr_t>(alignment) - (offset % static_cast<intptr_t>(alignment)));
 }
 
-uint32_t get_ggml_tensor_data_size(const ggml_tensor *tensor) { return ggml_nbytes(tensor); }
+uint32_t get_ggml_tensor_data_size(const ggml_tensor *tensor) { return (uint32_t)ggml_nbytes(tensor); }
 
 #ifdef _WIN32
 static void *_align_alloc(size_t alignment, size_t size) {

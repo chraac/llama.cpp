@@ -187,7 +187,7 @@ qnn_graph::qnn_graph(const std::string &graph_name, QNNBackend device, std::shar
 
         QnnHtpGraph_CustomConfig_t vtcm_config;
         vtcm_config.option = QNN_HTP_GRAPH_CONFIG_OPTION_VTCM_SIZE;
-        vtcm_config.vtcmSizeInMB = vtcm_size_in_mb;
+        vtcm_config.vtcmSizeInMB = (uint32_t)vtcm_size_in_mb;
         QnnGraph_Config_t graph_vtcm_config;
         graph_vtcm_config.option = QNN_GRAPH_CONFIG_OPTION_CUSTOM;
         graph_vtcm_config.customConfig = &vtcm_config;
