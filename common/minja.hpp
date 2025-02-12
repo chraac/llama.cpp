@@ -693,7 +693,7 @@ enum SpaceHandling { Keep, Strip, StripSpaces, StripNewline };
 
 class TemplateToken {
 public:
-    enum class Type { Text, Expression, If, Else, Elif, EndIf, For, EndFor, Generation, EndGeneration, Set, EndSet, Comment, Macro, EndMacro, Filter, EndFilter };
+    enum class Type { Text, Expression, If, Else, Elif, EndIf, For, EndFor, Generation, EndGeneration, Set, EndSet, Comment, Macro, EndMacro, Filter, EndFilter, Break, Continue };
 
     static std::string typeToString(Type t) {
         switch (t) {
@@ -714,6 +714,8 @@ public:
             case Type::EndFilter: return "endfilter";
             case Type::Generation: return "generation";
             case Type::EndGeneration: return "endgeneration";
+            case Type::Break: return "break";
+            case Type::Continue: return "continue";
         }
         return "Unknown";
     }
@@ -815,6 +817,22 @@ struct CommentTemplateToken : public TemplateToken {
     CommentTemplateToken(const Location & location, SpaceHandling pre, SpaceHandling post, const std::string& t) : TemplateToken(Type::Comment, location, pre, post), text(t) {}
 };
 
+enum class LoopControlType { Break, Continue };
+
+class LoopControlException : public std::runtime_error {
+public:
+    LoopControlType control_type;
+    LoopControlException(const std::string & message, LoopControlType control_type) : std::runtime_error(message), control_type(control_type) {}
+    LoopControlException(LoopControlType control_type)
+      : std::runtime_error((control_type == LoopControlType::Continue ? "continue" : "break") + std::string(" outside of a loop")),
+        control_type(control_type) {}
+};
+
+struct LoopControlTemplateToken : public TemplateToken {
+    LoopControlType control_type;
+    LoopControlTemplateToken(const Location & location, SpaceHandling pre, SpaceHandling post, LoopControlType control_type) : TemplateToken(Type::Break, location, pre, post), control_type(control_type) {}
+};
+
 class TemplateNode {
     Location location_;
 protected:
@@ -825,6 +843,12 @@ public:
     void render(std::ostringstream & out, const std::shared_ptr<Context> & context) const {
         try {
             do_render(out, context);
+        } catch (const LoopControlException & e) {
+            // TODO: make stack creation lazy. Only needed if it was thrown outside of a loop.
+            std::ostringstream err;
+            err << e.what();
+            if (location_.source) err << error_location_suffix(*location_.source, location_.pos);
+            throw LoopControlException(err.str(), e.control_type);
         } catch (const std::exception & e) {
             std::ostringstream err;
             err << e.what();
@@ -897,6 +921,15 @@ public:
     }
 };
 
+class LoopControlNode : public TemplateNode {
+    LoopControlType control_type_;
+  public:
+    LoopControlNode(const Location & location, LoopControlType control_type) : TemplateNode(location), control_type_(control_type) {}
+    void do_render(std::ostringstream &, const std::shared_ptr<Context> &) const override {
+      throw LoopControlException(control_type_);
+    }
+};
+
 class ForNode : public TemplateNode {
     std::vector<std::string> var_names;
     std::shared_ptr<Expression> iterable;
@@ -961,7 +994,12 @@ public:
                   loop.set("last", i == (n - 1));
                   loop.set("previtem", i > 0 ? filtered_items.at(i - 1) : Value());
                   loop.set("nextitem", i < n - 1 ? filtered_items.at(i + 1) : Value());
-                  body->render(out, loop_context);
+                  try {
+                      body->render(out, loop_context);
+                  } catch (const LoopControlException & e) {
+                      if (e.control_type == LoopControlType::Break) break;
+                      if (e.control_type == LoopControlType::Continue) continue;
+                  }
               }
           }
       };
@@ -1347,6 +1385,13 @@ static std::string strip(const std::string & s) {
   return s.substr(start, end - start + 1);
 }
 
+static std::string capitalize(const std::string & s) {
+  if (s.empty()) return s;
+  auto result = s;
+  result[0] = std::toupper(result[0]);
+  return result;
+}
+
 static std::string html_escape(const std::string & s) {
   std::string result;
   result.reserve(s.size());
@@ -1424,6 +1469,9 @@ public:
           if (method->get_name() == "strip") {
             vargs.expectArgs("strip method", {0, 0}, {0, 0});
             return Value(strip(str));
+          } else if (method->get_name() == "capitalize") {
+            vargs.expectArgs("capitalize method", {0, 0}, {0, 0});
+            return Value(capitalize(str));
           } else if (method->get_name() == "endswith") {
             vargs.expectArgs("endswith method", {1, 1}, {0, 0});
             auto suffix = vargs.args[0].get<std::string>();
@@ -1754,7 +1802,7 @@ private:
         auto left = parseStringConcat();
         if (!left) throw std::runtime_error("Expected left side of 'logical compare' expression");
 
-        static std::regex compare_tok(R"(==|!=|<=?|>=?|in\b|is\b|not[\r\n\s]+in\b)");
+        static std::regex compare_tok(R"(==|!=|<=?|>=?|in\b|is\b|not\s+in\b)");
         static std::regex not_tok(R"(not\b)");
         std::string op_str;
         while (!(op_str = consumeToken(compare_tok)).empty()) {
@@ -2133,7 +2181,7 @@ private:
     using TemplateTokenIterator = TemplateTokenVector::const_iterator;
 
     std::vector<std::string> parseVarNames() {
-      static std::regex varnames_regex(R"(((?:\w+)(?:[\r\n\s]*,[\r\n\s]*(?:\w+))*)[\r\n\s]*)");
+      static std::regex varnames_regex(R"(((?:\w+)(?:\s*,\s*(?:\w+))*)\s*)");
 
       std::vector<std::string> group;
       if ((group = consumeTokenGroups(varnames_regex)).empty()) throw std::runtime_error("Expected variable names");
@@ -2156,13 +2204,13 @@ private:
     }
 
     TemplateTokenVector tokenize() {
-      static std::regex comment_tok(R"(\{#([-~]?)(.*?)([-~]?)#\})");
+      static std::regex comment_tok(R"(\{#([-~]?)([\s\S]*?)([-~]?)#\})");
       static std::regex expr_open_regex(R"(\{\{([-~])?)");
-      static std::regex block_open_regex(R"(^\{%([-~])?[\s\n\r]*)");
-      static std::regex block_keyword_tok(R"((if|else|elif|endif|for|endfor|generation|endgeneration|set|endset|block|endblock|macro|endmacro|filter|endfilter)\b)");
+      static std::regex block_open_regex(R"(^\{%([-~])?\s*)");
+      static std::regex block_keyword_tok(R"((if|else|elif|endif|for|endfor|generation|endgeneration|set|endset|block|endblock|macro|endmacro|filter|endfilter|break|continue)\b)");
       static std::regex non_text_open_regex(R"(\{\{|\{%|\{#)");
-      static std::regex expr_close_regex(R"([\s\n\r]*([-~])?\}\})");
-      static std::regex block_close_regex(R"([\s\n\r]*([-~])?%\})");
+      static std::regex expr_close_regex(R"(\s*([-~])?\}\})");
+      static std::regex block_close_regex(R"(\s*([-~])?%\})");
 
       TemplateTokenVector tokens;
       std::vector<std::string> group;
@@ -2246,7 +2294,7 @@ private:
               auto post_space = parseBlockClose();
               tokens.push_back(std::make_unique<EndGenerationTemplateToken>(location, pre_space, post_space));
             } else if (keyword == "set") {
-              static std::regex namespaced_var_regex(R"((\w+)[\s\n\r]*\.[\s\n\r]*(\w+))");
+              static std::regex namespaced_var_regex(R"((\w+)\s*\.\s*(\w+))");
 
               std::string ns;
               std::vector<std::string> var_names;
@@ -2291,10 +2339,18 @@ private:
             } else if (keyword == "endfilter") {
               auto post_space = parseBlockClose();
               tokens.push_back(std::make_unique<EndFilterTemplateToken>(location, pre_space, post_space));
+            } else if (keyword == "break" || keyword == "continue") {
+              auto post_space = parseBlockClose();
+              tokens.push_back(std::make_unique<LoopControlTemplateToken>(location, pre_space, post_space, keyword == "break" ? LoopControlType::Break : LoopControlType::Continue));
             } else {
               throw std::runtime_error("Unexpected block: " + keyword);
             }
           } else if (std::regex_search(it, end, match, non_text_open_regex)) {
+            if (!match.position()) {
+                if (match[0] != "{#")
+                    throw std::runtime_error("Internal error: Expected a comment");
+                throw std::runtime_error("Missing end of comment tag");
+            }
             auto text_end = it + match.position();
             text = std::string(it, text_end);
             it = text_end;
@@ -2359,7 +2415,7 @@ private:
 
               auto text = text_token->text;
               if (post_space == SpaceHandling::Strip) {
-                static std::regex trailing_space_regex(R"((\s|\r|\n)+$)");
+                static std::regex trailing_space_regex(R"(\s+$)");
                 text = std::regex_replace(text, trailing_space_regex, "");
               } else if (options.lstrip_blocks && it != end) {
                 auto i = text.size();
@@ -2369,7 +2425,7 @@ private:
                 }
               }
               if (pre_space == SpaceHandling::Strip) {
-                static std::regex leading_space_regex(R"(^(\s|\r|\n)+)");
+                static std::regex leading_space_regex(R"(^\s+)");
                 text = std::regex_replace(text, leading_space_regex, "");
               } else if (options.trim_blocks && (it - 1) != begin && !dynamic_cast<ExpressionTemplateToken*>((*(it - 2)).get())) {
                 if (text.length() > 0 && text[0] == '\n') {
@@ -2414,6 +2470,8 @@ private:
               children.emplace_back(std::make_shared<FilterNode>(token->location, std::move(filter_token->filter), std::move(body)));
           } else if (dynamic_cast<CommentTemplateToken*>(token.get())) {
               // Ignore comments
+          } else if (auto ctrl_token = dynamic_cast<LoopControlTemplateToken*>(token.get())) {
+              children.emplace_back(std::make_shared<LoopControlNode>(token->location, ctrl_token->control_type));
           } else if (dynamic_cast<EndForTemplateToken*>(token.get())
                   || dynamic_cast<EndSetTemplateToken*>(token.get())
                   || dynamic_cast<EndMacroTemplateToken*>(token.get())
@@ -2572,6 +2630,7 @@ inline std::shared_ptr<Context> Context::builtins() {
   }));
   globals.set("join", simple_function("join", { "items", "d" }, [](const std::shared_ptr<Context> &, Value & args) {
     auto do_join = [](Value & items, const std::string & sep) {
+      if (!items.is_array()) throw std::runtime_error("object is not iterable: " + items.dump());
       std::ostringstream oss;
       auto first = true;
       for (size_t i = 0, n = items.size(); i < n; ++i) {
@@ -2652,6 +2711,10 @@ inline std::shared_ptr<Context> Context::builtins() {
     return Value::callable([=](const std::shared_ptr<Context> & context, ArgumentsValue & args) {
       args.expectArgs(is_select ? "select" : "reject", {2, (std::numeric_limits<size_t>::max)()}, {0, 0});
       auto & items = args.args[0];
+      if (items.is_null())
+        return Value::array();
+      if (!items.is_array()) throw std::runtime_error("object is not iterable: " + items.dump());
+
       auto filter_fn = context->get(args.args[1]);
       if (filter_fn.is_null()) throw std::runtime_error("Undefined filter: " + args.args[1].dump());
 
@@ -2729,6 +2792,7 @@ inline std::shared_ptr<Context> Context::builtins() {
       auto & items = args.args[0];
       if (items.is_null())
         return Value::array();
+      if (!items.is_array()) throw std::runtime_error("object is not iterable: " + items.dump());
       auto attr_name = args.args[1].get<std::string>();
 
       bool has_test = false;

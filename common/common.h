@@ -4,6 +4,7 @@
 
 #include "llama-cpp.h"
 
+#include <set>
 #include <string>
 #include <vector>
 #include <sstream>
@@ -163,6 +164,7 @@ struct common_params_sampling {
     bool                                grammar_lazy = false;
     std::vector<common_grammar_trigger> grammar_trigger_words;  // optional trigger words to trigger lazy grammar
     std::vector<llama_token>            grammar_trigger_tokens; // optional trigger tokens to trigger lazy grammar and print trigger special tokens.
+    std::set<llama_token>               preserved_tokens;
 
     std::vector<llama_logit_bias> logit_bias; // logit biases to apply
 
@@ -422,13 +424,13 @@ bool set_process_priority(enum ggml_sched_priority prio);
 //
 
 #ifdef __GNUC__
-#ifdef __MINGW32__
-#define LLAMA_COMMON_ATTRIBUTE_FORMAT(...) __attribute__((format(gnu_printf, __VA_ARGS__)))
+#    if defined(__MINGW32__) && !defined(__clang__)
+#        define LLAMA_COMMON_ATTRIBUTE_FORMAT(...) __attribute__((format(gnu_printf, __VA_ARGS__)))
+#    else
+#        define LLAMA_COMMON_ATTRIBUTE_FORMAT(...) __attribute__((format(printf, __VA_ARGS__)))
+#    endif
 #else
-#define LLAMA_COMMON_ATTRIBUTE_FORMAT(...) __attribute__((format(printf, __VA_ARGS__)))
-#endif
-#else
-#define LLAMA_COMMON_ATTRIBUTE_FORMAT(...)
+#    define LLAMA_COMMON_ATTRIBUTE_FORMAT(...)
 #endif
 
 LLAMA_COMMON_ATTRIBUTE_FORMAT(1, 2)
@@ -621,6 +623,7 @@ struct common_chat_msg {
     std::string role;
     std::string content;
     std::vector<common_tool_call> tool_calls;
+    std::string tool_plan = "";
 };
 
 // Check if the template supplied via "--chat-template" is supported or not. Returns true if it's valid
