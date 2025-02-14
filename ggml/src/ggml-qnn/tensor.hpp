@@ -294,7 +294,10 @@ private:
                       new_tensor_type);
     }
 
-    bool should_use_mem_handle() const { return false; }
+    bool should_use_mem_handle() const {
+        // TODO: figure out how to set rpc mem to multiple tensor
+        return false;
+    }
 
     std::string _tensor_name;
     qnn_buffer_ptr _buffer;
