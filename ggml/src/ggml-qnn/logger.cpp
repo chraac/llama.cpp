@@ -23,10 +23,10 @@ void qnn::internal_log(ggml_log_level level, const char * /*file*/, const char *
         int len = vsnprintf(s_qnn_internal_log_buf + len_prefix, QNN_LOGBUF_LEN - len_prefix, format, args);
         if (len < (QNN_LOGBUF_LEN - len_prefix)) {
 #if defined(__ANDROID__) || defined(ANDROID)
-            // for Android APK
+            // print to android logcat
             __android_log_print(level, "ggml-qnn", "%s\n", s_qnn_internal_log_buf);
 #endif
-            // for Android command line application or WoA(Windows on ARM)
+            // print to stdout
             printf("%s\n", s_qnn_internal_log_buf);
         }
         va_end(args);

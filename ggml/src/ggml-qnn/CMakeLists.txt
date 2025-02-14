@@ -12,6 +12,7 @@ endif()
 
 if(NOT DEFINED GGML_QNN_SDK_PATH)
     # try read from environment variable
+    # TODO: create a function to search for the SDK path
     if(DEFINED ENV{QNN_SDK_PATH})
         set(GGML_QNN_SDK_PATH $ENV{QNN_SDK_PATH})
     else()
@@ -33,3 +34,8 @@ target_link_libraries(ggml-qnn PRIVATE ${QNN_LINK_LIBRARIES})
 
 string(REGEX REPLACE "/$" "" GGML_QNN_DEFAULT_LIB_SEARCH_PATH "${QNN_DEFAULT_LIB_SEARCH_PATH}")
 target_compile_definitions(ggml-qnn PRIVATE GGML_QNN_DEFAULT_LIB_SEARCH_PATH="${QNN_DEFAULT_LIB_SEARCH_PATH}/")
+
+if(GGML_QNN_ENABLE_CPU_BACKEND)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DGGML_QNN_ENABLE_CPU_BACKEND")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DGGML_QNN_ENABLE_CPU_BACKEND")
+endif()
