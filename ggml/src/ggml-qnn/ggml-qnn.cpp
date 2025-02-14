@@ -44,6 +44,16 @@
 
 namespace {
 
+#ifdef _WIN32
+constexpr const char *kQnnCpuLibName = "QnnCpu.dll";
+constexpr const char *kQnnGpuLibName = "QnnGpu.dll";
+constexpr const char *kQnnNpuLibName = "QnnHtp.dll";
+#else
+constexpr const char *kQnnCpuLibName = "libQnnCpu.so";
+constexpr const char *kQnnGpuLibName = "libQnnGpu.so";
+constexpr const char *kQnnNpuLibName = "libQnnHtp.so";
+#endif
+
 struct qnn_device_caps {
     const char *name;
     const char *description;
@@ -59,7 +69,7 @@ constexpr const qnn_device_caps kDeviceCaps[] = {
         // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/CpuOpDefSupplement.html#matmul
         "qnn-cpu",
         "Qualcomm Kryo CPU",
-        "libQnnCpu.so",
+        kQnnCpuLibName,
         GGML_BACKEND_DEVICE_TYPE_CPU,
         (1 << GGML_TYPE_I8) | (1 << GGML_TYPE_F32),
     },
@@ -67,7 +77,7 @@ constexpr const qnn_device_caps kDeviceCaps[] = {
         // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/GpuOpDefSupplement.html#matmul
         "qnn-gpu",
         "Qualcomm Adreno GPU",
-        "libQnnGpu.so",
+        kQnnGpuLibName,
         GGML_BACKEND_DEVICE_TYPE_GPU,
         (1 << GGML_TYPE_F32) | (1 << GGML_TYPE_F16),
     },
@@ -75,7 +85,7 @@ constexpr const qnn_device_caps kDeviceCaps[] = {
         // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/HtpOpDefSupplement.html#matmul
         "qnn-npu",
         "Qualcomm NPU",
-        "libQnnHtp.so",
+        kQnnNpuLibName,
         GGML_BACKEND_DEVICE_TYPE_ACCEL,
         (1 << GGML_TYPE_F32) | (1 << GGML_TYPE_F16) | (1 << GGML_TYPE_I16) | (1 << GGML_TYPE_I8),
     },
@@ -466,6 +476,7 @@ struct ggml_backend_qnn_reg_impl : ggml_backend_reg {
         QNN_LOG_DEBUG("qnn backend registry init");
         for (size_t i = 0; i < QNN_BACKEND_COUNT; i++) {
             const auto device_enum = (QNNBackend)(QNN_BACKEND_COUNT - 1 - i); // init from the last device, i.e. NPU
+#ifndef QNN_ENABLE_CPU_BACKEND
             if (device_enum == QNN_BACKEND_CPU) {
                 /*
                  * here we skip the initialization of CPU device,
@@ -473,6 +484,7 @@ struct ggml_backend_qnn_reg_impl : ggml_backend_reg {
                  */
                 continue;
             }
+#endif
 
             device_contexts.emplace_back(std::make_unique<ggml_backend_qnn_device_context>(
                 /* .device   = */ device_enum, // init from the last device, i.e. NPU

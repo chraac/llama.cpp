@@ -1,6 +1,18 @@
 
 #include "qnn-lib.hpp"
 
+namespace {
+
+#ifdef _WIN32
+constexpr const char *kQnnSystemLibName = "QnnSystem.dll";
+constexpr const char *kQnnRpcLibName = "cdsprpc.dll";
+#else
+constexpr const char *kQnnSystemLibName = "libQnnSystem.so";
+constexpr const char *kQnnRpcLibName = "libcdsprpc.so";
+#endif
+
+} // namespace
+
 namespace qnn {
 
 qnn_system_interface::qnn_system_interface(const QnnSystemInterface_t &qnn_sys_interface, dl_handler_t lib_handle)
@@ -38,7 +50,7 @@ int qnn_instance::qnn_init(const QnnSaver_Config_t **saver_config) {
 
     std::lock_guard<std::mutex> lock(_init_mutex);
     if (load_system() != 0) {
-        QNN_LOG_WARN("can not load QNN system lib, pls check why?");
+        QNN_LOG_WARN("failed to load QNN system lib");
         return 1;
     } else {
         QNN_LOG_DEBUG("load QNN system lib successfully");
@@ -152,7 +164,7 @@ int qnn_instance::qnn_init(const QnnSaver_Config_t **saver_config) {
         }
     }
 
-    _rpc_lib_handle = dl_load("libcdsprpc.so");
+    _rpc_lib_handle = dl_load(kQnnRpcLibName);
     if (nullptr == _rpc_lib_handle) {
         QNN_LOG_WARN("failed to load qualcomm's rpc lib, error:%s", dl_error());
         return 8;
@@ -298,7 +310,7 @@ int qnn_instance::qnn_finalize() {
 int qnn_instance::load_system() {
     Qnn_ErrorHandle_t error = QNN_SUCCESS;
 
-    std::string system_lib_path = _lib_path + "libQnnSystem.so";
+    std::string system_lib_path = _lib_path + kQnnSystemLibName;
     QNN_LOG_DEBUG("system_lib_path:%s", system_lib_path.c_str());
 
     auto system_lib_handle = dl_load(system_lib_path);
