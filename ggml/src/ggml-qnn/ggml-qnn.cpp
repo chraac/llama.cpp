@@ -377,7 +377,7 @@ ggml_backend_t ggml_backend_qnn_init_with_device_context(ggml_backend_dev_t dev,
     auto instance = std::make_shared<qnn::qnn_instance>(path, dev_ctx->lib_name, "ggml");
     auto result = instance->qnn_init(nullptr);
     if (result != 0) {
-        QNN_LOG_WARN("init qnn subsystem failed with qnn backend %s, pls check why", qnn::get_backend_name(device));
+        QNN_LOG_WARN("failed to init qnn backend %s", qnn::get_backend_name(device));
         return nullptr;
     }
     auto qnn_interface = instance->get_qnn_interface();
