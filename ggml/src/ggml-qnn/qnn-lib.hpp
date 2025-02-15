@@ -1,8 +1,10 @@
 #pragma once
 
-#include <math.h>
-
 #include <algorithm>
+#include <atomic>
+#include <cmath>
+#include <cstring>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <unordered_map>
