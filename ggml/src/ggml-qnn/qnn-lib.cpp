@@ -5,7 +5,7 @@ namespace {
 
 #ifdef _WIN32
 constexpr const char *kQnnSystemLibName = "QnnSystem.dll";
-constexpr const char *kQnnRpcLibName = "cdsprpc.dll";
+constexpr const char *kQnnRpcLibName = "libcdsprpc.dll";
 #else
 constexpr const char *kQnnSystemLibName = "libQnnSystem.so";
 constexpr const char *kQnnRpcLibName = "libcdsprpc.so";
