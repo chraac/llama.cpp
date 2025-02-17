@@ -165,26 +165,24 @@ int qnn_instance::qnn_init(const QnnSaver_Config_t **saver_config) {
     }
 
     _rpc_lib_handle = dl_load(kQnnRpcLibName);
-    if (nullptr == _rpc_lib_handle) {
-        QNN_LOG_WARN("failed to load qualcomm's rpc lib, error:%s", dl_error());
-        return 8;
-    } else {
-        QNN_LOG_DEBUG("load rpcmem lib successfully");
-        set_rpcmem_initialized(true);
-    }
-    _pfn_rpc_mem_init = reinterpret_cast<qnn::pfn_rpc_mem_init>(dl_sym(_rpc_lib_handle, "rpcmem_init"));
-    _pfn_rpc_mem_deinit = reinterpret_cast<qnn::pfn_rpc_mem_deinit>(dl_sym(_rpc_lib_handle, "rpcmem_deinit"));
-    _pfn_rpc_mem_alloc = reinterpret_cast<qnn::pfn_rpc_mem_alloc>(dl_sym(_rpc_lib_handle, "rpcmem_alloc"));
-    _pfn_rpc_mem_free = reinterpret_cast<qnn::pfn_rpc_mem_free>(dl_sym(_rpc_lib_handle, "rpcmem_free"));
-    _pfn_rpc_mem_to_fd = reinterpret_cast<qnn::pfn_rpc_mem_to_fd>(dl_sym(_rpc_lib_handle, "rpcmem_to_fd"));
-    if (nullptr == _pfn_rpc_mem_alloc || nullptr == _pfn_rpc_mem_free || nullptr == _pfn_rpc_mem_to_fd) {
-        QNN_LOG_WARN("unable to access symbols in QNN RPC lib. error: %s", dl_error());
-        dl_unload(_rpc_lib_handle);
-        return 9;
-    }
+    if (_rpc_lib_handle) {
+        _pfn_rpc_mem_init = reinterpret_cast<qnn::pfn_rpc_mem_init>(dl_sym(_rpc_lib_handle, "rpcmem_init"));
+        _pfn_rpc_mem_deinit = reinterpret_cast<qnn::pfn_rpc_mem_deinit>(dl_sym(_rpc_lib_handle, "rpcmem_deinit"));
+        _pfn_rpc_mem_alloc = reinterpret_cast<qnn::pfn_rpc_mem_alloc>(dl_sym(_rpc_lib_handle, "rpcmem_alloc"));
+        _pfn_rpc_mem_free = reinterpret_cast<qnn::pfn_rpc_mem_free>(dl_sym(_rpc_lib_handle, "rpcmem_free"));
+        _pfn_rpc_mem_to_fd = reinterpret_cast<qnn::pfn_rpc_mem_to_fd>(dl_sym(_rpc_lib_handle, "rpcmem_to_fd"));
+        if (!_pfn_rpc_mem_init || !_pfn_rpc_mem_deinit || !_pfn_rpc_mem_alloc || !_pfn_rpc_mem_free ||
+            _pfn_rpc_mem_to_fd) {
+            QNN_LOG_WARN("unable to access symbols in QNN RPC lib. error: %s", dl_error());
+            dl_unload(_rpc_lib_handle);
+            return 9;
+        }
 
-    if (nullptr != _pfn_rpc_mem_init) { // make Qualcomm's SoC equipped low-end phone happy
         _pfn_rpc_mem_init();
+        _rpcmem_initialized = true;
+        QNN_LOG_DEBUG("load rpcmem lib successfully");
+    } else {
+        QNN_LOG_WARN("failed to load qualcomm rpc lib, skipping, error:%s", dl_error());
     }
 
     /* TODO: not used, keep it for further usage
@@ -242,8 +240,9 @@ int qnn_instance::qnn_finalize() {
     int ret_status = 0;
     Qnn_ErrorHandle_t error = QNN_SUCCESS;
 
-    if (nullptr != _pfn_rpc_mem_deinit) // make Qualcomm's SoC equipped low-end phone happy
+    if (_pfn_rpc_mem_deinit) {
         _pfn_rpc_mem_deinit();
+    }
 
     if (dl_unload(_rpc_lib_handle) != 0) {
         QNN_LOG_WARN("failed to unload qualcomm's rpc lib, error:%s", dl_error());
@@ -255,7 +254,7 @@ int qnn_instance::qnn_finalize() {
         _qnn_htp_perfinfra->destroyPowerConfigId(_qnn_power_configid);
     }
 
-    if (nullptr != _qnn_context_handle) {
+    if (_qnn_context_handle) {
         error = _qnn_interface->qnn_context_free(_qnn_context_handle, _qnn_profile_handle);
         if (error != QNN_SUCCESS) {
             QNN_LOG_WARN("failed to free QNN context_handle: ID %u, error %d", _qnn_interface->get_backend_id(),
@@ -264,7 +263,7 @@ int qnn_instance::qnn_finalize() {
         _qnn_context_handle = nullptr;
     }
 
-    if (nullptr != _qnn_profile_handle) {
+    if (_qnn_profile_handle) {
         error = _qnn_interface->qnn_profile_free(_qnn_profile_handle);
         if (error != QNN_SUCCESS) {
             QNN_LOG_WARN("failed to free QNN profile_handle: ID %u, error %d", _qnn_interface->get_backend_id(),
@@ -273,7 +272,7 @@ int qnn_instance::qnn_finalize() {
         _qnn_profile_handle = nullptr;
     }
 
-    if (nullptr != _qnn_device_handle) {
+    if (_qnn_device_handle) {
         error = _qnn_interface->qnn_device_free(_qnn_device_handle);
         if (error != QNN_SUCCESS) {
             QNN_LOG_WARN("failed to free QNN device_handle: ID %u, error %d", _qnn_interface->get_backend_id(),
@@ -282,7 +281,7 @@ int qnn_instance::qnn_finalize() {
         _qnn_device_handle = nullptr;
     }
 
-    if (nullptr != _qnn_backend_handle) {
+    if (_qnn_backend_handle) {
         error = _qnn_interface->qnn_backend_free(_qnn_backend_handle);
         if (error != QNN_SUCCESS) {
             QNN_LOG_WARN("failed to free QNN backend_handle: ID %u, error %d", _qnn_interface->get_backend_id(),

@@ -304,8 +304,6 @@ public:
 
     bool is_rpcmem_initialized() { return _rpcmem_initialized; }
 
-    void set_rpcmem_initialized(bool initialized) { _rpcmem_initialized = initialized; }
-
     size_t get_rpcmem_capacity() { return _rpcmem_capacity; }
 
     void *alloc_rpcmem(size_t bytes, size_t alignment) {
