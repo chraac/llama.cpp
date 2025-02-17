@@ -231,7 +231,7 @@ uint32_t get_ggml_tensor_data_size(const ggml_tensor *tensor) { return (uint32_t
 static void *_align_alloc(size_t alignment, size_t size) {
     void *data = _aligned_malloc(size, alignment);
     if (!data) {
-        QNN_LOG_WARN("aligned_alloc failed\n");
+        QNN_LOG_WARN("aligned_alloc failed");
         return nullptr;
     }
 
@@ -249,10 +249,11 @@ void align_free(void *ptr) { _aligned_free(ptr); }
 static void *_align_alloc(size_t alignment, size_t size) {
     void *data = std::aligned_alloc(alignment, size);
     if (!data) {
-        QNN_LOG_WARN("aligned_alloc failed\n");
+        QNN_LOG_WARN("_align_alloc failed");
         return nullptr;
     }
 
+    QNN_LOG_DEBUG("_align_alloc success, alignment: %ld, size: %ld", alignment, size);
     return data;
 }
 
@@ -263,7 +264,12 @@ void align_free(void *ptr) { std::free(ptr); }
 
 void *page_align_alloc(size_t size) {
     const size_t alignment = _get_page_size();
-    return _align_alloc(alignment, size);
+    size_t size_aligned = size;
+    if ((size_aligned % alignment) != 0) {
+        size_aligned += (alignment - (size_aligned % alignment));
+    }
+
+    return _align_alloc(alignment, size_aligned);
 }
 
 // =================================================================================================

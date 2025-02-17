@@ -40,6 +40,5 @@ target_compile_definitions(ggml-qnn PRIVATE GGML_QNN_DEFAULT_LIB_SEARCH_PATH="${
 
 if(GGML_QNN_ENABLE_CPU_BACKEND)
     message("GGML_QNN_ENABLE_CPU_BACKEND is enabled")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DGGML_QNN_ENABLE_CPU_BACKEND")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DGGML_QNN_ENABLE_CPU_BACKEND")
+    target_compile_definitions(ggml-qnn PRIVATE GGML_QNN_ENABLE_CPU_BACKEND)
 endif()

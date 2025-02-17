@@ -166,19 +166,21 @@ int qnn_instance::qnn_init(const QnnSaver_Config_t **saver_config) {
 
     _rpc_lib_handle = dl_load(kQnnRpcLibName);
     if (_rpc_lib_handle) {
-        _pfn_rpc_mem_init = reinterpret_cast<qnn::pfn_rpc_mem_init>(dl_sym(_rpc_lib_handle, "rpcmem_init"));
-        _pfn_rpc_mem_deinit = reinterpret_cast<qnn::pfn_rpc_mem_deinit>(dl_sym(_rpc_lib_handle, "rpcmem_deinit"));
         _pfn_rpc_mem_alloc = reinterpret_cast<qnn::pfn_rpc_mem_alloc>(dl_sym(_rpc_lib_handle, "rpcmem_alloc"));
         _pfn_rpc_mem_free = reinterpret_cast<qnn::pfn_rpc_mem_free>(dl_sym(_rpc_lib_handle, "rpcmem_free"));
         _pfn_rpc_mem_to_fd = reinterpret_cast<qnn::pfn_rpc_mem_to_fd>(dl_sym(_rpc_lib_handle, "rpcmem_to_fd"));
-        if (!_pfn_rpc_mem_init || !_pfn_rpc_mem_deinit || !_pfn_rpc_mem_alloc || !_pfn_rpc_mem_free ||
-            _pfn_rpc_mem_to_fd) {
+        if (!_pfn_rpc_mem_alloc || !_pfn_rpc_mem_free || !_pfn_rpc_mem_to_fd) {
             QNN_LOG_WARN("unable to access symbols in QNN RPC lib. error: %s", dl_error());
             dl_unload(_rpc_lib_handle);
             return 9;
         }
 
-        _pfn_rpc_mem_init();
+        _pfn_rpc_mem_init = reinterpret_cast<qnn::pfn_rpc_mem_init>(dl_sym(_rpc_lib_handle, "rpcmem_init"));
+        _pfn_rpc_mem_deinit = reinterpret_cast<qnn::pfn_rpc_mem_deinit>(dl_sym(_rpc_lib_handle, "rpcmem_deinit"));
+        if (_pfn_rpc_mem_init) {
+            _pfn_rpc_mem_init();
+        }
+
         _rpcmem_initialized = true;
         QNN_LOG_DEBUG("load rpcmem lib successfully");
     } else {
