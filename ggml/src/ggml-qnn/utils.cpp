@@ -257,6 +257,7 @@ void *page_align_alloc(size_t size) {
     QNN_LOG_DEBUG("_align_alloc success, alignment: %ld, size: %ld, size_aligned: %ld", alignment, size, size_aligned);
     void *data = _align_alloc(alignment, size_aligned);
     if (!data) {
+        QNN_LOG_WARN("_align_alloc failed, alignment: %ld, size: %ld, size_aligned: %ld", alignment, size, size_aligned);
         return nullptr;
     }
 
