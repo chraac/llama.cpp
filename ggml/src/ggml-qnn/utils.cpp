@@ -228,15 +228,7 @@ intptr_t align_to(size_t alignment, intptr_t offset) {
 uint32_t get_ggml_tensor_data_size(const ggml_tensor *tensor) { return (uint32_t)ggml_nbytes(tensor); }
 
 #ifdef _WIN32
-static void *_align_alloc(size_t alignment, size_t size) {
-    void *data = _aligned_malloc(size, alignment);
-    if (!data) {
-        QNN_LOG_WARN("aligned_alloc failed");
-        return nullptr;
-    }
-
-    return data;
-}
+static void *_align_alloc(size_t alignment, size_t size) { return _aligned_malloc(size, alignment); }
 
 static size_t _get_page_size() {
     SYSTEM_INFO si;
@@ -246,16 +238,7 @@ static size_t _get_page_size() {
 
 void align_free(void *ptr) { _aligned_free(ptr); }
 #else
-static void *_align_alloc(size_t alignment, size_t size) {
-    void *data = std::aligned_alloc(alignment, size);
-    if (!data) {
-        QNN_LOG_WARN("_align_alloc failed");
-        return nullptr;
-    }
-
-    QNN_LOG_DEBUG("_align_alloc success, alignment: %ld, size: %ld", alignment, size);
-    return data;
-}
+static void *_align_alloc(size_t alignment, size_t size) { return std::aligned_alloc(alignment, size); }
 
 static size_t _get_page_size() { return sysconf(_SC_PAGESIZE); }
 
@@ -269,7 +252,13 @@ void *page_align_alloc(size_t size) {
         size_aligned += (alignment - (size_aligned % alignment));
     }
 
-    return _align_alloc(alignment, size_aligned);
+    QNN_LOG_DEBUG("_align_alloc success, alignment: %ld, size: %ld", alignment, size);
+    void *data = _align_alloc(alignment, size_aligned);
+    if (!data) {
+        return nullptr;
+    }
+
+    return data;
 }
 
 // =================================================================================================
