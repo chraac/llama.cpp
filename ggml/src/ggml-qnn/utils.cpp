@@ -15,6 +15,16 @@
 #include <unistd.h>
 #endif
 
+namespace {
+
+template <typename _Ty>
+_Ty align_to_generic(size_t alignment, _Ty offset) {
+    return offset % alignment == 0 ? offset
+                                   : offset + (static_cast<_Ty>(alignment) - (offset % static_cast<_Ty>(alignment)));
+}
+
+} // namespace
+
 namespace qnn {
 
 qnn_dimension_array_t get_internal_dimension(const ggml_dimension_array_t &dims, uint32_t rank) {
@@ -219,11 +229,7 @@ const char *get_htparch_desc(size_t htp_arch) {
     }
 }
 
-intptr_t align_to(size_t alignment, intptr_t offset) {
-    return offset % alignment == 0
-               ? offset
-               : offset + (static_cast<intptr_t>(alignment) - (offset % static_cast<intptr_t>(alignment)));
-}
+intptr_t align_to(size_t alignment, intptr_t offset) { return align_to_generic<intptr_t>(alignment, offset); }
 
 uint32_t get_ggml_tensor_data_size(const ggml_tensor *tensor) { return (uint32_t)ggml_nbytes(tensor); }
 
@@ -247,12 +253,8 @@ void align_free(void *ptr) { std::free(ptr); }
 
 void *page_align_alloc(size_t size) {
     const size_t alignment = _get_page_size();
-    size_t size_aligned = size;
-    if ((size_aligned % alignment) != 0) {
-        size_aligned += (alignment - (size_aligned % alignment));
-    }
-
-    QNN_LOG_DEBUG("_align_alloc success, alignment: %ld, size: %ld", alignment, size);
+    size_t size_aligned = align_to_generic<size_t>(alignment, size);
+    QNN_LOG_DEBUG("_align_alloc success, alignment: %ld, size: %ld, size_aligned: %ld", alignment, size, size_aligned);
     void *data = _align_alloc(alignment, size_aligned);
     if (!data) {
         return nullptr;
