@@ -24,6 +24,8 @@ void qnn::internal_log(ggml_log_level level, const char * /*file*/, const char *
 #if defined(__ANDROID__) || defined(ANDROID)
             // print to android logcat
             __android_log_print(level, "ggml-qnn", "%s\n", s_qnn_internal_log_buf);
+#else
+            (void)level;
 #endif
             // print to stdout
             printf("%s\n", s_qnn_internal_log_buf);
@@ -35,7 +37,7 @@ void qnn::internal_log(ggml_log_level level, const char * /*file*/, const char *
 #if ENABLE_QNNSDK_LOG
 void qnn::sdk_logcallback(const char *fmt, QnnLog_Level_t level, uint64_t /*timestamp*/, va_list argp) {
     static std::mutex log_mutex;
-    static unsigned char s_ggml_qnn_logbuf[QNN_LOGBUF_LEN];
+    static char s_ggml_qnn_logbuf[QNN_LOGBUF_LEN];
 
     const char *log_level_desc = "";
     switch (level) {
@@ -61,8 +63,7 @@ void qnn::sdk_logcallback(const char *fmt, QnnLog_Level_t level, uint64_t /*time
 
     {
         std::lock_guard<std::mutex> lock(log_mutex);
-
-        vsnprintf(reinterpret_cast<char *const>(s_ggml_qnn_logbuf), QNN_LOGBUF_LEN, fmt, argp);
+        vsnprintf(s_ggml_qnn_logbuf, QNN_LOGBUF_LEN, fmt, argp);
         QNN_LOG_INFO("[%s]%s", log_level_desc, s_ggml_qnn_logbuf);
     }
 }
