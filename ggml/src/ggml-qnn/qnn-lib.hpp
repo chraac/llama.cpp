@@ -39,6 +39,7 @@ namespace qnn {
 // TODO: fix this for other compilers
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wextra-semi"
+#pragma GCC diagnostic ignored "-Wpedantic"
 
 class qnn_system_interface {
 
