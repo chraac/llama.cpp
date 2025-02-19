@@ -109,8 +109,10 @@ bool bind_src_tensors(ggml_tensor *op, qnn::qnn_tensor_array_t &tensor_wrappers,
 /**
  * @brief Extracts input and output tensors from a computational graph.
  *
- * This function traverses the given ggml_cgraph structure and categorizes its tensors into inputs
- * and outputs based on their connectivity and operation types.
+ * This function identifies the input and output tensors of a computational graph by analyzing the connectivity between
+ * tensor nodes. It does this by iterating over each node in the graph, using a connectivity map that associates every
+ * tensor with its number of incoming connections (in_degree), outgoing connections (out_degree), and an insertion index
+ * that preserves order. The insertion index is used later to sort the tensors in their original discovery order.
  *
  * TODO: this algorithm is not perfect and may not work for all cases. It assumes that the tensors are
  *   connected in a way that allows for unambiguous categorization.
