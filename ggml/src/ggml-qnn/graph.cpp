@@ -1,7 +1,7 @@
 
 #include "graph.hpp"
 
-#include <set>
+#include <algorithm>
 #include <unordered_map>
 
 #include "ggml-impl.h"
@@ -106,13 +106,27 @@ bool bind_src_tensors(ggml_tensor *op, qnn::qnn_tensor_array_t &tensor_wrappers,
     return true;
 }
 
+/**
+ * @brief Extracts input and output tensors from a computational graph.
+ *
+ * This function traverses the given ggml_cgraph structure and categorizes its tensors into inputs
+ * and outputs based on their connectivity and operation types.
+ *
+ * TODO: this algorithm is not perfect and may not work for all cases. It assumes that the tensors are
+ *   connected in a way that allows for unambiguous categorization.
+ *   It also assumes that the tensors are connected in a way that allows for unambiguous categorization.
+ */
 int get_io_tensors_from_graph(const ggml_cgraph *cgraph, qnn::ggml_tensor_array_t &inputs,
                               qnn::ggml_tensor_array_t &outputs) {
-    using ggml_tensor_set_t = std::set<ggml_tensor *>;
+    struct _tensor_connectivity_info {
+        size_t in_degree = 0;
+        size_t out_degree = 0;
+        size_t insert_index = 0;
+    };
 
-    ggml_tensor_set_t input_set;
-    ggml_tensor_set_t output_set;
-    ggml_tensor_set_t visited_set;
+    using ggml_tensor_connectivity_map_t = std::unordered_map<ggml_tensor *, _tensor_connectivity_info>;
+
+    ggml_tensor_connectivity_map_t connectivity_map;
     int rank = 0;
     for (int i = 0; i < cgraph->n_nodes; i++) {
         ggml_tensor *dst = cgraph->nodes[i];
@@ -126,25 +140,50 @@ int get_io_tensors_from_graph(const ggml_cgraph *cgraph, qnn::ggml_tensor_array_
         }
 
         rank = std::max(rank, ggml_n_dims(dst));
-        input_set.erase(dst);
-        if (!visited_set.count(dst)) {
-            output_set.insert(dst);
-            visited_set.insert(dst);
+        if (connectivity_map.count(dst) == 0) {
+            connectivity_map[dst] = {
+                1, // in-degree, at least 1
+                0,
+                connectivity_map.size(),
+            };
+        } else {
+            ++(connectivity_map[dst].in_degree);
         }
 
         for (size_t i = 0; i < GGML_MAX_DIMS && dst->src[i]; ++i) {
             auto *src = dst->src[i];
             rank = std::max(rank, ggml_n_dims(src));
-            output_set.erase(src);
-            if (!visited_set.count(src)) {
-                input_set.insert(src);
-                visited_set.insert(src);
+
+            if (connectivity_map.count(src) == 0) {
+                connectivity_map[src] = {
+                    0,
+                    1, // out-degree, at least 1
+                    connectivity_map.size(),
+                };
+            } else {
+                ++(connectivity_map[src].out_degree);
             }
         }
     }
 
-    inputs.assign(input_set.begin(), input_set.end());
-    outputs.assign(output_set.begin(), output_set.end());
+    for (const auto &kv : connectivity_map) {
+        if (kv.second.in_degree == 0) {
+            inputs.push_back(kv.first);
+        }
+
+        if (kv.second.out_degree == 0) {
+            outputs.push_back(kv.first);
+        }
+    }
+
+    std::sort(inputs.begin(), inputs.end(), [&connectivity_map](ggml_tensor *lhs, ggml_tensor *rhs) {
+        return connectivity_map[lhs].insert_index < connectivity_map[rhs].insert_index;
+    });
+
+    std::sort(outputs.begin(), outputs.end(), [&connectivity_map](ggml_tensor *lhs, ggml_tensor *rhs) {
+        return connectivity_map[lhs].insert_index < connectivity_map[rhs].insert_index;
+    });
+
     return rank;
 }
 
