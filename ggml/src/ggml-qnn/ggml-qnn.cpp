@@ -224,6 +224,8 @@ void ggml_backend_qnn_free(ggml_backend_t backend) {
         instance->qnn_finalize();
         instance.reset();
     }
+
+    delete backend;
 }
 
 bool ggml_backend_qnn_cpy_tensor_async(ggml_backend_t backend_src, ggml_backend_t backend_dst, const ggml_tensor *src,

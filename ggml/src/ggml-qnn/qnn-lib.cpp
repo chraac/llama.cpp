@@ -35,8 +35,7 @@ qnn_system_interface::~qnn_system_interface() {
     }
 
     if (_lib_handle) {
-        int dlclose_error = dl_unload(_lib_handle);
-        if (dlclose_error != 0) {
+        if (!dl_unload(_lib_handle)) {
             QNN_LOG_WARN("failed to close QnnSystem library, error %s\n", dl_error());
         }
     } else {
@@ -242,14 +241,17 @@ int qnn_instance::qnn_finalize() {
     int ret_status = 0;
     Qnn_ErrorHandle_t error = QNN_SUCCESS;
 
-    if (_pfn_rpc_mem_deinit) {
-        _pfn_rpc_mem_deinit();
-    }
+    if (_rpc_lib_handle) {
+        if (_pfn_rpc_mem_deinit) {
+            _pfn_rpc_mem_deinit();
+            _pfn_rpc_mem_deinit = nullptr;
+        }
 
-    if (dl_unload(_rpc_lib_handle) != 0) {
-        QNN_LOG_WARN("failed to unload qualcomm's rpc lib, error:%s", dl_error());
-    } else {
-        QNN_LOG_DEBUG("succeed to close rpcmem lib");
+        if (dl_unload(_rpc_lib_handle)) {
+            QNN_LOG_DEBUG("succeed to close rpcmem lib");
+        } else {
+            QNN_LOG_WARN("failed to unload qualcomm's rpc lib, error:%s", dl_error());
+        }
     }
 
     if (_backend_name.find("Htp") != _backend_name.npos) {
@@ -431,8 +433,7 @@ int qnn_instance::load_backend(std::string &lib_path, const QnnSaver_Config_t **
     _loaded_backend[backend_id] = provider_list[0];
     if (_loaded_lib_handle.count(backend_id) > 0) {
         QNN_LOG_WARN("closing %p", _loaded_lib_handle[backend_id]);
-        int dlclose_error = dl_unload(_loaded_lib_handle[backend_id]);
-        if (dlclose_error != 0) {
+        if (!dl_unload(_loaded_lib_handle[backend_id])) {
             QNN_LOG_WARN("fail to close %p with error %s", _loaded_lib_handle[backend_id], dl_error());
         }
     }
@@ -443,10 +444,8 @@ int qnn_instance::load_backend(std::string &lib_path, const QnnSaver_Config_t **
 }
 
 int qnn_instance::unload_backend() {
-    int dlclose_error = 0;
     for (auto &it : _loaded_lib_handle) {
-        dlclose_error = dl_unload(it.second);
-        if (dlclose_error != 0) {
+        if (!dl_unload(it.second)) {
             QNN_LOG_WARN("failed to close QNN backend %d, error %s", it.first, dl_error());
         }
     }

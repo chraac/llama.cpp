@@ -458,11 +458,11 @@ private:
 
     dl_handler_t _rpc_lib_handle = nullptr;
     std::atomic_bool _rpcmem_initialized{false};
-    qnn::pfn_rpc_mem_alloc _pfn_rpc_mem_alloc;
-    qnn::pfn_rpc_mem_free _pfn_rpc_mem_free;
-    qnn::pfn_rpc_mem_to_fd _pfn_rpc_mem_to_fd;
-    qnn::pfn_rpc_mem_init _pfn_rpc_mem_init;
-    qnn::pfn_rpc_mem_deinit _pfn_rpc_mem_deinit;
+    qnn::pfn_rpc_mem_alloc _pfn_rpc_mem_alloc = nullptr;
+    qnn::pfn_rpc_mem_free _pfn_rpc_mem_free = nullptr;
+    qnn::pfn_rpc_mem_to_fd _pfn_rpc_mem_to_fd = nullptr;
+    qnn::pfn_rpc_mem_init _pfn_rpc_mem_init = nullptr;
+    qnn::pfn_rpc_mem_deinit _pfn_rpc_mem_deinit = nullptr;
     std::unordered_map<void *, void *> _rpcmem_store_map;
     size_t _rpcmem_capacity = 512;
 

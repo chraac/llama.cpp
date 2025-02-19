@@ -24,7 +24,7 @@ inline qnn::dl_handler_t dl_load(const std::string &lib_path) {
 
 inline void *dl_sym(qnn::dl_handler_t handle, const std::string &symbol) { return dlsym(handle, symbol.c_str()); }
 
-inline int dl_unload(qnn::dl_handler_t handle) { return dlclose(handle); }
+inline bool dl_unload(qnn::dl_handler_t handle) { return dlclose(handle) == 0; }
 
 inline const char *dl_error() { return dlerror(); }
 #elif defined(_WIN32)
@@ -51,9 +51,9 @@ inline void *dl_sym(qnn::dl_handler_t handle, const std::string &symbol) {
     return p;
 }
 
-inline int dl_unload(qnn::dl_handler_t handle) {
+inline bool dl_unload(qnn::dl_handler_t handle) {
     FreeLibrary(handle);
-    return 0;
+    return true;
 }
 
 inline const char *dl_error() {
