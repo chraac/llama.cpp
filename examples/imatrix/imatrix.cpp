@@ -14,7 +14,6 @@
 #include <fstream>
 #include <unordered_map>
 #include <algorithm>
-#include <chrono>
 
 #if defined(_MSC_VER)
 #pragma warning(disable: 4244 4267) // possible loss of data
