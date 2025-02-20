@@ -133,11 +133,14 @@ public:
         if (data) {
             memcpy(_buffer, data, size);
         }
+
+        QNN_LOG_DEBUG("alloc buffer: %p, size: %ld", _buffer, size);
     }
 
     explicit qnn_mem_buffer(size_t size) : qnn_mem_buffer(nullptr, size) {}
 
     ~qnn_mem_buffer() {
+        QNN_LOG_DEBUG("free buffer: %p, size: %ld", _buffer, _size);
         // the free will do nothing if the _buffer is nullptr
         qnn::align_free(_buffer);
     }

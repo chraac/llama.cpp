@@ -1,8 +1,6 @@
 
 #include "utils.hpp"
 
-#include <unistd.h>
-
 #include <cstdlib>
 
 #include "ggml-qnn.h"
@@ -10,10 +8,22 @@
 #include "QnnGraph.h"
 #include "qnn-types.hpp"
 
-#ifdef __linux__
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <sys/sysinfo.h>
 #include <unistd.h>
 #endif
+
+namespace {
+
+template <typename _Ty>
+_Ty align_to_generic(size_t alignment, _Ty offset) {
+    return offset % alignment == 0 ? offset
+                                   : offset + (static_cast<_Ty>(alignment) - (offset % static_cast<_Ty>(alignment)));
+}
+
+} // namespace
 
 namespace qnn {
 
@@ -33,7 +43,7 @@ qnn_dimension_array_t get_internal_dimension(const ggml_dimension_array_t &dims,
      * The ggml tensor will have dimensions [3, 2], while the qnn tensor will have dimensions [2, 3].
      */
     for (uint32_t i = 0; i < rank; i++) {
-        internal_dims[i] = std::max<uint32_t>(dims[rank - 1 - i], 1);
+        internal_dims[i] = std::max<uint32_t>((uint32_t)dims[rank - 1 - i], 1);
     }
 
     return internal_dims;
@@ -219,36 +229,40 @@ const char *get_htparch_desc(size_t htp_arch) {
     }
 }
 
-intptr_t align_to(size_t alignment, intptr_t offset) {
-    return offset % alignment == 0
-               ? offset
-               : offset + (static_cast<intptr_t>(alignment) - (offset % static_cast<intptr_t>(alignment)));
+intptr_t align_to(size_t alignment, intptr_t offset) { return align_to_generic<intptr_t>(alignment, offset); }
+
+uint32_t get_ggml_tensor_data_size(const ggml_tensor *tensor) { return (uint32_t)ggml_nbytes(tensor); }
+
+#ifdef _WIN32
+static void *_align_alloc(size_t alignment, size_t size) { return _aligned_malloc(size, alignment); }
+
+static size_t _get_page_size() {
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    return si.dwPageSize;
 }
 
-uint32_t get_ggml_tensor_data_size(const ggml_tensor *tensor) { return ggml_nbytes(tensor); }
+void align_free(void *ptr) { _aligned_free(ptr); }
+#else
+static void *_align_alloc(size_t alignment, size_t size) { return std::aligned_alloc(alignment, size); }
+
+static size_t _get_page_size() { return sysconf(_SC_PAGESIZE); }
+
+void align_free(void *ptr) { std::free(ptr); }
+#endif
 
 void *page_align_alloc(size_t size) {
-    // TODO: fix this for other platforms
-    const size_t alignment = sysconf(_SC_PAGESIZE);
-    return align_alloc(alignment, size);
-}
-
-void *align_alloc(size_t alignment, size_t size) {
-    size_t size_aligned = size;
-    if ((size_aligned % alignment) != 0) {
-        size_aligned += (alignment - (size_aligned % alignment));
-    }
-
-    void *data = std::aligned_alloc(alignment, size_aligned);
+    const size_t alignment = _get_page_size();
+    size_t size_aligned = align_to_generic<size_t>(alignment, size);
+    QNN_LOG_DEBUG("_align_alloc success, alignment: %ld, size: %ld, size_aligned: %ld", alignment, size, size_aligned);
+    void *data = _align_alloc(alignment, size_aligned);
     if (!data) {
-        QNN_LOG_WARN("aligned_alloc failed\n");
+        QNN_LOG_WARN("_align_alloc failed, alignment: %ld, size: %ld, size_aligned: %ld", alignment, size, size_aligned);
         return nullptr;
     }
 
     return data;
 }
-
-void align_free(void *ptr) { std::free(ptr); }
 
 // =================================================================================================
 //
@@ -359,7 +373,29 @@ const char *get_qnn_error_string(Qnn_ErrorHandle_t error) {
     }
 }
 
-#ifdef __linux__
+#ifdef _WIN32
+
+size_t get_system_total_memory_in_bytes() {
+    MEMORYSTATUSEX mem = {};
+    mem.dwLength = sizeof(mem);
+    if (GlobalMemoryStatusEx(&mem)) {
+        return mem.ullTotalPhys;
+    }
+
+    return 0;
+}
+
+size_t get_system_free_memory_in_bytes() {
+    MEMORYSTATUSEX mem = {};
+    mem.dwLength = sizeof(mem);
+    if (GlobalMemoryStatusEx(&mem)) {
+        return mem.ullAvailPhys;
+    }
+
+    return 0;
+}
+
+#else
 
 size_t get_system_total_memory_in_bytes() {
     struct sysinfo info = {};

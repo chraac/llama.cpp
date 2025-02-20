@@ -389,7 +389,7 @@ bool ggml_qnn_supports_tensor(ggml_backend_qnn_device_context *ctx, const ggml_t
         case GGML_TYPE_F16:
         case GGML_TYPE_Q8_0:
         case GGML_TYPE_Q4_0:
-            if (!(ctx->supported_types & (1 << tensor->type))) {
+            if (!(ctx->supported_types & (uint64_t(1) << tensor->type))) {
                 QNN_LOG_DEBUG("[%s]unsupported data type %s, supported_types: 0x%x", qnn::get_backend_name(ctx->device),
                               ggml_type_name(tensor->type), ctx->supported_types);
                 return false;

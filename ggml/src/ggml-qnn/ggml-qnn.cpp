@@ -1,23 +1,7 @@
 #include "ggml-qnn.h"
 
-#include <cassert>
-#include <chrono>
-#include <condition_variable>
-#include <fstream>
 #include <functional>
-#include <iostream>
-#include <list>
 #include <memory>
-#include <mutex>
-#include <queue>
-#include <random>
-#include <regex>
-#include <set>
-#include <sstream>
-#include <thread>
-#include <tuple>
-#include <unordered_set>
-#include <utility>
 #include <vector>
 
 #include "ggml-backend-impl.h"
@@ -44,6 +28,16 @@
 
 namespace {
 
+#ifdef _WIN32
+constexpr const char *kQnnCpuLibName = "QnnCpu.dll";
+constexpr const char *kQnnGpuLibName = "QnnGpu.dll";
+constexpr const char *kQnnNpuLibName = "QnnHtp.dll";
+#else
+constexpr const char *kQnnCpuLibName = "libQnnCpu.so";
+constexpr const char *kQnnGpuLibName = "libQnnGpu.so";
+constexpr const char *kQnnNpuLibName = "libQnnHtp.so";
+#endif
+
 struct qnn_device_caps {
     const char *name;
     const char *description;
@@ -59,7 +53,7 @@ constexpr const qnn_device_caps kDeviceCaps[] = {
         // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/CpuOpDefSupplement.html#matmul
         "qnn-cpu",
         "Qualcomm Kryo CPU",
-        "libQnnCpu.so",
+        kQnnCpuLibName,
         GGML_BACKEND_DEVICE_TYPE_CPU,
         (1 << GGML_TYPE_I8) | (1 << GGML_TYPE_F32),
     },
@@ -67,7 +61,7 @@ constexpr const qnn_device_caps kDeviceCaps[] = {
         // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/GpuOpDefSupplement.html#matmul
         "qnn-gpu",
         "Qualcomm Adreno GPU",
-        "libQnnGpu.so",
+        kQnnGpuLibName,
         GGML_BACKEND_DEVICE_TYPE_GPU,
         (1 << GGML_TYPE_F32) | (1 << GGML_TYPE_F16),
     },
@@ -75,7 +69,7 @@ constexpr const qnn_device_caps kDeviceCaps[] = {
         // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/HtpOpDefSupplement.html#matmul
         "qnn-npu",
         "Qualcomm NPU",
-        "libQnnHtp.so",
+        kQnnNpuLibName,
         GGML_BACKEND_DEVICE_TYPE_ACCEL,
         (1 << GGML_TYPE_F32) | (1 << GGML_TYPE_F16) | (1 << GGML_TYPE_I16) | (1 << GGML_TYPE_I8),
     },
@@ -214,6 +208,8 @@ void ggml_backend_qnn_free(ggml_backend_t backend) {
         instance->qnn_finalize();
         instance.reset();
     }
+
+    delete backend;
 }
 
 bool ggml_backend_qnn_cpy_tensor_async(ggml_backend_t backend_src, ggml_backend_t backend_dst, const ggml_tensor *src,
@@ -332,42 +328,10 @@ ggml_backend_t ggml_backend_qnn_init_with_device_context(ggml_backend_dev_t dev,
     const auto device = dev_ctx->device;
     QNN_LOG_DEBUG("device %s", qnn::get_backend_name(device));
     QNN_LOG_DEBUG("extend_lib_search_path %s", extend_lib_search_path);
-    std::string path = extend_lib_search_path;
-
-// TODO: Fix this for other platforms
-#if defined(__ANDROID__) || defined(ANDROID)
-    if (device == QNN_BACKEND_NPU) {
-        if (setenv("LD_LIBRARY_PATH",
-                   (path + ":/vendor/dsp/cdsp:/vendor/lib64:/vendor/dsp/"
-                           "dsp:/vendor/dsp/images")
-                       .c_str(),
-                   1) == 0) {
-            QNN_LOG_DEBUG("QNN NPU backend setenv successfully");
-        } else {
-            QNN_LOG_ERROR("QNN NPU backend setenv failure");
-        }
-        if (setenv("ADSP_LIBRARY_PATH",
-                   (path + ";/vendor/dsp/cdsp;/vendor/lib/rfsa/adsp;/system/lib/"
-                           "rfsa/adsp;/vendor/dsp/dsp;/vendor/dsp/images;/dsp")
-                       .c_str(),
-                   1) == 0) {
-            QNN_LOG_DEBUG("QNN NPU backend setenv successfully");
-        } else {
-            QNN_LOG_ERROR("QNN NPU backend setenv failure");
-        }
-    } else {
-        if (setenv("LD_LIBRARY_PATH", path.c_str(), 1) == 0) {
-            QNN_LOG_DEBUG("%s backend setenv successfully", qnn::get_backend_name(device));
-        } else {
-            QNN_LOG_ERROR("%s backend setenv failure", qnn::get_backend_name(device));
-        }
-    }
-#endif
-
-    auto instance = std::make_shared<qnn::qnn_instance>(path, dev_ctx->lib_name, "ggml");
+    auto instance = std::make_shared<qnn::qnn_instance>(extend_lib_search_path, dev_ctx->lib_name);
     auto result = instance->qnn_init(nullptr);
     if (result != 0) {
-        QNN_LOG_WARN("init qnn subsystem failed with qnn backend %s, pls check why", qnn::get_backend_name(device));
+        QNN_LOG_WARN("failed to init qnn backend %s", qnn::get_backend_name(device));
         return nullptr;
     }
     auto qnn_interface = instance->get_qnn_interface();
@@ -466,6 +430,7 @@ struct ggml_backend_qnn_reg_impl : ggml_backend_reg {
         QNN_LOG_DEBUG("qnn backend registry init");
         for (size_t i = 0; i < QNN_BACKEND_COUNT; i++) {
             const auto device_enum = (QNNBackend)(QNN_BACKEND_COUNT - 1 - i); // init from the last device, i.e. NPU
+#ifndef GGML_QNN_ENABLE_CPU_BACKEND
             if (device_enum == QNN_BACKEND_CPU) {
                 /*
                  * here we skip the initialization of CPU device,
@@ -473,6 +438,7 @@ struct ggml_backend_qnn_reg_impl : ggml_backend_reg {
                  */
                 continue;
             }
+#endif
 
             device_contexts.emplace_back(std::make_unique<ggml_backend_qnn_device_context>(
                 /* .device   = */ device_enum, // init from the last device, i.e. NPU

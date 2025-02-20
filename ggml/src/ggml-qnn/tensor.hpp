@@ -59,7 +59,7 @@ public:
             return true;
         }
 
-        can_unbind = false;
+        _can_unbind = false;
         return false;
     }
 
@@ -68,7 +68,7 @@ public:
             return true;
         }
 
-        can_unbind = false;
+        _can_unbind = false;
         return false;
     }
 
@@ -93,7 +93,7 @@ public:
     }
 
     bool bind_ggml_tensor(ggml_tensor *tensor) {
-        if (!can_unbind) {
+        if (!_can_unbind) {
             QNN_LOG_DEBUG("[%s]already has buffer storage, skip bind", _tensor_name.c_str());
             return true;
         }
@@ -137,7 +137,7 @@ public:
             return false;
         }
 
-        if (!can_unbind) {
+        if (!_can_unbind) {
             QNN_LOG_DEBUG("[%s]already has buffer storage, stop unbind", _tensor_name.c_str());
             return true;
         }
@@ -294,11 +294,14 @@ private:
                       new_tensor_type);
     }
 
-    bool should_use_mem_handle() const { return false; }
+    bool should_use_mem_handle() const {
+        // TODO: figure out how to set rpc mem to multiple tensor
+        return false;
+    }
 
     std::string _tensor_name;
     qnn_buffer_ptr _buffer;
-    bool can_unbind = true;
+    bool _can_unbind = true;
     QNNBackend _device;
     std::shared_ptr<qnn_instance> _qnn_instance;
     Qnn_Tensor_t _qnn_tensor = qnn_tensor_init(kDefaultQnnTensorVersion);
