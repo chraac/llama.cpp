@@ -1,10 +1,10 @@
 
 #include "qnn-lib.hpp"
 
+#include <filesystem>
+
 #if defined(__linux__)
 #include <unistd.h>
-
-#include <filesystem>
 #endif
 
 namespace {
@@ -18,11 +18,12 @@ constexpr const char *kQnnRpcLibName = "libcdsprpc.so";
 
 #endif
 
-void append_path(std::string &path, const std::string &append, const char separator = ':') {
-    if (!path.empty()) {
-        path += separator;
+void insert_path(std::string &path, std::string insert_path, const char separator = ':') {
+    if (!insert_path.empty() && !path.empty()) {
+        insert_path += separator;
     }
-    path += append;
+
+    path.insert(0, insert_path);
 }
 
 // TODO: Fix this for other platforms, or use a more portable way to set the library search path
@@ -31,36 +32,47 @@ bool set_qnn_lib_search_path(const std::string &custom_lib_search_path) {
     {
         auto *original = getenv("LD_LIBRARY_PATH");
         std::string lib_search_path = original ? original : "";
-        append_path(lib_search_path, custom_lib_search_path);
-
-        append_path(lib_search_path,
+        insert_path(lib_search_path,
                     "/vendor/dsp/cdsp:/vendor/lib64:"
                     "/vendor/dsp/dsp:/vendor/dsp/images");
+        insert_path(lib_search_path, custom_lib_search_path);
         if (setenv("LD_LIBRARY_PATH", lib_search_path.c_str(), 1)) {
             return false;
         }
-
-        QNN_LOG_INFO("set LD_LIBRARY_PATH to %s", lib_search_path.c_str());
     }
 
 #if defined(__ANDROID__) || defined(ANDROID)
     {
         // See also: https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-2/dsp_runtime.html
-        if (setenv("ADSP_LIBRARY_PATH",
-                   (custom_lib_search_path + ";/vendor/dsp/cdsp;/vendor/lib/rfsa/adsp;/system/lib/"
-                                             "rfsa/adsp;/vendor/dsp/dsp;/vendor/dsp/images;/dsp")
-                       .c_str(),
-                   1)) {
+        std::string adsp_lib_search_path = custom_lib_search_path +
+                                           ";/vendor/dsp/cdsp;/vendor/lib/rfsa/adsp;/system/lib/"
+                                           "rfsa/adsp;/vendor/dsp/dsp;/vendor/dsp/images;/dsp";
+        if (setenv("ADSP_LIBRARY_PATH", adsp_lib_search_path.c_str(), 1)) {
             return false;
         }
+
+        QNN_LOG_DEBUG("ADSP_LIBRARY_PATH=%s", getenv("ADSP_LIBRARY_PATH"));
     }
 #endif
 
+    QNN_LOG_DEBUG("LD_LIBRARY_PATH=%s", getenv("LD_LIBRARY_PATH"));
 #else
     (void)custom_lib_search_path;
 #endif
 
     return true;
+}
+
+qnn::dl_handler_t load_lib_with_fallback(const std::string &lib_path, const std::string &load_directory) {
+    std::filesystem::path full_path(load_directory);
+    full_path /= std::filesystem::path(lib_path).filename();
+    auto handle = qnn::dl_load(full_path.string());
+    if (!handle) {
+        QNN_LOG_WARN("failed to load %s, fallback to %s", full_path.c_str(), lib_path.c_str());
+        handle = qnn::dl_load(lib_path);
+    }
+
+    return handle;
 }
 
 } // namespace
@@ -96,7 +108,7 @@ qnn_system_interface::~qnn_system_interface() {
 }
 
 qnn_instance::qnn_instance(const std::string &lib_path, const std::string &backend_lib_name)
-    : _backend_lib_name(std::move(backend_lib_name)) {
+    : _additional_lib_load_path(lib_path), _backend_lib_name(std::move(backend_lib_name)) {
     if (set_qnn_lib_search_path(lib_path)) {
         QNN_LOG_DEBUG("[%s] set_qnn_lib_search_path succeed", _backend_lib_name.c_str());
     } else {
@@ -153,7 +165,7 @@ int qnn_instance::qnn_init(const QnnSaver_Config_t **saver_config) {
         QNN_LOG_DEBUG("initialize qnn backend successfully");
     }
 
-    Qnn_ErrorHandle_t qnn_status = _qnn_interface->qnn_property_has_capability(QNN_PROPERTY_GROUP_DEVICE);
+    auto qnn_status = _qnn_interface->qnn_property_has_capability(QNN_PROPERTY_GROUP_DEVICE);
     if (QNN_PROPERTY_NOT_SUPPORTED == qnn_status) {
         QNN_LOG_WARN("device property is not supported");
     }
@@ -223,7 +235,7 @@ int qnn_instance::qnn_init(const QnnSaver_Config_t **saver_config) {
         }
     }
 
-    _rpc_lib_handle = dl_load(kQnnRpcLibName);
+    _rpc_lib_handle = load_lib_with_fallback(kQnnRpcLibName, _additional_lib_load_path);
     if (_rpc_lib_handle) {
         _pfn_rpc_mem_alloc = reinterpret_cast<qnn::pfn_rpc_mem_alloc>(dl_sym(_rpc_lib_handle, "rpcmem_alloc"));
         _pfn_rpc_mem_free = reinterpret_cast<qnn::pfn_rpc_mem_free>(dl_sym(_rpc_lib_handle, "rpcmem_free"));
@@ -372,7 +384,7 @@ int qnn_instance::qnn_finalize() {
 
 int qnn_instance::load_system() {
     QNN_LOG_DEBUG("[%s]lib: %s", _backend_lib_name.c_str(), kQnnSystemLibName);
-    auto system_lib_handle = dl_load(kQnnSystemLibName);
+    auto system_lib_handle = load_lib_with_fallback(kQnnSystemLibName, _additional_lib_load_path);
     if (!system_lib_handle) {
         QNN_LOG_WARN("can not load QNN library %s, error: %s", kQnnSystemLibName, dl_error());
         return 1;
@@ -393,6 +405,7 @@ int qnn_instance::load_system() {
         return 3;
     }
 
+    QNN_LOG_DEBUG("num_providers: %d", num_providers);
     if (num_providers != _required_num_providers) {
         QNN_LOG_WARN("providers is %d instead of required %d", num_providers, _required_num_providers);
         return 4;
@@ -413,6 +426,7 @@ int qnn_instance::load_system() {
             break;
         }
     }
+
     if (!found_valid_system_interface) {
         QNN_LOG_WARN("unable to find a valid qnn system interface");
         return 6;
@@ -434,7 +448,7 @@ int qnn_instance::load_backend(std::string &lib_path, const QnnSaver_Config_t **
     Qnn_ErrorHandle_t error = QNN_SUCCESS;
     QNN_LOG_DEBUG("lib_path:%s", lib_path.c_str());
 
-    auto lib_handle = dl_load(lib_path.c_str());
+    auto lib_handle = load_lib_with_fallback(lib_path, _additional_lib_load_path);
     if (!lib_handle) {
         QNN_LOG_WARN("can not open QNN library %s, with error: %s", lib_path.c_str(), dl_error());
         return 1;

@@ -416,6 +416,7 @@ private:
 private:
     static constexpr const int _required_num_providers = 1;
 
+    std::string _additional_lib_load_path;
     std::string _backend_lib_name;
     BackendIdType _backend_id;
 
