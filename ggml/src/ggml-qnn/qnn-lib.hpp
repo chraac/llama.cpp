@@ -176,9 +176,7 @@ class qnn_instance {
 public:
     using BackendIdType = decltype(QnnInterface_t{}.backendId);
 
-    explicit qnn_instance(const std::string &lib_path, const std::string &backend_name, const std::string &model_name)
-        : _lib_path(std::move(lib_path)), _backend_name(std::move(backend_name)), _model_name(std::move(model_name)) {}
-
+    explicit qnn_instance(const std::string &lib_path, const std::string &backend_lib_name);
     ~qnn_instance() {}
     int qnn_init(const QnnSaver_Config_t **saver_config);
     int qnn_finalize();
@@ -418,9 +416,7 @@ private:
 private:
     static constexpr const int _required_num_providers = 1;
 
-    std::string _lib_path;
-    std::string _backend_name;
-    std::string _model_name; // Qualcomm's dedicated prebuilt model name, keep it for further usage
+    std::string _backend_lib_name;
     BackendIdType _backend_id;
 
     QnnLog_Level_t _qnn_log_level = QNN_LOG_LEVEL_DEBUG;

@@ -1,6 +1,12 @@
 
 #include "qnn-lib.hpp"
 
+#if defined(__linux__)
+#include <unistd.h>
+
+#include <filesystem>
+#endif
+
 namespace {
 
 #ifdef _WIN32
@@ -9,7 +15,53 @@ constexpr const char *kQnnRpcLibName = "libcdsprpc.dll";
 #else
 constexpr const char *kQnnSystemLibName = "libQnnSystem.so";
 constexpr const char *kQnnRpcLibName = "libcdsprpc.so";
+
 #endif
+
+void append_path(std::string &path, const std::string &append, const char separator = ':') {
+    if (!path.empty()) {
+        path += separator;
+    }
+    path += append;
+}
+
+// TODO: Fix this for other platforms, or use a more portable way to set the library search path
+bool set_qnn_lib_search_path(const std::string &custom_lib_search_path) {
+#if defined(__linux__)
+    {
+        auto *original = getenv("LD_LIBRARY_PATH");
+        std::string lib_search_path = original ? original : "";
+        append_path(lib_search_path, custom_lib_search_path);
+
+        append_path(lib_search_path,
+                    "/vendor/dsp/cdsp:/vendor/lib64:"
+                    "/vendor/dsp/dsp:/vendor/dsp/images");
+        if (setenv("LD_LIBRARY_PATH", lib_search_path.c_str(), 1)) {
+            return false;
+        }
+
+        QNN_LOG_INFO("set LD_LIBRARY_PATH to %s", lib_search_path.c_str());
+    }
+
+#if defined(__ANDROID__) || defined(ANDROID)
+    {
+        // See also: https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-2/dsp_runtime.html
+        if (setenv("ADSP_LIBRARY_PATH",
+                   (custom_lib_search_path + ";/vendor/dsp/cdsp;/vendor/lib/rfsa/adsp;/system/lib/"
+                                             "rfsa/adsp;/vendor/dsp/dsp;/vendor/dsp/images;/dsp")
+                       .c_str(),
+                   1)) {
+            return false;
+        }
+    }
+#endif
+
+#else
+    (void)custom_lib_search_path;
+#endif
+
+    return true;
+}
 
 } // namespace
 
@@ -19,27 +71,36 @@ qnn_system_interface::qnn_system_interface(const QnnSystemInterface_t &qnn_sys_i
     : _qnn_sys_interface(qnn_sys_interface), _lib_handle(lib_handle) {
     qnn_system_context_create(&_qnn_system_handle);
     if (_qnn_system_handle) {
-        QNN_LOG_INFO("initialize qnn system successfully\n");
+        QNN_LOG_INFO("initialize qnn system successfully");
     } else {
-        QNN_LOG_WARN("can not create QNN system contenxt\n");
+        QNN_LOG_WARN("can not create QNN system contenxt");
     }
 }
 
 qnn_system_interface::~qnn_system_interface() {
     if (_qnn_system_handle) {
         if (qnn_system_context_free(_qnn_system_handle) != QNN_SUCCESS) {
-            QNN_LOG_WARN("failed to free QNN system context\n");
+            QNN_LOG_WARN("failed to free QNN system context");
         }
     } else {
-        QNN_LOG_WARN("system handle is null\n");
+        QNN_LOG_WARN("system handle is null");
     }
 
     if (_lib_handle) {
         if (!dl_unload(_lib_handle)) {
-            QNN_LOG_WARN("failed to close QnnSystem library, error %s\n", dl_error());
+            QNN_LOG_WARN("failed to close QnnSystem library, error %s", dl_error());
         }
     } else {
-        QNN_LOG_WARN("system lib handle is null\n");
+        QNN_LOG_WARN("system lib handle is null");
+    }
+}
+
+qnn_instance::qnn_instance(const std::string &lib_path, const std::string &backend_lib_name)
+    : _backend_lib_name(std::move(backend_lib_name)) {
+    if (set_qnn_lib_search_path(lib_path)) {
+        QNN_LOG_DEBUG("[%s] set_qnn_lib_search_path succeed", _backend_lib_name.c_str());
+    } else {
+        QNN_LOG_ERROR("[%s] set_qnn_lib_search_path failed", _backend_lib_name.c_str());
     }
 }
 
@@ -55,10 +116,9 @@ int qnn_instance::qnn_init(const QnnSaver_Config_t **saver_config) {
         QNN_LOG_DEBUG("load QNN system lib successfully");
     }
 
-    std::string backend_lib_path = _lib_path + _backend_name;
+    std::string backend_lib_path = _backend_lib_name;
     if (_lib_path_to_backend_id.count(backend_lib_path) == 0) {
-        int is_load_ok = load_backend(backend_lib_path, saver_config);
-        if (is_load_ok != 0) {
+        if (load_backend(backend_lib_path, saver_config) != 0) {
             QNN_LOG_WARN("failed to load QNN backend");
             return 2;
         }
@@ -75,7 +135,7 @@ int qnn_instance::qnn_init(const QnnSaver_Config_t **saver_config) {
 
     _qnn_interface = std::make_shared<qnn_interface>(*_loaded_backend[backend_id]);
     _qnn_interface->qnn_log_create(qnn::sdk_logcallback, _qnn_log_level, &_qnn_log_handle);
-    if (nullptr == _qnn_log_handle) {
+    if (!_qnn_log_handle) {
         // NPU backend not work on Qualcomm SoC equipped low-end phone
         QNN_LOG_WARN("why failed to initialize qnn log");
         return 4;
@@ -86,7 +146,7 @@ int qnn_instance::qnn_init(const QnnSaver_Config_t **saver_config) {
     std::vector<const QnnBackend_Config_t *> temp_backend_config;
     _qnn_interface->qnn_backend_create(
         _qnn_log_handle, temp_backend_config.empty() ? nullptr : temp_backend_config.data(), &_qnn_backend_handle);
-    if (nullptr == _qnn_backend_handle) {
+    if (!_qnn_backend_handle) {
         QNN_LOG_WARN("why failed to initialize qnn backend");
         return 5;
     } else {
@@ -102,7 +162,7 @@ int qnn_instance::qnn_init(const QnnSaver_Config_t **saver_config) {
     }
 
     qnn_status = QNN_SUCCESS;
-    if (_backend_name.find("Htp") != _backend_name.npos) {
+    if (_backend_lib_name.find("Htp") != _backend_lib_name.npos) {
         const QnnDevice_PlatformInfo_t *p_info = nullptr;
         _qnn_interface->qnn_device_get_platform_info(nullptr, &p_info);
         QNN_LOG_INFO("device counts %d", p_info->v1.numHwDevices);
@@ -199,7 +259,7 @@ int qnn_instance::qnn_init(const QnnSaver_Config_t **saver_config) {
         QNN_LOG_DEBUG("initialize qnn context successfully");
     }
 
-    if (_backend_name.find("Htp") != _backend_name.npos) {
+    if (_backend_lib_name.find("Htp") != _backend_lib_name.npos) {
         // TODO: faster approach to probe the accurate capacity of rpc ion memory
         size_t candidate_size = 0;
         uint8_t *rpc_buffer = nullptr;
@@ -221,13 +281,13 @@ int qnn_instance::qnn_init(const QnnSaver_Config_t **saver_config) {
         _rpcmem_capacity = std::max(candidate_size, _rpcmem_capacity);
         QNN_LOG_INFO("capacity of QNN rpc ion memory is about %d MB", _rpcmem_capacity);
 
-        if (0 != init_htp_perfinfra()) {
+        if (init_htp_perfinfra() != 0) {
             QNN_LOG_WARN("initialize HTP performance failure");
         }
-        if (0 != set_rpc_polling()) {
+        if (set_rpc_polling() != 0) {
             QNN_LOG_WARN("set RPC polling failure");
         }
-        if (0 != set_high_performance_mode()) {
+        if (set_high_performance_mode() != 0) {
             QNN_LOG_WARN("set HTP high performance mode failure");
         }
     }
@@ -254,7 +314,7 @@ int qnn_instance::qnn_finalize() {
         }
     }
 
-    if (_backend_name.find("Htp") != _backend_name.npos) {
+    if (_backend_lib_name.find("Htp") != _backend_lib_name.npos) {
         _qnn_htp_perfinfra->destroyPowerConfigId(_qnn_power_configid);
     }
 
@@ -311,14 +371,10 @@ int qnn_instance::qnn_finalize() {
 }
 
 int qnn_instance::load_system() {
-    Qnn_ErrorHandle_t error = QNN_SUCCESS;
-
-    std::string system_lib_path = _lib_path + kQnnSystemLibName;
-    QNN_LOG_DEBUG("system_lib_path:%s", system_lib_path.c_str());
-
-    auto system_lib_handle = dl_load(system_lib_path);
+    QNN_LOG_DEBUG("[%s]lib: %s", _backend_lib_name.c_str(), kQnnSystemLibName);
+    auto system_lib_handle = dl_load(kQnnSystemLibName);
     if (!system_lib_handle) {
-        QNN_LOG_WARN("can not load QNN library %s, error: %s", system_lib_path.c_str(), dl_error());
+        QNN_LOG_WARN("can not load QNN library %s, error: %s", kQnnSystemLibName, dl_error());
         return 1;
     }
 
@@ -331,7 +387,7 @@ int qnn_instance::load_system() {
 
     uint32_t num_providers = 0;
     const QnnSystemInterface_t **provider_list = nullptr;
-    error = get_providers(&provider_list, &num_providers);
+    Qnn_ErrorHandle_t error = get_providers(&provider_list, &num_providers);
     if (error != QNN_SUCCESS) {
         QNN_LOG_WARN("failed to get providers, error %d", QNN_GET_ERROR_CODE(error));
         return 3;

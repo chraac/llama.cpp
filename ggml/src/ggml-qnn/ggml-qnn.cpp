@@ -1,23 +1,7 @@
 #include "ggml-qnn.h"
 
-#include <cassert>
-#include <chrono>
-#include <condition_variable>
-#include <fstream>
 #include <functional>
-#include <iostream>
-#include <list>
 #include <memory>
-#include <mutex>
-#include <queue>
-#include <random>
-#include <regex>
-#include <set>
-#include <sstream>
-#include <thread>
-#include <tuple>
-#include <unordered_set>
-#include <utility>
 #include <vector>
 
 #include "ggml-backend-impl.h"
@@ -344,39 +328,7 @@ ggml_backend_t ggml_backend_qnn_init_with_device_context(ggml_backend_dev_t dev,
     const auto device = dev_ctx->device;
     QNN_LOG_DEBUG("device %s", qnn::get_backend_name(device));
     QNN_LOG_DEBUG("extend_lib_search_path %s", extend_lib_search_path);
-    std::string path = extend_lib_search_path;
-
-// TODO: Fix this for other platforms
-#if defined(__ANDROID__) || defined(ANDROID)
-    if (device == QNN_BACKEND_NPU) {
-        if (setenv("LD_LIBRARY_PATH",
-                   (path + ":/vendor/dsp/cdsp:/vendor/lib64:/vendor/dsp/"
-                           "dsp:/vendor/dsp/images")
-                       .c_str(),
-                   1) == 0) {
-            QNN_LOG_DEBUG("QNN NPU backend setenv successfully");
-        } else {
-            QNN_LOG_ERROR("QNN NPU backend setenv failure");
-        }
-        if (setenv("ADSP_LIBRARY_PATH",
-                   (path + ";/vendor/dsp/cdsp;/vendor/lib/rfsa/adsp;/system/lib/"
-                           "rfsa/adsp;/vendor/dsp/dsp;/vendor/dsp/images;/dsp")
-                       .c_str(),
-                   1) == 0) {
-            QNN_LOG_DEBUG("QNN NPU backend setenv successfully");
-        } else {
-            QNN_LOG_ERROR("QNN NPU backend setenv failure");
-        }
-    } else {
-        if (setenv("LD_LIBRARY_PATH", path.c_str(), 1) == 0) {
-            QNN_LOG_DEBUG("%s backend setenv successfully", qnn::get_backend_name(device));
-        } else {
-            QNN_LOG_ERROR("%s backend setenv failure", qnn::get_backend_name(device));
-        }
-    }
-#endif
-
-    auto instance = std::make_shared<qnn::qnn_instance>(path, dev_ctx->lib_name, "ggml");
+    auto instance = std::make_shared<qnn::qnn_instance>(extend_lib_search_path, dev_ctx->lib_name);
     auto result = instance->qnn_init(nullptr);
     if (result != 0) {
         QNN_LOG_WARN("failed to init qnn backend %s", qnn::get_backend_name(device));
