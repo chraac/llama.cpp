@@ -234,7 +234,7 @@ bool ggml_qnn_matmul_op_config::initialize_op_nodes(QNNBackend device, Qnn_Graph
     mat_mul_tensor_inputs.front() =
         create_gather_nodes(device, graph_handle, tensor_rank, mat_mul_tensor_inputs.front(),
                             mat_mul_tensor_inputs.back()->get_dimensions());
-    return create_mat_mul_nodes(device, graph_handle, tensor_rank, mat_mul_tensor_inputs, mat_mul_tensor_outputs);
+    return create_mat_mul_nodes(mat_mul_tensor_inputs, mat_mul_tensor_outputs);
 }
 
 qnn_tensor_ptr_t ggml_qnn_matmul_op_config::create_gather_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle,
@@ -353,10 +353,8 @@ bool ggml_qnn_matmul_op_config::create_convert_nodes(QNNBackend device, Qnn_Grap
     return true;
 }
 
-bool ggml_qnn_matmul_op_config::create_mat_mul_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle, const int rank,
-                                                     qnn_tensor_array_t &tensor_inputs,
+bool ggml_qnn_matmul_op_config::create_mat_mul_nodes(qnn_tensor_array_t &tensor_inputs,
                                                      qnn_tensor_array_t &tensor_outputs) {
-
     /*
      * First, both the ggml and qnn tensor in memory are stored as row-major format. (For more details, please refer to:
      * https://pytorch.org/blog/tensor-memory-format-matters/#:~:text=Column%20Major%20Order:%20In%20this%20format,%20the%20matrix)
@@ -395,8 +393,8 @@ bool ggml_qnn_matmul_op_config::create_mat_mul_nodes(QNNBackend device, Qnn_Grap
      * So here we need to create graph like:
      *   ```mermaid
      *   graph TD;
-     *        i1>ggml_tensor_in0] --src1--> mat_mul0;
-     *        i2>ggml_tensor_in1] --src0.T--> mat_mul0;
+     *        i1>ggml_tensor_in1] --src0--> mat_mul0;
+     *        i2>ggml_tensor_in0] --src1.T--> mat_mul0;
      *        mat_mul0 --dst0--> o1>ggml_tensor_out];
      *   ```
      */
