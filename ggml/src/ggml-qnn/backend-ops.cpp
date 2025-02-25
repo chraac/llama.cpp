@@ -116,9 +116,21 @@ void get_op_key_with_src_op_desc(const ggml_tensor *op, std::string &output) {
     output += ')';
 }
 
+/**
+ * @brief Generates a unique key for a given computation graph (cgraph).
+ *
+ * This key is used to cache the graph, enabling efficient reuse of previously
+ * compiled graphs. The key is constructed by concatenating the descriptions
+ * of the operations and their associated tensor dimensions within the graph.
+ *
+ * Example key format: "MUL_MATf32_256x16x10f32_256x1x10f32#LOG#ADD#ADDf32_16x1x10f32"
+ *
+ * @param cgraph The computation graph for which the key is generated.
+ * @param output The string where the generated key will be stored.
+ *
+ * TODO: Improve the key generation logic to handle more complex graph structures and edge cases.
+ */
 void get_graph_key_from_cgraph(const ggml_cgraph *cgraph, std::string &output) {
-    // generate key from the graph, the key is used to cache the graph, like:
-    //   "MUL_MATf32_256x16x10f32_256x1x10f32#LOG#ADD#ADDf32_16x1x10f32"
     if (cgraph->n_nodes == 0) {
         QNN_LOG_DEBUG("empty cgraph");
         return;
