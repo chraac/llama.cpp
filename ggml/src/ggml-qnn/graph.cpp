@@ -116,7 +116,6 @@ bool bind_src_tensors(ggml_tensor *op, qnn::qnn_tensor_array_t &tensor_wrappers,
  *
  * TODO: this algorithm is not perfect and may not work for all cases. It assumes that the tensors are
  *   connected in a way that allows for unambiguous categorization.
- *   It also assumes that the tensors are connected in a way that allows for unambiguous categorization.
  */
 int get_io_tensors_from_graph(const ggml_cgraph *cgraph, qnn::ggml_tensor_array_t &inputs,
                               qnn::ggml_tensor_array_t &outputs) {
