@@ -492,8 +492,8 @@ bool device_supports_op(ggml_backend_qnn_device_context * ctx, const ggml_tensor
         std::string op_key;
         get_graph_key_from_op(op, op_key);
         ctx->unsupported_op_count++;
-        QNN_LOG_DEBUG("[%s]op was unsupported, support/unsupported: %d/%d", op_key.c_str(),
-                      ctx->supported_op_count.load(), ctx->unsupported_op_count.load());
+        QNN_LOG_DEBUG("[%s][%s]op was unsupported, support/unsupported: %d/%d", qnn::get_backend_name(ctx->device),
+                      op_key.c_str(), ctx->supported_op_count.load(), ctx->unsupported_op_count.load());
 #endif
         return false;
     }
@@ -502,8 +502,9 @@ bool device_supports_op(ggml_backend_qnn_device_context * ctx, const ggml_tensor
 #ifndef NDEBUG
         std::string tensor_dims;
         append_tensor_dimensions(op, tensor_dims);
-        QNN_LOG_DEBUG("[%s]unsupported tensor(%s), support/unsupported: %d/%d", ggml_op_name(op->op),
-                      tensor_dims.c_str(), ctx->supported_op_count.load(), ctx->unsupported_op_count.load());
+        QNN_LOG_DEBUG("[%s][%s]unsupported tensor(%s), support/unsupported: %d/%d", qnn::get_backend_name(ctx->device),
+                      ggml_op_name(op->op), tensor_dims.c_str(), ctx->supported_op_count.load(),
+                      ctx->unsupported_op_count.load());
 #endif
         return false;
     }
@@ -522,7 +523,8 @@ bool device_supports_op(ggml_backend_qnn_device_context * ctx, const ggml_tensor
         switch (op->op) {
             case GGML_OP_ADD:
                 if (!ggml_are_same_shape(src0, src1)) {
-                    QNN_LOG_DEBUG("[ADD] src0 and src1 dimensions are not equal");
+                    QNN_LOG_DEBUG("[%s][ADD] src0 and src1 dimensions are not equal",
+                                  qnn::get_backend_name(ctx->device));
                     is_op_supported = false;
                 }
                 break;
@@ -540,12 +542,12 @@ bool device_supports_op(ggml_backend_qnn_device_context * ctx, const ggml_tensor
 #ifndef NDEBUG
     if (is_op_supported) {
         ctx->supported_op_count++;
-        QNN_LOG_DEBUG("[%s]op was supported, support/unsupported: %d/%d", ggml_op_name(op->op),
-                      ctx->supported_op_count.load(), ctx->unsupported_op_count.load());
+        QNN_LOG_DEBUG("[%s][%s]op was supported, support/unsupported: %d/%d", qnn::get_backend_name(ctx->device),
+                      ggml_op_name(op->op), ctx->supported_op_count.load(), ctx->unsupported_op_count.load());
     } else {
         ctx->unsupported_op_count++;
-        QNN_LOG_DEBUG("[%s]op was unsupported, support/unsupported: %d/%d", ggml_op_name(op->op),
-                      ctx->supported_op_count.load(), ctx->unsupported_op_count.load());
+        QNN_LOG_DEBUG("[%s][%s]op was unsupported, support/unsupported: %d/%d", qnn::get_backend_name(ctx->device),
+                      ggml_op_name(op->op), ctx->supported_op_count.load(), ctx->unsupported_op_count.load());
     }
 #endif
 
