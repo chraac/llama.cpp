@@ -81,7 +81,7 @@ class qnn_rpc_buffer : public qnn_buffer_interface {
             return;
         }
 
-        QNN_LOG_DEBUG("alloc rpcmem(%p) successfully, size %d", _qnn_rpc_buffer, (int) size);
+        QNN_LOG_DEBUG("alloc rpcmem(%p) successfully, size %d", (void *) _qnn_rpc_buffer, (int) size);
     }
 
     ~qnn_rpc_buffer() {
@@ -137,13 +137,13 @@ class qnn_mem_buffer : public qnn_buffer_interface {
             memcpy(_buffer, data, size);
         }
 
-        QNN_LOG_DEBUG("alloc buffer: %p, size: %ld", _buffer, size);
+        QNN_LOG_DEBUG("alloc buffer: %p, size: %ld", (void *) _buffer, (long) size);
     }
 
     explicit qnn_mem_buffer(size_t size) : qnn_mem_buffer(nullptr, size) {}
 
     ~qnn_mem_buffer() {
-        QNN_LOG_DEBUG("free buffer: %p, size: %ld", _buffer, _size);
+        QNN_LOG_DEBUG("free buffer: %p, size: %ld", (void *) _buffer, (long) _size);
         // the free will do nothing if the _buffer is nullptr
         qnn::align_free(_buffer);
     }

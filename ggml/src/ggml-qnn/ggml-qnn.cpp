@@ -161,7 +161,7 @@ ggml_backend_buffer_t ggml_backend_qnn_buffer_type_alloc_buffer(ggml_backend_buf
     }
 
     QNN_LOG_DEBUG("[%s]alloc buffer: %p, size: %ld", qnn::get_backend_name(get_device_context(buft->device)->device),
-                  ctx->get_buffer(), size);
+                  (void *) ctx->get_buffer(), (long) size);
     return ggml_backend_buffer_init(buft, ggml_backend_qnn_buffer_interface, ctx, size);
 }
 

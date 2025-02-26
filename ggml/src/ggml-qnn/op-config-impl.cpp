@@ -6,13 +6,6 @@
 
 namespace {
 
-constexpr const qnn::qnn_dimension_array_t kTransposeParamData[GGML_MAX_DIMS] = {
-    { 0 },
-    { 1, 0 },
-    { 0, 2, 1 },
-    { 0, 1, 3, 2 },
-};
-
 qnn::qnn_dimension_array_t get_transposed_dimensions(const qnn::qnn_dimension_array_t & dimensions, int rank) {
     qnn::qnn_dimension_array_t transposed_dims = dimensions;
     if (rank >= 2) {

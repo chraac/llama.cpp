@@ -38,7 +38,7 @@ void qnn::sdk_logcallback(const char * fmt, QnnLog_Level_t level, uint64_t /*tim
     {
         std::lock_guard<std::mutex> lock(log_mutex);
         vsnprintf(s_ggml_qnn_logbuf, sizeof(s_ggml_qnn_logbuf), fmt, argp);
-        QNN_LOG_INFO("[%s]%s", log_level_desc, s_ggml_qnn_logbuf);
+        QNN_LOG_INFO("[%s]%s\n", log_level_desc, s_ggml_qnn_logbuf);
     }
 }
 #else
