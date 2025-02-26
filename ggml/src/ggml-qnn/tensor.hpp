@@ -85,7 +85,7 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
         auto         qnn_interface = _qnn_instance->get_qnn_interface();
         auto         error         = qnn_interface->qnn_tensor_create_graph_tensor(_graph_handle, &qnn_tensor);
         if (error != QNN_SUCCESS) {
-            QNN_LOG_WARN("[%s]allocate id failed , error: %d", _tensor_name.c_str(), error);
+            QNN_LOG_WARN("[%s]allocate id failed , error: %d", _tensor_name.c_str(), (int) error);
             return false;
         }
 
@@ -105,8 +105,9 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
         if (tensor->view_src) {
             auto * src = tensor->view_src;
             QNN_LOG_DEBUG("[%s]tensor(%s_%dx%dx%dx%d) is a view, src: %s_%dx%dx%dx%d", get_backend_name(_device),
-                          tensor->name, tensor->ne[0], tensor->ne[1], tensor->ne[2], tensor->ne[3], src->name,
-                          src->ne[0], src->ne[1], src->ne[2], src->ne[3]);
+                          tensor->name, (int) tensor->ne[0], (int) tensor->ne[1], (int) tensor->ne[2],
+                          (int) tensor->ne[3], src->name, (int) src->ne[0], (int) src->ne[1], (int) src->ne[2],
+                          (int) src->ne[3]);
         }
 #endif
 
@@ -153,7 +154,7 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
         }
 
         QNN_LOG_DEBUG("[%s][%s]unbind from buffer: %p, size: %d", get_backend_name(_device), _tensor_name.c_str(),
-                      _buffer.get(), (int) _buffer->get_size());
+                      (void *) _buffer.get(), (int) _buffer->get_size());
         _buffer.reset();
 
         if (_ggml_tensor) {
@@ -178,11 +179,11 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
     bool bind_buffer_impl(qnn_buffer_ptr buffer) {
         if (_buffer) {
             if (_buffer != buffer) {
-                QNN_LOG_WARN("[%s]has been bound to another buffer %p", _tensor_name.c_str(), _buffer.get());
+                QNN_LOG_WARN("[%s]has been bound to another buffer %p", _tensor_name.c_str(), (void *) _buffer.get());
                 return false;
             }
 
-            QNN_LOG_DEBUG("[%s]already bound to same ggml tensor %p", _tensor_name.c_str(), _buffer.get());
+            QNN_LOG_DEBUG("[%s]already bound to same ggml tensor %p", _tensor_name.c_str(), (void *) _buffer.get());
             return true;
         }
 
@@ -232,7 +233,7 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
         }
 
         QNN_LOG_DEBUG("[%s][%s]bind to buffer: %p, size: %d", get_backend_name(_device), _tensor_name.c_str(),
-                      buffer.get(), (int) buffer->get_size());
+                      (void *) buffer.get(), (int) buffer->get_size());
         return true;
     }
 

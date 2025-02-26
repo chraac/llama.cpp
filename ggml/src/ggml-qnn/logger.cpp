@@ -1,43 +1,17 @@
 
 #include "logger.hpp"
 
-#include <cstdio>
-#include <mutex>
+#ifndef NDEBUG
 
-#if defined(__ANDROID__) || defined(ANDROID)
-#    include <android/log.h>
-#endif
+#    include <mutex>
 
-void qnn::internal_log(ggml_log_level level, const char * /*file*/, const char * func, int line, const char * format,
-                       ...) {
-    static std::mutex qnn_internal_log_mutex;
-    static char       s_qnn_internal_log_buf[QNN_LOGBUF_LEN];
+#    include "QnnInterface.h"
+#    include "QnnTypes.h"
+#    include "System/QnnSystemInterface.h"
 
-    {
-        std::lock_guard<std::mutex> lock(qnn_internal_log_mutex);
-        va_list                     args;
-
-        va_start(args, format);
-        int len_prefix = snprintf(s_qnn_internal_log_buf, QNN_LOGBUF_LEN, "[%s, %d]: ", func, line);
-        int len        = vsnprintf(s_qnn_internal_log_buf + len_prefix, QNN_LOGBUF_LEN - len_prefix, format, args);
-        if (len < (QNN_LOGBUF_LEN - len_prefix)) {
-#if defined(__ANDROID__) || defined(ANDROID)
-            // print to android logcat
-            __android_log_print(level, "ggml-qnn", "%s\n", s_qnn_internal_log_buf);
-#else
-            (void) level;
-#endif
-            // print to stdout
-            printf("%s\n", s_qnn_internal_log_buf);
-        }
-        va_end(args);
-    }
-}
-
-#if ENABLE_QNNSDK_LOG
 void qnn::sdk_logcallback(const char * fmt, QnnLog_Level_t level, uint64_t /*timestamp*/, va_list argp) {
     static std::mutex log_mutex;
-    static char       s_ggml_qnn_logbuf[QNN_LOGBUF_LEN];
+    static char       s_ggml_qnn_logbuf[4096];
 
     const char * log_level_desc = "";
     switch (level) {
@@ -63,7 +37,7 @@ void qnn::sdk_logcallback(const char * fmt, QnnLog_Level_t level, uint64_t /*tim
 
     {
         std::lock_guard<std::mutex> lock(log_mutex);
-        vsnprintf(s_ggml_qnn_logbuf, QNN_LOGBUF_LEN, fmt, argp);
+        vsnprintf(s_ggml_qnn_logbuf, sizeof(s_ggml_qnn_logbuf), fmt, argp);
         QNN_LOG_INFO("[%s]%s", log_level_desc, s_ggml_qnn_logbuf);
     }
 }

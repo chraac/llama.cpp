@@ -184,16 +184,16 @@ int qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
             QnnDevice_HardwareDeviceInfo_t *         infos    = p_info->v1.hwDevices;
             QnnHtpDevice_OnChipDeviceInfoExtension_t chipinfo = {};
             for (uint32_t i = 0; i < p_info->v1.numHwDevices; i++) {
-                QNN_LOG_INFO("deviceID:%d, deviceType:%d, numCores %d", infos[i].v1.deviceId, infos[i].v1.deviceType,
-                             infos[i].v1.numCores);
+                QNN_LOG_INFO("deviceID:%d, deviceType:%d, numCores %d", (int) infos[i].v1.deviceId,
+                             (int) infos[i].v1.deviceType, (int) infos[i].v1.numCores);
                 QnnDevice_DeviceInfoExtension_t devinfo = infos[i].v1.deviceInfoExtension;
                 chipinfo                                = devinfo->onChipDevice;
                 size_t htp_arch                         = (size_t) chipinfo.arch;
                 QNN_LOG_INFO("htp_type:%d(%s)", devinfo->devType,
                              (devinfo->devType == QNN_HTP_DEVICE_TYPE_ON_CHIP) ? "ON_CHIP" : "");
-                QNN_LOG_INFO("qualcomm soc_model:%d(%s), htp_arch:%d(%s), vtcm_size:%d MB", chipinfo.socModel,
-                             qnn::get_chipset_desc(chipinfo.socModel), htp_arch, qnn::get_htparch_desc(htp_arch),
-                             chipinfo.vtcmSize);
+                QNN_LOG_INFO("qualcomm soc_model:%d(%s), htp_arch:%d(%s), vtcm_size:%d MB", (int) chipinfo.socModel,
+                             qnn::get_chipset_desc(chipinfo.socModel), (int) htp_arch, qnn::get_htparch_desc(htp_arch),
+                             (int) chipinfo.vtcmSize);
                 _soc_info = { chipinfo.socModel, htp_arch, chipinfo.vtcmSize };
             }
             _qnn_interface->qnn_device_free_platform_info(nullptr, p_info);
@@ -289,7 +289,7 @@ int qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
         for (size_t idx = 0; idx < probe_counts; idx++) {
             rpc_buffer = static_cast<uint8_t *>(alloc_rpcmem(probe_slots[idx] * size_in_mb, sizeof(void *)));
             if (!rpc_buffer) {
-                QNN_LOG_DEBUG("alloc rpcmem %d (MB) failure, %s", probe_slots[idx], strerror(errno));
+                QNN_LOG_DEBUG("alloc rpcmem %d (MB) failure, %s", (int) probe_slots[idx], strerror(errno));
                 break;
             } else {
                 candidate_size = probe_slots[idx];
@@ -299,7 +299,7 @@ int qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
         }
 
         _rpcmem_capacity = std::max(candidate_size, _rpcmem_capacity);
-        QNN_LOG_INFO("capacity of QNN rpc ion memory is about %d MB", _rpcmem_capacity);
+        QNN_LOG_INFO("capacity of QNN rpc ion memory is about %d MB", (int) _rpcmem_capacity);
 
         if (init_htp_perfinfra() != 0) {
             QNN_LOG_WARN("initialize HTP performance failure");
@@ -342,7 +342,7 @@ int qnn_instance::qnn_finalize() {
         error = _qnn_interface->qnn_context_free(_qnn_context_handle, _qnn_profile_handle);
         if (error != QNN_SUCCESS) {
             QNN_LOG_WARN("failed to free QNN context_handle: ID %u, error %d", _qnn_interface->get_backend_id(),
-                         QNN_GET_ERROR_CODE(error));
+                         (int) QNN_GET_ERROR_CODE(error));
         }
         _qnn_context_handle = nullptr;
     }
@@ -351,7 +351,7 @@ int qnn_instance::qnn_finalize() {
         error = _qnn_interface->qnn_profile_free(_qnn_profile_handle);
         if (error != QNN_SUCCESS) {
             QNN_LOG_WARN("failed to free QNN profile_handle: ID %u, error %d", _qnn_interface->get_backend_id(),
-                         QNN_GET_ERROR_CODE(error));
+                         (int) QNN_GET_ERROR_CODE(error));
         }
         _qnn_profile_handle = nullptr;
     }
@@ -360,7 +360,7 @@ int qnn_instance::qnn_finalize() {
         error = _qnn_interface->qnn_device_free(_qnn_device_handle);
         if (error != QNN_SUCCESS) {
             QNN_LOG_WARN("failed to free QNN device_handle: ID %u, error %d", _qnn_interface->get_backend_id(),
-                         QNN_GET_ERROR_CODE(error));
+                         (int) QNN_GET_ERROR_CODE(error));
         }
         _qnn_device_handle = nullptr;
     }
@@ -369,16 +369,16 @@ int qnn_instance::qnn_finalize() {
         error = _qnn_interface->qnn_backend_free(_qnn_backend_handle);
         if (error != QNN_SUCCESS) {
             QNN_LOG_WARN("failed to free QNN backend_handle: ID %u, error %d", _qnn_interface->get_backend_id(),
-                         QNN_GET_ERROR_CODE(error));
+                         (int) QNN_GET_ERROR_CODE(error));
         }
         _qnn_backend_handle = nullptr;
     }
 
-    if (nullptr != _qnn_log_handle) {
+    if (_qnn_log_handle) {
         error = _qnn_interface->qnn_log_free(_qnn_log_handle);
         if (error != QNN_SUCCESS) {
             QNN_LOG_WARN("failed to free QNN log_handle: ID %u, error %d", _qnn_interface->get_backend_id(),
-                         QNN_GET_ERROR_CODE(error));
+                         (int) QNN_GET_ERROR_CODE(error));
         }
         _qnn_log_handle = nullptr;
     }
@@ -409,13 +409,13 @@ int qnn_instance::load_system() {
     const QnnSystemInterface_t ** provider_list = nullptr;
     Qnn_ErrorHandle_t             error         = get_providers(&provider_list, &num_providers);
     if (error != QNN_SUCCESS) {
-        QNN_LOG_WARN("failed to get providers, error %d", QNN_GET_ERROR_CODE(error));
+        QNN_LOG_WARN("failed to get providers, error %d", (int) QNN_GET_ERROR_CODE(error));
         return 3;
     }
 
     QNN_LOG_DEBUG("num_providers: %d", num_providers);
     if (num_providers != _required_num_providers) {
-        QNN_LOG_WARN("providers is %d instead of required %d", num_providers, _required_num_providers);
+        QNN_LOG_WARN("providers is %d instead of required %d", (int) num_providers, (int) _required_num_providers);
         return 4;
     }
 
@@ -472,7 +472,7 @@ int qnn_instance::load_backend(std::string & lib_path, const QnnSaver_Config_t *
     const QnnInterface_t ** provider_list = nullptr;
     error                                 = get_providers(&provider_list, &num_providers);
     if (error != QNN_SUCCESS) {
-        QNN_LOG_WARN("failed to get providers, error %d", QNN_GET_ERROR_CODE(error));
+        QNN_LOG_WARN("failed to get providers, error %d", (int) QNN_GET_ERROR_CODE(error));
         return 3;
     }
     QNN_LOG_DEBUG("num_providers=%d", num_providers);

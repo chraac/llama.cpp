@@ -200,8 +200,8 @@ qnn::qnn_graph * get_qnn_graph_from_cache(ggml_backend_qnn_device_context * ctx,
     std::string graph_key;
     get_graph_key_from_cgraph(cgraph, graph_key);
     if (graph_key.empty()) {
-        QNN_LOG_DEBUG("[%s]empty graph key for cgraph: %p, size: %d", qnn::get_backend_name(ctx->device), cgraph,
-                      (int) cgraph->n_nodes);
+        QNN_LOG_DEBUG("[%s]empty graph key for cgraph: %p, size: %d", qnn::get_backend_name(ctx->device),
+                      (const void *) cgraph, (int) cgraph->n_nodes);
         return nullptr;
     }
 
@@ -389,9 +389,9 @@ bool ggml_qnn_supports_tensor(ggml_backend_qnn_device_context * ctx, const ggml_
     if (tensor->view_src) {
         auto * src_tensor = tensor->view_src;
         QNN_LOG_DEBUG("[%s]tensor(%s_%dx%dx%dx%d) is a view, src: %s_%dx%dx%dx%d", qnn::get_backend_name(ctx->device),
-                      ggml_get_name(tensor), tensor->ne[0], tensor->ne[1], tensor->ne[2], tensor->ne[3],
-                      ggml_get_name(src_tensor), src_tensor->ne[0], src_tensor->ne[1], src_tensor->ne[2],
-                      src_tensor->ne[3]);
+                      ggml_get_name(tensor), (int) tensor->ne[0], (int) tensor->ne[1], (int) tensor->ne[2],
+                      (int) tensor->ne[3], ggml_get_name(src_tensor), (int) src_tensor->ne[0], (int) src_tensor->ne[1],
+                      (int) src_tensor->ne[2], (int) src_tensor->ne[3]);
     }
 #endif
 
@@ -402,7 +402,7 @@ bool ggml_qnn_supports_tensor(ggml_backend_qnn_device_context * ctx, const ggml_
         case GGML_TYPE_Q4_0:
             if (!(ctx->supported_types & (uint64_t(1) << tensor->type))) {
                 QNN_LOG_DEBUG("[%s]unsupported data type %s, supported_types: 0x%x", qnn::get_backend_name(ctx->device),
-                              ggml_type_name(tensor->type), ctx->supported_types);
+                              ggml_type_name(tensor->type), (unsigned int) ctx->supported_types);
                 return false;
             }
             break;
@@ -460,7 +460,8 @@ bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context * ctx, const gg
         case QNN_BACKEND_GPU:
             if (src0->type != src1->type || src0->type != op->type) {
                 // there's no convert op for GPU.
-                QNN_LOG_DEBUG("[qnn-gpu][MUL_MAT]type src0(%d), src1(%d) and op(%d) are not equal");
+                QNN_LOG_DEBUG("[qnn-gpu][MUL_MAT]type src0(%s), src1(%s) and op(%s) are not equal",
+                              ggml_type_name(src0->type), ggml_type_name(src1->type), ggml_type_name(op->type));
                 return false;
             }
             break;

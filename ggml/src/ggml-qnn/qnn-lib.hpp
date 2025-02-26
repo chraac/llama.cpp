@@ -381,7 +381,8 @@ class qnn_instance {
         auto            error  = _qnn_interface->qnn_mem_register(_qnn_context_handle, &descriptor,
                                                                   /*numDescriptors=*/1, &handle);
         if (error != QNN_SUCCESS) {
-            QNN_LOG_WARN("failed to register shared memory, error %d, %s", QNN_GET_ERROR_CODE(error), strerror(error));
+            QNN_LOG_WARN("failed to register shared memory, error %d, %s", (int) QNN_GET_ERROR_CODE(error),
+                         strerror(error));
             return nullptr;
         }
 
@@ -393,7 +394,7 @@ class qnn_instance {
     void unregister_rpcmem(Qnn_MemHandle_t mem_handle) {
         auto error = _qnn_interface->qnn_mem_de_register(&mem_handle, 1);
         if (error != QNN_SUCCESS) {
-            QNN_LOG_WARN("failed to unregister shared memory, error %d", QNN_GET_ERROR_CODE(error));
+            QNN_LOG_WARN("failed to unregister shared memory, error %d", (int) QNN_GET_ERROR_CODE(error));
         }
 
         auto it = std::find_if(_qnn_rpc_buffer_to_handles.begin(), _qnn_rpc_buffer_to_handles.end(),
