@@ -4,7 +4,6 @@
 #include <vector>
 
 #include "ggml-qnn.h"
-
 #include "qnn-types.hpp"
 #include "tensor.hpp"
 
@@ -18,7 +17,7 @@ namespace qnn {
  * adding operations to a graph, and binding/unbinding input and output tensors.
  */
 class ggml_qnn_op_config {
-public:
+  public:
     virtual ~ggml_qnn_op_config() {}
 
     /**
@@ -32,8 +31,8 @@ public:
      *
      * @param tensor_inputs A reference to a vector of qnn_tensor_ptr_t objects representing the input tensors.
      */
-    virtual void set_input_tensors(qnn::qnn_tensor_array_t &tensor_inputs) = 0;
-    virtual void set_input_tensors(qnn::qnn_tensor_array_t &&tensor_inputs) = 0;
+    virtual void set_input_tensors(qnn::qnn_tensor_array_t & tensor_inputs)  = 0;
+    virtual void set_input_tensors(qnn::qnn_tensor_array_t && tensor_inputs) = 0;
 
     /**
      * @brief Sets custom output tensors for the operation. This method should be called before `initialize_op_nodes`.
@@ -46,8 +45,8 @@ public:
      *
      * @param tensor_outputs A reference to a vector of qnn_tensor_ptr_t objects representing the output tensors.
      */
-    virtual void set_output_tensors(qnn::qnn_tensor_array_t &tensor_outputs) = 0;
-    virtual void set_output_tensors(qnn::qnn_tensor_array_t &&tensor_inputs) = 0;
+    virtual void set_output_tensors(qnn::qnn_tensor_array_t & tensor_outputs) = 0;
+    virtual void set_output_tensors(qnn::qnn_tensor_array_t && tensor_inputs) = 0;
 
     /**
      * @brief Creates tensors and internal nodes for constructing the calculation graph.
@@ -71,7 +70,7 @@ public:
      *
      * @return A reference to a vector of qnn_tensor_ptr_t objects representing the input tensors.
      */
-    virtual const qnn_tensor_array_t &get_input_tensors() = 0;
+    virtual const qnn_tensor_array_t & get_input_tensors() = 0;
 
     /**
      * @brief Pure virtual function to retrieve the output tensors of a QNN.
@@ -82,7 +81,7 @@ public:
      *
      * @return A reference to a vector of qnn_tensor_ptr_t objects representing the output tensors.
      */
-    virtual const qnn_tensor_array_t &get_output_tensors() = 0;
+    virtual const qnn_tensor_array_t & get_output_tensors() = 0;
 
     /**
      * @brief Adds an operation to the given graph.
@@ -109,7 +108,7 @@ public:
      *                      containing the input tensors.
      * @return true if the input tensors were successfully bound, false otherwise.
      */
-    virtual bool bind_input_tensors(const ggml_tensor_array_t &tensor_inputs) = 0;
+    virtual bool bind_input_tensors(const ggml_tensor_array_t & tensor_inputs) = 0;
 
     /**
      * @brief Binds the output tensors to the given tensor array.
@@ -123,7 +122,7 @@ public:
      *                       represent the output tensors to be bound.
      * @return true if the binding is successful, false otherwise.
      */
-    virtual bool bind_output_tensors(const ggml_tensor_array_t &tensor_outputs) = 0;
+    virtual bool bind_output_tensors(const ggml_tensor_array_t & tensor_outputs) = 0;
 
     /**
      * @brief Unbinds the input tensors from the operation.
@@ -146,7 +145,7 @@ public:
     virtual void unbind_output_tensors() = 0;
 };
 
-using qnn_op_config_ptr_t = std::shared_ptr<ggml_qnn_op_config>;
+using qnn_op_config_ptr_t   = std::shared_ptr<ggml_qnn_op_config>;
 using qnn_op_config_array_t = std::vector<qnn_op_config_ptr_t>;
 
-} // namespace qnn
+}  // namespace qnn

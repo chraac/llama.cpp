@@ -14,7 +14,7 @@ namespace qnn {
  * This abstract class defines the interface for managing generic memory buffers in a QNN context.
  */
 class qnn_buffer_interface {
-public:
+  public:
     virtual ~qnn_buffer_interface() = default;
 
     /**
@@ -35,7 +35,7 @@ public:
      *
      * @return A pointer to the buffer.
      */
-    virtual uint8_t *get_buffer() = 0;
+    virtual uint8_t * get_buffer() = 0;
 
     /**
      * @brief Gets the buffer pointer.
@@ -68,12 +68,12 @@ using qnn_buffer_ptr = std::shared_ptr<qnn_buffer_interface>;
  * handles cleanup of the buffer and its associated memory handle upon destruction.
  */
 class qnn_rpc_buffer : public qnn_buffer_interface {
-public:
+  public:
     qnn_rpc_buffer(std::shared_ptr<qnn_instance> qnn_instance, const size_t size, const uint32_t rank,
-                   uint32_t *dimensions, Qnn_DataType_t data_type)
-        : _size(size), _qnn_instance(qnn_instance) {
-
-        _qnn_rpc_buffer = static_cast<uint8_t *>(qnn_instance->alloc_rpcmem(size, alignof(uint8_t *)));
+                   uint32_t * dimensions, Qnn_DataType_t data_type) :
+        _size(size),
+        _qnn_instance(qnn_instance) {
+        _qnn_rpc_buffer     = static_cast<uint8_t *>(qnn_instance->alloc_rpcmem(size, alignof(uint8_t *)));
         _qnn_rpc_mem_handle = qnn_instance->register_rpcmem(_qnn_rpc_buffer, rank, dimensions, data_type);
         if (!_qnn_rpc_buffer || !_qnn_rpc_mem_handle) {
             QNN_LOG_WARN("Failed to register RPC memory: buffer or memory handle is null");
@@ -81,8 +81,9 @@ public:
             return;
         }
 
-        QNN_LOG_DEBUG("alloc rpcmem(%p) successfully, size %d", _qnn_rpc_buffer, (int)size);
+        QNN_LOG_DEBUG("alloc rpcmem(%p) successfully, size %d", _qnn_rpc_buffer, (int) size);
     }
+
     ~qnn_rpc_buffer() {
         if (_qnn_instance) {
             if (_qnn_rpc_mem_handle) {
@@ -97,14 +98,16 @@ public:
 
     bool is_valid() const override { return _qnn_rpc_buffer && _qnn_rpc_mem_handle; }
 
-    uint8_t *get_buffer() override { return _qnn_rpc_buffer; }
+    uint8_t * get_buffer() override { return _qnn_rpc_buffer; }
+
     size_t get_size() const override { return _size; }
+
     Qnn_MemHandle_t get_mem_handle() const override { return _qnn_rpc_mem_handle; }
 
-private:
-    size_t _size = 0;
-    uint8_t *_qnn_rpc_buffer = nullptr;
-    Qnn_MemHandle_t _qnn_rpc_mem_handle = nullptr;
+  private:
+    size_t                        _size               = 0;
+    uint8_t *                     _qnn_rpc_buffer     = nullptr;
+    Qnn_MemHandle_t               _qnn_rpc_mem_handle = nullptr;
     std::shared_ptr<qnn_instance> _qnn_instance;
 
     DISABLE_COPY(qnn_rpc_buffer);
@@ -119,8 +122,8 @@ private:
  * a consistent interface for buffer management.
  */
 class qnn_mem_buffer : public qnn_buffer_interface {
-public:
-    explicit qnn_mem_buffer(const uint8_t *data, size_t size) {
+  public:
+    explicit qnn_mem_buffer(const uint8_t * data, size_t size) {
         _buffer = reinterpret_cast<uint8_t *>(qnn::page_align_alloc(size));
 
         if (!_buffer) {
@@ -147,36 +150,38 @@ public:
 
     bool is_valid() const override { return _buffer != nullptr; }
 
-    uint8_t *get_buffer() override { return _buffer; }
+    uint8_t * get_buffer() override { return _buffer; }
+
     size_t get_size() const override { return _size; }
+
     Qnn_MemHandle_t get_mem_handle() const override { return nullptr; }
 
-private:
-    size_t _size = 0;
-    uint8_t *_buffer = nullptr;
+  private:
+    size_t    _size   = 0;
+    uint8_t * _buffer = nullptr;
 
     DISABLE_COPY(qnn_mem_buffer);
     DISABLE_MOVE(qnn_mem_buffer);
 };
 
 class qnn_mem_buffer_slice : public qnn_buffer_interface {
-public:
-    qnn_mem_buffer_slice(const uint8_t *buffer, size_t size) : _buffer(const_cast<uint8_t *>(buffer)), _size(size) {}
+  public:
+    qnn_mem_buffer_slice(const uint8_t * buffer, size_t size) : _buffer(const_cast<uint8_t *>(buffer)), _size(size) {}
 
     bool is_valid() const override { return _buffer && _size; }
 
-    uint8_t *get_buffer() override { return _buffer; }
+    uint8_t * get_buffer() override { return _buffer; }
 
     size_t get_size() const override { return _size; }
 
     Qnn_MemHandle_t get_mem_handle() const override { return nullptr; }
 
-private:
-    uint8_t *_buffer = nullptr;
-    size_t _size = 0;
+  private:
+    uint8_t * _buffer = nullptr;
+    size_t    _size   = 0;
 
     DISABLE_COPY(qnn_mem_buffer_slice);
     DISABLE_MOVE(qnn_mem_buffer_slice);
 };
 
-} // namespace qnn
+}  // namespace qnn

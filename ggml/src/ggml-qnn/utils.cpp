@@ -4,30 +4,28 @@
 #include <cstdlib>
 
 #include "ggml-qnn.h"
-
-#include "QnnGraph.h"
 #include "qnn-types.hpp"
+#include "QnnGraph.h"
 
 #ifdef _WIN32
-#include <windows.h>
+#    include <windows.h>
 #else
-#include <sys/sysinfo.h>
-#include <unistd.h>
+#    include <sys/sysinfo.h>
+#    include <unistd.h>
 #endif
 
 namespace {
 
-template <typename _Ty>
-_Ty align_to_generic(size_t alignment, _Ty offset) {
-    return offset % alignment == 0 ? offset
-                                   : offset + (static_cast<_Ty>(alignment) - (offset % static_cast<_Ty>(alignment)));
+template <typename _Ty> _Ty align_to_generic(size_t alignment, _Ty offset) {
+    return offset % alignment == 0 ? offset :
+                                     offset + (static_cast<_Ty>(alignment) - (offset % static_cast<_Ty>(alignment)));
 }
 
-} // namespace
+}  // namespace
 
 namespace qnn {
 
-qnn_dimension_array_t get_internal_dimension(const ggml_dimension_array_t &dims, uint32_t rank) {
+qnn_dimension_array_t get_internal_dimension(const ggml_dimension_array_t & dims, uint32_t rank) {
     static_assert(GGML_MAX_DIMS == 4, "GGML_MAX_DIMS should be 4");
     GGML_ASSERT(rank <= GGML_MAX_DIMS && rank > 0);
 
@@ -43,30 +41,29 @@ qnn_dimension_array_t get_internal_dimension(const ggml_dimension_array_t &dims,
      * The ggml tensor will have dimensions [3, 2], while the qnn tensor will have dimensions [2, 3].
      */
     for (uint32_t i = 0; i < rank; i++) {
-        internal_dims[i] = std::max<uint32_t>((uint32_t)dims[rank - 1 - i], 1);
+        internal_dims[i] = std::max<uint32_t>((uint32_t) dims[rank - 1 - i], 1);
     }
 
     return internal_dims;
 }
 
-qnn_dimension_array_t get_view_internal_dimension(const ggml_tensor *tensor, size_t &element_offset_out) {
-
+qnn_dimension_array_t get_view_internal_dimension(const ggml_tensor * tensor, size_t & element_offset_out) {
     element_offset_out = 0;
 
-    auto *parent_tensor = tensor;
+    auto * parent_tensor = tensor;
     while (parent_tensor->view_src) {
         element_offset_out += parent_tensor->view_offs;
         parent_tensor = parent_tensor->view_src;
     }
 
-    const auto rank = get_ggml_tensor_rank(tensor);
+    const auto rank        = get_ggml_tensor_rank(tensor);
     const auto parent_rank = get_ggml_tensor_rank(parent_tensor);
     GGML_ASSERT(parent_tensor->type == tensor->type);
     GGML_ASSERT(parent_rank == rank);
 
     const auto block_size = ggml_blck_size(tensor->type);
     element_offset_out =
-        element_offset_out * block_size / tensor->nb[0]; // calculate the element offset in the view tensor
+        element_offset_out * block_size / tensor->nb[0];  // calculate the element offset in the view tensor
 
     return get_internal_dimension(parent_tensor->ne, parent_rank);
 }
@@ -141,7 +138,7 @@ size_t qnn_datatype_size(Qnn_DataType_t qnn_type) {
     return 0;
 }
 
-const char *qnn_datatype_to_string(Qnn_DataType_t qnn_type) {
+const char * qnn_datatype_to_string(Qnn_DataType_t qnn_type) {
     switch (qnn_type) {
         case QNN_DATATYPE_FLOAT_32:
             return "QNN_DATATYPE_FLOAT_32";
@@ -166,7 +163,7 @@ const char *qnn_datatype_to_string(Qnn_DataType_t qnn_type) {
     return "QNN_DATATYPE_UNDEFINED";
 }
 
-uint32_t get_ggml_tensor_rank(const ggml_tensor *tensor) {
+uint32_t get_ggml_tensor_rank(const ggml_tensor * tensor) {
     uint32_t rank = 0;
     for (int i = 0; i < GGML_MAX_DIMS; i++) {
         if ((0 != tensor->ne[i]) && (1 != tensor->ne[i])) {
@@ -176,12 +173,12 @@ uint32_t get_ggml_tensor_rank(const ggml_tensor *tensor) {
     return rank;
 }
 
-const char *get_ggml_type_name(ggml_type type) {
-    const auto *traits = ggml_get_type_traits(type);
+const char * get_ggml_type_name(ggml_type type) {
+    const auto * traits = ggml_get_type_traits(type);
     return traits->type_name;
 }
 
-const char *get_backend_name(QNNBackend device_index) {
+const char * get_backend_name(QNNBackend device_index) {
     switch (device_index) {
         case QNN_BACKEND_CPU:
             return "qnn-cpu";
@@ -195,7 +192,7 @@ const char *get_backend_name(QNNBackend device_index) {
     }
 }
 
-const char *get_chipset_desc(uint32_t chipset_id) {
+const char * get_chipset_desc(uint32_t chipset_id) {
     switch (chipset_id) {
         case SM8450:
             return "SD 8 Gen 1 (SM8450)";
@@ -212,7 +209,7 @@ const char *get_chipset_desc(uint32_t chipset_id) {
     }
 }
 
-const char *get_htparch_desc(size_t htp_arch) {
+const char * get_htparch_desc(size_t htp_arch) {
     switch (htp_arch) {
         case V68:
             return "QCOM_HTP_V68";
@@ -229,12 +226,18 @@ const char *get_htparch_desc(size_t htp_arch) {
     }
 }
 
-intptr_t align_to(size_t alignment, intptr_t offset) { return align_to_generic<intptr_t>(alignment, offset); }
+intptr_t align_to(size_t alignment, intptr_t offset) {
+    return align_to_generic<intptr_t>(alignment, offset);
+}
 
-uint32_t get_ggml_tensor_data_size(const ggml_tensor *tensor) { return (uint32_t)ggml_nbytes(tensor); }
+uint32_t get_ggml_tensor_data_size(const ggml_tensor * tensor) {
+    return (uint32_t) ggml_nbytes(tensor);
+}
 
 #ifdef _WIN32
-static void *_align_alloc(size_t alignment, size_t size) { return _aligned_malloc(size, alignment); }
+static void * _align_alloc(size_t alignment, size_t size) {
+    return _aligned_malloc(size, alignment);
+}
 
 static size_t _get_page_size() {
     SYSTEM_INFO si;
@@ -242,22 +245,31 @@ static size_t _get_page_size() {
     return si.dwPageSize;
 }
 
-void align_free(void *ptr) { _aligned_free(ptr); }
+void align_free(void * ptr) {
+    _aligned_free(ptr);
+}
 #else
-static void *_align_alloc(size_t alignment, size_t size) { return std::aligned_alloc(alignment, size); }
+static void * _align_alloc(size_t alignment, size_t size) {
+    return std::aligned_alloc(alignment, size);
+}
 
-static size_t _get_page_size() { return sysconf(_SC_PAGESIZE); }
+static size_t _get_page_size() {
+    return sysconf(_SC_PAGESIZE);
+}
 
-void align_free(void *ptr) { std::free(ptr); }
+void align_free(void * ptr) {
+    std::free(ptr);
+}
 #endif
 
-void *page_align_alloc(size_t size) {
-    const size_t alignment = _get_page_size();
-    size_t size_aligned = align_to_generic<size_t>(alignment, size);
+void * page_align_alloc(size_t size) {
+    const size_t alignment    = _get_page_size();
+    size_t       size_aligned = align_to_generic<size_t>(alignment, size);
     QNN_LOG_DEBUG("_align_alloc success, alignment: %ld, size: %ld, size_aligned: %ld", alignment, size, size_aligned);
-    void *data = _align_alloc(alignment, size_aligned);
+    void * data = _align_alloc(alignment, size_aligned);
     if (!data) {
-        QNN_LOG_WARN("_align_alloc failed, alignment: %ld, size: %ld, size_aligned: %ld", alignment, size, size_aligned);
+        QNN_LOG_WARN("_align_alloc failed, alignment: %ld, size: %ld, size_aligned: %ld", alignment, size,
+                     size_aligned);
         return nullptr;
     }
 
@@ -270,7 +282,7 @@ void *page_align_alloc(size_t size) {
 //
 // =================================================================================================
 // TODO: only support GGML_OP_ADD/GGML_OP_MUL/GGML_OP_MUL_MAT
-const char *opname_from_ggmlop(enum ggml_op ggmlop) {
+const char * opname_from_ggmlop(enum ggml_op ggmlop) {
     switch (ggmlop) {
         case GGML_OP_ADD:
             return QNN_OP_ELEMENT_WISE_ADD;
@@ -284,7 +296,7 @@ const char *opname_from_ggmlop(enum ggml_op ggmlop) {
     return nullptr;
 }
 
-const char *get_qnn_error_string(Qnn_ErrorHandle_t error) {
+const char * get_qnn_error_string(Qnn_ErrorHandle_t error) {
     // A complete list of error codes can be found at here:
     // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/api_error_codes.html
     thread_local static char error_code[128] = {};
@@ -377,7 +389,7 @@ const char *get_qnn_error_string(Qnn_ErrorHandle_t error) {
 
 size_t get_system_total_memory_in_bytes() {
     MEMORYSTATUSEX mem = {};
-    mem.dwLength = sizeof(mem);
+    mem.dwLength       = sizeof(mem);
     if (GlobalMemoryStatusEx(&mem)) {
         return mem.ullTotalPhys;
     }
@@ -387,7 +399,7 @@ size_t get_system_total_memory_in_bytes() {
 
 size_t get_system_free_memory_in_bytes() {
     MEMORYSTATUSEX mem = {};
-    mem.dwLength = sizeof(mem);
+    mem.dwLength       = sizeof(mem);
     if (GlobalMemoryStatusEx(&mem)) {
         return mem.ullAvailPhys;
     }
@@ -403,8 +415,8 @@ size_t get_system_total_memory_in_bytes() {
         return (info.totalram + info.totalswap) * info.mem_unit;
     }
 
-    auto pages = (size_t)sysconf(_SC_PHYS_PAGES);
-    auto page_size = (size_t)sysconf(_SC_PAGE_SIZE);
+    auto pages     = (size_t) sysconf(_SC_PHYS_PAGES);
+    auto page_size = (size_t) sysconf(_SC_PAGE_SIZE);
     return pages * page_size;
 }
 
@@ -414,11 +426,11 @@ size_t get_system_free_memory_in_bytes() {
         return (info.freeram + info.freeswap) * info.mem_unit;
     }
 
-    auto avail_pages = (size_t)sysconf(_SC_AVPHYS_PAGES);
-    auto page_size = (size_t)sysconf(_SC_PAGE_SIZE);
+    auto avail_pages = (size_t) sysconf(_SC_AVPHYS_PAGES);
+    auto page_size   = (size_t) sysconf(_SC_PAGE_SIZE);
     return avail_pages * page_size;
 }
 
 #endif
 
-} // namespace qnn
+}  // namespace qnn
