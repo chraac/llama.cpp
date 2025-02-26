@@ -449,12 +449,10 @@ bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context * ctx, const gg
                  * TODO: remove the blocker here when NPU backend supports mul_mat like this:
                  *   [ne03, ne02, n, k] * [ne03 * x, ne02 * y, m, k] -> [ne03 * x, ne02 * y, m, n]
                  */
-                QNN_LOG_DEBUG("[qnn-npu][MUL_MAT]src0 and src1 dimensions are not equal, support/unsupported: %d/%d",
-                              ctx->support_op_count.load(), ++(ctx->unsupported_op_count));
+                QNN_LOG_DEBUG("[qnn-npu][MUL_MAT]src0 and src1 dimensions are not equal");
                 return false;
             } else if (get_tensor_size(src0) + get_tensor_size(src1) + get_tensor_size(op) >= kMaxNpuTensorSize) {
-                QNN_LOG_DEBUG("[qnn-npu][MUL_MAT]tensor size is too large, support/unsupported: %d/%d",
-                              ctx->support_op_count.load(), ++(ctx->unsupported_op_count));
+                QNN_LOG_DEBUG("[qnn-npu][MUL_MAT]tensor size is too large");
                 return false;
             }
             // fall through, from test here, the convert op is super slow on NPU:
@@ -462,9 +460,7 @@ bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context * ctx, const gg
         case QNN_BACKEND_GPU:
             if (src0->type != src1->type || src0->type != op->type) {
                 // there's no convert op for GPU.
-                QNN_LOG_DEBUG(
-                    "[qnn-gpu][MUL_MAT]type src0(%d), src1(%d) and op(%d) are not equal, support/unsupported: %d/%d",
-                    src0->type, src1->type, op->type, ctx->support_op_count.load(), ++(ctx->unsupported_op_count));
+                QNN_LOG_DEBUG("[qnn-gpu][MUL_MAT]type src0(%d), src1(%d) and op(%d) are not equal");
                 return false;
             }
             break;
@@ -473,13 +469,11 @@ bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context * ctx, const gg
     }
 
     if ((src1->ne[2] % src0->ne[2]) != 0 || (src1->ne[3] % src0->ne[3]) != 0) {
-        QNN_LOG_DEBUG("[%s][MUL_MAT]src0 and src1 dimensions are not equal, support/unsupported: %d/%d",
-                      qnn::get_backend_name(ctx->device), ctx->support_op_count.load(), ++(ctx->unsupported_op_count));
+        QNN_LOG_DEBUG("[%s][MUL_MAT]src0 and src1 dimensions are not equal", qnn::get_backend_name(ctx->device));
         return false;
     }
 
-    QNN_LOG_DEBUG("[%s][MUL_MAT]supported matmul op, support/unsupported: %d/%d", qnn::get_backend_name(ctx->device),
-                  ++(ctx->support_op_count), ctx->unsupported_op_count.load());
+    QNN_LOG_DEBUG("[%s][MUL_MAT]supported matmul op", qnn::get_backend_name(ctx->device));
     return true;
 }
 
@@ -497,7 +491,9 @@ bool device_supports_op(ggml_backend_qnn_device_context * ctx, const ggml_tensor
 #ifndef NDEBUG
         std::string op_key;
         get_graph_key_from_op(op, op_key);
-        QNN_LOG_DEBUG("[%s]unsupported op", op_key.c_str());
+        ctx->unsupported_op_count++;
+        QNN_LOG_DEBUG("[%s]op was unsupported, support/unsupported: %d/%d", op_key.c_str(),
+                      ctx->supported_op_count.load(), ctx->unsupported_op_count.load());
 #endif
         return false;
     }
@@ -506,17 +502,19 @@ bool device_supports_op(ggml_backend_qnn_device_context * ctx, const ggml_tensor
 #ifndef NDEBUG
         std::string tensor_dims;
         append_tensor_dimensions(op, tensor_dims);
-        QNN_LOG_DEBUG("[%s]unsupported tensor(%s)", ggml_op_name(op->op), tensor_dims.c_str());
+        QNN_LOG_DEBUG("[%s]unsupported tensor(%s), support/unsupported: %d/%d", ggml_op_name(op->op),
+                      tensor_dims.c_str(), ctx->supported_op_count.load(), ctx->unsupported_op_count.load());
 #endif
         return false;
     }
 
+    bool is_op_supported = true;
     if (op->op == GGML_OP_UNARY) {
         const auto unary_op = ggml_get_unary_op(op);
         if (unary_op == GGML_UNARY_OP_GELU) {
             // TODO: fix this
             QNN_LOG_DEBUG("[GELU]unsupported unary op GGML_UNARY_OP_GELU for NPU");
-            return false;
+            is_op_supported = false;
         }
     } else {
         auto * src0 = op->src[0];
@@ -525,19 +523,33 @@ bool device_supports_op(ggml_backend_qnn_device_context * ctx, const ggml_tensor
             case GGML_OP_ADD:
                 if (!ggml_are_same_shape(src0, src1)) {
                     QNN_LOG_DEBUG("[ADD] src0 and src1 dimensions are not equal");
-                    return false;
+                    is_op_supported = false;
                 }
                 break;
 
             case GGML_OP_MUL_MAT:
-                return ggml_qnn_supports_matmul_op(ctx, op);
+                is_op_supported = ggml_qnn_supports_matmul_op(ctx, op);
+                break;
 
             default:
-                return false;
+                is_op_supported = false;
+                break;
         }
     }
 
-    return true;
+#ifndef NDEBUG
+    if (is_op_supported) {
+        ctx->supported_op_count++;
+        QNN_LOG_DEBUG("[%s]op was supported, support/unsupported: %d/%d", ggml_op_name(op->op),
+                      ctx->supported_op_count.load(), ctx->unsupported_op_count.load());
+    } else {
+        ctx->unsupported_op_count++;
+        QNN_LOG_DEBUG("[%s]op was unsupported, support/unsupported: %d/%d", ggml_op_name(op->op),
+                      ctx->supported_op_count.load(), ctx->unsupported_op_count.load());
+    }
+#endif
+
+    return is_op_supported;
 }
 
 bool device_compute_graph(ggml_backend_qnn_device_context * ctx, ggml_cgraph * cgraph) {

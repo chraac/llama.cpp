@@ -47,25 +47,23 @@ struct qnn_device_caps {
     uint64_t supported_types;
 };
 
+// TODO: should move this to qnn-lib.cpp
 constexpr const qnn_device_caps kDeviceCaps[] = {
     {
-     // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/CpuOpDefSupplement.html#matmul
-        "qnn-cpu",                  "Qualcomm Kryo CPU",
+     "qnn-cpu",                     "Qualcomm Kryo CPU",
      kQnnCpuLibName, GGML_BACKEND_DEVICE_TYPE_CPU,
      (1 << GGML_TYPE_I8) | (1 << GGML_TYPE_F32),
-     },
+     }, // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/CpuOpDefSupplement.html#matmul
     {
-     // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/GpuOpDefSupplement.html#matmul
-        "qnn-gpu",                             "Qualcomm Adreno GPU",
-     kQnnGpuLibName,   GGML_BACKEND_DEVICE_TYPE_GPU,
+     "qnn-gpu",                             "Qualcomm Adreno GPU",
+     kQnnGpuLibName,      GGML_BACKEND_DEVICE_TYPE_GPU,
      (1 << GGML_TYPE_F32) | (1 << GGML_TYPE_F16),
-     },
+     }, // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/GpuOpDefSupplement.html#matmul
     {
-     // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/HtpOpDefSupplement.html#matmul
-        "qnn-npu", "Qualcomm NPU",
+     "qnn-npu", "Qualcomm NPU",
      kQnnNpuLibName,              GGML_BACKEND_DEVICE_TYPE_ACCEL,
      (1 << GGML_TYPE_F32) | (1 << GGML_TYPE_F16) | (1 << GGML_TYPE_I16) | (1 << GGML_TYPE_I8),
-     },
+     }, // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/HtpOpDefSupplement.html#matmul
 };
 
 static_assert(sizeof(kDeviceCaps) / sizeof(kDeviceCaps[0]) == GGML_QNN_MAX_DEVICES,
@@ -225,13 +223,13 @@ ggml_backend_buffer_type_t ggml_backend_qnn_buffer_type(ggml_backend_dev_t dev) 
             /* .iface   = */ {
                               /* .get_name         = */ ggml_backend_qnn_buffer_type_name,
                               /* .alloc_buffer     = */
-                ggml_backend_qnn_buffer_type_alloc_buffer, /* .get_alignment    = */
+                ggml_backend_qnn_buffer_type_alloc_buffer,  /* .get_alignment    = */
                 ggml_backend_qnn_buffer_type_get_alignment, /* .get_max_size     = */
-                ggml_backend_qnn_buffer_type_get_max_size, /* .get_alloc_size   = */ nullptr,  // defaults to ggml_nbytes
+                ggml_backend_qnn_buffer_type_get_max_size, /* .get_alloc_size   = */ nullptr,          // defaults to ggml_nbytes
                 /* .is_host          = */ ggml_backend_qnn_buffer_is_host,
                               },
             /* .device */
-             dev,
+            dev,
             /* .context = */ nullptr,
         };
     } else {

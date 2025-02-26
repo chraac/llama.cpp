@@ -36,7 +36,7 @@ struct ggml_backend_qnn_device_context {
     qnn::qnn_graph_cache_t qnn_graph_cache;
 
 #ifndef NDEBUG
-    std::atomic_uint32_t support_op_count     = 0;
+    std::atomic_uint32_t supported_op_count   = 0;
     std::atomic_uint32_t unsupported_op_count = 0;
 #endif
 
