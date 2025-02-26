@@ -59,12 +59,12 @@ bool ggml_qnn_op_config_base::add_tensor_param(const std::string & name, const q
 
     GGML_ASSERT(data_size > 0);
     if (!param_tensor->set_data_buffer(data, data_size)) {
-        QNN_LOG_ERROR("parameter tensor bind_buffer failed");
+        QNN_LOG_ERROR("parameter tensor bind_buffer failed\n");
         return false;
     }
 
     if (!param_tensor->alloc_qnn_tensor_id()) {
-        QNN_LOG_ERROR("parameter tensor alloc_qnn_tensor_id failed");
+        QNN_LOG_ERROR("parameter tensor alloc_qnn_tensor_id failed\n");
         return false;
     }
 
@@ -102,37 +102,37 @@ bool ggml_qnn_op_config_base::add_op_to_graph(Qnn_GraphHandle_t graph_handle) {
     GGML_ASSERT(_qnn_tensor_inputs.size() == _tensor_inputs.size());
     GGML_ASSERT(_qnn_tensor_outputs.size() == _tensor_outputs.size());
 
-    QNN_LOG_DEBUG("[%s]add to graph start", _name.c_str());
+    QNN_LOG_DEBUG("[%s]add to graph start\n", _name.c_str());
     for (size_t i = 0; i < _tensor_inputs.size(); i++) {
         auto tensor = _tensor_inputs[i];
         if (!tensor->alloc_qnn_tensor_id()) {
-            QNN_LOG_ERROR("[%s]input tensor alloc_qnn_tensor_id failed", _name.c_str());
+            QNN_LOG_ERROR("[%s]input tensor alloc_qnn_tensor_id failed\n", _name.c_str());
             return false;
         }
 
-        QNN_LOG_DEBUG("[%s]input tensor id: %d", _name.c_str(), tensor->get_qnn_tensor_id());
+        QNN_LOG_DEBUG("[%s]input tensor id: %d\n", _name.c_str(), tensor->get_qnn_tensor_id());
         _qnn_tensor_inputs[i] = tensor->get_qnn_tensor();
     }
 
     for (size_t i = 0; i < _tensor_outputs.size(); i++) {
         auto tensor = _tensor_outputs[i];
         if (!tensor->alloc_qnn_tensor_id()) {
-            QNN_LOG_ERROR("[%s]output tensor alloc_qnn_tensor_id failed", _name.c_str());
+            QNN_LOG_ERROR("[%s]output tensor alloc_qnn_tensor_id failed\n", _name.c_str());
             return false;
         }
 
-        QNN_LOG_DEBUG("[%s]output tensor id: %d", _name.c_str(), tensor->get_qnn_tensor_id());
+        QNN_LOG_DEBUG("[%s]output tensor id: %d\n", _name.c_str(), tensor->get_qnn_tensor_id());
         _qnn_tensor_outputs[i] = tensor->get_qnn_tensor();
     }
 
     auto qnn_interface = _qnn_instance->get_qnn_interface();
     auto error         = qnn_interface->qnn_graph_add_node(graph_handle, get_op_config());
     if (error != QNN_SUCCESS) {
-        QNN_LOG_ERROR("[%s]qnn_graph_add_node.error: %s", _name.c_str(), get_qnn_error_string(error));
+        QNN_LOG_ERROR("[%s]qnn_graph_add_node.error: %s\n", _name.c_str(), get_qnn_error_string(error));
         return false;
     }
 
-    QNN_LOG_DEBUG("[%s]added to graph succeed", _name.c_str());
+    QNN_LOG_DEBUG("[%s]added to graph succeed\n", _name.c_str());
     return true;
 }
 
@@ -220,7 +220,7 @@ bool ggml_qnn_matmul_op_config::initialize_op_nodes(QNNBackend device, Qnn_Graph
     qnn_tensor_array_t mat_mul_tensor_inputs  = _tensor_inputs;
     qnn_tensor_array_t mat_mul_tensor_outputs = _tensor_outputs;
     if (!create_convert_nodes(device, graph_handle, tensor_rank, mat_mul_tensor_inputs, mat_mul_tensor_outputs)) {
-        QNN_LOG_ERROR("create convert nodes failed");
+        QNN_LOG_ERROR("create convert nodes failed\n");
         return false;
     }
 
@@ -307,7 +307,7 @@ bool ggml_qnn_matmul_op_config::create_convert_nodes(QNNBackend device, Qnn_Grap
 
     // create tensors for convert node
     auto tensor_type = get_tensor_type(tensor_inputs);
-    QNN_LOG_DEBUG("input tensor type: %s", qnn_datatype_to_string(tensor_type));
+    QNN_LOG_DEBUG("input tensor type: %s\n", qnn_datatype_to_string(tensor_type));
 
     for (size_t i = 0; i < tensor_inputs.size(); ++i) {
         // create input convert nodes

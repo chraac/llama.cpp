@@ -160,7 +160,7 @@ ggml_backend_buffer_t ggml_backend_qnn_buffer_type_alloc_buffer(ggml_backend_buf
         return nullptr;
     }
 
-    QNN_LOG_DEBUG("[%s]alloc buffer: %p, size: %ld", qnn::get_backend_name(get_device_context(buft->device)->device),
+    QNN_LOG_DEBUG("[%s]alloc buffer: %p, size: %ld\n", qnn::get_backend_name(get_device_context(buft->device)->device),
                   (void *) ctx->get_buffer(), (long) size);
     return ggml_backend_buffer_init(buft, ggml_backend_qnn_buffer_interface, ctx, size);
 }
@@ -190,7 +190,7 @@ const char * ggml_backend_qnn_name(ggml_backend_t backend) {
 
 void ggml_backend_qnn_free(ggml_backend_t backend) {
     auto * device_ctx = get_device_context(backend->device);
-    QNN_LOG_INFO("idx %d, name:%s", device_ctx->device, device_ctx->name.c_str());
+    QNN_LOG_INFO("idx %d, name:%s\n", device_ctx->device, device_ctx->name.c_str());
 
     auto & instance = device_ctx->instance;
     if (instance) {
@@ -210,7 +210,7 @@ bool ggml_backend_qnn_cpy_tensor_async(ggml_backend_t backend_src, ggml_backend_
     GGML_UNUSED(src);
     GGML_UNUSED(dst);
 
-    QNN_LOG_DEBUG("opy form %s to %s, src_is_qnn: %d, dst_is_qnn: %d", ggml_get_name(src), ggml_get_name(dst),
+    QNN_LOG_DEBUG("opy form %s to %s, src_is_qnn: %d, dst_is_qnn: %d\n", ggml_get_name(src), ggml_get_name(dst),
                   (int) ggml_backend_is_qnn(backend_src), (int) ggml_backend_is_qnn(backend_dst));
     return false;
 }
@@ -279,7 +279,7 @@ void ggml_backend_qnn_device_get_memory(ggml_backend_dev_t dev, size_t * free, s
     GGML_UNUSED(dev);
     *free  = qnn::get_system_free_memory_in_bytes();
     *total = qnn::get_system_total_memory_in_bytes();
-    QNN_LOG_DEBUG("free memory: %ldMB, total memory: %ldMB", (*free / 1048576), (*total) / 1048576);
+    QNN_LOG_DEBUG("free memory: %ldMB, total memory: %ldMB\n", (*free / 1048576), (*total) / 1048576);
 }
 
 enum ggml_backend_dev_type ggml_backend_qnn_device_get_type(ggml_backend_dev_t dev) {
@@ -315,22 +315,22 @@ ggml_backend_t ggml_backend_qnn_init_with_device_context(ggml_backend_dev_t dev,
 
     auto *     dev_ctx = get_device_context(dev);
     const auto device  = dev_ctx->device;
-    QNN_LOG_DEBUG("device %s", qnn::get_backend_name(device));
-    QNN_LOG_DEBUG("extend_lib_search_path %s", extend_lib_search_path);
+    QNN_LOG_DEBUG("device %s\n", qnn::get_backend_name(device));
+    QNN_LOG_DEBUG("extend_lib_search_path %s\n", extend_lib_search_path);
     auto instance = std::make_shared<qnn::qnn_instance>(extend_lib_search_path, dev_ctx->lib_name);
     auto result   = instance->qnn_init(nullptr);
     if (result != 0) {
-        QNN_LOG_WARN("failed to init qnn backend %s", qnn::get_backend_name(device));
+        QNN_LOG_WARN("failed to init qnn backend %s\n", qnn::get_backend_name(device));
         return nullptr;
     }
     auto qnn_interface = instance->get_qnn_interface();
     if (!qnn_interface) {
-        QNN_LOG_WARN("qnn subsystem failure");
+        QNN_LOG_WARN("qnn subsystem failure\n");
         return nullptr;
     }
 
     std::string device_name = qnn::get_backend_name(device);
-    QNN_LOG_INFO("qnn device name %s", device_name.c_str());
+    QNN_LOG_INFO("qnn device name %s\n", device_name.c_str());
     dev_ctx->instance        = instance;
     dev_ctx->qnn_interface   = qnn_interface;
     dev_ctx->socinfo         = instance->get_soc_info();
@@ -379,7 +379,7 @@ bool ggml_backend_qnn_device_offload_op(ggml_backend_dev_t dev, const ggml_tenso
     GGML_UNUSED(op);
 #else
     auto * device_ctx = get_device_context(dev);
-    QNN_LOG_DEBUG("[%s][%s]offload op", qnn::get_backend_name(device_ctx->device), ggml_op_name(op->op));
+    QNN_LOG_DEBUG("[%s][%s]offload op\n", qnn::get_backend_name(device_ctx->device), ggml_op_name(op->op));
 #endif
     return false;
 }
@@ -416,7 +416,7 @@ struct ggml_backend_qnn_reg_impl : ggml_backend_reg {
         context = this;
         iface   = interface;
 
-        QNN_LOG_DEBUG("qnn backend registry init");
+        QNN_LOG_DEBUG("qnn backend registry init\n");
         for (size_t i = 0; i < QNN_BACKEND_COUNT; i++) {
             const auto device_enum = (QNNBackend) (QNN_BACKEND_COUNT - 1 - i);  // init from the last device, i.e. NPU
 #ifndef GGML_QNN_ENABLE_CPU_BACKEND

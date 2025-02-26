@@ -39,7 +39,7 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
         QNN_TENSOR_SET_DIMENSIONS(_qnn_tensor, _dimensions.data());
         QNN_TENSOR_SET_DATA_FORMAT(_qnn_tensor, QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER);
         update_params_from_ggml_tensor(tensor_type, data_type, rank);
-        QNN_LOG_DEBUG("[%s][%s]created, rank: %d, dims: [%d, %d, %d, %d], type: %s", get_backend_name(device),
+        QNN_LOG_DEBUG("[%s][%s]created, rank: %d, dims: [%d, %d, %d, %d], type: %s\n", get_backend_name(device),
                       _tensor_name.c_str(), rank, (int) _dimensions[0], (int) _dimensions[1], (int) _dimensions[2],
                       (int) _dimensions[3], qnn_datatype_to_string(data_type));
     }
@@ -77,7 +77,7 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
 
     bool alloc_qnn_tensor_id() {
         if (QNN_TENSOR_GET_ID(_qnn_tensor)) {
-            QNN_LOG_DEBUG("[%s]tensor already has a id: %d", _tensor_name.c_str(), QNN_TENSOR_GET_ID(_qnn_tensor));
+            QNN_LOG_DEBUG("[%s]tensor already has a id: %d\n", _tensor_name.c_str(), QNN_TENSOR_GET_ID(_qnn_tensor));
             return true;
         }
 
@@ -85,26 +85,26 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
         auto         qnn_interface = _qnn_instance->get_qnn_interface();
         auto         error         = qnn_interface->qnn_tensor_create_graph_tensor(_graph_handle, &qnn_tensor);
         if (error != QNN_SUCCESS) {
-            QNN_LOG_WARN("[%s]allocate id failed , error: %d", _tensor_name.c_str(), (int) error);
+            QNN_LOG_WARN("[%s]allocate id failed , error: %d\n", _tensor_name.c_str(), (int) error);
             return false;
         }
 
         QNN_TENSOR_SET_ID(_qnn_tensor, QNN_TENSOR_GET_ID(qnn_tensor));
-        QNN_LOG_DEBUG("[%s][%s]allocated id: %d, rank: %d", get_backend_name(_device), _tensor_name.c_str(),
+        QNN_LOG_DEBUG("[%s][%s]allocated id: %d, rank: %d\n", get_backend_name(_device), _tensor_name.c_str(),
                       QNN_TENSOR_GET_ID(qnn_tensor), QNN_TENSOR_GET_RANK(qnn_tensor));
         return true;
     }
 
     bool bind_ggml_tensor(ggml_tensor * tensor) {
         if (!_can_unbind) {
-            QNN_LOG_DEBUG("[%s]already has buffer storage, skip bind", _tensor_name.c_str());
+            QNN_LOG_DEBUG("[%s]already has buffer storage, skip bind\n", _tensor_name.c_str());
             return true;
         }
 
 #ifndef NDEBUG
         if (tensor->view_src) {
             auto * src = tensor->view_src;
-            QNN_LOG_DEBUG("[%s]tensor(%s_%dx%dx%dx%d) is a view, src: %s_%dx%dx%dx%d", get_backend_name(_device),
+            QNN_LOG_DEBUG("[%s]tensor(%s_%dx%dx%dx%d) is a view, src: %s_%dx%dx%dx%d\n", get_backend_name(_device),
                           tensor->name, (int) tensor->ne[0], (int) tensor->ne[1], (int) tensor->ne[2],
                           (int) tensor->ne[3], src->name, (int) src->ne[0], (int) src->ne[1], (int) src->ne[2],
                           (int) src->ne[3]);
@@ -114,11 +114,11 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
         auto buffer =
             std::make_shared<qnn_mem_buffer_slice>(reinterpret_cast<uint8_t *>(tensor->data), ggml_nbytes(tensor));
         if (!bind_buffer_impl(buffer)) {
-            QNN_LOG_WARN("[%s]failed to bind ggml tensor(%s)", _tensor_name.c_str(), ggml_get_name(tensor));
+            QNN_LOG_WARN("[%s]failed to bind ggml tensor(%s)\n", _tensor_name.c_str(), ggml_get_name(tensor));
             return false;
         }
 
-        QNN_LOG_DEBUG("[%s][%s]bind to ggml tensor(%s)", get_backend_name(_device), _tensor_name.c_str(),
+        QNN_LOG_DEBUG("[%s][%s]bind to ggml tensor(%s)\n", get_backend_name(_device), _tensor_name.c_str(),
                       ggml_get_name(tensor));
         tensor->extra = this;
         _ggml_tensor  = tensor;
@@ -127,22 +127,22 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
 
     bool unbind() {
         if (!_graph_handle) {
-            QNN_LOG_WARN("[%s]not bound to any graph", _tensor_name.c_str());
+            QNN_LOG_WARN("[%s]not bound to any graph\n", _tensor_name.c_str());
             return false;
         }
 
         if (!_buffer) {
-            QNN_LOG_DEBUG("[%s]unbind to ggml tensor", _tensor_name.c_str());
+            QNN_LOG_DEBUG("[%s]unbind to ggml tensor\n", _tensor_name.c_str());
             return true;
         }
 
         if (!read_from_qnn_tensor()) {
-            QNN_LOG_WARN("[%s]read from qnn tensor failed", _tensor_name.c_str());
+            QNN_LOG_WARN("[%s]read from qnn tensor failed\n", _tensor_name.c_str());
             return false;
         }
 
         if (!_can_unbind) {
-            QNN_LOG_DEBUG("[%s]already has buffer storage, stop unbind", _tensor_name.c_str());
+            QNN_LOG_DEBUG("[%s]already has buffer storage, stop unbind\n", _tensor_name.c_str());
             return true;
         }
 
@@ -150,10 +150,10 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
             QNN_TENSOR_SET_MEM_TYPE(_qnn_tensor, QNN_TENSORMEMTYPE_RAW);
             Qnn_ClientBuffer_t client_buf = {};
             QNN_TENSOR_SET_CLIENT_BUF(_qnn_tensor, client_buf);
-            QNN_LOG_DEBUG("[%s]clear client buffer", _tensor_name.c_str());
+            QNN_LOG_DEBUG("[%s]clear client buffer\n", _tensor_name.c_str());
         }
 
-        QNN_LOG_DEBUG("[%s][%s]unbind from buffer: %p, size: %d", get_backend_name(_device), _tensor_name.c_str(),
+        QNN_LOG_DEBUG("[%s][%s]unbind from buffer: %p, size: %d\n", get_backend_name(_device), _tensor_name.c_str(),
                       (void *) _buffer.get(), (int) _buffer->get_size());
         _buffer.reset();
 
@@ -179,16 +179,16 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
     bool bind_buffer_impl(qnn_buffer_ptr buffer) {
         if (_buffer) {
             if (_buffer != buffer) {
-                QNN_LOG_WARN("[%s]has been bound to another buffer %p", _tensor_name.c_str(), (void *) _buffer.get());
+                QNN_LOG_WARN("[%s]has been bound to another buffer %p\n", _tensor_name.c_str(), (void *) _buffer.get());
                 return false;
             }
 
-            QNN_LOG_DEBUG("[%s]already bound to same ggml tensor %p", _tensor_name.c_str(), (void *) _buffer.get());
+            QNN_LOG_DEBUG("[%s]already bound to same ggml tensor %p\n", _tensor_name.c_str(), (void *) _buffer.get());
             return true;
         }
 
         if (QNN_TENSOR_GET_TYPE(_qnn_tensor) == QNN_TENSOR_TYPE_NATIVE) {
-            QNN_LOG_DEBUG("[%s]tensor type(%d) not READ/WRITE, skipping", _tensor_name.c_str(),
+            QNN_LOG_DEBUG("[%s]tensor type(%d) not READ/WRITE, skipping\n", _tensor_name.c_str(),
                           (int) QNN_TENSOR_TYPE_NATIVE);
             return true;
         }
@@ -199,7 +199,7 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
                     _qnn_instance, buffer->get_size(), QNN_TENSOR_GET_RANK(_qnn_tensor),
                     QNN_TENSOR_GET_DIMENSIONS(_qnn_tensor), QNN_TENSOR_GET_DATA_TYPE(_qnn_tensor));
                 if (!rpc_buffer->is_valid()) {
-                    QNN_LOG_WARN("[%s][%s]alloc rpc mem failed", get_backend_name(_device), _tensor_name.c_str());
+                    QNN_LOG_WARN("[%s][%s]alloc rpc mem failed\n", get_backend_name(_device), _tensor_name.c_str());
                     return false;
                 }
 
@@ -209,30 +209,30 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
             QNN_TENSOR_SET_MEM_TYPE(_qnn_tensor, QNN_TENSORMEMTYPE_MEMHANDLE);
             auto mem_handle = _rpc_buffer->get_mem_handle();
             if (!mem_handle) {
-                QNN_LOG_WARN("[%s][%s]can't find rpcmem from qnn mem handle", get_backend_name(_device),
+                QNN_LOG_WARN("[%s][%s]can't find rpcmem from qnn mem handle\n", get_backend_name(_device),
                              _tensor_name.c_str());
                 return false;
             }
 
             QNN_TENSOR_SET_MEM_HANDLE(_qnn_tensor, mem_handle);
-            QNN_LOG_DEBUG("[%s][%s]use mem handle %p", get_backend_name(_device), _tensor_name.c_str(),
+            QNN_LOG_DEBUG("[%s][%s]use mem handle %p\n", get_backend_name(_device), _tensor_name.c_str(),
                           QNN_TENSOR_GET_MEM_HANDLE(_qnn_tensor));
         } else {
             QNN_TENSOR_SET_MEM_TYPE(_qnn_tensor, QNN_TENSORMEMTYPE_RAW);
             Qnn_ClientBuffer_t client_buf = { buffer->get_buffer(), (uint32_t) buffer->get_size() };
             QNN_TENSOR_SET_CLIENT_BUF(_qnn_tensor, client_buf);
-            QNN_LOG_DEBUG("[%s]use client buffer %p size %d", _tensor_name.c_str(), client_buf.data,
+            QNN_LOG_DEBUG("[%s]use client buffer %p size %d\n", _tensor_name.c_str(), client_buf.data,
                           (int) client_buf.dataSize);
         }
 
         _buffer = buffer;
 
         if (!write_to_qnn_tensor()) {
-            QNN_LOG_WARN("[%s]write to qnn tensor failed", _tensor_name.c_str());
+            QNN_LOG_WARN("[%s]write to qnn tensor failed\n", _tensor_name.c_str());
             return false;
         }
 
-        QNN_LOG_DEBUG("[%s][%s]bind to buffer: %p, size: %d", get_backend_name(_device), _tensor_name.c_str(),
+        QNN_LOG_DEBUG("[%s][%s]bind to buffer: %p, size: %d\n", get_backend_name(_device), _tensor_name.c_str(),
                       (void *) buffer.get(), (int) buffer->get_size());
         return true;
     }
@@ -240,7 +240,7 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
     bool write_to_qnn_tensor() {
         auto tensor_type = QNN_TENSOR_GET_TYPE(_qnn_tensor);
         if (tensor_type != QNN_TENSOR_TYPE_APP_WRITE && tensor_type != QNN_TENSOR_TYPE_APP_READWRITE) {
-            QNN_LOG_DEBUG("[%s]tensor type(%d) not WRITE", _tensor_name.c_str(), (int) tensor_type);
+            QNN_LOG_DEBUG("[%s]tensor type(%d) not WRITE\n", _tensor_name.c_str(), (int) tensor_type);
             return true;
         }
 
@@ -249,14 +249,14 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
         }
 
         // For CPU and GPU, the data is already in the tensor.
-        QNN_LOG_DEBUG("[%s][%s]write tensor to qnn", get_backend_name(_device), _tensor_name.c_str());
+        QNN_LOG_DEBUG("[%s][%s]write tensor to qnn\n", get_backend_name(_device), _tensor_name.c_str());
         return true;
     }
 
     bool read_from_qnn_tensor() {
         auto tensor_type = QNN_TENSOR_GET_TYPE(_qnn_tensor);
         if (tensor_type != QNN_TENSOR_TYPE_APP_READ && tensor_type != QNN_TENSOR_TYPE_APP_READWRITE) {
-            QNN_LOG_DEBUG("[%s]tensor type(%d) not READ", _tensor_name.c_str(), (int) tensor_type);
+            QNN_LOG_DEBUG("[%s]tensor type(%d) not READ\n", _tensor_name.c_str(), (int) tensor_type);
             return true;
         }
 
@@ -265,7 +265,7 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
         }
 
         // For CPU and GPU, the data is already in the tensor.
-        QNN_LOG_DEBUG("[%s][%s]read tensor from qnn", get_backend_name(_device), _tensor_name.c_str());
+        QNN_LOG_DEBUG("[%s][%s]read tensor from qnn\n", get_backend_name(_device), _tensor_name.c_str());
         return true;
     }
 
@@ -298,7 +298,7 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
                 break;
         }
         QNN_TENSOR_SET_TYPE(_qnn_tensor, new_tensor_type);
-        QNN_LOG_DEBUG("[%s][%s]tensor changed to type %d", get_backend_name(_device), _tensor_name.c_str(),
+        QNN_LOG_DEBUG("[%s][%s]tensor changed to type %d\n", get_backend_name(_device), _tensor_name.c_str(),
                       new_tensor_type);
     }
 
@@ -347,7 +347,7 @@ inline bool bind_tensors(const ggml_tensor_array_t & ggml_tensors, qnn_tensor_ar
     for (size_t i = 0; i < ggml_tensors.size(); i++) {
         auto * ggml_tensor = ggml_tensors[i];
         if (!tensor_wrappers[i]->bind_ggml_tensor(ggml_tensor)) {
-            QNN_LOG_ERROR("bind tensor %s failed", ggml_get_name(ggml_tensor));
+            QNN_LOG_ERROR("bind tensor %s failed\n", ggml_get_name(ggml_tensor));
             return false;
         }
 
@@ -362,7 +362,7 @@ inline bool bind_tensors(const ggml_tensor_array_t & ggml_tensors, qnn_tensor_ar
     for (size_t i = 0; i < ggml_tensors.size(); i++) {
         auto * ggml_tensor = ggml_tensors[i];
         if (!tensor_wrappers[i]->bind_ggml_tensor(ggml_tensor)) {
-            QNN_LOG_ERROR("bind tensor %s failed", ggml_get_name(ggml_tensor));
+            QNN_LOG_ERROR("bind tensor %s failed\n", ggml_get_name(ggml_tensor));
             return false;
         }
     }
@@ -394,7 +394,7 @@ inline void create_tensors_from_ggml_tensor(const tensor_create_common_params & 
     }
 
     if (!tensor_wrappers->empty()) {
-        QNN_LOG_DEBUG("tensor_wrappers is not empty, skip create tensors");
+        QNN_LOG_DEBUG("tensor_wrappers is not empty, skip create tensors\n");
         GGML_ASSERT(tensor_wrappers->size() == ggml_tensors.size());
         return;
     }

@@ -182,7 +182,7 @@ class qnn_instance {
 
     std::shared_ptr<qnn_interface> get_qnn_interface() {
         if (!_qnn_interface) {
-            QNN_LOG_WARN("pls check why _qnn_interface is not loaded");
+            QNN_LOG_WARN("pls check why _qnn_interface is not loaded\n");
         }
         return _qnn_interface;
     }
@@ -203,10 +203,10 @@ class qnn_instance {
         QnnDevice_Infrastructure_t device_infra = nullptr;
         auto                       error        = _qnn_interface->qnn_device_get_infrastructure(&device_infra);
         if (error != QNN_SUCCESS) {
-            QNN_LOG_WARN("failed to get qnn device infra");
+            QNN_LOG_WARN("failed to get qnn device infra\n");
             return 1;
         } else {
-            QNN_LOG_INFO("HTP backend perf_infrastructure creation ok");
+            QNN_LOG_INFO("HTP backend perf_infrastructure creation ok\n");
         }
 
         QnnHtpDevice_Infrastructure_t *     htp_infra      = static_cast<QnnHtpDevice_Infrastructure_t *>(device_infra);
@@ -216,9 +216,9 @@ class qnn_instance {
         uint32_t                            core_id        = 0;
         htp_perfinfra->createPowerConfigId(device_id, core_id, &power_configid);
         if (htp_infra->infraType != QNN_HTP_DEVICE_INFRASTRUCTURE_TYPE_PERF) {
-            QNN_LOG_INFO("HTP infra type = %d, which is not perf infra type", htp_infra->infraType);
+            QNN_LOG_INFO("HTP infra type = %d, which is not perf infra type\n", htp_infra->infraType);
         } else {
-            QNN_LOG_INFO("HTP infra type = %d, which is perf infra type", htp_infra->infraType);
+            QNN_LOG_INFO("HTP infra type = %d, which is perf infra type\n", htp_infra->infraType);
         }
         _qnn_htp_perfinfra  = htp_perfinfra;
         _qnn_power_configid = power_configid;
@@ -244,12 +244,12 @@ class qnn_instance {
                                                                                nullptr };
             Qnn_ErrorHandle_t qnn_status = _qnn_htp_perfinfra->setPowerConfig(_qnn_power_configid, power_configs);
             if (qnn_status != QNN_SUCCESS) {
-                QNN_LOG_WARN("set htp perf failed");
+                QNN_LOG_WARN("set htp perf failed\n");
             } else {
-                QNN_LOG_DEBUG("set htp perf ok");
+                QNN_LOG_DEBUG("set htp perf ok\n");
             }
         } else {
-            QNN_LOG_WARN("can't set htp perf");
+            QNN_LOG_WARN("can't set htp perf\n");
         }
 
         return 0;
@@ -257,7 +257,7 @@ class qnn_instance {
 
     int set_high_performance_mode() {
         if (nullptr == _qnn_htp_perfinfra) {
-            QNN_LOG_WARN("perf intra is null");
+            QNN_LOG_WARN("perf intra is null\n");
             return 1;
         }
 
@@ -290,9 +290,9 @@ class qnn_instance {
         Qnn_ErrorHandle_t                              qnn_status      = QNN_SUCCESS;
         qnn_status = _qnn_htp_perfinfra->setPowerConfig(_qnn_power_configid, power_configs);
         if (qnn_status != QNN_SUCCESS) {
-            QNN_LOG_WARN("set htp high performance mode failed");
+            QNN_LOG_WARN("set htp high performance mode failed\n");
         } else {
-            QNN_LOG_DEBUG("set htp high performance mode ok");
+            QNN_LOG_DEBUG("set htp high performance mode ok\n");
         }
 
         return 0;
@@ -306,21 +306,21 @@ class qnn_instance {
 
     void * alloc_rpcmem(size_t bytes, size_t alignment) {
         if (!_rpcmem_initialized) {
-            QNN_LOG_WARN("rpc memory not initialized");
+            QNN_LOG_WARN("rpc memory not initialized\n");
             return nullptr;
         }
 
         auto   allocate_bytes = static_cast<int64_t>(bytes + alignment);
         void * buf            = _pfn_rpc_mem_alloc(RPCMEM_HEAP_ID_SYSTEM, RPCMEM_DEFAULT_FLAGS, (int) allocate_bytes);
         if (!buf) {
-            QNN_LOG_WARN("failed to allocate rpc memory, size: %d MB", (int) (allocate_bytes / (1 << 20)));
+            QNN_LOG_WARN("failed to allocate rpc memory, size: %d MB\n", (int) (allocate_bytes / (1 << 20)));
             return nullptr;
         }
 
         auto aligned_buf = reinterpret_cast<void *>(qnn::align_to(alignment, reinterpret_cast<intptr_t>(buf)));
         bool status      = _rpcmem_store_map.insert(std::pair<void *, void *>(aligned_buf, buf)).second;
         if (!status) {
-            QNN_LOG_WARN("failed to allocate rpc memory");
+            QNN_LOG_WARN("failed to allocate rpc memory\n");
             _pfn_rpc_mem_free(buf);
         }
 
@@ -329,9 +329,9 @@ class qnn_instance {
 
     void free_rpcmem(void * buf) {
         if (!_rpcmem_initialized) {
-            QNN_LOG_WARN("rpc memory not initialized");
+            QNN_LOG_WARN("rpc memory not initialized\n");
         } else if (_rpcmem_store_map.count(buf) == 0) {
-            QNN_LOG_WARN("no allocated tensor");
+            QNN_LOG_WARN("no allocated tensor\n");
         } else {
             _pfn_rpc_mem_free(_rpcmem_store_map[buf]);
             _rpcmem_store_map.erase(buf);
@@ -341,7 +341,7 @@ class qnn_instance {
     int32_t rpcmem_to_fd(void * buf) {
         int32_t mem_fd = -1;
         if (!is_rpcmem_initialized()) {
-            QNN_LOG_WARN("rpc memory not initialized");
+            QNN_LOG_WARN("rpc memory not initialized\n");
         } else {
             mem_fd = _pfn_rpc_mem_to_fd(buf);
         }
@@ -352,27 +352,27 @@ class qnn_instance {
     Qnn_MemHandle_t register_rpcmem(void * p_data, const uint32_t rank, uint32_t * dimensions,
                                     Qnn_DataType_t data_type) {
         if (!p_data) {
-            QNN_LOG_WARN("invalid param");
+            QNN_LOG_WARN("invalid param\n");
             return nullptr;
         }
 
         if (!is_rpcmem_initialized()) {
-            QNN_LOG_WARN("rpc memory not initialized");
+            QNN_LOG_WARN("rpc memory not initialized\n");
             return nullptr;
         }
 
         if (is_rpcmem_registered(p_data)) {
-            QNN_LOG_WARN("rpc memory already registered");
+            QNN_LOG_WARN("rpc memory already registered\n");
             return _qnn_rpc_buffer_to_handles[p_data];
         }
 
         auto mem_fd = rpcmem_to_fd(p_data);
         if (mem_fd == -1) {
-            QNN_LOG_WARN("failed to get file descriptor");
+            QNN_LOG_WARN("failed to get file descriptor\n");
             return nullptr;
         }
 
-        QNN_LOG_DEBUG("mem_fd %d", mem_fd);
+        QNN_LOG_DEBUG("mem_fd %d\n", mem_fd);
         Qnn_MemDescriptor_t descriptor = {
             { rank, dimensions, nullptr },
             data_type, QNN_MEM_TYPE_ION, { { mem_fd } }
@@ -381,26 +381,26 @@ class qnn_instance {
         auto            error  = _qnn_interface->qnn_mem_register(_qnn_context_handle, &descriptor,
                                                                   /*numDescriptors=*/1, &handle);
         if (error != QNN_SUCCESS) {
-            QNN_LOG_WARN("failed to register shared memory, error %d, %s", (int) QNN_GET_ERROR_CODE(error),
+            QNN_LOG_WARN("failed to register shared memory, error %d, %s\n", (int) QNN_GET_ERROR_CODE(error),
                          strerror(error));
             return nullptr;
         }
 
         _qnn_rpc_buffer_to_handles.insert({ p_data, handle });
-        QNN_LOG_DEBUG("successfully register shared memory handler: %p", handle);
+        QNN_LOG_DEBUG("successfully register shared memory handler: %p\n", handle);
         return handle;
     }
 
     void unregister_rpcmem(Qnn_MemHandle_t mem_handle) {
         auto error = _qnn_interface->qnn_mem_de_register(&mem_handle, 1);
         if (error != QNN_SUCCESS) {
-            QNN_LOG_WARN("failed to unregister shared memory, error %d", (int) QNN_GET_ERROR_CODE(error));
+            QNN_LOG_WARN("failed to unregister shared memory, error %d\n", (int) QNN_GET_ERROR_CODE(error));
         }
 
         auto it = std::find_if(_qnn_rpc_buffer_to_handles.begin(), _qnn_rpc_buffer_to_handles.end(),
                                [mem_handle](const auto & kv) { return kv.second == mem_handle; });
         if (it == _qnn_rpc_buffer_to_handles.end()) {
-            QNN_LOG_WARN("failed to find shared memory handler: %p", mem_handle);
+            QNN_LOG_WARN("failed to find shared memory handler: %p\n", mem_handle);
             return;
         }
 

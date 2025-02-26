@@ -76,12 +76,12 @@ class qnn_rpc_buffer : public qnn_buffer_interface {
         _qnn_rpc_buffer     = static_cast<uint8_t *>(qnn_instance->alloc_rpcmem(size, alignof(uint8_t *)));
         _qnn_rpc_mem_handle = qnn_instance->register_rpcmem(_qnn_rpc_buffer, rank, dimensions, data_type);
         if (!_qnn_rpc_buffer || !_qnn_rpc_mem_handle) {
-            QNN_LOG_WARN("Failed to register RPC memory: buffer or memory handle is null");
+            QNN_LOG_WARN("Failed to register RPC memory: buffer or memory handle is null\n");
             // let the destructor free the buffer
             return;
         }
 
-        QNN_LOG_DEBUG("alloc rpcmem(%p) successfully, size %d", (void *) _qnn_rpc_buffer, (int) size);
+        QNN_LOG_DEBUG("alloc rpcmem(%p) successfully, size %d\n", (void *) _qnn_rpc_buffer, (int) size);
     }
 
     ~qnn_rpc_buffer() {
@@ -127,7 +127,7 @@ class qnn_mem_buffer : public qnn_buffer_interface {
         _buffer = reinterpret_cast<uint8_t *>(qnn::page_align_alloc(size));
 
         if (!_buffer) {
-            QNN_LOG_WARN("failed to allocate %.2f MiB", float(size / (1 << 20)));
+            QNN_LOG_WARN("failed to allocate %.2f MiB\n", float(size / (1 << 20)));
             return;
         }
 
@@ -137,13 +137,13 @@ class qnn_mem_buffer : public qnn_buffer_interface {
             memcpy(_buffer, data, size);
         }
 
-        QNN_LOG_DEBUG("alloc buffer: %p, size: %ld", (void *) _buffer, (long) size);
+        QNN_LOG_DEBUG("alloc buffer: %p, size: %ld\n", (void *) _buffer, (long) size);
     }
 
     explicit qnn_mem_buffer(size_t size) : qnn_mem_buffer(nullptr, size) {}
 
     ~qnn_mem_buffer() {
-        QNN_LOG_DEBUG("free buffer: %p, size: %ld", (void *) _buffer, (long) _size);
+        QNN_LOG_DEBUG("free buffer: %p, size: %ld\n", (void *) _buffer, (long) _size);
         // the free will do nothing if the _buffer is nullptr
         qnn::align_free(_buffer);
     }

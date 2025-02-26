@@ -205,7 +205,7 @@ std::shared_ptr<qnn::ggml_qnn_op_config> mat_mul_op_constructor(const ggml_tenso
                                                                 const std::string &                instance_name,
                                                                 std::shared_ptr<qnn::qnn_instance> qnn_instance) {
     GGML_UNUSED(op);
-    QNN_LOG_DEBUG("create QNN_OP_MAT_MUL, name %s", instance_name.c_str());
+    QNN_LOG_DEBUG("create QNN_OP_MAT_MUL, name %s\n", instance_name.c_str());
     return std::make_shared<qnn::ggml_qnn_matmul_op_config>(instance_name, qnn_instance);
 }
 
