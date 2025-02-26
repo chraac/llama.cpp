@@ -24,7 +24,7 @@
 #include <QnnTypes.h>
 #include <System/QnnSystemInterface.h>
 
-#include "dl_loader.hpp"
+#include "dl-loader.hpp"
 #include "qnn-types.hpp"
 #include "utils.hpp"
 
