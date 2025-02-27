@@ -13,32 +13,33 @@ void qnn::sdk_logcallback(const char * fmt, QnnLog_Level_t level, uint64_t /*tim
     static std::mutex log_mutex;
     static char       s_ggml_qnn_logbuf[4096];
 
-    const char * log_level_desc = "";
+    char log_level_desc = 'U';
     switch (level) {
         case QNN_LOG_LEVEL_ERROR:
-            log_level_desc = "ERROR";
+            log_level_desc = 'E';
             break;
         case QNN_LOG_LEVEL_WARN:
-            log_level_desc = "WARNING";
+            log_level_desc = 'W';
             break;
         case QNN_LOG_LEVEL_INFO:
-            log_level_desc = "INFO";
+            log_level_desc = 'I';
             break;
         case QNN_LOG_LEVEL_DEBUG:
-            log_level_desc = "DEBUG";
+            log_level_desc = 'D';
             break;
         case QNN_LOG_LEVEL_VERBOSE:
-            log_level_desc = "VERBOSE";
-            break;
-        case QNN_LOG_LEVEL_MAX:
-            log_level_desc = "UNKNOWN";
+            log_level_desc = 'V';
             break;
     }
 
     {
         std::lock_guard<std::mutex> lock(log_mutex);
-        vsnprintf(s_ggml_qnn_logbuf, sizeof(s_ggml_qnn_logbuf), fmt, argp);
-        QNN_LOG_INFO("[%s]%s\n", log_level_desc, s_ggml_qnn_logbuf);
+        int                         size = vsnprintf(s_ggml_qnn_logbuf, sizeof(s_ggml_qnn_logbuf), fmt, argp);
+        if (size > 0 && s_ggml_qnn_logbuf[size - 1] != '\n') {
+            QNN_LOG_INFO("[%c]%s\n", log_level_desc, s_ggml_qnn_logbuf);
+        } else {
+            QNN_LOG_INFO("[%c]%s", log_level_desc, s_ggml_qnn_logbuf);
+        }
     }
 }
 #else
