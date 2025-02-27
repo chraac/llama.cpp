@@ -159,6 +159,12 @@ void ggml_qnn_op_config_base::unbind_output_tensors() {
 }
 
 Qnn_OpConfig_t ggml_qnn_op_config_base::get_op_config() {
+    GGML_ASSERT(_qnn_parameters.size() == _param_names.size());
+
+    for (size_t i = 0; i < _qnn_parameters.size(); i++) {
+        _qnn_parameters[i].name = _param_names[i].c_str();
+    }
+
     Qnn_OpConfig_t config   = QNN_OPCONFIG_INIT;
     config.version          = QNN_OPCONFIG_VERSION_1;
     auto & op_config        = config.v1;
