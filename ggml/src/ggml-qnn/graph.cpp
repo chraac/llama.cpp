@@ -300,40 +300,6 @@ bool qnn_graph::build_graph_from_ggml_graph(const ggml_cgraph * cgraph) {
     return true;
 }
 
-bool qnn_graph::execute(ggml_tensor * op) {
-    if (!bind_src_tensors(op, _tensor_inputs, _qnn_tensor_inputs)) {
-        QNN_LOG_ERROR("[%s][%s]bind input tensors failed\n", get_backend_name(_device), _graph_name.c_str());
-        return false;
-    }
-
-    if (!qnn::bind_tensors({ op }, _tensor_outputs, _qnn_tensor_outputs)) {
-        QNN_LOG_ERROR("[%s][%s]bind output tensors failed\n", get_backend_name(_device), _graph_name.c_str());
-        return false;
-    }
-
-    auto & qnn_tensor_inputs  = _qnn_tensor_inputs;
-    auto & qnn_tensor_outputs = _qnn_tensor_outputs;
-    auto   error =
-        _qnn_interface->qnn_graph_execute(_graph_handle, qnn_tensor_inputs.data(), qnn_tensor_inputs.size(),
-                                          qnn_tensor_outputs.data(), qnn_tensor_outputs.size(), nullptr, nullptr);
-    unbind_tensors(_tensor_inputs);
-    unbind_tensors(_tensor_outputs);
-
-    if (error != QNN_SUCCESS) {
-        if (_device == QNN_BACKEND_NPU && error == QNN_COMMON_ERROR_SYSTEM_COMMUNICATION) {
-            QNN_LOG_WARN("[%s][%s]NPU crashed. SSR detected. Caused QNN graph execute error.\n",
-                         get_backend_name(_device), _graph_name.c_str());
-        } else {
-            QNN_LOG_ERROR("[%s][%s]error: %s\n", get_backend_name(_device), _graph_name.c_str(),
-                          get_qnn_error_string(error));
-        }
-        return false;
-    }
-
-    QNN_LOG_DEBUG("[%s][%s]execute succeed\n", get_backend_name(_device), _graph_name.c_str());
-    return true;
-}
-
 bool qnn_graph::execute(const ggml_cgraph * cgraph) {
     ggml_tensor_array_t inputs;
     ggml_tensor_array_t outputs;

@@ -27,7 +27,6 @@ class qnn_graph {
 
     bool build_graph_from_ggml_graph(const ggml_cgraph * cgraph);
 
-    bool execute(ggml_tensor * op);
     bool execute(const ggml_cgraph * cgraph);
 
     bool is_valid() const { return _graph_handle != nullptr; }

@@ -52,15 +52,6 @@ namespace {
 
 typedef bool (*ggml_qnn_op_t)(ggml_backend_qnn_device_context * ctx, ggml_tensor * dst);
 
-bool execute_graph(qnn::qnn_graph * graph, ggml_tensor * output) {
-    if (!graph->execute(output)) {
-        QNN_LOG_WARN("execute failed\n");
-        return false;
-    }
-
-    return true;
-}
-
 void append_tensor_dimensions(const ggml_tensor * tensor, std::string & output) {
     char         buffer[256] = {};
     const auto * type_name   = qnn::get_ggml_type_name(tensor->type);
