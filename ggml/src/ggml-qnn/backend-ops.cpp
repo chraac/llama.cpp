@@ -401,9 +401,8 @@ bool ggml_qnn_supports_tensor(ggml_backend_qnn_device_context * ctx, const ggml_
         case GGML_TYPE_Q8_0:
         case GGML_TYPE_Q4_0:
             if (!(ctx->supported_types & (uint64_t(1) << tensor->type))) {
-                QNN_LOG_DEBUG("[%s]unsupported data type %s, supported_types: 0x%x\n",
-                              qnn::get_backend_name(ctx->device), ggml_type_name(tensor->type),
-                              (unsigned int) ctx->supported_types);
+                QNN_LOG_DEBUG("[%s]unsupported data type %s, supported_types: 0x%x\n", qnn::get_backend_name(ctx->device),
+                              ggml_type_name(tensor->type), (unsigned int) ctx->supported_types);
                 return false;
             }
             break;
@@ -456,8 +455,16 @@ bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context * ctx, const gg
                 QNN_LOG_DEBUG("[qnn-npu][MUL_MAT]tensor size is too large\n");
                 return false;
             }
-            break;
+            // fall through, from test here, the convert op is super slow on NPU:
+            //   https://github.com/usefulsensors/qc_npu_benchmark
         case QNN_BACKEND_GPU:
+            if (src0->type != src1->type || src0->type != op->type) {
+                // there's no convert op for GPU.
+                QNN_LOG_DEBUG("[qnn-gpu][MUL_MAT]type src0(%s), src1(%s) and op(%s) are not equal\n",
+                              ggml_type_name(src0->type), ggml_type_name(src1->type), ggml_type_name(op->type));
+                return false;
+            }
+            break;
         default:
             break;
     }
@@ -496,9 +503,9 @@ bool device_supports_op(ggml_backend_qnn_device_context * ctx, const ggml_tensor
 #ifndef NDEBUG
         std::string tensor_dims;
         append_tensor_dimensions(op, tensor_dims);
-        QNN_LOG_DEBUG("[%s][%s]unsupported tensor(%s), support/unsupported: %d/%d\n",
-                      qnn::get_backend_name(ctx->device), ggml_op_name(op->op), tensor_dims.c_str(),
-                      ctx->supported_op_count.load(), ctx->unsupported_op_count.load());
+        QNN_LOG_DEBUG("[%s][%s]unsupported tensor(%s), support/unsupported: %d/%d\n", qnn::get_backend_name(ctx->device),
+                      ggml_op_name(op->op), tensor_dims.c_str(), ctx->supported_op_count.load(),
+                      ctx->unsupported_op_count.load());
 #endif
         return false;
     }
