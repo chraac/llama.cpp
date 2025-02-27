@@ -255,33 +255,6 @@ qnn_graph::~qnn_graph() {
     QNN_LOG_DEBUG("[%s][%s]destroy\n", get_backend_name(_device), _graph_name.c_str());
 }
 
-bool qnn_graph::build_graph_from_op(ggml_tensor * op) {
-    if (!is_valid()) {
-        QNN_LOG_ERROR("Invalid graph\n");
-        return false;
-    }
-
-    QNN_LOG_DEBUG("[%s][%s]build start\n", get_backend_name(_device), _graph_name.c_str());
-    qnn_tensor_cache_t tensor_cache;
-    const auto         rank = get_op_max_rank(op);
-    auto operation = create_operation_from_op_tensor(op, _graph_name, rank, _device, _graph_handle, _qnn_instance,
-                                                     false, tensor_cache);
-    if (!operation) {
-        QNN_LOG_ERROR("[%s][%s]create_operation_from_op_tensor failed\n", get_backend_name(_device), _graph_name.c_str());
-        return false;
-    }
-
-    _tensor_inputs  = operation->get_input_tensors();
-    _tensor_outputs = operation->get_output_tensors();
-    _operations.push_back(std::move(operation));
-    if (!finalize()) {
-        return false;
-    }
-
-    QNN_LOG_DEBUG("[%s][%s]build succeed\n", get_backend_name(_device), _graph_name.c_str());
-    return true;
-}
-
 bool qnn_graph::build_graph_from_ggml_graph(const ggml_cgraph * cgraph) {
     QNN_LOG_DEBUG("[%s][%s]build start\n", get_backend_name(_device), _graph_name.c_str());
 

@@ -11,13 +11,20 @@
 
 namespace qnn {
 
+/**
+ * @class qnn_graph
+ * @brief Manages a QNN graph, converting a GGML graph to QNN format and handling its execution.
+ *
+ * This class is responsible for building a QNN graph from a given GGML graph,
+ * determining its input/output tensors, finalizing the configuration, and
+ * executing the graph on the specified backend device.
+ */
 class qnn_graph {
   public:
     explicit qnn_graph(const std::string & graph_name, QNNBackend device, std::shared_ptr<qnn_instance> qnn_instance,
                        size_t vtcm_size_in_mb);
     ~qnn_graph();
 
-    bool build_graph_from_op(ggml_tensor * op);
     bool build_graph_from_ggml_graph(const ggml_cgraph * cgraph);
 
     bool execute(ggml_tensor * op);
