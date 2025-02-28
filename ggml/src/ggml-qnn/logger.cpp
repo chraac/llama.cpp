@@ -13,7 +13,7 @@ void qnn::sdk_logcallback(const char * fmt, QnnLog_Level_t level, uint64_t /*tim
     static std::mutex log_mutex;
     static char       s_ggml_qnn_logbuf[4096];
 
-    char log_level_desc = 'U';
+    char log_level_desc;
     switch (level) {
         case QNN_LOG_LEVEL_ERROR:
             log_level_desc = 'E';
@@ -29,6 +29,9 @@ void qnn::sdk_logcallback(const char * fmt, QnnLog_Level_t level, uint64_t /*tim
             break;
         case QNN_LOG_LEVEL_VERBOSE:
             log_level_desc = 'V';
+            break;
+        default:
+            log_level_desc = 'U';
             break;
     }
 
