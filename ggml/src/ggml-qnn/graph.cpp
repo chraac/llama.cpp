@@ -246,7 +246,7 @@ qnn_graph::qnn_graph(const std::string & graph_name, QNNBackend device, std::sha
         return;
     }
 
-    QNN_LOG_INFO("[%s][%s]create succeed\n", get_backend_name(device), graph_name.c_str());
+    QNN_LOG_DEBUG("[%s][%s]create succeed\n", get_backend_name(device), graph_name.c_str());
     _graph_handle  = graph_handle;
     _qnn_interface = qnn_interface;
 }
