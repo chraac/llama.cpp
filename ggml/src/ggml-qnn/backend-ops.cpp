@@ -369,6 +369,31 @@ bool ggnl_qnn_supports_op_tensor(ggml_backend_qnn_device_context * ctx, const gg
     return true;
 }
 
+bool ggml_qnn_have_same_tensor_types(ggml_backend_qnn_device_context * ctx, const ggml_tensor * op) {
+    auto * src0 = op->src[0];
+    auto * src1 = op->src[1];
+    if (src1) {
+        if (src0->type != op->type || src1->type != op->type) {
+            QNN_LOG_DEBUG("[%s][%s]type src0(%s), src1(%s) and op(%s) are not equal\n",
+                          qnn::get_backend_name(ctx->device), ggml_op_name(op->op), ggml_type_name(src0->type),
+                          ggml_type_name(src1->type), ggml_type_name(op->type));
+            return false;
+        }
+    } else {
+        if (src0->type != op->type) {
+            QNN_LOG_DEBUG("[%s][%s]type src0(%s) and op(%s) are not equal\n", qnn::get_backend_name(ctx->device),
+                          ggml_op_name(op->op), ggml_type_name(src0->type), ggml_type_name(op->type));
+            return false;
+        }
+    }
+
+#ifdef NDEBUG
+    GGML_UNUSED(ctx);
+#endif
+
+    return true;
+}
+
 bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context * ctx, const ggml_tensor * op) {
     constexpr const size_t kMaxNpuTensorSize = 8192L * 2048 + 8192 * 512 + 2048 * 512;
     constexpr const auto   get_tensor_size   = [](const ggml_tensor * tensor) -> size_t {
@@ -393,10 +418,8 @@ bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context * ctx, const gg
             // fall through, from test here, the convert op is super slow on NPU:
             //   https://github.com/usefulsensors/qc_npu_benchmark
         case QNN_BACKEND_GPU:
-            if (src0->type != src1->type || src0->type != op->type) {
+            if (ggml_qnn_have_same_tensor_types(ctx, op)) {
                 // there's no convert op for GPU.
-                QNN_LOG_DEBUG("[qnn-gpu][MUL_MAT]type src0(%s), src1(%s) and op(%s) are not equal\n",
-                              ggml_type_name(src0->type), ggml_type_name(src1->type), ggml_type_name(op->type));
                 return false;
             }
             break;
@@ -472,7 +495,7 @@ bool device_supports_op(ggml_backend_qnn_device_context * ctx, const ggml_tensor
                 break;
 
             default:
-                // default to supported
+                is_op_supported = ggml_qnn_have_same_tensor_types(ctx, op);
                 break;
         }
     }
