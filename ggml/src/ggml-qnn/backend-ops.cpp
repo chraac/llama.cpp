@@ -229,7 +229,7 @@ constexpr const bool kQnnSupportedOps[] = {
     false,  // GGML_OP_SET
     false,  // GGML_OP_CPY
     false,  // GGML_OP_CONT
-    false,  // GGML_OP_RESHAPE
+    true,   // GGML_OP_RESHAPE
     false,  // GGML_OP_VIEW
     false,  // GGML_OP_PERMUTE
     false,  // GGML_OP_TRANSPOSE
@@ -308,7 +308,7 @@ static_assert(kQnnSupportedOps[GGML_OP_ADD], "GGML_OP_ADD is not true");
 static_assert(kQnnSupportedOps[GGML_OP_MUL], "GGML_OP_MUL is not true");
 static_assert(kQnnSupportedOps[GGML_OP_MUL_MAT],
               "GGML_OP_MUL_MAT is not true, please check the kQnnSupportedOps table in the backend-ops.cpp file");
-static_assert(!kQnnSupportedOps[GGML_OP_RESHAPE], "GGML_OP_RESHAPE is not false");
+static_assert(kQnnSupportedOps[GGML_OP_RESHAPE], "GGML_OP_RESHAPE is not true");
 static_assert(!kQnnSupportedOps[GGML_OP_VIEW], "GGML_OP_VIEW is not false");
 static_assert(std::size(kQnnSupportedOps) == (GGML_OP_COUNT + GGML_UNARY_OP_COUNT),
               "GGML_OP_COUNT does not match the size of the kQnnSupportedOps table");
