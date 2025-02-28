@@ -23,8 +23,6 @@ endif()
 message("CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 message("QNN_SDK_PATH: ${GGML_QNN_SDK_PATH}")
 
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
-
 file(GLOB QNN_SOURCES "${CMAKE_CURRENT_LIST_DIR}/*.cpp")
 ggml_add_backend_library(ggml-qnn
     ${QNN_SOURCES}
