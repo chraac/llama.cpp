@@ -4,13 +4,13 @@
 #include <memory>
 #include <vector>
 
+#include "backend-ops.hpp"
+#include "backend.hpp"
 #include "ggml-backend-impl.h"
 #include "ggml-impl.h"
-#include "ggml-qnn/backend-ops.hpp"
-#include "ggml-qnn/backend.hpp"
-#include "ggml-qnn/logger.hpp"
-#include "ggml-qnn/tensor.hpp"
-#include "ggml-qnn/utils.hpp"
+#include "logger.hpp"
+#include "tensor.hpp"
+#include "utils.hpp"
 
 // =================================================================================================
 //

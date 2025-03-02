@@ -52,60 +52,6 @@ namespace {
 
 typedef bool (*ggml_qnn_op_t)(ggml_backend_qnn_device_context * ctx, ggml_tensor * dst);
 
-void append_tensor_dimensions(const ggml_tensor * tensor, std::string & output) {
-    char         buffer[256] = {};
-    const auto * type_name   = qnn::get_ggml_type_name(tensor->type);
-    int          len         = 0;
-    switch (ggml_n_dims(tensor)) {
-        case 1:
-            len = snprintf(buffer, sizeof(buffer), "%ld%s", (long) tensor->ne[0], type_name);
-            break;
-        case 2:
-            len = snprintf(buffer, sizeof(buffer), "%ldx%ld%s", (long) tensor->ne[0], (long) tensor->ne[1], type_name);
-            break;
-        case 3:
-            len = snprintf(buffer, sizeof(buffer), "%ldx%ldx%ld%s", (long) tensor->ne[0], (long) tensor->ne[1],
-                           (long) tensor->ne[2], type_name);
-            break;
-        case 4:
-        default:
-            len = snprintf(buffer, sizeof(buffer), "%ldx%ldx%ldx%ld%s", (long) tensor->ne[0], (long) tensor->ne[1],
-                           (long) tensor->ne[2], (long) tensor->ne[3], type_name);
-            break;
-    }
-    GGML_ASSERT(len > 0 && len < (int) sizeof(buffer));
-    output.append(buffer, len);
-}
-
-void get_graph_key_from_op(const ggml_tensor * op, std::string & output) {
-    GGML_ASSERT(op->op != GGML_OP_NONE);
-    output += ggml_op_desc(op);
-    output += qnn::get_ggml_type_name(op->type);
-    const auto param_count = qnn::get_qnn_op_input_param_count(op);
-    for (size_t i = 0; i < param_count; ++i) {
-        auto * input = op->src[i];
-        if (!input) {
-            break;
-        }
-
-        output += '_';
-        append_tensor_dimensions(input, output);
-    }
-}
-
-void get_op_key_with_src_op_desc(const ggml_tensor * op, std::string & output) {
-    output += ggml_op_desc(op);
-    output += '(';
-    if (op->src[0]) {
-        output += ggml_op_desc(op->src[0]);
-    }
-    for (size_t i = 1; i < GGML_MAX_DIMS && op->src[i]; ++i) {
-        output += ',';
-        output += ggml_op_desc(op->src[i]);
-    }
-    output += ')';
-}
-
 /**
  * @brief Generates a unique key for a given computation graph (cgraph).
  *
@@ -141,11 +87,11 @@ void get_graph_key_from_cgraph(const ggml_cgraph * cgraph, std::string & output)
             }
 
             if (is_start) {
-                get_graph_key_from_op(cgraph->nodes[0], output);
+                qnn::get_qnn_op_desc(cgraph->nodes[0], is_start, output);
                 is_start = false;
             } else {
                 output += '#';
-                get_op_key_with_src_op_desc(op, output);
+                qnn::get_qnn_op_desc(op, is_start, output);
             }
         }
     }
@@ -154,7 +100,7 @@ void get_graph_key_from_cgraph(const ggml_cgraph * cgraph, std::string & output)
         auto * last_op = cgraph->nodes[cgraph->n_nodes - 1];
         output += qnn::get_ggml_type_name(last_op->type);
         output += '_';
-        append_tensor_dimensions(last_op, output);
+        qnn::append_tensor_shape_and_type(last_op, output);
     }
 }
 
@@ -449,7 +395,7 @@ bool device_supports_op(ggml_backend_qnn_device_context * ctx, const ggml_tensor
     if (!kQnnSupportedOps[qnn::get_qnn_op_index(op)]) {
 #ifndef NDEBUG
         std::string op_key;
-        get_graph_key_from_op(op, op_key);
+        get_qnn_op_desc(op, true, op_key);
         ctx->unsupported_op_count++;
         QNN_LOG_DEBUG("[%s][%s]op was unsupported, support/unsupported: %d/%d\n", qnn::get_backend_name(ctx->device),
                       op_key.c_str(), ctx->supported_op_count.load(), ctx->unsupported_op_count.load());
@@ -460,7 +406,7 @@ bool device_supports_op(ggml_backend_qnn_device_context * ctx, const ggml_tensor
     if (!ggnl_qnn_supports_op_tensor(ctx, op)) {
 #ifndef NDEBUG
         std::string tensor_dims;
-        append_tensor_dimensions(op, tensor_dims);
+        append_tensor_shape_and_type(op, tensor_dims);
         QNN_LOG_DEBUG("[%s][%s]unsupported tensor(%s), support/unsupported: %d/%d\n",
                       qnn::get_backend_name(ctx->device), ggml_op_name(op->op), tensor_dims.c_str(),
                       ctx->supported_op_count.load(), ctx->unsupported_op_count.load());
