@@ -44,6 +44,16 @@ void generic_get_op_desc(const ggml_tensor * op, bool append_dimensions, std::st
     }
 }
 
+void rms_norm_get_op_desc(const ggml_tensor * op, bool append_dimensions, std::string & output) {
+    generic_get_op_desc(op, append_dimensions, output);
+
+    // Append the epsilon parameter
+    output += '_';
+    float epsilon = 0.0f;
+    memcpy(&epsilon, op->op_params, sizeof(epsilon));
+    output += std::to_string(epsilon);
+}
+
 struct qnn_op_caps_t {
     const char *               qnn_op_name       = nullptr;
     const size_t               input_param_count = 0;
@@ -109,7 +119,7 @@ constexpr const qnn_op_caps_t kOpCaps[] = {
      // GGML_OP_RMS_NORM
         QNN_OP_RMS_NORM,                // qnn_op_name
         1,                              // input_param_count
-        generic_get_op_desc,            // get_desc
+        rms_norm_get_op_desc,           // get_desc
         QNN_OP_RMS_NORM_PARAM_EPSILON,  // qnn_param_name
     },
     {}, // GGML_OP_RMS_NORM_BACK
