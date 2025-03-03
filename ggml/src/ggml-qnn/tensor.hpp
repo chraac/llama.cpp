@@ -95,7 +95,7 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
         return true;
     }
 
-    bool bind_ggml_tensor(ggml_tensor * tensor) {
+    bool bind_ggml_tensor(ggml_tensor * tensor, qnn_buffer_ptr buffer) {
         if (!_can_unbind) {
             QNN_LOG_DEBUG("[%s]already has buffer storage, skip bind\n", _tensor_name.c_str());
             return true;
@@ -111,8 +111,10 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
         }
 #endif
 
-        auto buffer =
-            std::make_shared<qnn_mem_buffer_slice>(reinterpret_cast<uint8_t *>(tensor->data), ggml_nbytes(tensor));
+        if (!buffer) {
+            buffer =
+                std::make_shared<qnn_mem_buffer_slice>(reinterpret_cast<uint8_t *>(tensor->data), ggml_nbytes(tensor));
+        }
         if (!bind_buffer_impl(buffer)) {
             QNN_LOG_WARN("[%s]failed to bind ggml tensor(%s)\n", _tensor_name.c_str(), ggml_get_name(tensor));
             return false;
@@ -340,13 +342,33 @@ inline int get_ggml_tensors_max_rank(const qnn::ggml_tensor_array_t & tensors) {
     return max_rank;
 }
 
+inline bool bind_tensors_with_custom_buffers(const ggml_tensor_array_t &   ggml_tensors,
+                                             std::vector<qnn_buffer_ptr> & buffers,
+                                             qnn_tensor_array_t &          tensor_wrappers,
+                                             std::vector<Qnn_Tensor_t> &   qnn_tensors) {
+    GGML_ASSERT(tensor_wrappers.size() == ggml_tensors.size());
+    GGML_ASSERT(buffers.size() == ggml_tensors.size());
+    qnn_tensors.resize(ggml_tensors.size());
+    for (size_t i = 0; i < ggml_tensors.size(); i++) {
+        auto * ggml_tensor = ggml_tensors[i];
+        if (!tensor_wrappers[i]->bind_ggml_tensor(ggml_tensor, buffers[i])) {
+            QNN_LOG_ERROR("bind tensor %s failed\n", ggml_get_name(ggml_tensor));
+            return false;
+        }
+
+        qnn_tensors[i] = tensor_wrappers[i]->get_qnn_tensor();
+    }
+
+    return true;
+}
+
 inline bool bind_tensors(const ggml_tensor_array_t & ggml_tensors, qnn_tensor_array_t & tensor_wrappers,
                          std::vector<Qnn_Tensor_t> & qnn_tensors) {
     GGML_ASSERT(tensor_wrappers.size() == ggml_tensors.size());
     qnn_tensors.resize(ggml_tensors.size());
     for (size_t i = 0; i < ggml_tensors.size(); i++) {
         auto * ggml_tensor = ggml_tensors[i];
-        if (!tensor_wrappers[i]->bind_ggml_tensor(ggml_tensor)) {
+        if (!tensor_wrappers[i]->bind_ggml_tensor(ggml_tensor, qnn_buffer_ptr())) {
             QNN_LOG_ERROR("bind tensor %s failed\n", ggml_get_name(ggml_tensor));
             return false;
         }
@@ -361,7 +383,7 @@ inline bool bind_tensors(const ggml_tensor_array_t & ggml_tensors, qnn_tensor_ar
     GGML_ASSERT(tensor_wrappers.size() == ggml_tensors.size());
     for (size_t i = 0; i < ggml_tensors.size(); i++) {
         auto * ggml_tensor = ggml_tensors[i];
-        if (!tensor_wrappers[i]->bind_ggml_tensor(ggml_tensor)) {
+        if (!tensor_wrappers[i]->bind_ggml_tensor(ggml_tensor, qnn_buffer_ptr())) {
             QNN_LOG_ERROR("bind tensor %s failed\n", ggml_get_name(ggml_tensor));
             return false;
         }

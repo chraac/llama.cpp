@@ -23,7 +23,8 @@ int get_op_max_rank(const ggml_tensor * op) {
 }
 
 qnn::qnn_tensor_ptr_t create_tensor_with_cache(ggml_tensor * tensor, qnn::ggml_qnn_tensor::tensor_type_t type, int rank,
-                                               QNNBackend device, Qnn_GraphHandle_t graph_handle,
+                                               ggml_type override_data_type, QNNBackend device,
+                                               Qnn_GraphHandle_t                  graph_handle,
                                                std::shared_ptr<qnn::qnn_instance> qnn_instance,
                                                qnn_tensor_cache_t &               tensor_cache) {
     GGML_ASSERT(tensor);
@@ -31,21 +32,25 @@ qnn::qnn_tensor_ptr_t create_tensor_with_cache(ggml_tensor * tensor, qnn::ggml_q
         return tensor_cache[tensor];
     }
 
-    auto qnn_tensor = std::make_shared<qnn::ggml_qnn_tensor>(type, tensor->name, tensor->ne, tensor->type, rank, device,
+    QNN_LOG_DEBUG("[%s]create_tensor_with_cache, data_type: %s, override_data_type: %s\n",
+                  qnn::get_backend_name(device), ggml_type_name(tensor->type), ggml_type_name(override_data_type));
+    auto data_type  = override_data_type != GGML_TYPE_COUNT ? override_data_type : tensor->type;
+    auto qnn_tensor = std::make_shared<qnn::ggml_qnn_tensor>(type, tensor->name, tensor->ne, data_type, rank, device,
                                                              graph_handle, qnn_instance);
     tensor_cache[tensor] = qnn_tensor;
     return qnn_tensor;
 }
 
 qnn::qnn_tensor_array_t create_tensors_with_cache(const qnn::ggml_tensor_array_t &    ggml_tensors,
-                                                  qnn::ggml_qnn_tensor::tensor_type_t type, int rank, QNNBackend device,
+                                                  qnn::ggml_qnn_tensor::tensor_type_t type, int rank,
+                                                  ggml_type override_data_type, QNNBackend device,
                                                   Qnn_GraphHandle_t                  graph_handle,
                                                   std::shared_ptr<qnn::qnn_instance> qnn_instance,
                                                   qnn_tensor_cache_t &               tensor_cache) {
     qnn::qnn_tensor_array_t tensors;
     for (auto * tensor : ggml_tensors) {
-        tensors.push_back(
-            create_tensor_with_cache(tensor, type, rank, device, graph_handle, qnn_instance, tensor_cache));
+        tensors.push_back(create_tensor_with_cache(tensor, type, rank, override_data_type, device, graph_handle,
+                                                   qnn_instance, tensor_cache));
     }
 
     return tensors;
@@ -54,23 +59,23 @@ qnn::qnn_tensor_array_t create_tensors_with_cache(const qnn::ggml_tensor_array_t
 qnn::qnn_op_config_ptr_t create_operation_from_op_tensor(ggml_tensor * dst, const std::string & name, int rank,
                                                          QNNBackend device, Qnn_GraphHandle_t graph_handle,
                                                          std::shared_ptr<qnn::qnn_instance> qnn_instance,
-                                                         bool is_intermediate, qnn_tensor_cache_t & tensor_cache) {
+                                                         qnn_tensor_cache_t &               tensor_cache) {
     auto operation = qnn::create_op(dst, name, qnn_instance);
 
     // input tensors
     qnn::qnn_tensor_array_t input_qnn_tensors;
-    auto tensor_type = is_intermediate ? qnn::ggml_qnn_tensor::INTERMEDIATE : qnn::ggml_qnn_tensor::INPUT;
     for (size_t i = 0; i < qnn::get_qnn_op_input_param_count(dst); ++i) {
-        auto input_qnn_tensor =
-            create_tensor_with_cache(dst->src[i], tensor_type, rank, device, graph_handle, qnn_instance, tensor_cache);
+        auto * src            = dst->src[i];
+        auto input_qnn_tensor = create_tensor_with_cache(src, qnn::ggml_qnn_tensor::INTERMEDIATE, rank, GGML_TYPE_COUNT,
+                                                         device, graph_handle, qnn_instance, tensor_cache);
         input_qnn_tensors.push_back(input_qnn_tensor);
     }
     operation->set_input_tensors(input_qnn_tensors);
 
     // output tensor
-    tensor_type = is_intermediate ? qnn::ggml_qnn_tensor::INTERMEDIATE : qnn::ggml_qnn_tensor::OUTPUT;
     qnn::qnn_tensor_array_t output_qnn_tensors =
-        create_tensors_with_cache({ dst }, tensor_type, rank, device, graph_handle, qnn_instance, tensor_cache);
+        create_tensors_with_cache({ dst }, qnn::ggml_qnn_tensor::INTERMEDIATE, rank, GGML_TYPE_COUNT, device,
+                                  graph_handle, qnn_instance, tensor_cache);
     operation->set_output_tensors(output_qnn_tensors);
 
     // initialize operation
@@ -80,29 +85,6 @@ qnn::qnn_op_config_ptr_t create_operation_from_op_tensor(ggml_tensor * dst, cons
     }
 
     return operation;
-}
-
-bool bind_src_tensors(ggml_tensor * op, qnn::qnn_tensor_array_t & tensor_wrappers,
-                      std::vector<Qnn_Tensor_t> & qnn_tensors) {
-    if (op->op == GGML_OP_NONE) {
-        QNN_LOG_DEBUG("op %s is not a valid op\n", ggml_get_name(op));
-        return false;
-    }
-
-    const auto param_count = qnn::get_qnn_op_input_param_count(op);
-    GGML_ASSERT(tensor_wrappers.size() == param_count);
-    qnn_tensors.resize(param_count);
-    for (size_t i = 0; i < param_count; ++i) {
-        auto * ggml_tensor = op->src[i];
-        if (!tensor_wrappers[i]->bind_ggml_tensor(ggml_tensor)) {
-            QNN_LOG_ERROR("bind tensor %s failed\n", ggml_get_name(ggml_tensor));
-            return false;
-        }
-
-        qnn_tensors[i] = tensor_wrappers[i]->get_qnn_tensor();
-    }
-
-    return true;
 }
 
 /**
@@ -192,10 +174,13 @@ int get_io_tensors_from_graph(const ggml_cgraph * cgraph, qnn::ggml_tensor_array
 namespace qnn {
 
 qnn_graph::qnn_graph(const std::string & graph_name, QNNBackend device, std::shared_ptr<qnn_instance> qnn_instance,
-                     size_t vtcm_size_in_mb) :
+                     size_t vtcm_size_in_mb, ggml_type override_data_type) :
     _graph_name(graph_name),
     _device(device),
-    _qnn_instance(qnn_instance) {
+    _qnn_instance(qnn_instance),
+    _override_data_type(override_data_type) {
+    GGML_ASSERT(override_data_type == GGML_TYPE_COUNT || override_data_type == GGML_TYPE_F16 ||
+                override_data_type == GGML_TYPE_F32);
     QNN_LOG_DEBUG("[%s][%s]created\n", get_backend_name(device), graph_name.c_str());
 
     auto              qnn_interface = qnn_instance->get_qnn_interface();
@@ -246,9 +231,9 @@ qnn_graph::qnn_graph(const std::string & graph_name, QNNBackend device, std::sha
         return;
     }
 
-    QNN_LOG_DEBUG("[%s][%s]create succeed\n", get_backend_name(device), graph_name.c_str());
     _graph_handle  = graph_handle;
     _qnn_interface = qnn_interface;
+    QNN_LOG_DEBUG("[%s][%s]create succeed\n", get_backend_name(device), graph_name.c_str());
 }
 
 qnn_graph::~qnn_graph() {
@@ -266,10 +251,10 @@ bool qnn_graph::build_graph_from_ggml_graph(const ggml_cgraph * cgraph) {
 
     {
         qnn_tensor_cache_t tensor_cache;
-        auto input_tensors  = create_tensors_with_cache(inputs, ggml_qnn_tensor::INPUT, rank, _device, _graph_handle,
-                                                        _qnn_instance, tensor_cache);
-        auto output_tensors = create_tensors_with_cache(outputs, ggml_qnn_tensor::OUTPUT, rank, _device, _graph_handle,
-                                                        _qnn_instance, tensor_cache);
+        auto input_tensors  = create_tensors_with_cache(inputs, ggml_qnn_tensor::INPUT, rank, _override_data_type,
+                                                        _device, _graph_handle, _qnn_instance, tensor_cache);
+        auto output_tensors = create_tensors_with_cache(outputs, ggml_qnn_tensor::OUTPUT, rank, GGML_TYPE_COUNT,
+                                                        _device, _graph_handle, _qnn_instance, tensor_cache);
         qnn_op_config_array_t operations;
         for (int i = 0; i < cgraph->n_nodes; i++) {
             ggml_tensor * dst = cgraph->nodes[i];
@@ -284,7 +269,7 @@ bool qnn_graph::build_graph_from_ggml_graph(const ggml_cgraph * cgraph) {
 
             QNN_LOG_DEBUG("[%s]create op: %s\n", get_backend_name(_device), get_qnn_op_name(dst));
             auto operation = create_operation_from_op_tensor(dst, dst->name, rank, _device, _graph_handle,
-                                                             _qnn_instance, true, tensor_cache);  // TODO: fix op name
+                                                             _qnn_instance, tensor_cache);  // TODO: fix op name
             operations.push_back(operation);
         }
 
@@ -300,7 +285,7 @@ bool qnn_graph::build_graph_from_ggml_graph(const ggml_cgraph * cgraph) {
     return true;
 }
 
-bool qnn_graph::execute(const ggml_cgraph * cgraph) {
+bool qnn_graph::execute(const ggml_cgraph * cgraph, std::shared_ptr<qnn_convert_context_t> convert_context) {
     ggml_tensor_array_t inputs;
     ggml_tensor_array_t outputs;
 #ifdef NDEBUG
@@ -312,9 +297,19 @@ bool qnn_graph::execute(const ggml_cgraph * cgraph) {
 #endif
 
     {
-        if (!qnn::bind_tensors(inputs, _tensor_inputs, _qnn_tensor_inputs)) {
-            QNN_LOG_ERROR("[%s][%s]bind input tensors failed\n", get_backend_name(_device), _graph_name.c_str());
-            return false;
+        if (_override_data_type != GGML_TYPE_COUNT) {
+            QNN_LOG_DEBUG("[%s][%s]override_data_type: %s\n", get_backend_name(_device), _graph_name.c_str(),
+                          ggml_type_name(_override_data_type));
+            auto buffers = convert(convert_context, inputs, _override_data_type);
+            if (!qnn::bind_tensors_with_custom_buffers(inputs, buffers, _tensor_inputs, _qnn_tensor_inputs)) {
+                QNN_LOG_ERROR("[%s][%s]bind input tensors failed\n", get_backend_name(_device), _graph_name.c_str());
+                return false;
+            }
+        } else {
+            if (!qnn::bind_tensors(inputs, _tensor_inputs, _qnn_tensor_inputs)) {
+                QNN_LOG_ERROR("[%s][%s]bind input tensors failed\n", get_backend_name(_device), _graph_name.c_str());
+                return false;
+            }
         }
 
         if (!qnn::bind_tensors(outputs, _tensor_outputs, _qnn_tensor_outputs)) {
