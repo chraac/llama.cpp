@@ -163,7 +163,7 @@ constexpr const bool kQnnSupportedOps[] = {
     false,  // GGML_OP_CONCAT
     false,  // GGML_OP_SILU_BACK
     false,  // GGML_OP_NORM
-    true,   // GGML_OP_RMS_NORM
+    false,  // GGML_OP_RMS_NORM
     false,  // GGML_OP_RMS_NORM_BACK
     false,  // GGML_OP_GROUP_NORM
 
