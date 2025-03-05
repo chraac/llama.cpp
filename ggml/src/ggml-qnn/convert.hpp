@@ -2,6 +2,7 @@
 
 #include <future>
 #include <memory>
+#include <thread>
 
 #include "buffer.hpp"
 #include "ggml-qnn.h"
@@ -12,7 +13,7 @@ namespace qnn {
 
 // see also: ggml_backend_blas_context
 struct qnn_convert_context_t {
-    int                                          n_threads = GGML_DEFAULT_N_THREADS;
+    int                                          n_threads = std::thread::hardware_concurrency();
     std::vector<std::shared_ptr<qnn_mem_buffer>> buffers;
 #ifndef GGML_USE_OPENMP
     std::vector<std::future<void>> tasks;

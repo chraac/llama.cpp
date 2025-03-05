@@ -114,13 +114,18 @@ std::vector<qnn::qnn_buffer_ptr> convert(std::shared_ptr<qnn_convert_context_t> 
     convert_context->buffers.resize(tensors.size());
     std::vector<qnn::qnn_buffer_ptr> output_buffers(tensors.size());
     for (size_t i = 0; i < tensors.size(); ++i) {
-        const ggml_tensor * src         = tensors[i];
-        auto &              data_buffer = convert_context->buffers[i];
-        const auto          dst_size    = get_convert_buffer_size(src->ne, target_data_type);
+        const ggml_tensor * src = tensors[i];
+        if (src->type == target_data_type) {
+            continue;
+        }
+
+        auto &     data_buffer = convert_context->buffers[i];
+        const auto dst_size    = get_convert_buffer_size(src->ne, target_data_type);
         if (!data_buffer || data_buffer->get_size() < dst_size) {
             data_buffer = std::make_shared<qnn::qnn_mem_buffer>(dst_size);
         }
 
+        // TODO: add more restrictions to the buffer slice here
         std::shared_ptr<qnn::qnn_mem_buffer_slice> output_buffer =
             std::make_shared<qnn::qnn_mem_buffer_slice>(data_buffer->get_buffer(), dst_size);
 

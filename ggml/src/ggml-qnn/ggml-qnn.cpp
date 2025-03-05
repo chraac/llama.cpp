@@ -331,10 +331,10 @@ ggml_backend_t ggml_backend_qnn_init_with_device_context(ggml_backend_dev_t dev,
 
     std::string device_name = qnn::get_backend_name(device);
     QNN_LOG_INFO("qnn device name %s\n", device_name.c_str());
-    dev_ctx->instance        = instance;
-    dev_ctx->qnn_interface   = qnn_interface;
-    dev_ctx->socinfo         = instance->get_soc_info();
-    dev_ctx->supported_types = kDeviceCaps[device].supported_types;
+    dev_ctx->instance              = instance;
+    dev_ctx->qnn_interface         = qnn_interface;
+    dev_ctx->socinfo               = instance->get_soc_info();
+    dev_ctx->supported_types       = kDeviceCaps[device].supported_types;
     // TODO: remove npu from here if hardware quantization is supported
     dev_ctx->enable_cpu_dequantize = device == QNN_BACKEND_NPU || device == QNN_BACKEND_GPU;
 

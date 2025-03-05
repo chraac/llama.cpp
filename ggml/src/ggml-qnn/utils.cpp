@@ -265,7 +265,6 @@ void align_free(void * ptr) {
 void * page_align_alloc(size_t size) {
     const size_t alignment    = _get_page_size();
     size_t       size_aligned = align_to_generic<size_t>(alignment, size);
-    QNN_LOG_DEBUG("_align_alloc success, alignment: %ld, size: %ld, size_aligned: %ld\n", alignment, size, size_aligned);
     void * data = _align_alloc(alignment, size_aligned);
     if (!data) {
         QNN_LOG_WARN("_align_alloc failed, alignment: %ld, size: %ld, size_aligned: %ld\n", alignment, size,
@@ -273,6 +272,7 @@ void * page_align_alloc(size_t size) {
         return nullptr;
     }
 
+    QNN_LOG_DEBUG("_align_alloc success, alignment: %ld, size: %ld, size_aligned: %ld\n", alignment, size, size_aligned);
     return data;
 }
 
