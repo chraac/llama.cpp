@@ -99,10 +99,10 @@ void * ggml_backend_qnn_buffer_get_base(ggml_backend_buffer_t buffer) {
     return ctx->get_buffer();
 }
 
-void ggml_backend_qnn_buffer_init_tensor(ggml_backend_buffer_t buffer, ggml_tensor * tensor) {
+ggml_status ggml_backend_qnn_buffer_init_tensor(ggml_backend_buffer_t buffer, ggml_tensor * tensor) {
     GGML_UNUSED(buffer);
     GGML_UNUSED(tensor);
-    // TODO: we should create the qnn tensor along with the ggml tensor
+    return GGML_STATUS_SUCCESS;
 }
 
 void ggml_backend_qnn_buffer_set_tensor(ggml_backend_buffer_t buffer, ggml_tensor * tensor, const void * data,
