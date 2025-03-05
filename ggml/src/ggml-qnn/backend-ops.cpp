@@ -120,8 +120,8 @@ qnn::qnn_graph * get_qnn_graph_from_cache(ggml_backend_qnn_device_context * ctx,
         QNN_LOG_DEBUG("[%s]found graph %s in cache\n", qnn::get_backend_name(ctx->device), graph_key.c_str());
         graph_ptr = it->second.get();
     } else {
-        auto graph = std::make_unique<qnn::qnn_graph>(graph_key, ctx->device, ctx->instance,
-                                                      ctx->socinfo.vtcm_size_in_mb, GGML_TYPE_COUNT);
+        auto graph =
+            std::make_unique<qnn::qnn_graph>(graph_key, ctx->device, ctx->instance, ctx->socinfo.vtcm_size_in_mb);
         if (!graph->is_valid()) {
             return nullptr;
         }
@@ -303,9 +303,12 @@ bool ggnl_qnn_supports_op_tensor(ggml_backend_qnn_device_context * ctx, const gg
         return false;
     }
 
-    const auto param_count = qnn::get_qnn_op_input_param_count(op);
-    for (size_t i = 0; i < param_count; ++i) {
-        if (!ggml_qnn_supports_tensor(ctx, op->src[i])) {
+    // TODO: fix for other op
+    const bool cpu_dequant = ctx->enable_cpu_dequantize && op->op == GGML_OP_MUL_MAT;
+    for (size_t i = 0; i < GGML_MAX_SRC && op->src[i]; ++i) {
+        auto * src = op->src[i];
+        // passthrough the quantized tensor for CPU dequantization
+        if (!ggml_qnn_supports_tensor(ctx, src) && (!cpu_dequant || !ggml_is_quantized(src->type))) {
             return false;
         }
     }
@@ -338,6 +341,7 @@ bool ggml_qnn_have_same_tensor_types(ggml_backend_qnn_device_context * ctx, cons
     return true;
 }
 
+// TODO: move to caps array?
 bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context * ctx, const ggml_tensor * op) {
     constexpr const size_t kMaxNpuTensorSize = 8192L * 2048 + 8192 * 512 + 2048 * 512;
     constexpr const auto   get_tensor_size   = [](const ggml_tensor * tensor) -> size_t {
@@ -362,7 +366,7 @@ bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context * ctx, const gg
             // fall through, from test here, the convert op is super slow on NPU:
             //   https://github.com/usefulsensors/qc_npu_benchmark
         case QNN_BACKEND_GPU:
-            if (ggml_qnn_have_same_tensor_types(ctx, op)) {
+            if (!ggml_qnn_have_same_tensor_types(ctx, op) && !op->type == GGML_TYPE_F32) {
                 // there's no convert op for GPU.
                 return false;
             }

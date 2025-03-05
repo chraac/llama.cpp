@@ -62,7 +62,7 @@ constexpr const qnn_device_caps kDeviceCaps[] = {
     {
      "qnn-npu", "Qualcomm NPU",
      kQnnNpuLibName,              GGML_BACKEND_DEVICE_TYPE_ACCEL,
-     (1 << GGML_TYPE_F32) | (1 << GGML_TYPE_F16) | (1 << GGML_TYPE_I16) | (1 << GGML_TYPE_I8),
+     (1 << GGML_TYPE_F32) | (1 << GGML_TYPE_F16) | (1 << GGML_TYPE_I16),
      }, // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/HtpOpDefSupplement.html#matmul
 };
 
@@ -335,6 +335,8 @@ ggml_backend_t ggml_backend_qnn_init_with_device_context(ggml_backend_dev_t dev,
     dev_ctx->qnn_interface   = qnn_interface;
     dev_ctx->socinfo         = instance->get_soc_info();
     dev_ctx->supported_types = kDeviceCaps[device].supported_types;
+    // TODO: remove npu from here if hardware quantization is supported
+    dev_ctx->enable_cpu_dequantize = device == QNN_BACKEND_NPU || device == QNN_BACKEND_GPU;
 
     ggml_backend_t qnn_backend = new ggml_backend{
         /* .guid      = */ ggml_backend_qnn_guid(),

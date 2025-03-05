@@ -23,7 +23,7 @@ namespace qnn {
 class qnn_graph {
   public:
     explicit qnn_graph(const std::string & graph_name, QNNBackend device, std::shared_ptr<qnn_instance> qnn_instance,
-                       size_t vtcm_size_in_mb, ggml_type override_data_type);
+                       size_t vtcm_size_in_mb);
     ~qnn_graph();
 
     bool build_graph_from_ggml_graph(const ggml_cgraph * cgraph);
@@ -56,7 +56,7 @@ class qnn_graph {
     std::vector<Qnn_Tensor_t> _qnn_tensor_outputs;
 
     // the actual data type to use for the input tensors of qnn graph
-    const ggml_type _override_data_type;
+    ggml_type _override_data_type = GGML_TYPE_COUNT;
 
     DISABLE_COPY(qnn_graph);
     DISABLE_MOVE(qnn_graph);

@@ -174,13 +174,10 @@ int get_io_tensors_from_graph(const ggml_cgraph * cgraph, qnn::ggml_tensor_array
 namespace qnn {
 
 qnn_graph::qnn_graph(const std::string & graph_name, QNNBackend device, std::shared_ptr<qnn_instance> qnn_instance,
-                     size_t vtcm_size_in_mb, ggml_type override_data_type) :
+                     size_t vtcm_size_in_mb) :
     _graph_name(graph_name),
     _device(device),
-    _qnn_instance(qnn_instance),
-    _override_data_type(override_data_type) {
-    GGML_ASSERT(override_data_type == GGML_TYPE_COUNT || override_data_type == GGML_TYPE_F16 ||
-                override_data_type == GGML_TYPE_F32);
+    _qnn_instance(qnn_instance) {
     QNN_LOG_DEBUG("[%s][%s]created\n", get_backend_name(device), graph_name.c_str());
 
     auto              qnn_interface = qnn_instance->get_qnn_interface();
@@ -250,6 +247,30 @@ bool qnn_graph::build_graph_from_ggml_graph(const ggml_cgraph * cgraph) {
                   int(outputs.size()));
 
     {
+        static_assert(
+            GGML_TYPE_COUNT > GGML_TYPE_Q8_0 && GGML_TYPE_Q8_0 > GGML_TYPE_F16 && GGML_TYPE_F16 > GGML_TYPE_F32,
+            "GGML_TYPE enum order is not correct");
+
+        bool should_override_data_type = false;
+        for (auto * tensor : inputs) {
+            if (ggml_is_quantized(tensor->type)) {
+                should_override_data_type = true;
+                break;
+            }
+        }
+
+        if (should_override_data_type) {
+            for (auto * tensor : inputs) {
+                _override_data_type = std::min(_override_data_type, tensor->type);
+            }
+
+            for (auto * tensor : outputs) {
+                _override_data_type = std::min(_override_data_type, tensor->type);
+            }
+            QNN_LOG_DEBUG("[%s][%s]set override_data_type: %s\n", get_backend_name(_device), _graph_name.c_str(),
+                          ggml_type_name(_override_data_type));
+        }
+
         qnn_tensor_cache_t tensor_cache;
         auto input_tensors  = create_tensors_with_cache(inputs, ggml_qnn_tensor::INPUT, rank, _override_data_type,
                                                         _device, _graph_handle, _qnn_instance, tensor_cache);
