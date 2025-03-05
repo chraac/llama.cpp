@@ -1,6 +1,8 @@
 
 #include "convert.hpp"
 
+#include "logger.hpp"
+
 namespace {
 
 size_t get_convert_buffer_size(const qnn::ggml_dimension_array_t & dimensions, ggml_type dst_type) {
@@ -28,9 +30,10 @@ void convert_tensor_impl(const ggml_tensor * src, int max_threads,
     const auto nb03                = src->nb[3];
     const auto nb02                = src->nb[2];
     const auto nb01                = src->nb[1];
-    const auto to_float            = ggml_get_type_traits(src->type)->to_float;
     const int  min_cols_per_thread = 4096;
     void *     wdata               = output_buffer->get_buffer();
+    const auto to_float            = ggml_get_type_traits(src->type)->to_float;
+    GGML_ASSERT(to_float);
 
     for (int64_t i03 = 0; i03 < ne03; i03++) {
         for (int64_t i02 = 0; i02 < ne02; i02++) {
@@ -62,9 +65,10 @@ void convert_tensor_impl(const ggml_tensor * src, int max_threads, std::vector<s
     const auto nb03                = src->nb[3];
     const auto nb02                = src->nb[2];
     const auto nb01                = src->nb[1];
-    const auto to_float            = ggml_get_type_traits(src->type)->to_float;
     const int  min_cols_per_thread = 4096;
     void *     wdata               = output_buffer->get_buffer();
+    const auto to_float            = ggml_get_type_traits(src->type)->to_float;
+    GGML_ASSERT(to_float);
 
     for (int64_t i03 = 0; i03 < ne03; i03++) {
         for (int64_t i02 = 0; i02 < ne02; i02++) {
@@ -128,6 +132,9 @@ std::vector<qnn::qnn_buffer_ptr> convert(std::shared_ptr<qnn_convert_context_t> 
         // TODO: add more restrictions to the buffer slice here
         std::shared_ptr<qnn::qnn_mem_buffer_slice> output_buffer =
             std::make_shared<qnn::qnn_mem_buffer_slice>(data_buffer->get_buffer(), dst_size);
+
+        QNN_LOG_DEBUG("convert tensor from %s to %s, size: %d\n", ggml_type_name(src->type),
+                      ggml_type_name(target_data_type), (int) dst_size);
 
 #ifdef GGML_USE_OPENMP
         convert_tensor_impl(src, convert_context->n_threads, output_buffer);
