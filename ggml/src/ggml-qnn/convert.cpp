@@ -16,8 +16,7 @@ size_t get_convert_buffer_size(const qnn::ggml_dimension_array_t & dimensions, g
 }
 
 // from ggml_backend_blas_mul_mat, when omp available, use it otherwise will fall back to standard lib solution
-// TODO: merge this with ggml_backend_blas_mul_mat someday
-// TODO: add more type support here
+// TODO: remove this when we can fall back the convert to blas backend
 #ifdef GGML_USE_OPENMP
 
 void convert_tensor_impl(const ggml_tensor * src, int max_threads,

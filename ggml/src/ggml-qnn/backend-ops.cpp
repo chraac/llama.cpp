@@ -366,7 +366,7 @@ bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context * ctx, const gg
             // fall through, from test here, the convert op is super slow on NPU:
             //   https://github.com/usefulsensors/qc_npu_benchmark
         case QNN_BACKEND_GPU:
-            if (!ggml_qnn_have_same_tensor_types(ctx, op) && !op->type == GGML_TYPE_F32) {
+            if (!ggml_qnn_have_same_tensor_types(ctx, op) && op->type != GGML_TYPE_F32) {
                 // there's no convert op for GPU.
                 return false;
             }

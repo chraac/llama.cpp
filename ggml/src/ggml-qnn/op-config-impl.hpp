@@ -36,9 +36,9 @@ class ggml_qnn_op_config_base : public ggml_qnn_op_config {
     void unbind_input_tensors() override;
     void unbind_output_tensors() override;
 
-    const qnn_tensor_array_t & get_input_tensors() override { return _tensor_inputs; }
+    qnn_tensor_array_t & get_input_tensors() override { return _tensor_inputs; }
 
-    const qnn_tensor_array_t & get_output_tensors() override { return _tensor_outputs; }
+    qnn_tensor_array_t & get_output_tensors() override { return _tensor_outputs; }
 
   protected:
     Qnn_OpConfig_t get_op_config();
@@ -121,9 +121,9 @@ class ggml_qnn_aggregate_op_config : public ggml_qnn_op_config {
         }
     }
 
-    const qnn_tensor_array_t & get_input_tensors() override { return _tensor_inputs; }
+    qnn_tensor_array_t & get_input_tensors() override { return _tensor_inputs; }
 
-    const qnn_tensor_array_t & get_output_tensors() override { return _tensor_outputs; }
+    qnn_tensor_array_t & get_output_tensors() override { return _tensor_outputs; }
 
   protected:
     std::string                   _name;
@@ -146,11 +146,13 @@ class ggml_qnn_matmul_op_config : public ggml_qnn_aggregate_op_config {
     bool initialize_op_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle) override;
 
   private:
-    qnn_tensor_ptr_t create_gather_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle, const int rank,
-                                         qnn_tensor_ptr_t tensor_input, qnn_dimension_array_t output_dimensions);
-    bool             create_convert_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle, const int rank,
-                                          qnn_tensor_array_t & tensor_inputs, qnn_tensor_array_t & tensor_outputs);
-    bool             create_mat_mul_nodes(qnn_tensor_array_t & tensor_inputs, qnn_tensor_array_t & tensor_outputs);
+    qnn_tensor_ptr_t    create_gather_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle, const int rank,
+                                            qnn_tensor_ptr_t tensor_input, qnn_dimension_array_t output_dimensions);
+    Qnn_DataType_t      create_input_convert_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle, const int rank,
+                                                   qnn_tensor_array_t & tensor_inputs);
+    qnn_op_config_ptr_t create_output_convert_nodes(QNNBackend device, Qnn_GraphHandle_t graph_handle, const int rank,
+                                                    Qnn_DataType_t tensor_type, qnn_tensor_array_t & tensor_outputs);
+    bool                create_mat_mul_nodes(qnn_tensor_array_t & tensor_inputs, qnn_tensor_array_t & tensor_outputs);
 
     DISABLE_COPY(ggml_qnn_matmul_op_config);
     DISABLE_MOVE(ggml_qnn_matmul_op_config);
