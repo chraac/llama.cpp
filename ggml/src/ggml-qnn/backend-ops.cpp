@@ -81,7 +81,7 @@ void get_graph_key_from_cgraph(const ggml_cgraph * cgraph, std::string & output)
                 continue;
             }
 
-            if (op->op == GGML_OP_NONE || op->op == GGML_OP_VIEW) {
+            if (op->op == GGML_OP_NONE || op->op == GGML_OP_VIEW || op->op == GGML_OP_PERMUTE) {
                 QNN_LOG_DEBUG("GGML_OP_NONE in graph, skipping\n");
                 continue;
             }

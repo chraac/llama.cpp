@@ -133,12 +133,7 @@ constexpr const qnn_op_caps_t kOpCaps[] = {
         generic_get_op_desc,  // get_desc
     },
     {}, // GGML_OP_VIEW
-    {
-     // GGML_OP_PERMUTE
-        QNN_OP_CHANNEL_SHUFFLE,  // qnn_op_name
-        1,                       // input_param_count
-        generic_get_op_desc,     // get_desc
-    },
+    {}, // GGML_OP_PERMUTE
     {}, // GGML_OP_TRANSPOSE
     {}, // GGML_OP_GET_ROWS
     {}, // GGML_OP_GET_ROWS_BACK
