@@ -35,6 +35,7 @@ void   align_free(void * ptr);
 const char * opname_from_ggmlop(enum ggml_op ggmlop);
 
 const char * get_qnn_error_string(Qnn_ErrorHandle_t error);
+std::string  get_qnn_detail_error_string(Qnn_ErrorHandle_t error);
 
 constexpr const Qnn_TensorVersion_t kDefaultQnnTensorVersion = QNN_TENSOR_VERSION_1;
 
