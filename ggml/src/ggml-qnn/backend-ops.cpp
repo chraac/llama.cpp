@@ -117,7 +117,9 @@ qnn::qnn_graph * get_qnn_graph_from_cache(ggml_backend_qnn_device_context * ctx,
     auto             it        = graph_cache.find(graph_key);
     qnn::qnn_graph * graph_ptr = nullptr;
     if (it != graph_cache.end()) {
-        QNN_LOG_DEBUG("[%s]found graph %s in cache\n", qnn::get_backend_name(ctx->device), graph_key.c_str());
+        auto it = graph_cache.find(graph_key);
+        QNN_LOG_DEBUG("[%s]found graph %s in cache, cache size: %d\n", qnn::get_backend_name(ctx->device),
+                      graph_key.c_str(), (int) graph_cache.size());
         graph_ptr = it->second.get();
     } else {
         auto graph =
@@ -133,6 +135,8 @@ qnn::qnn_graph * get_qnn_graph_from_cache(ggml_backend_qnn_device_context * ctx,
 
         graph_ptr              = graph.get();
         graph_cache[graph_key] = std::move(graph);
+        QNN_LOG_DEBUG("[%s]add graph %s to cache, cache size: %d\n", qnn::get_backend_name(ctx->device),
+                      graph_key.c_str(), (int) graph_cache.size());
     }
 
     return graph_ptr;
