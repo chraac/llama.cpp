@@ -156,7 +156,7 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
         }
 
         QNN_LOG_DEBUG("[%s][%s]unbind from buffer: %p, size: %d\n", get_backend_name(_device), _tensor_name.c_str(),
-                      (void *) _buffer.get(), (int) _buffer->get_size());
+                      (void *) _buffer->get_buffer(), (int) _buffer->get_size());
         _buffer.reset();
 
         if (_ggml_tensor) {
@@ -181,11 +181,13 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
     bool bind_buffer_impl(qnn_buffer_ptr buffer) {
         if (_buffer) {
             if (_buffer != buffer) {
-                QNN_LOG_WARN("[%s]has been bound to another buffer %p\n", _tensor_name.c_str(), (void *) _buffer.get());
+                QNN_LOG_WARN("[%s]has been bound to another buffer %p\n", _tensor_name.c_str(),
+                             (void *) _buffer->get_buffer());
                 return false;
             }
 
-            QNN_LOG_DEBUG("[%s]already bound to same ggml tensor %p\n", _tensor_name.c_str(), (void *) _buffer.get());
+            QNN_LOG_DEBUG("[%s]already bound to same ggml tensor %p\n", _tensor_name.c_str(),
+                          (void *) _buffer->get_buffer());
             return true;
         }
 
@@ -235,7 +237,7 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
         }
 
         QNN_LOG_DEBUG("[%s][%s]bind to buffer: %p, size: %d\n", get_backend_name(_device), _tensor_name.c_str(),
-                      (void *) buffer.get(), (int) buffer->get_size());
+                      (void *) buffer->get_buffer(), (int) buffer->get_size());
         return true;
     }
 
@@ -248,10 +250,11 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
 
         if (_rpc_buffer) {
             memcpy(_rpc_buffer->get_buffer(), _buffer->get_buffer(), _buffer->get_size());
+            // For CPU and GPU, the data is already in the tensor.
+            QNN_LOG_DEBUG("[%s][%s]write buffer(%p) to rpc buffer(%p)\n", get_backend_name(_device),
+                          _tensor_name.c_str(), (void *) _buffer->get_buffer(), (void *) _rpc_buffer->get_buffer());
         }
 
-        // For CPU and GPU, the data is already in the tensor.
-        QNN_LOG_DEBUG("[%s][%s]write tensor to qnn\n", get_backend_name(_device), _tensor_name.c_str());
         return true;
     }
 
@@ -264,10 +267,11 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
 
         if (_rpc_buffer) {
             memcpy(_buffer->get_buffer(), _rpc_buffer->get_buffer(), _buffer->get_size());
+            // For CPU and GPU, the data is already in the tensor.
+            QNN_LOG_DEBUG("[%s][%s]read buffer(%p) from rpc buffer(%p)\n", get_backend_name(_device),
+                          _tensor_name.c_str(), (void *) _buffer->get_buffer(), (void *) _rpc_buffer->get_buffer());
         }
 
-        // For CPU and GPU, the data is already in the tensor.
-        QNN_LOG_DEBUG("[%s][%s]read tensor from qnn\n", get_backend_name(_device), _tensor_name.c_str());
         return true;
     }
 
