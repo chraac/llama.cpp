@@ -1,13 +1,11 @@
 
 #include "utils.hpp"
 
-#include <QnnError.h>
-#include <QnnGraph.h>
-
 #include <cstdlib>
 
 #include "ggml-qnn.h"
 #include "qnn-types.hpp"
+#include "QnnGraph.h"
 
 #ifdef _WIN32
 #    include <windows.h>
@@ -267,15 +265,14 @@ void align_free(void * ptr) {
 void * page_align_alloc(size_t size) {
     const size_t alignment    = _get_page_size();
     size_t       size_aligned = align_to_generic<size_t>(alignment, size);
-    void *       data         = _align_alloc(alignment, size_aligned);
+    void * data = _align_alloc(alignment, size_aligned);
     if (!data) {
         QNN_LOG_WARN("_align_alloc failed, alignment: %ld, size: %ld, size_aligned: %ld\n", alignment, size,
                      size_aligned);
         return nullptr;
     }
 
-    QNN_LOG_DEBUG("_align_alloc success, alignment: %ld, size: %ld, size_aligned: %ld\n", alignment, size,
-                  size_aligned);
+    QNN_LOG_DEBUG("_align_alloc success, alignment: %ld, size: %ld, size_aligned: %ld\n", alignment, size, size_aligned);
     return data;
 }
 
@@ -302,7 +299,7 @@ const char * opname_from_ggmlop(enum ggml_op ggmlop) {
 const char * get_qnn_error_string(Qnn_ErrorHandle_t error) {
     // A complete list of error codes can be found at here:
     // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/api_error_codes.html
-    const char * err_str = nullptr;
+    thread_local static char error_code[128] = {};
     switch (error) {
         case QNN_SUCCESS:
             return "QNN_SUCCESS";
@@ -379,20 +376,13 @@ const char * get_qnn_error_string(Qnn_ErrorHandle_t error) {
         case QNN_OP_PACKAGE_ERROR_INVALID_ARGUMENT:
             return "QNN_OP_PACKAGE_ERROR_INVALID_ARGUMENT";
         default:
-            QnnError_getMessage(error, &err_str);
-            return err_str ? err_str : "UNKNOWN_ERROR";
+            if (error >= QNN_GRAPH_MIN_ERROR && error < QNN_GRAPH_MAX_ERROR) {
+                snprintf(error_code, sizeof(error_code), "UNKNOWN_GRAPH_ERROR_%d", int(error - QNN_GRAPH_MIN_ERROR));
+            } else {
+                snprintf(error_code, sizeof(error_code), "%d", int(error));
+            }
+            return error_code;
     }
-}
-
-std::string get_qnn_detail_error_string(Qnn_ErrorHandle_t error) {
-    const char * err_str = nullptr;
-    if (QnnError_getVerboseMessage(error, &err_str) != QNN_SUCCESS) {
-        return "UNKNOWN_ERROR";
-    }
-
-    std::string detail_error(err_str);
-    QnnError_freeVerboseMessage(err_str);
-    return detail_error;
 }
 
 #ifdef _WIN32
