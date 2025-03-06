@@ -125,6 +125,8 @@ std::vector<qnn::qnn_buffer_ptr> convert(std::shared_ptr<qnn_convert_context_t> 
         auto &     data_buffer = convert_context->buffers[i];
         const auto dst_size    = get_convert_buffer_size(src->ne, target_data_type);
         if (!data_buffer || data_buffer->get_size() < dst_size) {
+            QNN_LOG_DEBUG("create buffer for tensor %s(%s), size: %d\n", ggml_get_name(src), ggml_type_name(src->type),
+                          (int) dst_size);
             data_buffer = std::make_shared<qnn::qnn_mem_buffer>(dst_size);
         }
 

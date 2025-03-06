@@ -348,10 +348,10 @@ bool qnn_graph::execute(const ggml_cgraph * cgraph, std::shared_ptr<qnn_convert_
 
         if (error != QNN_SUCCESS) {
             if (_device == QNN_BACKEND_NPU && error == QNN_COMMON_ERROR_SYSTEM_COMMUNICATION) {
-                QNN_LOG_WARN("[%s][%s]NPU crashed. SSR detected. Caused QNN graph execute error.\n",
+                QNN_LOG_WARN("[%s][%s][graph_execute]NPU crashed. SSR detected. Caused QNN graph execute error.\n",
                              get_backend_name(_device), _graph_name.c_str());
             } else {
-                QNN_LOG_ERROR("[%s][%s]error: %s\n", get_backend_name(_device), _graph_name.c_str(),
+                QNN_LOG_ERROR("[%s][%s][graph_execute]error: %s\n", get_backend_name(_device), _graph_name.c_str(),
                               get_qnn_error_string(error));
             }
             return false;
