@@ -437,6 +437,7 @@ size_t get_qnn_op_input_param_count(const ggml_tensor * op) {
 }
 
 void get_qnn_op_desc(const ggml_tensor * op, bool append_dimensions, std::string & output) {
+    QNN_LOG_DEBUG("get_qnn_op_desc: %s\n", ggml_op_desc(op));
     auto op_index = get_qnn_op_index(op);
     GGML_ASSERT(op_index < std::size(kOpCaps));
     auto get_desc = kOpCaps[op_index].get_desc;
