@@ -169,6 +169,28 @@ int get_io_tensors_from_graph(const ggml_cgraph * cgraph, qnn::ggml_tensor_array
     return rank;
 }
 
+/*
+ * for src0_F32, src1_F32, dst_F32 -> GGML_TYPE_COUNT
+ * for src0_F16, src1_F16, dst_F16 -> GGML_TYPE_COUNT
+ * for src0_F16, src1_F32, dst_F32 -> GGML_TYPE_F32
+ * for src0_q4, src1_F32, dst_F32 -> GGML_TYPE_F32
+ */
+ggml_type get_override_data_type(const qnn::ggml_tensor_array_t & inputs, const qnn::ggml_tensor_array_t & outputs) {
+    ggml_type override_data_type = GGML_TYPE_COUNT;
+    bool      is_same_data_type  = true;
+    for (auto * tensor : inputs) {
+        is_same_data_type &= tensor->type == override_data_type;
+        override_data_type = std::min(override_data_type, tensor->type);
+    }
+
+    for (auto * tensor : outputs) {
+        is_same_data_type &= tensor->type == override_data_type;
+        override_data_type = std::min(override_data_type, tensor->type);
+    }
+
+    return is_same_data_type ? GGML_TYPE_COUNT : override_data_type;
+}
+
 }  // namespace
 
 namespace qnn {
@@ -243,30 +265,16 @@ bool qnn_graph::build_graph_from_ggml_graph(const ggml_cgraph * cgraph) {
     ggml_tensor_array_t inputs;
     ggml_tensor_array_t outputs;
     int                 rank = get_io_tensors_from_graph(cgraph, inputs, outputs);
-    QNN_LOG_DEBUG("[%s]rank: %d, input_set: %d, output_set: %d\n", get_backend_name(_device), rank, int(inputs.size()),
-                  int(outputs.size()));
+    QNN_LOG_DEBUG("[%s][%s]rank: %d, input_set: %d, output_set: %d\n", get_backend_name(_device), _graph_name.c_str(),
+                  rank, int(inputs.size()), int(outputs.size()));
 
     {
         static_assert(
             GGML_TYPE_COUNT > GGML_TYPE_Q8_0 && GGML_TYPE_Q8_0 > GGML_TYPE_F16 && GGML_TYPE_F16 > GGML_TYPE_F32,
             "GGML_TYPE enum order is not correct");
 
-        bool should_override_data_type = false;
-        for (auto * tensor : inputs) {
-            if (ggml_is_quantized(tensor->type)) {
-                should_override_data_type = true;
-                break;
-            }
-        }
-
-        if (should_override_data_type) {
-            for (auto * tensor : inputs) {
-                _override_data_type = std::min(_override_data_type, tensor->type);
-            }
-
-            for (auto * tensor : outputs) {
-                _override_data_type = std::min(_override_data_type, tensor->type);
-            }
+        _override_data_type = get_override_data_type(inputs, outputs);
+        if (_override_data_type != GGML_TYPE_COUNT) {
             QNN_LOG_DEBUG("[%s][%s]set override_data_type: %s\n", get_backend_name(_device), _graph_name.c_str(),
                           ggml_type_name(_override_data_type));
         }

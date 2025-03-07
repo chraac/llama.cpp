@@ -231,10 +231,7 @@ bool ggml_qnn_matmul_op_config::initialize_op_nodes(QNNBackend device, Qnn_Graph
         create_gather_nodes(device, graph_handle, tensor_rank, mat_mul_tensor_inputs.front(),
                             mat_mul_tensor_inputs.back()->get_dimensions());
 
-    const bool should_convert_output =
-        device != QNN_BACKEND_GPU && _tensor_outputs.front()->get_data_type() != tensor_type;
-
-    if (should_convert_output) {
+    if (device != QNN_BACKEND_GPU && _tensor_outputs.front()->get_data_type() != tensor_type) {
         auto convert_out = create_output_convert_nodes(device, graph_handle, tensor_rank, tensor_type, _tensor_outputs);
         if (!create_mat_mul_nodes(mat_mul_tensor_inputs, convert_out->get_input_tensors())) {
             QNN_LOG_ERROR("create mat_mul nodes failed\n");

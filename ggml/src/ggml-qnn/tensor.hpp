@@ -225,8 +225,8 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
             QNN_TENSOR_SET_MEM_TYPE(_qnn_tensor, QNN_TENSORMEMTYPE_RAW);
             Qnn_ClientBuffer_t client_buf = { buffer->get_buffer(), (uint32_t) buffer->get_size() };
             QNN_TENSOR_SET_CLIENT_BUF(_qnn_tensor, client_buf);
-            QNN_LOG_DEBUG("[%s]use client buffer %p size %d\n", _tensor_name.c_str(), client_buf.data,
-                          (int) client_buf.dataSize);
+            QNN_LOG_DEBUG("[%s][%s]use client buffer %p size %d\n", get_backend_name(_device), _tensor_name.c_str(),
+                          client_buf.data, (int) client_buf.dataSize);
         }
 
         _buffer = buffer;
@@ -304,8 +304,7 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
                 break;
         }
         QNN_TENSOR_SET_TYPE(_qnn_tensor, new_tensor_type);
-        QNN_LOG_DEBUG("[%s][%s]tensor changed to type %d\n", get_backend_name(_device), _tensor_name.c_str(),
-                      new_tensor_type);
+        QNN_LOG_DEBUG("[%s][%s]new_tensor_type %d\n", get_backend_name(_device), _tensor_name.c_str(), new_tensor_type);
     }
 
     bool should_use_mem_handle() const {
