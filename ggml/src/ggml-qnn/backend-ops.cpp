@@ -358,8 +358,9 @@ bool ggml_qnn_have_same_tensor_types(ggml_backend_qnn_device_context * ctx, cons
 
 // TODO: move to caps array?
 bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context * ctx, const ggml_tensor * op) {
-    constexpr const size_t kMaxNpuTensorSize = 8192L * 2048 + 8192 * 512 + 2048 * 512;
-    constexpr const auto   get_tensor_size   = [](const ggml_tensor * tensor) -> size_t {
+    constexpr const size_t kMaxNpuTensorSize =
+        8192L * 2048 + 8192 * 512 + 2048 * 512;  // TODO: should have a better way to get this value
+    constexpr const auto get_tensor_size = [](const ggml_tensor * tensor) -> size_t {
         return tensor->ne[0] * tensor->ne[1] * tensor->ne[2] * tensor->ne[3];
     };
 
