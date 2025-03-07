@@ -388,11 +388,15 @@ bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context * ctx, const gg
         case QNN_BACKEND_GPU:
             if (!ggml_qnn_have_same_tensor_types(ctx, op) && op->type != GGML_TYPE_F32) {
                 // for different tensor types and not float32, we don't support it currently, since there's no convert
+                QNN_LOG_DEBUG("[%s][MUL_MAT]src0 and src1 and dst types are not equal\n",
+                              qnn::get_backend_name(ctx->device));
                 return false;
             }
             if (op->type == GGML_TYPE_F32 && ggml_is_quantized(src0->type) &&
                 !is_type_bit_enabled(ctx->enabled_quant_types, src0->type)) {
                 // for such cases that src0 is quantized and op is float32, check if the quant type is enabled
+                QNN_LOG_DEBUG("[%s][MUL_MAT]quantized src0 type %s is not enabled\n",
+                              qnn::get_backend_name(ctx->device), ggml_type_name(src0->type));
                 return false;
             }
             break;
