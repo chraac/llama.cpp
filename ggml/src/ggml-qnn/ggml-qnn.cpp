@@ -57,14 +57,16 @@ constexpr const qnn_device_caps kDeviceCaps[] = {
         "qnn-cpu",                                "Qualcomm Kryo CPU",
      kQnnCpuLibName, GGML_BACKEND_DEVICE_TYPE_CPU,
      (1 << GGML_TYPE_I8) | (1 << GGML_TYPE_F32),
-     (1 << GGML_TYPE_Q2_K) | (1 << GGML_TYPE_Q3_K) | (1 << GGML_TYPE_Q4_K) | (1 << GGML_TYPE_Q8_K),
+     (1 << GGML_TYPE_Q2_K) | (1 << GGML_TYPE_Q3_K) | (1 << GGML_TYPE_Q4_K) | (1 << GGML_TYPE_Q5_K) |
+            (1 << GGML_TYPE_Q6_K) | (1 << GGML_TYPE_Q8_0) | (1 << GGML_TYPE_Q8_K),
      },
     {
      // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/GpuOpDefSupplement.html#matmul
         "qnn-gpu",                                           "Qualcomm Adreno GPU",
      kQnnGpuLibName,   GGML_BACKEND_DEVICE_TYPE_GPU,
      (1 << GGML_TYPE_F32) | (1 << GGML_TYPE_F16),
-     (1 << GGML_TYPE_Q2_K) | (1 << GGML_TYPE_Q3_K) | (1 << GGML_TYPE_Q4_K) | (1 << GGML_TYPE_Q8_K),
+     (1 << GGML_TYPE_Q2_K) | (1 << GGML_TYPE_Q3_K) | (1 << GGML_TYPE_Q4_K) | (1 << GGML_TYPE_Q5_K) |
+            (1 << GGML_TYPE_Q6_K) | (1 << GGML_TYPE_Q8_0) | (1 << GGML_TYPE_Q8_K),
      },
     {
      // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/HtpOpDefSupplement.html#matmul
