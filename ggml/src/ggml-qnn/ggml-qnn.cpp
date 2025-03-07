@@ -45,25 +45,34 @@ struct qnn_device_caps {
 
     // TODO: should get this caps from device
     uint64_t supported_types;
+
+    // TODO: should we merge this with supported_types?
+    uint64_t enabled_quant_types;
 };
 
 // TODO: should move this to qnn-lib.cpp
 constexpr const qnn_device_caps kDeviceCaps[] = {
     {
-     "qnn-cpu",                     "Qualcomm Kryo CPU",
+     // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/CpuOpDefSupplement.html#matmul
+        "qnn-cpu",                                "Qualcomm Kryo CPU",
      kQnnCpuLibName, GGML_BACKEND_DEVICE_TYPE_CPU,
      (1 << GGML_TYPE_I8) | (1 << GGML_TYPE_F32),
-     }, // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/CpuOpDefSupplement.html#matmul
+     (1 << GGML_TYPE_Q2_K) | (1 << GGML_TYPE_Q3_K) | (1 << GGML_TYPE_Q4_K) | (1 << GGML_TYPE_Q8_K),
+     },
     {
-     "qnn-gpu",                             "Qualcomm Adreno GPU",
-     kQnnGpuLibName,      GGML_BACKEND_DEVICE_TYPE_GPU,
+     // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/GpuOpDefSupplement.html#matmul
+        "qnn-gpu",                                           "Qualcomm Adreno GPU",
+     kQnnGpuLibName,   GGML_BACKEND_DEVICE_TYPE_GPU,
      (1 << GGML_TYPE_F32) | (1 << GGML_TYPE_F16),
-     }, // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/GpuOpDefSupplement.html#matmul
+     (1 << GGML_TYPE_Q2_K) | (1 << GGML_TYPE_Q3_K) | (1 << GGML_TYPE_Q4_K) | (1 << GGML_TYPE_Q8_K),
+     },
     {
-     "qnn-npu", "Qualcomm NPU",
+     // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/HtpOpDefSupplement.html#matmul
+        "qnn-npu", "Qualcomm NPU",
      kQnnNpuLibName,              GGML_BACKEND_DEVICE_TYPE_ACCEL,
      (1 << GGML_TYPE_F32) | (1 << GGML_TYPE_F16) | (1 << GGML_TYPE_I16),
-     }, // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/HtpOpDefSupplement.html#matmul
+     (1 << GGML_TYPE_Q2_K) | (1 << GGML_TYPE_Q3_K) | (1 << GGML_TYPE_Q4_K) | (1 << GGML_TYPE_Q8_K),
+     },
 };
 
 static_assert(sizeof(kDeviceCaps) / sizeof(kDeviceCaps[0]) == GGML_QNN_MAX_DEVICES,
@@ -335,6 +344,7 @@ ggml_backend_t ggml_backend_qnn_init_with_device_context(ggml_backend_dev_t dev,
     dev_ctx->qnn_interface         = qnn_interface;
     dev_ctx->socinfo               = instance->get_soc_info();
     dev_ctx->supported_types       = kDeviceCaps[device].supported_types;
+    dev_ctx->enabled_quant_types   = kDeviceCaps[device].enabled_quant_types;
     // TODO: remove npu from here if hardware quantization is supported
     dev_ctx->enable_cpu_dequantize = device == QNN_BACKEND_NPU || device == QNN_BACKEND_GPU;
 

@@ -274,6 +274,10 @@ static_assert(!kQnnSupportedOps[GGML_OP_VIEW], "GGML_OP_VIEW is not false");
 static_assert(std::size(kQnnSupportedOps) == (GGML_OP_COUNT + GGML_UNARY_OP_COUNT),
               "GGML_OP_COUNT does not match the size of the kQnnSupportedOps table");
 
+inline bool is_type_bit_enabled(uint64_t bits, ggml_type type) {
+    return bits & (uint64_t(1) << type);
+}
+
 bool ggml_qnn_supports_tensor(ggml_backend_qnn_device_context * ctx, const ggml_tensor * tensor) {
     if (!tensor) {
         QNN_LOG_DEBUG("tensor is nullptr\n");
@@ -293,7 +297,7 @@ bool ggml_qnn_supports_tensor(ggml_backend_qnn_device_context * ctx, const ggml_
     switch (tensor->type) {
         case GGML_TYPE_F32:
         case GGML_TYPE_F16:
-            if (!(ctx->supported_types & (uint64_t(1) << tensor->type))) {
+            if (!is_type_bit_enabled(ctx->supported_types, tensor->type)) {
                 QNN_LOG_DEBUG("[%s]unsupported data type %s, supported_types: 0x%x\n",
                               qnn::get_backend_name(ctx->device), ggml_type_name(tensor->type),
                               (unsigned int) ctx->supported_types);
@@ -383,7 +387,12 @@ bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context * ctx, const gg
             //   https://github.com/usefulsensors/qc_npu_benchmark
         case QNN_BACKEND_GPU:
             if (!ggml_qnn_have_same_tensor_types(ctx, op) && op->type != GGML_TYPE_F32) {
-                // there's no convert op for GPU.
+                // for different tensor types and not float32, we don't support it currently, since there's no convert
+                return false;
+            }
+            if (op->type == GGML_TYPE_F32 && ggml_is_quantized(src0->type) &&
+                !is_type_bit_enabled(ctx->enabled_quant_types, src0->type)) {
+                // for such cases that src0 is quantized and op is float32, check if the quant type is enabled
                 return false;
             }
             break;
