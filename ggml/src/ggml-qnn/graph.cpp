@@ -177,7 +177,8 @@ int get_io_tensors_from_graph(const ggml_cgraph * cgraph, qnn::ggml_tensor_array
  * for src0_q4, src1_F16, dst_F32 -> GGML_TYPE_F32
  */
 ggml_type get_override_data_type(const qnn::ggml_tensor_array_t & inputs, const qnn::ggml_tensor_array_t & outputs) {
-    ggml_type override_data_type = GGML_TYPE_COUNT;
+    GGML_ASSERT(!inputs.empty());
+    ggml_type override_data_type = inputs.front()->type;
     bool      is_same_data_type  = true;
     for (auto * tensor : inputs) {
         is_same_data_type  = is_same_data_type && tensor->type == override_data_type;

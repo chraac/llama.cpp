@@ -114,6 +114,8 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
         if (!buffer) {
             buffer =
                 std::make_shared<qnn_mem_buffer_slice>(reinterpret_cast<uint8_t *>(tensor->data), ggml_nbytes(tensor));
+            QNN_LOG_DEBUG("[%s][%s]attach buffer to tensor(%s), size: %d\n", get_backend_name(_device),
+                          _tensor_name.c_str(), tensor->name, (int) buffer->get_size());
         }
         if (!bind_buffer_impl(buffer)) {
             QNN_LOG_WARN("[%s]failed to bind ggml tensor(%s)\n", _tensor_name.c_str(), ggml_get_name(tensor));
