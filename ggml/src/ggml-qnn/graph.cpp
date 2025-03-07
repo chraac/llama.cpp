@@ -174,6 +174,7 @@ int get_io_tensors_from_graph(const ggml_cgraph * cgraph, qnn::ggml_tensor_array
  * for src0_F16, src1_F16, dst_F16 -> GGML_TYPE_COUNT
  * for src0_F16, src1_F32, dst_F32 -> GGML_TYPE_F32
  * for src0_q4, src1_F32, dst_F32 -> GGML_TYPE_F32
+ * for src0_q4, src1_F16, dst_F32 -> GGML_TYPE_F32
  */
 ggml_type get_override_data_type(const qnn::ggml_tensor_array_t & inputs, const qnn::ggml_tensor_array_t & outputs) {
     ggml_type override_data_type = GGML_TYPE_COUNT;
@@ -191,12 +192,59 @@ ggml_type get_override_data_type(const qnn::ggml_tensor_array_t & inputs, const 
     return is_same_data_type ? GGML_TYPE_COUNT : override_data_type;
 }
 
+static const QnnHtpGraph_CustomConfig_t kDefaultHvxConfig = []() {
+    QnnHtpGraph_CustomConfig_t hvx_config = QNN_HTP_GRAPH_CUSTOM_CONFIG_INIT;
+    hvx_config.option                     = QNN_HTP_GRAPH_CONFIG_OPTION_NUM_HVX_THREADS;
+    hvx_config.numHvxThreads              = 8;
+    return hvx_config;
+}();
+
+static const QnnHtpGraph_CustomConfig_t kDefaultDlbcConfig = []() {
+    QnnHtpGraph_CustomConfig_t dlbc_config    = QNN_HTP_GRAPH_CUSTOM_CONFIG_INIT;
+    dlbc_config.option                        = QNN_HTP_GRAPH_CONFIG_OPTION_OPTIMIZATION;
+    dlbc_config.optimizationOption.type       = QNN_HTP_GRAPH_OPTIMIZATION_TYPE_ENABLE_DLBC;
+    dlbc_config.optimizationOption.floatValue = 1.0;  // set to 0.0 to turn off DLBC
+    return dlbc_config;
+}();
+
+/*
+ *  1 = Faster preparation time, less optimal graph
+ *  2 = Longer preparation time, more optimal graph
+ *  3 = Longest preparation time, most likely even more optimal graph:
+ *   QNN_HTP_DEVICE_CONFIG_OPTION_SOC configuration will be taken into account when possible, details see HTP Backend Specific Page
+ */
+static const QnnHtpGraph_CustomConfig_t kDefaultOptConfig = []() {
+    QnnHtpGraph_CustomConfig_t opt_config = QNN_HTP_GRAPH_CUSTOM_CONFIG_INIT;
+    opt_config.option                     = QNN_HTP_GRAPH_CONFIG_OPTION_OPTIMIZATION;
+    opt_config.optimizationOption.type    = QNN_HTP_GRAPH_OPTIMIZATION_TYPE_FINALIZE_OPTIMIZATION_FLAG;
+#ifndef NDEBUG
+    opt_config.optimizationOption.floatValue = 3;
+#else
+    opt_config.optimizationOption.floatValue = 1;
+#endif
+    return opt_config;
+}();
+
+static const QnnHtpGraph_CustomConfig_t kHtpPrecisionConfigF16 = []() {
+    QnnHtpGraph_CustomConfig_t precision_config = QNN_HTP_GRAPH_CUSTOM_CONFIG_INIT;
+    precision_config.option                     = QNN_HTP_GRAPH_CONFIG_OPTION_PRECISION;
+    precision_config.precision                  = QNN_PRECISION_FLOAT16;
+    return precision_config;
+}();
+
+constexpr QnnHtpGraph_CustomConfig_t make_vtcm_config(size_t vtcm_size_in_mb) {
+    QnnHtpGraph_CustomConfig_t vtcm_config = QNN_HTP_GRAPH_CUSTOM_CONFIG_INIT;
+    vtcm_config.option                     = QNN_HTP_GRAPH_CONFIG_OPTION_VTCM_SIZE;
+    vtcm_config.vtcmSizeInMB               = (uint32_t) vtcm_size_in_mb;
+    return vtcm_config;
+}
+
 }  // namespace
 
 namespace qnn {
 
 qnn_graph::qnn_graph(const std::string & graph_name, QNNBackend device, std::shared_ptr<qnn_instance> qnn_instance,
-                     size_t vtcm_size_in_mb) :
+                     htp_precision precision, size_t vtcm_size_in_mb) :
     _graph_name(graph_name),
     _device(device),
     _qnn_instance(qnn_instance) {
@@ -208,32 +256,23 @@ qnn_graph::qnn_graph(const std::string & graph_name, QNNBackend device, std::sha
     Qnn_GraphHandle_t graph_handle  = nullptr;
     if (device == QNN_BACKEND_NPU) {
         // TODO: fix graph config here for NPU
-        QnnHtpGraph_CustomConfig_t hvx_config;
-        hvx_config.option        = QNN_HTP_GRAPH_CONFIG_OPTION_NUM_HVX_THREADS;
-        hvx_config.numHvxThreads = 8;
-        QnnGraph_Config_t graph_hvx_config;
+        QnnHtpGraph_CustomConfig_t hxv_config = kDefaultHvxConfig;
+        QnnGraph_Config_t          graph_hvx_config;
         graph_hvx_config.option       = QNN_GRAPH_CONFIG_OPTION_CUSTOM;
-        graph_hvx_config.customConfig = &hvx_config;
+        graph_hvx_config.customConfig = &hxv_config;
 
-        QnnHtpGraph_CustomConfig_t dlbc_config;
-        dlbc_config.option                        = QNN_HTP_GRAPH_CONFIG_OPTION_OPTIMIZATION;
-        dlbc_config.optimizationOption.type       = QNN_HTP_GRAPH_OPTIMIZATION_TYPE_ENABLE_DLBC;
-        dlbc_config.optimizationOption.floatValue = 1.0;  // set to 0.0 to turn off DLBC
-        QnnGraph_Config_t graph_dlbc_config;
+        QnnHtpGraph_CustomConfig_t dlbc_config = kDefaultDlbcConfig;
+        QnnGraph_Config_t          graph_dlbc_config;
         graph_dlbc_config.option       = QNN_GRAPH_CONFIG_OPTION_CUSTOM;
         graph_dlbc_config.customConfig = &dlbc_config;
 
-        QnnHtpGraph_CustomConfig_t opt_config;
-        opt_config.optimizationOption.type       = QNN_HTP_GRAPH_OPTIMIZATION_TYPE_FINALIZE_OPTIMIZATION_FLAG;
-        opt_config.optimizationOption.floatValue = 1;  // 1 / 3
-        QnnGraph_Config_t graph_opt_config;
+        QnnHtpGraph_CustomConfig_t opt_config = kDefaultOptConfig;
+        QnnGraph_Config_t          graph_opt_config;
         graph_opt_config.option       = QNN_GRAPH_CONFIG_OPTION_CUSTOM;
         graph_opt_config.customConfig = &opt_config;
 
-        QnnHtpGraph_CustomConfig_t vtcm_config;
-        vtcm_config.option       = QNN_HTP_GRAPH_CONFIG_OPTION_VTCM_SIZE;
-        vtcm_config.vtcmSizeInMB = (uint32_t) vtcm_size_in_mb;
-        QnnGraph_Config_t graph_vtcm_config;
+        QnnHtpGraph_CustomConfig_t vtcm_config = make_vtcm_config(vtcm_size_in_mb);
+        QnnGraph_Config_t          graph_vtcm_config;
         graph_vtcm_config.option       = QNN_GRAPH_CONFIG_OPTION_CUSTOM;
         graph_vtcm_config.customConfig = &vtcm_config;
 

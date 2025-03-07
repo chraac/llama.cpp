@@ -122,8 +122,8 @@ qnn::qnn_graph * get_qnn_graph_from_cache(ggml_backend_qnn_device_context * ctx,
                       graph_key.c_str(), (int) graph_cache.size());
         graph_ptr = it->second.get();
     } else {
-        auto graph =
-            std::make_unique<qnn::qnn_graph>(graph_key, ctx->device, ctx->instance, ctx->socinfo.vtcm_size_in_mb);
+        auto graph = std::make_unique<qnn::qnn_graph>(graph_key, ctx->device, ctx->instance,
+                                                      qnn::qnn_graph::kHtpDefault, ctx->socinfo.vtcm_size_in_mb);
         if (!graph->is_valid()) {
             return nullptr;
         }

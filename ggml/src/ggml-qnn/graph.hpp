@@ -22,8 +22,14 @@ namespace qnn {
  */
 class qnn_graph {
   public:
+    enum htp_precision {
+        kHtpDefault = 0,
+        kHtpFp16,
+    };
+
     explicit qnn_graph(const std::string & graph_name, QNNBackend device, std::shared_ptr<qnn_instance> qnn_instance,
-                       size_t vtcm_size_in_mb);
+                       htp_precision precision, size_t vtcm_size_in_mb);
+
     ~qnn_graph();
 
     bool build_graph_from_ggml_graph(const ggml_cgraph * cgraph);
