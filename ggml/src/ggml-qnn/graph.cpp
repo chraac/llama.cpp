@@ -180,12 +180,12 @@ ggml_type get_override_data_type(const qnn::ggml_tensor_array_t & inputs, const 
     ggml_type override_data_type = GGML_TYPE_COUNT;
     bool      is_same_data_type  = true;
     for (auto * tensor : inputs) {
-        is_same_data_type &= tensor->type == override_data_type;
+        is_same_data_type  = is_same_data_type && tensor->type == override_data_type;
         override_data_type = std::min(override_data_type, tensor->type);
     }
 
     for (auto * tensor : outputs) {
-        is_same_data_type &= tensor->type == override_data_type;
+        is_same_data_type  = is_same_data_type && tensor->type == override_data_type;
         override_data_type = std::min(override_data_type, tensor->type);
     }
 

@@ -66,12 +66,13 @@ typedef bool (*ggml_qnn_op_t)(ggml_backend_qnn_device_context * ctx, ggml_tensor
  *
  * TODO: Improve the key generation logic to handle more complex graph structures and edge cases.
  */
-void get_graph_key_from_cgraph(const ggml_cgraph * cgraph, std::string & output) {
+ggml_type get_graph_key_from_cgraph(const ggml_cgraph * cgraph, std::string & output) {
     if (cgraph->n_nodes == 0) {
         QNN_LOG_DEBUG("empty cgraph\n");
-        return;
+        return GGML_TYPE_COUNT;
     }
 
+    ggml_type min_op_type = GGML_TYPE_COUNT;
     {
         bool is_start = true;
         for (int i = 0; i < cgraph->n_nodes; ++i) {
@@ -86,6 +87,7 @@ void get_graph_key_from_cgraph(const ggml_cgraph * cgraph, std::string & output)
                 continue;
             }
 
+            min_op_type = std::min(min_op_type, op->type);
             if (is_start) {
                 qnn::get_qnn_op_desc(cgraph->nodes[0], is_start, output);
                 is_start = false;
@@ -102,12 +104,14 @@ void get_graph_key_from_cgraph(const ggml_cgraph * cgraph, std::string & output)
         output += '_';
         qnn::append_tensor_shape_and_type(last_op, output);
     }
+
+    return min_op_type;
 }
 
 qnn::qnn_graph * get_qnn_graph_from_cache(ggml_backend_qnn_device_context * ctx, const ggml_cgraph * cgraph) {
     auto &      graph_cache = ctx->qnn_graph_cache;
     std::string graph_key;
-    get_graph_key_from_cgraph(cgraph, graph_key);
+    auto        op_data_type = get_graph_key_from_cgraph(cgraph, graph_key);
     if (graph_key.empty()) {
         QNN_LOG_DEBUG("[%s]empty graph key for cgraph: %p, size: %d\n", qnn::get_backend_name(ctx->device),
                       (const void *) cgraph, (int) cgraph->n_nodes);
@@ -122,8 +126,15 @@ qnn::qnn_graph * get_qnn_graph_from_cache(ggml_backend_qnn_device_context * ctx,
                       graph_key.c_str(), (int) graph_cache.size());
         graph_ptr = it->second.get();
     } else {
-        auto graph = std::make_unique<qnn::qnn_graph>(graph_key, ctx->device, ctx->instance,
-                                                      qnn::qnn_graph::kHtpDefault, ctx->socinfo.vtcm_size_in_mb);
+        auto precision = qnn::qnn_graph::kHtpDefault;
+        if (op_data_type == GGML_TYPE_F16) {
+            QNN_LOG_DEBUG("[%s][%s]set graph precision to FP16\n", qnn::get_backend_name(ctx->device),
+                          graph_key.c_str());
+            precision = qnn::qnn_graph::kHtpFp16;
+        }
+
+        auto graph = std::make_unique<qnn::qnn_graph>(graph_key, ctx->device, ctx->instance, precision,
+                                                      ctx->socinfo.vtcm_size_in_mb);
         if (!graph->is_valid()) {
             return nullptr;
         }
