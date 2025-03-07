@@ -239,6 +239,13 @@ constexpr QnnHtpGraph_CustomConfig_t make_vtcm_config(size_t vtcm_size_in_mb) {
     return vtcm_config;
 }
 
+constexpr QnnGraph_Config_t make_graph_config(const QnnHtpGraph_CustomConfig_t * custom_config) {
+    QnnGraph_Config_t graph_config = QNN_GRAPH_CONFIG_INIT;
+    graph_config.option            = QNN_GRAPH_CONFIG_OPTION_CUSTOM;
+    graph_config.customConfig      = const_cast<QnnHtpGraph_CustomConfig_t *>(custom_config);
+    return graph_config;
+}
+
 }  // namespace
 
 namespace qnn {
@@ -256,29 +263,28 @@ qnn_graph::qnn_graph(const std::string & graph_name, QNNBackend device, std::sha
     Qnn_GraphHandle_t graph_handle  = nullptr;
     if (device == QNN_BACKEND_NPU) {
         // TODO: fix graph config here for NPU
-        QnnHtpGraph_CustomConfig_t hxv_config = kDefaultHvxConfig;
-        QnnGraph_Config_t          graph_hvx_config;
-        graph_hvx_config.option       = QNN_GRAPH_CONFIG_OPTION_CUSTOM;
-        graph_hvx_config.customConfig = &hxv_config;
+        std::vector<const QnnGraph_Config_t *> graph_configs;
 
-        QnnHtpGraph_CustomConfig_t dlbc_config = kDefaultDlbcConfig;
-        QnnGraph_Config_t          graph_dlbc_config;
-        graph_dlbc_config.option       = QNN_GRAPH_CONFIG_OPTION_CUSTOM;
-        graph_dlbc_config.customConfig = &dlbc_config;
+        auto hvx_config = make_graph_config(&kDefaultHvxConfig);
+        graph_configs.push_back(&hvx_config);
 
-        QnnHtpGraph_CustomConfig_t opt_config = kDefaultOptConfig;
-        QnnGraph_Config_t          graph_opt_config;
-        graph_opt_config.option       = QNN_GRAPH_CONFIG_OPTION_CUSTOM;
-        graph_opt_config.customConfig = &opt_config;
+        auto dlbc_config = make_graph_config(&kDefaultDlbcConfig);
+        graph_configs.push_back(&dlbc_config);
 
-        QnnHtpGraph_CustomConfig_t vtcm_config = make_vtcm_config(vtcm_size_in_mb);
-        QnnGraph_Config_t          graph_vtcm_config;
-        graph_vtcm_config.option       = QNN_GRAPH_CONFIG_OPTION_CUSTOM;
-        graph_vtcm_config.customConfig = &vtcm_config;
+        auto opt_config = make_graph_config(&kDefaultOptConfig);
+        graph_configs.push_back(&opt_config);
 
-        const QnnGraph_Config_t * graph_configs[] = { &graph_hvx_config, &graph_dlbc_config, &graph_vtcm_config,
-                                                      &graph_opt_config, nullptr };
-        error = qnn_interface->qnn_graph_create(qnn_context, graph_name.c_str(), graph_configs, &graph_handle);
+        auto vctm_sub_config = make_vtcm_config(vtcm_size_in_mb);
+        auto vtcm_config     = make_graph_config(&vctm_sub_config);
+        graph_configs.push_back(&vtcm_config);
+
+        if (precision == qnn_graph::kHtpFp16) {
+            auto precision_config = make_graph_config(&kHtpPrecisionConfigF16);
+            graph_configs.push_back(&precision_config);
+        }
+
+        graph_configs.push_back(nullptr);
+        error = qnn_interface->qnn_graph_create(qnn_context, graph_name.c_str(), graph_configs.data(), &graph_handle);
     } else {
         error = qnn_interface->qnn_graph_create(qnn_context, graph_name.c_str(), nullptr, &graph_handle);
     }
