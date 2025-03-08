@@ -56,35 +56,29 @@ constexpr const qnn_op_caps_t kOpCaps[] = {
     {
      // GGML_OP_ADD
         QNN_OP_ELEMENT_WISE_ADD,  // qnn_op_name
-        generic_get_op_desc,      // get_desc
     },
     {}, // GGML_OP_ADD1
     {}, // GGML_OP_ACC
     {
      // GGML_OP_SUB
         QNN_OP_ELEMENT_WISE_SUBTRACT,  // qnn_op_name
-        generic_get_op_desc,           // get_desc
     },
     {
      // GGML_OP_MUL
         QNN_OP_ELEMENT_WISE_MULTIPLY,  // qnn_op_name
-        generic_get_op_desc,           // get_desc
     },
     {
      // GGML_OP_DIV
         QNN_OP_ELEMENT_WISE_DIVIDE,  // qnn_op_name
-        generic_get_op_desc,         // get_desc
     },
     {}, // GGML_OP_SQR
     {
      // GGML_OP_SQRT
         QNN_OP_ELEMENT_WISE_SQUARE_ROOT,  // qnn_op_name
-        generic_get_op_desc,              // get_desc
     },
     {
      // GGML_OP_LOG
         QNN_OP_ELEMENT_WISE_LOG,  // qnn_op_name
-        generic_get_op_desc,      // get_desc
     },
     {}, // GGML_OP_SIN
     {}, // GGML_OP_COS
@@ -108,8 +102,7 @@ constexpr const qnn_op_caps_t kOpCaps[] = {
     {}, // GGML_OP_GROUP_NORM
     {
      // GGML_OP_MUL_MAT
-        QNN_OP_MAT_MUL,       // qnn_op_name
-        generic_get_op_desc,  // get_desc
+        QNN_OP_MAT_MUL,  // qnn_op_name
     },
     {}, // GGML_OP_MUL_MAT_ID
     {}, // GGML_OP_OUT_PROD
@@ -119,8 +112,7 @@ constexpr const qnn_op_caps_t kOpCaps[] = {
     {}, // GGML_OP_CONT
     {
      // GGML_OP_RESHAPE
-        QNN_OP_RESHAPE,       // qnn_op_name
-        generic_get_op_desc,  // get_desc
+        QNN_OP_RESHAPE,  // qnn_op_name
     },
     {}, // GGML_OP_VIEW
     {}, // GGML_OP_PERMUTE
@@ -190,8 +182,7 @@ constexpr const qnn_op_caps_t kOpCaps[] = {
     {}, // GGML_UNARY_OP_SIGMOID
     {
      // GGML_UNARY_OP_GELU
-        QNN_OP_GELU,          // qnn_op_name
-        generic_get_op_desc,  // get_desc
+        QNN_OP_GELU,  // qnn_op_name
     },
     {}, // GGML_UNARY_OP_GELU_QUICK
     {}, // GGML_UNARY_OP_SILU
@@ -201,14 +192,10 @@ constexpr const qnn_op_caps_t kOpCaps[] = {
 };
 
 static_assert(kOpCaps[GGML_OP_NONE].get_desc == nullptr, "GGML_OP_NONE should not have get_desc function");
-static_assert(kOpCaps[GGML_OP_ADD].get_desc == generic_get_op_desc,
-              "GGML_OP_ADD does not have element_wise_op_dims function");
-static_assert(kOpCaps[GGML_OP_MUL_MAT].get_desc == generic_get_op_desc,
-              "GGML_OP_MUL_MAT does not have element_wise_op_dims function");
-static_assert(kOpCaps[GGML_OP_MUL].get_desc == generic_get_op_desc,
-              "GGML_OP_MUL does not have element_wise_op_dims function");
-static_assert(kOpCaps[GGML_OP_LOG].get_desc == generic_get_op_desc,
-              "GGML_OP_LOG does not have element_wise_op_dims function");
+static_assert(kOpCaps[GGML_OP_ADD].qnn_op_name, "GGML_OP_ADD does not have qnn_op_name in the kOpCaps table");
+static_assert(kOpCaps[GGML_OP_MUL_MAT].qnn_op_name, "GGML_OP_MUL_MAT does not have qnn_op_name in the kOpCaps table");
+static_assert(kOpCaps[GGML_OP_MUL].qnn_op_name, "GGML_OP_MUL does not have qnn_op_name in the kOpCaps table");
+static_assert(kOpCaps[GGML_OP_LOG].qnn_op_name, "GGML_OP_LOG does not have qnn_op_name in the kOpCaps table");
 static_assert(std::size(kOpCaps) == (GGML_OP_COUNT + GGML_UNARY_OP_COUNT),
               "GGML_OP_COUNT does not match the size of the kOpCaps table");
 
@@ -424,8 +411,11 @@ void get_qnn_op_desc(const ggml_tensor * op, bool append_dimensions, std::string
     auto op_index = get_qnn_op_index(op);
     GGML_ASSERT(op_index < std::size(kOpCaps));
     auto get_desc = kOpCaps[op_index].get_desc;
-    GGML_ASSERT(get_desc);
-    get_desc(op, append_dimensions, output);
+    if (get_desc) {
+        get_desc(op, append_dimensions, output);
+    } else {
+        generic_get_op_desc(op, append_dimensions, output);
+    }
 }
 
 std::shared_ptr<ggml_qnn_op_config> create_op(const ggml_tensor * op, const std::string & name,
