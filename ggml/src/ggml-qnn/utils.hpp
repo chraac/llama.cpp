@@ -199,6 +199,12 @@ const char *   qnn_datatype_to_string(Qnn_DataType_t qnn_type);
 size_t         get_system_total_memory_in_bytes();
 size_t         get_system_free_memory_in_bytes();
 
+#ifdef NDEBUG
+#    define ENABLE_QNNBACKEND_PERF 0  // enable/disable op's perf info
+#else
+#    define ENABLE_QNNBACKEND_PERF 1  // enable/disable op's perf info
+#endif
+
 #if ENABLE_QNNBACKEND_PERF
 class qnn_perf {
   public:

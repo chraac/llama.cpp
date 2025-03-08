@@ -12,19 +12,6 @@
 #include "tensor.hpp"
 #include "utils.hpp"
 
-// =================================================================================================
-//
-//  self-defined macro / data structure
-//
-// =================================================================================================
-#ifdef NDEBUG
-#    define ENABLE_QNNBACKEND_PERF 0  // enable/disable op's perf info
-#else
-#    define ENABLE_QNNBACKEND_PERF 1  // enable/disable op's perf info
-#endif
-
-#define QNN_BACKEND_NAME "qnn"
-
 namespace {
 
 #ifdef _WIN32
@@ -62,7 +49,7 @@ constexpr const qnn_device_caps kDeviceCaps[] = {
      // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/GpuOpDefSupplement.html#matmul
         "qnn-gpu", "Qualcomm Adreno GPU", kQnnGpuLibName, GGML_BACKEND_DEVICE_TYPE_GPU,
      (1 << GGML_TYPE_F32) | (1 << GGML_TYPE_F16),
-     0xFFFFFE,  // all quantized types can be offload to CPU, at current implementation, those types will be dequantized into float32 on cpu
+     0xFFFFFE,  // all quantized types can be offload to GPU, at current implementation, those types will be dequantized into float32 on cpu
     },
     {
      // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/HtpOpDefSupplement.html#matmul
