@@ -44,7 +44,7 @@ ggml_type get_graph_key_from_cgraph(const ggml_cgraph * cgraph, std::string & ou
                 continue;
             }
 
-            if (op->op == GGML_OP_NONE || op->op == GGML_OP_VIEW) {
+            if (op->op == GGML_OP_NONE || op->op == GGML_OP_VIEW || op->op == GGML_OP_PERMUTE) {
                 QNN_LOG_DEBUG("%s in graph, skipping\n", ggml_op_desc(op));
                 continue;
             }

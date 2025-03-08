@@ -115,7 +115,7 @@ int get_io_tensors_from_graph(const ggml_cgraph * cgraph, qnn::ggml_tensor_array
             continue;
         }
 
-        if (dst->op == GGML_OP_NONE || dst->op == GGML_OP_VIEW) {
+        if (dst->op == GGML_OP_NONE || dst->op == GGML_OP_VIEW || dst->op == GGML_OP_PERMUTE) {
             // TODO: remove GGML_OP_VIEW after view op is supported
             continue;
         }
@@ -336,7 +336,7 @@ bool qnn_graph::build_graph_from_ggml_graph(const ggml_cgraph * cgraph) {
                 continue;
             }
 
-            if (dst->op == GGML_OP_NONE || dst->op == GGML_OP_VIEW) {
+            if (dst->op == GGML_OP_NONE || dst->op == GGML_OP_VIEW || dst->op == GGML_OP_PERMUTE) {
                 // TODO: remove GGML_OP_VIEW after view op is supported
                 continue;
             }
