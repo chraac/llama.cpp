@@ -430,8 +430,7 @@ bool ggml_qnn_matmul_op_config::create_mat_mul_nodes(qnn_tensor_array_t & tensor
     mat_mul->add_scalar_param(QNN_OP_MAT_MUL_PARAM_TRANSPOSE_IN1, scalar);
 
     // set tensor to mat_mul
-    std::swap(tensor_inputs[0], tensor_inputs[1]);
-    mat_mul->set_input_tensors(tensor_inputs);
+    mat_mul->set_input_tensors({ tensor_inputs[1], tensor_inputs[0] });
     mat_mul->set_output_tensors(tensor_outputs);
 
     _operations.push_back(mat_mul);
