@@ -12,6 +12,12 @@
 
 #define QNN_TENSOR_VER(x) ((x).v1)
 
+#ifdef NDEBUG
+#    define ENABLE_QNNBACKEND_PERF 0  // enable/disable op's perf info
+#else
+#    define ENABLE_QNNBACKEND_PERF 1  // enable/disable op's perf info
+#endif
+
 namespace qnn {
 
 using ggml_dimension_array_t = int64_t[GGML_MAX_DIMS];
@@ -199,16 +205,10 @@ const char *   qnn_datatype_to_string(Qnn_DataType_t qnn_type);
 size_t         get_system_total_memory_in_bytes();
 size_t         get_system_free_memory_in_bytes();
 
-#ifdef NDEBUG
-#    define ENABLE_QNNBACKEND_PERF 0  // enable/disable op's perf info
-#else
-#    define ENABLE_QNNBACKEND_PERF 1  // enable/disable op's perf info
-#endif
-
 #if ENABLE_QNNBACKEND_PERF
 class qnn_perf {
   public:
-    qnn_perf(const std::string & perf_name) : _perf_name(std::move(perf_name)) {};
+    qnn_perf(const std::string & perf_name) : _perf_name(std::move(perf_name)) {}
 
     ~qnn_perf() { info(); }
 
@@ -221,7 +221,7 @@ class qnn_perf {
     void info() {
         _end_time = ggml_time_us();
         _duration = (_end_time - _begin_time);
-        QNN_LOG_INFO("duration of %s : %lld microseconds\n", _perf_name.c_str(), _duration);
+        QNN_LOG_INFO("duration of %s : %lld us\n", _perf_name.c_str(), (long long int) _duration);
     }
 
   private:

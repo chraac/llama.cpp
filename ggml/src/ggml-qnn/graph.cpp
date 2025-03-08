@@ -13,9 +13,8 @@ namespace {
 using qnn_tensor_cache_t = std::unordered_map<ggml_tensor *, qnn::qnn_tensor_ptr_t>;
 
 int get_op_max_rank(const ggml_tensor * op) {
-    int       max_rank = ggml_n_dims(op);
-    const int count    = (int) qnn::get_qnn_op_input_param_count(op);
-    for (int i = 0; i < count; ++i) {
+    int max_rank = ggml_n_dims(op);
+    for (int i = 0; i < GGML_MAX_DIMS && op->src[i]; ++i) {
         max_rank = std::max(max_rank, ggml_n_dims(op->src[i]));
     }
 
@@ -64,7 +63,7 @@ qnn::qnn_op_config_ptr_t create_operation_from_op_tensor(ggml_tensor * dst, cons
 
     // input tensors
     qnn::qnn_tensor_array_t input_qnn_tensors;
-    for (size_t i = 0; i < qnn::get_qnn_op_input_param_count(dst); ++i) {
+    for (size_t i = 0; i < GGML_MAX_DIMS && dst->src[i]; ++i) {
         auto * src            = dst->src[i];
         auto input_qnn_tensor = create_tensor_with_cache(src, qnn::ggml_qnn_tensor::INTERMEDIATE, rank, GGML_TYPE_COUNT,
                                                          device, graph_handle, qnn_instance, tensor_cache);
