@@ -310,8 +310,8 @@ bool qnn_graph::build_graph_from_ggml_graph(const ggml_cgraph * cgraph) {
     ggml_tensor_array_t inputs;
     ggml_tensor_array_t outputs;
     int                 rank = get_io_tensors_from_graph(cgraph, inputs, outputs);
-    QNN_LOG_DEBUG("[%s][%s]rank: %d, input_set: %d, output_set: %d\n", get_backend_name(_device), _graph_name.c_str(),
-                  rank, int(inputs.size()), int(outputs.size()));
+    QNN_LOG_DEBUG("[%s][%s]rank: %d, graph_nodes: %d, input_set: %d, output_set: %d\n", get_backend_name(_device),
+                  _graph_name.c_str(), rank, cgraph->n_nodes, int(inputs.size()), int(outputs.size()));
 
     {
         static_assert(

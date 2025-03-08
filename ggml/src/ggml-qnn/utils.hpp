@@ -34,6 +34,7 @@ const char * get_chipset_desc(uint32_t chipset_id);
 const char * get_htparch_desc(size_t htp_arch);
 intptr_t     align_to(size_t alignment, intptr_t offset);
 uint32_t     get_ggml_tensor_data_size(const ggml_tensor * tensor);
+const char * get_qnn_tensor_type_name(Qnn_TensorType_t type);
 
 void * page_align_alloc(size_t size);
 void   align_free(void * ptr);

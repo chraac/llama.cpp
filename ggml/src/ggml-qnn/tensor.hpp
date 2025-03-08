@@ -308,7 +308,8 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
                 break;
         }
         QNN_TENSOR_SET_TYPE(_qnn_tensor, new_tensor_type);
-        QNN_LOG_DEBUG("[%s][%s]new_tensor_type %d\n", get_backend_name(_device), _tensor_name.c_str(), new_tensor_type);
+        QNN_LOG_DEBUG("[%s][%s]new_tensor_type %s\n", get_backend_name(_device), _tensor_name.c_str(),
+                      get_qnn_tensor_type_name(new_tensor_type));
     }
 
     bool should_use_mem_handle() const {

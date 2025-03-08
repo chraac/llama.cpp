@@ -234,6 +234,29 @@ uint32_t get_ggml_tensor_data_size(const ggml_tensor * tensor) {
     return (uint32_t) ggml_nbytes(tensor);
 }
 
+const char * get_qnn_tensor_type_name(Qnn_TensorType_t type) {
+    switch (type) {
+        case QNN_TENSOR_TYPE_APP_WRITE:
+            return "QNN_TENSOR_TYPE_APP_WRITE";
+        case QNN_TENSOR_TYPE_APP_READ:
+            return "QNN_TENSOR_TYPE_APP_READ";
+        case QNN_TENSOR_TYPE_APP_READWRITE:
+            return "QNN_TENSOR_TYPE_APP_READWRITE";
+        case QNN_TENSOR_TYPE_STATIC:
+            return "QNN_TENSOR_TYPE_STATIC";
+        case QNN_TENSOR_TYPE_NATIVE:
+            return "QNN_TENSOR_TYPE_NATIVE";
+        case QNN_TENSOR_TYPE_UNDEFINED:
+            return "QNN_TENSOR_TYPE_UNDEFINED";
+        case QNN_TENSOR_TYPE_NULL:
+            return "QNN_TENSOR_TYPE_NULL";
+        default:
+            break;
+    }
+
+    return "unknown";
+}
+
 #ifdef _WIN32
 static void * _align_alloc(size_t alignment, size_t size) {
     return _aligned_malloc(size, alignment);
@@ -265,14 +288,15 @@ void align_free(void * ptr) {
 void * page_align_alloc(size_t size) {
     const size_t alignment    = _get_page_size();
     size_t       size_aligned = align_to_generic<size_t>(alignment, size);
-    void * data = _align_alloc(alignment, size_aligned);
+    void *       data         = _align_alloc(alignment, size_aligned);
     if (!data) {
         QNN_LOG_WARN("_align_alloc failed, alignment: %ld, size: %ld, size_aligned: %ld\n", alignment, size,
                      size_aligned);
         return nullptr;
     }
 
-    QNN_LOG_DEBUG("_align_alloc success, alignment: %ld, size: %ld, size_aligned: %ld\n", alignment, size, size_aligned);
+    QNN_LOG_DEBUG("_align_alloc success, alignment: %ld, size: %ld, size_aligned: %ld\n", alignment, size,
+                  size_aligned);
     return data;
 }
 
