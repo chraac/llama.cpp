@@ -47,7 +47,7 @@ struct qnn_device_caps {
     uint64_t supported_types;
 
     // TODO: should we merge this with supported_types?
-    uint64_t cpu_converted_types;
+    uint64_t cpu_preprocess_types;
 };
 
 // TODO: should move this to qnn-lib.cpp
@@ -56,13 +56,13 @@ constexpr const qnn_device_caps kDeviceCaps[] = {
      // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/CpuOpDefSupplement.html#matmul
         "qnn-cpu", "Qualcomm Kryo CPU", kQnnCpuLibName, GGML_BACKEND_DEVICE_TYPE_CPU,
      (1 << GGML_TYPE_I8) | (1 << GGML_TYPE_F32),
-     0xFFFFFE,  // all quantized types can be offload to CPU
+     0xFFFFFE,  // all quantized types can be offload to CPU, at current implementation, those types will be dequantized into float32 on cpu
     },
     {
      // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/GpuOpDefSupplement.html#matmul
         "qnn-gpu", "Qualcomm Adreno GPU", kQnnGpuLibName, GGML_BACKEND_DEVICE_TYPE_GPU,
      (1 << GGML_TYPE_F32) | (1 << GGML_TYPE_F16),
-     0xFFFFFE,  // all quantized types can be offload to CPU
+     0xFFFFFE,  // all quantized types can be offload to CPU, at current implementation, those types will be dequantized into float32 on cpu
     },
     {
      // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/HtpOpDefSupplement.html#matmul
@@ -342,7 +342,7 @@ ggml_backend_t ggml_backend_qnn_init_with_device_context(ggml_backend_dev_t dev,
     dev_ctx->qnn_interface         = qnn_interface;
     dev_ctx->socinfo               = instance->get_soc_info();
     dev_ctx->supported_types       = kDeviceCaps[device].supported_types;
-    dev_ctx->cpu_converted_types   = kDeviceCaps[device].cpu_converted_types;
+    dev_ctx->cpu_preprocess_types  = kDeviceCaps[device].cpu_preprocess_types;
     // TODO: remove npu from here if hardware quantization is supported
     dev_ctx->enable_cpu_dequantize = device == QNN_BACKEND_NPU || device == QNN_BACKEND_GPU;
 
