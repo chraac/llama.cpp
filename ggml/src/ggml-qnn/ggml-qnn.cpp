@@ -47,31 +47,27 @@ struct qnn_device_caps {
     uint64_t supported_types;
 
     // TODO: should we merge this with supported_types?
-    uint64_t enabled_quant_types;
+    uint64_t cpu_converted_types;
 };
 
 // TODO: should move this to qnn-lib.cpp
 constexpr const qnn_device_caps kDeviceCaps[] = {
     {
      // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/CpuOpDefSupplement.html#matmul
-        "qnn-cpu",                                "Qualcomm Kryo CPU",
-     kQnnCpuLibName, GGML_BACKEND_DEVICE_TYPE_CPU,
+        "qnn-cpu", "Qualcomm Kryo CPU", kQnnCpuLibName, GGML_BACKEND_DEVICE_TYPE_CPU,
      (1 << GGML_TYPE_I8) | (1 << GGML_TYPE_F32),
-     (1 << GGML_TYPE_Q2_K) | (1 << GGML_TYPE_Q3_K) | (1 << GGML_TYPE_Q4_K) | (1 << GGML_TYPE_Q5_K) |
-            (1 << GGML_TYPE_Q6_K) | (1 << GGML_TYPE_Q8_0) | (1 << GGML_TYPE_Q8_K),
-     },
+     0xFFFFFE,  // all quantized types can be offload to CPU
+    },
     {
      // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/GpuOpDefSupplement.html#matmul
-        "qnn-gpu",                                           "Qualcomm Adreno GPU",
-     kQnnGpuLibName,   GGML_BACKEND_DEVICE_TYPE_GPU,
+        "qnn-gpu", "Qualcomm Adreno GPU", kQnnGpuLibName, GGML_BACKEND_DEVICE_TYPE_GPU,
      (1 << GGML_TYPE_F32) | (1 << GGML_TYPE_F16),
-     (1 << GGML_TYPE_Q2_K) | (1 << GGML_TYPE_Q3_K) | (1 << GGML_TYPE_Q4_K) | (1 << GGML_TYPE_Q5_K) |
-            (1 << GGML_TYPE_Q6_K) | (1 << GGML_TYPE_Q8_0) | (1 << GGML_TYPE_Q8_K),
-     },
+     0xFFFFFE,  // all quantized types can be offload to CPU
+    },
     {
      // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/HtpOpDefSupplement.html#matmul
         "qnn-npu", "Qualcomm NPU",
-     kQnnNpuLibName,              GGML_BACKEND_DEVICE_TYPE_ACCEL,
+     kQnnNpuLibName, GGML_BACKEND_DEVICE_TYPE_ACCEL,
      (1 << GGML_TYPE_F32) | (1 << GGML_TYPE_F16) | (1 << GGML_TYPE_I16),
      (1 << GGML_TYPE_Q2_K) | (1 << GGML_TYPE_Q3_K) | (1 << GGML_TYPE_Q4_K) | (1 << GGML_TYPE_Q8_K),
      },
@@ -83,9 +79,9 @@ static_assert(kDeviceCaps[QNN_BACKEND_NPU].type == GGML_BACKEND_DEVICE_TYPE_ACCE
               "The NPU device should be an accelerator device");
 static_assert(kDeviceCaps[QNN_BACKEND_GPU].type == GGML_BACKEND_DEVICE_TYPE_GPU,
               "The NPU device should be an accelerator device");
-
 static_assert(kDeviceCaps[QNN_BACKEND_CPU].type == GGML_BACKEND_DEVICE_TYPE_CPU,
               "The NPU device should be an accelerator device");
+static_assert(GGML_TYPE_Q4_0 == 2 && GGML_TYPE_Q8_K == 15, "The quantized type order is not correct");
 
 ggml_backend_qnn_device_context * get_device_context(ggml_backend_dev_t dev) {
     return reinterpret_cast<ggml_backend_qnn_device_context *>(dev->context);
@@ -346,7 +342,7 @@ ggml_backend_t ggml_backend_qnn_init_with_device_context(ggml_backend_dev_t dev,
     dev_ctx->qnn_interface         = qnn_interface;
     dev_ctx->socinfo               = instance->get_soc_info();
     dev_ctx->supported_types       = kDeviceCaps[device].supported_types;
-    dev_ctx->enabled_quant_types   = kDeviceCaps[device].enabled_quant_types;
+    dev_ctx->cpu_converted_types   = kDeviceCaps[device].cpu_converted_types;
     // TODO: remove npu from here if hardware quantization is supported
     dev_ctx->enable_cpu_dequantize = device == QNN_BACKEND_NPU || device == QNN_BACKEND_GPU;
 

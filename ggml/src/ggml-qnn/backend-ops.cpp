@@ -393,7 +393,7 @@ bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context * ctx, const gg
                 return false;
             }
             if (op->type == GGML_TYPE_F32 && ggml_is_quantized(src0->type) &&
-                !is_type_bit_enabled(ctx->enabled_quant_types, src0->type)) {
+                !is_type_bit_enabled(ctx->cpu_converted_types, src0->type)) {
                 // for such cases that src0 is quantized and op is float32, check if the quant type is enabled
                 QNN_LOG_DEBUG("[%s][MUL_MAT]quantized src0 type %s is not enabled\n",
                               qnn::get_backend_name(ctx->device), ggml_type_name(src0->type));
