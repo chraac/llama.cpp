@@ -341,7 +341,14 @@ bool qnn_graph::build_graph_from_ggml_graph(const ggml_cgraph * cgraph) {
                 continue;
             }
 
-            QNN_LOG_DEBUG("[%s]create op: %s\n", get_backend_name(_device), get_qnn_op_name(dst));
+#ifndef NDEBUG
+            {
+                std::string op_desc;
+                get_qnn_op_desc(dst, true, op_desc);
+                QNN_LOG_DEBUG("[%s]create op(%s) with qnn op(%s)\n", get_backend_name(_device), op_desc.c_str(),
+                              get_qnn_op_name(dst));
+            }
+#endif
             auto operation = create_operation_from_op_tensor(dst, dst->name, rank, _device, _graph_handle,
                                                              _qnn_instance, tensor_cache);  // TODO: fix op name
             operations.push_back(operation);

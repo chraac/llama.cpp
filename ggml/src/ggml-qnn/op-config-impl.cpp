@@ -111,7 +111,8 @@ bool ggml_qnn_op_config_base::add_op_to_graph(Qnn_GraphHandle_t graph_handle) {
             return false;
         }
 
-        QNN_LOG_DEBUG("[%s]input tensor id: %d\n", _name.c_str(), tensor->get_qnn_tensor_id());
+        QNN_LOG_DEBUG("[%s]input tensor(%s), id(%d)\n", _name.c_str(), tensor->get_tensor_name().c_str(),
+                      tensor->get_qnn_tensor_id());
         _qnn_tensor_inputs[i] = tensor->get_qnn_tensor();
     }
 
@@ -122,7 +123,8 @@ bool ggml_qnn_op_config_base::add_op_to_graph(Qnn_GraphHandle_t graph_handle) {
             return false;
         }
 
-        QNN_LOG_DEBUG("[%s]output tensor id: %d\n", _name.c_str(), tensor->get_qnn_tensor_id());
+        QNN_LOG_DEBUG("[%s]output tensor(%s), id(%d)\n", _name.c_str(), tensor->get_tensor_name().c_str(),
+                      tensor->get_qnn_tensor_id());
         _qnn_tensor_outputs[i] = tensor->get_qnn_tensor();
     }
 

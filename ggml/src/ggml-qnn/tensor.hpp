@@ -179,6 +179,8 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
 
     uint32_t get_qnn_tensor_id() const { return QNN_TENSOR_GET_ID(_qnn_tensor); }
 
+    const std::string & get_tensor_name() const { return _tensor_name; }
+
   private:
     bool bind_buffer_impl(qnn_buffer_ptr buffer) {
         if (_buffer) {
