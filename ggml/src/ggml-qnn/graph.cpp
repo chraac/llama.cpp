@@ -120,6 +120,7 @@ int get_io_tensors_from_graph(const ggml_cgraph * cgraph, qnn::ggml_tensor_array
             continue;
         }
 
+        QNN_LOG_DEBUG("node[%d]: %s(%s), addr: %p\n", i, ggml_get_name(dst), ggml_op_desc(dst), (void *) dst);
         rank = std::max(rank, ggml_n_dims(dst));
         if (connectivity_map.count(dst) == 0) {
             connectivity_map[dst] = {
@@ -131,10 +132,12 @@ int get_io_tensors_from_graph(const ggml_cgraph * cgraph, qnn::ggml_tensor_array
             ++(connectivity_map[dst].in_degree);
         }
 
-        for (size_t i = 0; i < GGML_MAX_DIMS && dst->src[i]; ++i) {
-            auto * src = dst->src[i];
+        for (size_t j = 0; j < GGML_MAX_DIMS && dst->src[j]; ++j) {
+            auto * src = dst->src[j];
             rank       = std::max(rank, ggml_n_dims(src));
 
+            QNN_LOG_DEBUG("node[%d]: src[%d]: %s(%s), addr: %p\n", i, (int) j, ggml_get_name(src), ggml_op_desc(src),
+                          (void *) src);
             if (connectivity_map.count(src) == 0) {
                 connectivity_map[src] = {
                     0,
@@ -180,11 +183,15 @@ ggml_type get_override_data_type(const qnn::ggml_tensor_array_t & inputs, const 
     ggml_type override_data_type = inputs.front()->type;
     bool      is_same_data_type  = true;
     for (auto * tensor : inputs) {
+        QNN_LOG_DEBUG("input_tensor: %s(%s), override_data_type(%s)\n", ggml_get_name(tensor),
+                      ggml_type_name(tensor->type), ggml_type_name(override_data_type));
         is_same_data_type  = is_same_data_type && tensor->type == override_data_type;
         override_data_type = std::min(override_data_type, tensor->type);
     }
 
     for (auto * tensor : outputs) {
+        QNN_LOG_DEBUG("output_tensor: %s(%s), override_data_type(%s)\n", ggml_get_name(tensor),
+                      ggml_type_name(tensor->type), ggml_type_name(override_data_type));
         is_same_data_type  = is_same_data_type && tensor->type == override_data_type;
         override_data_type = std::min(override_data_type, tensor->type);
     }
