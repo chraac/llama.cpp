@@ -262,7 +262,7 @@ qnn_graph::qnn_graph(const std::string & graph_name, QNNBackend device, std::sha
     _graph_name(graph_name),
     _device(device),
     _qnn_instance(qnn_instance) {
-    QNN_LOG_DEBUG("[%s][%s]created\n", get_backend_name(device), graph_name.c_str());
+    QNN_LOG_DEBUG("[%s][%s]creating\n", get_backend_name(device), graph_name.c_str());
 
     auto              qnn_interface = qnn_instance->get_qnn_interface();
     auto              qnn_context   = qnn_instance->get_qnn_context_handle();
@@ -288,6 +288,7 @@ qnn_graph::qnn_graph(const std::string & graph_name, QNNBackend device, std::sha
         if (precision == qnn_graph::kHtpFp16) {
             auto precision_config = make_graph_config(&kHtpPrecisionConfigF16);
             graph_configs.push_back(&precision_config);
+            QNN_LOG_DEBUG("[%s][%s]set precision to F16\n", get_backend_name(device), graph_name.c_str());
         }
 
         graph_configs.push_back(nullptr);
