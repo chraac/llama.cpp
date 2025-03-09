@@ -32,6 +32,7 @@ struct ggml_backend_qnn_device_context {
     qnn::qcom_socinfo                   socinfo = {};
     uint64_t                            supported_types;
     uint64_t                            cpu_preprocess_types;
+    size_t                              max_tensor_size_in_bytes;
     std::shared_ptr<qnn::qnn_instance>  instance;
     std::shared_ptr<qnn::qnn_interface> qnn_interface;
 

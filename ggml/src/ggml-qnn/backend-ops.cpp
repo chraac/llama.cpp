@@ -240,6 +240,10 @@ inline bool is_type_bit_enabled(uint64_t bits, ggml_type type) {
 }
 
 bool ggml_qnn_supports_tensor(ggml_backend_qnn_device_context * ctx, const ggml_tensor * tensor) {
+    constexpr const auto get_tensor_size_in_bytes = [](const ggml_tensor * tensor) -> size_t {
+        return tensor->ne[0] * tensor->ne[1] * tensor->ne[2] * tensor->ne[3] * ggml_type_size(tensor->type);
+    };
+
     if (!tensor) {
         QNN_LOG_DEBUG("tensor is nullptr\n");
         return false;
@@ -269,6 +273,13 @@ bool ggml_qnn_supports_tensor(ggml_backend_qnn_device_context * ctx, const ggml_
             QNN_LOG_DEBUG("[%s]unsupported data type %s\n", qnn::get_backend_name(ctx->device),
                           ggml_type_name(tensor->type));
             return false;
+    }
+
+    const auto tensor_size = get_tensor_size_in_bytes(tensor);
+    if (ctx->max_tensor_size_in_bytes && tensor_size >= ctx->max_tensor_size_in_bytes) {
+        QNN_LOG_DEBUG("[%s]tensor size %d exceeds the limit %d\n", qnn::get_backend_name(ctx->device),
+                      (int) tensor_size, (int) ctx->max_tensor_size_in_bytes);
+        return false;
     }
 
     return true;
@@ -323,12 +334,6 @@ bool ggml_qnn_have_same_tensor_types(ggml_backend_qnn_device_context * ctx, cons
 
 // TODO: move to caps array?
 bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context * ctx, const ggml_tensor * op) {
-    constexpr const size_t kMaxNpuTensorSize =
-        8192L * 2048 + 8192 * 512 + 2048 * 512;  // TODO: should have a better way to get this value
-    constexpr const auto get_tensor_size = [](const ggml_tensor * tensor) -> size_t {
-        return tensor->ne[0] * tensor->ne[1] * tensor->ne[2] * tensor->ne[3];
-    };
-
     auto * src0 = op->src[0];
     auto * src1 = op->src[1];
     switch (ctx->device) {
@@ -339,9 +344,6 @@ bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context * ctx, const gg
                  *   [ne03, ne02, n, k] * [ne03 * x, ne02 * y, m, k] -> [ne03 * x, ne02 * y, m, n]
                  */
                 QNN_LOG_DEBUG("[qnn-npu][MUL_MAT]src0 and src1 dimensions are not equal\n");
-                return false;
-            } else if (get_tensor_size(src0) + get_tensor_size(src1) + get_tensor_size(op) >= kMaxNpuTensorSize) {
-                QNN_LOG_DEBUG("[qnn-npu][MUL_MAT]tensor size is too large\n");
                 return false;
             }
             // fall through, from test here, the convert op is super slow on NPU:

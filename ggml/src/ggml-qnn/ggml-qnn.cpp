@@ -30,34 +30,40 @@ struct qnn_device_caps {
     const char *               lib_name;
     enum ggml_backend_dev_type type;
 
-    // TODO: should get this caps from device
+    // TODO: should we get this from device?
     uint64_t supported_types;
 
     // TODO: should we merge this with supported_types?
     uint64_t cpu_preprocess_types;
+
+    // TODO: should we get this from device?
+    size_t max_tensor_size_in_bytes;
 };
 
 // TODO: should move this to qnn-lib.cpp
 constexpr const qnn_device_caps kDeviceCaps[] = {
     {
      // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/CpuOpDefSupplement.html#matmul
-        "qnn-cpu", "Qualcomm Kryo CPU", kQnnCpuLibName, GGML_BACKEND_DEVICE_TYPE_CPU,
+        "qnn-cpu", "Qualcomm Kryo CPU",
+     kQnnCpuLibName, GGML_BACKEND_DEVICE_TYPE_CPU,
      (1 << GGML_TYPE_I8) | (1 << GGML_TYPE_F32),
      0xFFFFFE,  // all quantized types can be offload to CPU, at current implementation, those types will be dequantized into float32 on cpu
-    },
+        0, },
     {
      // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/GpuOpDefSupplement.html#matmul
         "qnn-gpu", "Qualcomm Adreno GPU", kQnnGpuLibName, GGML_BACKEND_DEVICE_TYPE_GPU,
      (1 << GGML_TYPE_F32) | (1 << GGML_TYPE_F16),
      0xFFFFFE,  // all quantized types can be offload to GPU, at current implementation, those types will be dequantized into float32 on cpu
+        128256L * 4096 *
+            sizeof(float),  // tested on 8 gen 2, tensor with size 128256x4096 and float32 will pop up error
     },
     {
      // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/HtpOpDefSupplement.html#matmul
-        "qnn-npu", "Qualcomm NPU",
-     kQnnNpuLibName, GGML_BACKEND_DEVICE_TYPE_ACCEL,
+        "qnn-npu", "Qualcomm NPU", kQnnNpuLibName, GGML_BACKEND_DEVICE_TYPE_ACCEL,
      (1 << GGML_TYPE_F32) | (1 << GGML_TYPE_F16) | (1 << GGML_TYPE_I16),
      (1 << GGML_TYPE_Q2_K) | (1 << GGML_TYPE_Q3_K) | (1 << GGML_TYPE_Q4_K) | (1 << GGML_TYPE_Q8_K),
-     },
+     (8192L * 2048 + 8192 * 512 + 2048 * 512) * sizeof(float),  // TODO: should have a better way to get this value
+    },
 };
 
 static_assert(sizeof(kDeviceCaps) / sizeof(kDeviceCaps[0]) == GGML_QNN_MAX_DEVICES,
@@ -325,13 +331,14 @@ ggml_backend_t ggml_backend_qnn_init_with_device_context(ggml_backend_dev_t dev,
 
     std::string device_name = qnn::get_backend_name(device);
     QNN_LOG_INFO("qnn device name %s\n", device_name.c_str());
-    dev_ctx->instance              = instance;
-    dev_ctx->qnn_interface         = qnn_interface;
-    dev_ctx->socinfo               = instance->get_soc_info();
-    dev_ctx->supported_types       = kDeviceCaps[device].supported_types;
-    dev_ctx->cpu_preprocess_types  = kDeviceCaps[device].cpu_preprocess_types;
+    dev_ctx->instance                 = instance;
+    dev_ctx->qnn_interface            = qnn_interface;
+    dev_ctx->socinfo                  = instance->get_soc_info();
+    dev_ctx->supported_types          = kDeviceCaps[device].supported_types;
+    dev_ctx->cpu_preprocess_types     = kDeviceCaps[device].cpu_preprocess_types;
+    dev_ctx->max_tensor_size_in_bytes = kDeviceCaps[device].max_tensor_size_in_bytes;
     // TODO: remove npu from here if hardware quantization is supported
-    dev_ctx->enable_cpu_dequantize = device == QNN_BACKEND_NPU || device == QNN_BACKEND_GPU;
+    dev_ctx->enable_cpu_dequantize    = device == QNN_BACKEND_NPU || device == QNN_BACKEND_GPU;
 
     ggml_backend_t qnn_backend = new ggml_backend{
         /* .guid      = */ ggml_backend_qnn_guid(),
