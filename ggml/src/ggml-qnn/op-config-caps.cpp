@@ -9,7 +9,6 @@ using op_constructor_t = std::shared_ptr<qnn::ggml_qnn_op_config> (*)(const ggml
 using op_description_generator_t = void (*)(const ggml_tensor * op, bool append_dimensions, std::string & output);
 
 void get_graph_key_from_op(const ggml_tensor * op, std::string & output) {
-    GGML_ASSERT(op->op != GGML_OP_NONE);
     output += ggml_op_desc(op);
     output += qnn::get_ggml_type_name(op->type);
     for (size_t i = 0; i < GGML_MAX_SRC && op->src[i]; ++i) {
@@ -407,7 +406,6 @@ const char * get_qnn_op_name(const ggml_tensor * op) {
 }
 
 void get_qnn_op_desc(const ggml_tensor * op, bool append_dimensions, std::string & output) {
-    QNN_LOG_DEBUG("get_qnn_op_desc: %s\n", ggml_op_desc(op));
     auto op_index = get_qnn_op_index(op);
     GGML_ASSERT(op_index < std::size(kOpCaps));
     auto get_desc = kOpCaps[op_index].get_desc;
