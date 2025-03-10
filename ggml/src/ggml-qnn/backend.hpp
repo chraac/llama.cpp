@@ -30,8 +30,6 @@ struct ggml_backend_qnn_device_context {
 
     // initialize in qnn init
     qnn::qcom_socinfo                   socinfo = {};
-    uint64_t                            supported_types;
-    uint64_t                            cpu_preprocess_types;
     size_t                              max_tensor_size_in_bytes;
     std::shared_ptr<qnn::qnn_instance>  instance;
     std::shared_ptr<qnn::qnn_interface> qnn_interface;
@@ -44,7 +42,9 @@ struct ggml_backend_qnn_device_context {
     std::atomic_uint32_t unsupported_op_count = 0;
 #endif
 
-    bool enable_cpu_dequantize = false;
+    bool     enable_cpu_dequantize = false;
+    uint64_t supported_types;
+    uint64_t cpu_preprocess_types;
 
     explicit ggml_backend_qnn_device_context(QNNBackend device, size_t threads, const char * name,
                                              const char * lib_name, uint64_t supported_types) :

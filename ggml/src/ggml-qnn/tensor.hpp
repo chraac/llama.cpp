@@ -85,7 +85,7 @@ class ggml_qnn_tensor : public std::enable_shared_from_this<ggml_qnn_tensor> {
         auto         qnn_interface = _qnn_instance->get_qnn_interface();
         auto         error         = qnn_interface->qnn_tensor_create_graph_tensor(_graph_handle, &qnn_tensor);
         if (error != QNN_SUCCESS) {
-            QNN_LOG_WARN("[%s]allocate id failed, error: %s\n", _tensor_name.c_str(), get_qnn_error_string(error));
+            QNN_LOG_ERROR("[%s]allocate id failed, error: %s\n", _tensor_name.c_str(), get_qnn_error_string(error));
             return false;
         }
 

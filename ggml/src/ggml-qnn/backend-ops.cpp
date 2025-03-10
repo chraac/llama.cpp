@@ -239,11 +239,29 @@ inline bool is_type_bit_enabled(uint64_t bits, ggml_type type) {
     return bits & (uint64_t(1) << type);
 }
 
-bool ggml_qnn_supports_tensor(ggml_backend_qnn_device_context * ctx, const ggml_tensor * tensor) {
-    constexpr const auto get_tensor_size_in_bytes = [](const ggml_tensor * tensor) -> size_t {
-        return tensor->ne[0] * tensor->ne[1] * tensor->ne[2] * tensor->ne[3] * ggml_type_size(tensor->type);
+inline bool is_tensor_size_valid(ggml_backend_qnn_device_context * ctx, const ggml_tensor * tensor) {
+    constexpr const auto get_tensor_size_in_bytes = [](const ggml_tensor * tensor, ggml_type type) -> size_t {
+        return tensor->ne[0] * tensor->ne[1] * tensor->ne[2] * tensor->ne[3] * ggml_type_size(type);
     };
 
+    auto type = tensor->type;
+    if (ggml_is_quantized(type) && ctx->enable_cpu_dequantize) {
+        type = GGML_TYPE_F32;  // TODO: [quantize] fix me if plan to dequantize to other types
+    }
+
+    const auto tensor_size = get_tensor_size_in_bytes(tensor, type);
+    if (ctx->max_tensor_size_in_bytes && tensor_size >= ctx->max_tensor_size_in_bytes) {
+        QNN_LOG_DEBUG("[%s]tensor(%s_%dx%dx%dx%d) size(%lld) exceeds the limit(%lld)\n",
+                      qnn::get_backend_name(ctx->device), ggml_get_name(tensor), (int) tensor->ne[0],
+                      (int) tensor->ne[1], (int) tensor->ne[2], (int) tensor->ne[3], (long long int) tensor_size,
+                      (long long int) ctx->max_tensor_size_in_bytes);
+        return false;
+    }
+
+    return true;
+}
+
+bool is_tensor_type_valid(ggml_backend_qnn_device_context * ctx, const ggml_tensor * tensor) {
     if (!tensor) {
         QNN_LOG_DEBUG("tensor is nullptr\n");
         return false;
@@ -275,13 +293,6 @@ bool ggml_qnn_supports_tensor(ggml_backend_qnn_device_context * ctx, const ggml_
             return false;
     }
 
-    const auto tensor_size = get_tensor_size_in_bytes(tensor);
-    if (ctx->max_tensor_size_in_bytes && tensor_size >= ctx->max_tensor_size_in_bytes) {
-        QNN_LOG_DEBUG("[%s]tensor size %d exceeds the limit %d\n", qnn::get_backend_name(ctx->device),
-                      (int) tensor_size, (int) ctx->max_tensor_size_in_bytes);
-        return false;
-    }
-
     return true;
 }
 
@@ -290,7 +301,7 @@ bool ggnl_qnn_supports_op_tensor(ggml_backend_qnn_device_context * ctx, const gg
         return true;
     }
 
-    if (!ggml_qnn_supports_tensor(ctx, op)) {
+    if (!is_tensor_type_valid(ctx, op) || !is_tensor_size_valid(ctx, op)) {
         return false;
     }
 
@@ -298,8 +309,12 @@ bool ggnl_qnn_supports_op_tensor(ggml_backend_qnn_device_context * ctx, const gg
     const bool cpu_dequant = ctx->enable_cpu_dequantize && op->op == GGML_OP_MUL_MAT;
     for (size_t i = 0; i < GGML_MAX_SRC && op->src[i]; ++i) {
         auto * src = op->src[i];
+        if (!is_tensor_size_valid(ctx, src)) {
+            return false;
+        }
+
         // passthrough the quantized tensor for CPU dequantization
-        if (!ggml_qnn_supports_tensor(ctx, src) && (!cpu_dequant || !ggml_is_quantized(src->type))) {
+        if (!is_tensor_type_valid(ctx, src) && (!cpu_dequant || !ggml_is_quantized(src->type))) {
             return false;
         }
     }
