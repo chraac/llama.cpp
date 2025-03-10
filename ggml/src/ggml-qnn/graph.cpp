@@ -120,7 +120,8 @@ int get_io_tensors_from_graph(const ggml_cgraph * cgraph, qnn::ggml_tensor_array
             continue;
         }
 
-        QNN_LOG_DEBUG("node[%d]: %s(%s), addr: %p\n", i, ggml_get_name(dst), ggml_op_desc(dst), (void *) dst);
+        QNN_LOG_DEBUG("node[%d]: %s(%s), type: %s\n", i, ggml_get_name(dst), ggml_op_desc(dst),
+                      ggml_type_name(dst->type));
         rank = std::max(rank, ggml_n_dims(dst));
         if (connectivity_map.count(dst) == 0) {
             connectivity_map[dst] = {
@@ -136,8 +137,8 @@ int get_io_tensors_from_graph(const ggml_cgraph * cgraph, qnn::ggml_tensor_array
             auto * src = dst->src[j];
             rank       = std::max(rank, ggml_n_dims(src));
 
-            QNN_LOG_DEBUG("node[%d]: src[%d]: %s(%s), addr: %p\n", i, (int) j, ggml_get_name(src), ggml_op_desc(src),
-                          (void *) src);
+            QNN_LOG_DEBUG("node[%d]: src[%d]: %s(%s), type: %s\n", i, (int) j, ggml_get_name(src), ggml_op_desc(src),
+                          ggml_type_name(src->type));
             if (connectivity_map.count(src) == 0) {
                 connectivity_map[src] = {
                     0,

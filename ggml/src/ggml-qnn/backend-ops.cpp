@@ -124,9 +124,9 @@ constexpr const bool kQnnSupportedOps[] = {
     false,  // GGML_OP_ACC
     true,   // GGML_OP_SUB
     true,   // GGML_OP_MUL
-    true,   // GGML_OP_DIV
+    false,  // GGML_OP_DIV, disabled for now cause failed on test-backend-ops
     false,  // GGML_OP_SQR
-    true,   // GGML_OP_SQRT
+    false,  // GGML_OP_SQRT, disabled for now cause failed on test-backend-ops
     true,   // GGML_OP_LOG
     false,  // GGML_OP_SIN
     false,  // GGML_OP_COS
