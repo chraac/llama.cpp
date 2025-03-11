@@ -117,10 +117,12 @@ int get_io_tensors_from_graph(const ggml_cgraph * cgraph, qnn::ggml_tensor_array
 
         if (dst->op == GGML_OP_NONE || dst->op == GGML_OP_VIEW || dst->op == GGML_OP_PERMUTE) {
             // TODO: remove GGML_OP_VIEW after view op is supported
+            QNN_LOG_DEBUG("node[%d]%s(%s), type: %s, skipped\n", i, ggml_get_name(dst), ggml_op_desc(dst),
+                          ggml_type_name(dst->type));
             continue;
         }
 
-        QNN_LOG_DEBUG("node[%d]: %s(%s), type: %s\n", i, ggml_get_name(dst), ggml_op_desc(dst),
+        QNN_LOG_DEBUG("node[%d]%s(%s), type: %s\n", i, ggml_get_name(dst), ggml_op_desc(dst),
                       ggml_type_name(dst->type));
         rank = std::max(rank, ggml_n_dims(dst));
         if (connectivity_map.count(dst) == 0) {

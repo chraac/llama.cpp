@@ -134,7 +134,7 @@ std::vector<qnn::qnn_buffer_ptr> convert(std::shared_ptr<qnn_convert_context_t> 
         std::shared_ptr<qnn::qnn_mem_buffer_slice> output_buffer =
             std::make_shared<qnn::qnn_mem_buffer_slice>(data_buffer->get_buffer(), dst_size);
 
-        QNN_LOG_DEBUG("convert tensor from %s to %s, size: %d\n", ggml_type_name(src->type),
+        QNN_LOG_DEBUG("convert tensor(%s) from %s to %s, size: %d\n", ggml_get_name(src), ggml_type_name(src->type),
                       ggml_type_name(target_data_type), (int) dst_size);
 
 #ifdef GGML_USE_OPENMP
