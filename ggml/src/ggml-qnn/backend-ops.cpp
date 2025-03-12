@@ -296,6 +296,10 @@ bool is_tensor_type_valid(ggml_backend_qnn_device_context * ctx, const ggml_tens
     return true;
 }
 
+bool is_data_reinterpretation_op(ggml_op op) {
+    return op == GGML_OP_VIEW || op == GGML_OP_PERMUTE;
+}
+
 bool ggnl_qnn_supports_op_tensor(ggml_backend_qnn_device_context * ctx, const ggml_tensor * op) {
     if (op->op == GGML_OP_NONE) {
         return true;
@@ -351,10 +355,10 @@ bool ggml_qnn_have_same_tensor_types(ggml_backend_qnn_device_context * ctx, cons
 bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context * ctx, const ggml_tensor * op) {
     auto * src0 = op->src[0];
     auto * src1 = op->src[1];
-    if (src0->op == GGML_OP_PERMUTE || src1->op == GGML_OP_PERMUTE) {
+    if (is_data_reinterpretation_op(src0->op) || is_data_reinterpretation_op(src1->op)) {
         // TODO: remove the blocker here when we support permute op
-        QNN_LOG_DEBUG("[%s][MUL_MAT]found permute op in src0(%s) or src1(%s)\n", qnn::get_backend_name(ctx->device),
-                      ggml_op_name(src0->op), ggml_op_name(src1->op));
+        QNN_LOG_DEBUG("[%s][MUL_MAT]data reorganization op is not supported, (%s, %s)\n",
+                      qnn::get_backend_name(ctx->device), ggml_op_name(src0->op), ggml_op_name(src1->op));
         return false;
     }
 

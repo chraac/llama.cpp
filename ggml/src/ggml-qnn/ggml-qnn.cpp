@@ -44,24 +44,24 @@ struct qnn_device_caps {
 constexpr const qnn_device_caps kDeviceCaps[] = {
     {
      // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/CpuOpDefSupplement.html#matmul
-        "qnn-cpu", "Qualcomm Kryo CPU",
-     kQnnCpuLibName, GGML_BACKEND_DEVICE_TYPE_CPU,
-     (1 << GGML_TYPE_I8) | (1 << GGML_TYPE_F32),
-     0xFFFFFE,  // all quantized types can be offload to CPU, at current implementation, those types will be dequantized into float32 on cpu
-        0, },
+        "qnn-cpu",                                                                        "Qualcomm Kryo CPU", kQnnCpuLibName, GGML_BACKEND_DEVICE_TYPE_CPU,
+     (1L << GGML_TYPE_I8) | (1L << GGML_TYPE_F32),
+     0xFFFFFE,                                                                                                                                                                                                                                                                                         // all quantized types can be offload to CPU, at current implementation, those types will be dequantized into float32 on cpu
+        0,                                                    // 0 for no limitation
+    },
     {
      // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/GpuOpDefSupplement.html#matmul
-        "qnn-gpu", "Qualcomm Adreno GPU", kQnnGpuLibName, GGML_BACKEND_DEVICE_TYPE_GPU,
-     (1 << GGML_TYPE_F32) | (1 << GGML_TYPE_F16),
-     0xFFFFFE,  // all quantized types can be offload to GPU, at current implementation, those types will be dequantized into float32 on cpu
-        128256L * 4096 *
-            sizeof(float),  // tested on 8 gen 2, tensor with size 128256x4096 and float32 will pop up error
+        "qnn-gpu",                                                                                    "Qualcomm Adreno GPU",                                                                                             kQnnGpuLibName,   GGML_BACKEND_DEVICE_TYPE_GPU,
+     (1L << GGML_TYPE_F32) | (1L << GGML_TYPE_F16),
+     // all quantized types can be offload to GPU, at current implementation, those types will be dequantized into float32 on cpu
+        0xFFFFFE,                                                           (128256L * 4096 *
+         sizeof(float)), // tested on 8 gen 2, failed to allocate tensor with size 128256x4096 and float32
     },
     {
      // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/HtpOpDefSupplement.html#matmul
-        "qnn-npu", "Qualcomm NPU", kQnnNpuLibName, GGML_BACKEND_DEVICE_TYPE_ACCEL,
-     (1 << GGML_TYPE_F32) | (1 << GGML_TYPE_F16) | (1 << GGML_TYPE_I16),
-     (1 << GGML_TYPE_Q2_K) | (1 << GGML_TYPE_Q3_K) | (1 << GGML_TYPE_Q4_K) | (1 << GGML_TYPE_Q8_K),
+        "qnn-npu", "Qualcomm NPU",                                                                                                         kQnnNpuLibName,                                                                                                             GGML_BACKEND_DEVICE_TYPE_ACCEL,
+     (1L << GGML_TYPE_F32) | (1L << GGML_TYPE_F16) | (1L << GGML_TYPE_I16),
+     (1L << GGML_TYPE_Q2_K) | (1L << GGML_TYPE_Q3_K) | (1L << GGML_TYPE_Q4_K) | (1L << GGML_TYPE_Q8_K),
      (8192L * 2048 + 8192 * 512 + 2048 * 512) * sizeof(float),  // TODO: should have a better way to get this value
     },
 };
