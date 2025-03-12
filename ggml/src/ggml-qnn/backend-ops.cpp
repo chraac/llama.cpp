@@ -351,6 +351,13 @@ bool ggml_qnn_have_same_tensor_types(ggml_backend_qnn_device_context * ctx, cons
 bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context * ctx, const ggml_tensor * op) {
     auto * src0 = op->src[0];
     auto * src1 = op->src[1];
+    if (src0->op == GGML_OP_PERMUTE || src1->op == GGML_OP_PERMUTE) {
+        // TODO: remove the blocker here when we support permute op
+        QNN_LOG_DEBUG("[%s][MUL_MAT]found permute op in src0(%s) or src1(%s)\n", qnn::get_backend_name(ctx->device),
+                      ggml_op_name(src0->op), ggml_op_name(src1->op));
+        return false;
+    }
+
     switch (ctx->device) {
         case QNN_BACKEND_NPU:
             if (src1->ne[2] != src0->ne[2] || src1->ne[3] != src0->ne[3]) {
@@ -398,9 +405,8 @@ void print_tensor_info(ggml_backend_qnn_device_context * ctx, const ggml_tensor 
     std::string  op_key;
     qnn::get_qnn_op_desc(op, true, op_key);
 
-    QNN_LOG_DEBUG("[%s][%s]op was %s, support/unsupported: %d/%d\n", qnn::get_backend_name(ctx->device),
-                  op_key.c_str(), supported, ctx->supported_op_count.load(),
-                  ctx->unsupported_op_count.load());
+    QNN_LOG_DEBUG("[%s][%s]op was %s, support/unsupported: %d/%d\n", qnn::get_backend_name(ctx->device), op_key.c_str(),
+                  supported, ctx->supported_op_count.load(), ctx->unsupported_op_count.load());
 }
 
 #endif
