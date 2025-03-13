@@ -453,9 +453,17 @@ bool device_supports_op(ggml_backend_qnn_device_context * ctx, const ggml_tensor
         auto * src0 = op->src[0];
         auto * src1 = op->src[1];
         switch (op->op) {
+            case GGML_OP_MUL:
+                if (src0->op == GGML_OP_RMS_NORM || src1->op == GGML_OP_RMS_NORM) {
+                    QNN_LOG_DEBUG("[%s][%s]skip unsupported mul with rms norm, (%s, %s)\n",
+                                  qnn::get_backend_name(ctx->device), ggml_op_desc(op), ggml_op_desc(src0),
+                                  ggml_op_desc(src1));
+                    is_op_supported = false;
+                    break;
+                }
+                // fall through, just skip the mul with rms_norm, in llama, its at start of decoder block
             case GGML_OP_ADD:
             case GGML_OP_SUB:
-            case GGML_OP_MUL:
             case GGML_OP_DIV:
                 // TODO: move to op caps array?
                 if (!ggml_are_same_shape(src0, src1)) {
