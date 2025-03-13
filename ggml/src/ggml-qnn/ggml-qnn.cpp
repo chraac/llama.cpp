@@ -429,6 +429,7 @@ struct ggml_backend_qnn_reg_impl : ggml_backend_reg {
                  * here we skip the initialization of CPU device,
                  *   cause it'll block unsupported ops fallback to ggml cpu backend
                  */
+                QNN_LOG_DEBUG("qnn backend registry skip CPU device\n");
                 continue;
             }
 #endif
