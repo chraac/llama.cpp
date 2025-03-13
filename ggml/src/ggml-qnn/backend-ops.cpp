@@ -152,7 +152,7 @@ constexpr const bool kQnnSupportedOps[] = {
     false,  // GGML_OP_SET
     false,  // GGML_OP_CPY
     false,  // GGML_OP_CONT
-    true,   // GGML_OP_RESHAPE
+    false,  // GGML_OP_RESHAPE
     false,  // GGML_OP_VIEW
     false,  // GGML_OP_PERMUTE
     false,  // GGML_OP_TRANSPOSE
@@ -230,7 +230,7 @@ static_assert(kQnnSupportedOps[GGML_OP_NONE], "GGML_OP_NONE is not true");
 static_assert(kQnnSupportedOps[GGML_OP_ADD], "GGML_OP_ADD is not true");
 static_assert(kQnnSupportedOps[GGML_OP_MUL], "GGML_OP_MUL is not true");
 static_assert(kQnnSupportedOps[GGML_OP_MUL_MAT], "GGML_OP_MUL_MAT is not true");
-static_assert(kQnnSupportedOps[GGML_OP_RESHAPE], "GGML_OP_RESHAPE is not true");
+static_assert(!kQnnSupportedOps[GGML_OP_RESHAPE], "GGML_OP_RESHAPE should not be true");
 static_assert(!kQnnSupportedOps[GGML_OP_VIEW], "GGML_OP_VIEW is not false");
 static_assert(std::size(kQnnSupportedOps) == (GGML_OP_COUNT + GGML_UNARY_OP_COUNT),
               "GGML_OP_COUNT does not match the size of the kQnnSupportedOps table");
@@ -460,7 +460,7 @@ bool device_supports_op(ggml_backend_qnn_device_context * ctx, const ggml_tensor
                 // TODO: move to op caps array?
                 if (!ggml_are_same_shape(src0, src1)) {
                     QNN_LOG_DEBUG("[%s][%s] src0 and src1 dimensions are not equal\n",
-                                  qnn::get_backend_name(ctx->device), ggml_op_name(op->op));
+                                  qnn::get_backend_name(ctx->device), ggml_op_desc(op));
                     is_op_supported = false;
                 }
                 break;
