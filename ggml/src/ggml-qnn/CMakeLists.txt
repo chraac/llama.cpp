@@ -48,7 +48,7 @@ endif()
 
 if(GGML_QNN_ENABLE_PERFORMANCE_TRACKING)
     message("GGML_QNN_ENABLE_PERFORMANCE_TRACKING is enabled")
-    target_compile_definitions(ggml-qnn PRIVATE GGML_QNN_ENABLE_PERFORMANCE_TRACKING)
+    target_compile_definitions(ggml-qnn PRIVATE GGML_QNN_ENABLE_PERFORMANCE_TRACKING=1)
 else()
     message("GGML_QNN_ENABLE_PERFORMANCE_TRACKING is disabled")
 endif()

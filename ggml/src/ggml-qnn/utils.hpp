@@ -208,7 +208,7 @@ const char *   qnn_datatype_to_string(Qnn_DataType_t qnn_type);
 size_t         get_system_total_memory_in_bytes();
 size_t         get_system_free_memory_in_bytes();
 
-#if GGML_QNN_ENABLE_PERF_LOG
+#if GGML_QNN_ENABLE_PERFORMANCE_TRACKING
 
 class qnn_scoped_timer {
   public:
@@ -283,7 +283,7 @@ inline void make_scope_perf_timer(const char *, ...) {}
 #define QNN_TENSOR_SET_MEM_HANDLE(tensor, value)     qnn::set_qnn_tensor_memhandle(tensor, value)
 #define QNN_TENSOR_SET_DYN_DIMENSIONS(tensor, value) qnn::set_qnn_tensor_dyn_dimensions(tensor, value)
 
-#if GGML_QNN_ENABLE_PERF_LOG
+#if GGML_QNN_ENABLE_PERFORMANCE_TRACKING
 #    define QNN_SCOPED_PERFORMANCE_TRACKER(fmt, ...) \
         auto __qnn_timer_##__LINE__ = qnn::make_scope_perf_timer(fmt, ##__VA_ARGS__)
 #else
