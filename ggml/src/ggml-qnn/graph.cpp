@@ -329,6 +329,9 @@ bool qnn_graph::build_graph_from_ggml_graph(const ggml_cgraph * cgraph) {
             GGML_TYPE_COUNT > GGML_TYPE_Q8_0 && GGML_TYPE_Q8_0 > GGML_TYPE_F16 && GGML_TYPE_F16 > GGML_TYPE_F32,
             "GGML_TYPE enum order is not correct");
 
+        QNN_SCOPED_PERFORMANCE_TRACKER("[%s][%s]build_graph_from_ggml_graph", get_backend_name(_device),
+                                       _graph_name.c_str());
+
         _override_data_type = get_override_data_type(inputs, outputs);
         if (_override_data_type != GGML_TYPE_COUNT) {
             QNN_LOG_DEBUG("[%s][%s]set override_data_type: %s\n", get_backend_name(_device), _graph_name.c_str(),
@@ -380,15 +383,20 @@ bool qnn_graph::build_graph_from_ggml_graph(const ggml_cgraph * cgraph) {
 bool qnn_graph::execute(const ggml_cgraph * cgraph, std::shared_ptr<qnn_convert_context_t> convert_context) {
     ggml_tensor_array_t inputs;
     ggml_tensor_array_t outputs;
+    {
+        QNN_SCOPED_PERFORMANCE_TRACKER("[%s][%s]get_io_tensors_from_graph", get_backend_name(_device),
+                                       _graph_name.c_str());
 #ifdef NDEBUG
-    get_io_tensors_from_graph(cgraph, inputs, outputs);
+        get_io_tensors_from_graph(cgraph, inputs, outputs);
 #else
-    int rank = get_io_tensors_from_graph(cgraph, inputs, outputs);
-    QNN_LOG_DEBUG("[%s]rank: %d, input_set: %d, output_set: %d\n", get_backend_name(_device), rank, int(inputs.size()),
-                  int(outputs.size()));
+        int rank = get_io_tensors_from_graph(cgraph, inputs, outputs);
+        QNN_LOG_DEBUG("[%s]rank: %d, input_set: %d, output_set: %d\n", get_backend_name(_device), rank,
+                      int(inputs.size()), int(outputs.size()));
 #endif
+    }
 
     {
+        QNN_SCOPED_PERFORMANCE_TRACKER("[%s][%s]bind_tensors", get_backend_name(_device), _graph_name.c_str());
         if (_override_data_type != GGML_TYPE_COUNT) {
             QNN_LOG_DEBUG("[%s][%s]override_data_type: %s\n", get_backend_name(_device), _graph_name.c_str(),
                           ggml_type_name(_override_data_type));
@@ -408,7 +416,10 @@ bool qnn_graph::execute(const ggml_cgraph * cgraph, std::shared_ptr<qnn_convert_
             QNN_LOG_ERROR("[%s][%s]bind output tensors failed\n", get_backend_name(_device), _graph_name.c_str());
             return false;
         }
+    }
 
+    {
+        QNN_SCOPED_PERFORMANCE_TRACKER("[%s][%s]execute", get_backend_name(_device), _graph_name.c_str());
         auto & qnn_tensor_inputs  = _qnn_tensor_inputs;
         auto & qnn_tensor_outputs = _qnn_tensor_outputs;
         auto   error =
@@ -419,10 +430,10 @@ bool qnn_graph::execute(const ggml_cgraph * cgraph, std::shared_ptr<qnn_convert_
 
         if (error != QNN_SUCCESS) {
             if (_device == QNN_BACKEND_NPU && error == QNN_COMMON_ERROR_SYSTEM_COMMUNICATION) {
-                QNN_LOG_WARN("[%s][%s][graph_execute]NPU crashed. SSR detected. Caused QNN graph execute error.\n",
+                QNN_LOG_WARN("[%s][%s][execute]NPU crashed. SSR detected. Caused QNN graph execute error.\n",
                              get_backend_name(_device), _graph_name.c_str());
             } else {
-                QNN_LOG_ERROR("[%s][%s][graph_execute]error: %s\n", get_backend_name(_device), _graph_name.c_str(),
+                QNN_LOG_ERROR("[%s][%s][execute]error: %s\n", get_backend_name(_device), _graph_name.c_str(),
                               get_qnn_error_string(error));
             }
             return false;
@@ -434,6 +445,8 @@ bool qnn_graph::execute(const ggml_cgraph * cgraph, std::shared_ptr<qnn_convert_
 }
 
 bool qnn_graph::finalize() {
+    QNN_SCOPED_PERFORMANCE_TRACKER("[%s][%s]finalize", get_backend_name(_device), _graph_name.c_str());
+
     if (!qnn::add_op_to_graph(_graph_handle, _operations)) {
         QNN_LOG_ERROR("[%s]add nodes failed\n", _graph_name.c_str());
         return false;
