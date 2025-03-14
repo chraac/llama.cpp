@@ -106,6 +106,7 @@ option(GGML_CPU_KLEIDIAI     "ggml: use KleidiAI optimized kernels if applicable
 option(GGML_AVX              "ggml: enable AVX"              ${INS_ENB})
 option(GGML_AVX_VNNI         "ggml: enable AVX-VNNI"         OFF)
 option(GGML_AVX2             "ggml: enable AVX2"             ${INS_ENB})
+option(GGML_BMI2             "ggml: enable BMI2"             ${INS_ENB})
 option(GGML_AVX512           "ggml: enable AVX512F"          OFF)
 option(GGML_AVX512_VBMI      "ggml: enable AVX512-VBMI"      OFF)
 option(GGML_AVX512_VNNI      "ggml: enable AVX512-VNNI"      OFF)
@@ -195,6 +196,8 @@ option(GGML_OPENCL                          "ggml: use OpenCL"                  
 option(GGML_OPENCL_PROFILING                "ggml: use OpenCL profiling (increases overhead)" OFF)
 option(GGML_OPENCL_EMBED_KERNELS            "ggml: embed kernels"                             ON)
 option(GGML_OPENCL_USE_ADRENO_KERNELS       "ggml: use optimized kernels for Adreno"          ON)
+set   (GGML_OPENCL_TARGET_VERSION "300" CACHE STRING
+                                            "gmml: OpenCL API version to target")
 
 # toolchain for vulkan-shaders-gen
 set   (GGML_VULKAN_SHADERS_GEN_TOOLCHAIN "" CACHE FILEPATH "ggml: toolchain file for vulkan-shaders-gen")
