@@ -207,45 +207,52 @@ size_t         get_system_total_memory_in_bytes();
 size_t         get_system_free_memory_in_bytes();
 
 #if ENABLE_QNNBACKEND_PERF
-class qnn_perf {
+
+class qnn_scoped_timer {
   public:
-    qnn_perf(const std::string & perf_name) : _perf_name(std::move(perf_name)) {}
-
-    ~qnn_perf() { info(); }
-
-    qnn_perf()                             = delete;
-    qnn_perf(const qnn_perf &)             = delete;
-    qnn_perf & operator=(const qnn_perf &) = delete;
-
-    void start() { _begin_time = ggml_time_us(); }
-
-    void info() {
-        _end_time = ggml_time_us();
-        _duration = (_end_time - _begin_time);
-        QNN_LOG_INFO("duration of %s : %lld us\n", _perf_name.c_str(), (long long int) _duration);
+    qnn_scoped_timer(const std::string & log_prefix) : _log_prefix(std::move(log_prefix)) {
+        _begin_us = ggml_time_us();
     }
 
+    qnn_scoped_timer(qnn_scoped_timer && other) {
+        _begin_us   = other._begin_us;
+        _log_prefix = std::move(other._log_prefix);
+    }
+
+    ~qnn_scoped_timer() { print(); }
+
+    void operator=(qnn_scoped_timer && other) {
+        _begin_us   = other._begin_us;
+        _log_prefix = std::move(other._log_prefix);
+    }
+
+    void print() const {
+        auto duration = ggml_time_us() - _begin_us;
+        QNN_LOG_INFO("[profiler]%s, duration: %lld us\n", _log_prefix.c_str(), (long long int) duration);
+    }
+
+
   private:
-    int64_t     _begin_time = 0LL;
-    int64_t     _end_time   = 0LL;
-    int64_t     _duration   = 0LL;
-    std::string _perf_name;
+    int64_t     _begin_us = 0LL;
+    std::string _log_prefix;
+
+    qnn_scoped_timer(const qnn_scoped_timer &) = delete;
+    void operator=(const qnn_scoped_timer &)   = delete;
 };
+
+inline qnn_scoped_timer make_scope_perf_timer(const char * format, ...) {
+    va_list args;
+    va_start(args, format);
+    char buffer[4096];
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+    return qnn_scoped_timer(buffer);
+}
+
 #else
-class qnn_perf {
-  public:
-    qnn_perf(const std::string &) {}
 
-    ~qnn_perf() { info(); }
+inline void make_scope_perf_timer(const char *, ...) {}
 
-    qnn_perf()                             = delete;
-    qnn_perf(const qnn_perf &)             = delete;
-    qnn_perf & operator=(const qnn_perf &) = delete;
-
-    void start() {}
-
-    void info() {}
-};
 #endif
 
 }  // namespace qnn
@@ -273,3 +280,10 @@ class qnn_perf {
 #define QNN_TENSOR_SET_CLIENT_BUF(tensor, value)     qnn::set_qnn_tensor_clientbuf(tensor, value)
 #define QNN_TENSOR_SET_MEM_HANDLE(tensor, value)     qnn::set_qnn_tensor_memhandle(tensor, value)
 #define QNN_TENSOR_SET_DYN_DIMENSIONS(tensor, value) qnn::set_qnn_tensor_dyn_dimensions(tensor, value)
+
+#if ENABLE_QNNBACKEND_PERF
+#    define QNN_SCOPED_PERFORMANCE_TRACKER(fmt, ...) \
+        auto __qnn_timer_##__LINE__ = qnn::make_scope_perf_timer(fmt, ##__VA_ARGS__)
+#else
+#    define QNN_SCOPED_PERFORMANCE_TRACKER(fmt, ...) ((void) 0)
+#endif
