@@ -22,7 +22,7 @@ const char * get_qnn_op_name(const ggml_tensor * op);
 void         get_qnn_op_desc(const ggml_tensor * op, bool append_dimensions, std::string & output);
 
 std::shared_ptr<ggml_qnn_op_config> create_op(const ggml_tensor * op, const std::string & name,
-                                              std::shared_ptr<qnn_instance> qnn_instance);
+                                              qnn_instance_ptr qnn_instance);
 
 inline bool add_op_to_graph(Qnn_GraphHandle_t graph_handle, std::vector<qnn_op_config_ptr_t> & operations) {
     for (auto & op : operations) {

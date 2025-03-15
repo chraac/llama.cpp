@@ -417,7 +417,7 @@ void get_qnn_op_desc(const ggml_tensor * op, bool append_dimensions, std::string
 }
 
 std::shared_ptr<ggml_qnn_op_config> create_op(const ggml_tensor * op, const std::string & name,
-                                              std::shared_ptr<qnn_instance> qnn_instance) {
+                                              qnn_instance_ptr qnn_instance) {
     auto op_index = get_qnn_op_index(op);
     GGML_ASSERT(op_index < std::size(kOpCaps));
     auto op_constructor = kOpConstructors[op_index];

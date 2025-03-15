@@ -261,7 +261,7 @@ constexpr QnnGraph_Config_t make_graph_config(const QnnHtpGraph_CustomConfig_t *
 
 namespace qnn {
 
-qnn_graph::qnn_graph(const std::string & graph_name, QNNBackend device, std::shared_ptr<qnn_instance> qnn_instance,
+qnn_graph::qnn_graph(const std::string & graph_name, QNNBackend device, qnn_instance_ptr qnn_instance,
                      htp_precision precision, size_t vtcm_size_in_mb) :
     _graph_name(graph_name),
     _device(device),

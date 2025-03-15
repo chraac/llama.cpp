@@ -169,6 +169,8 @@ class qnn_interface {
 
 #pragma GCC diagnostic pop
 
+using qnn_interface_ptr = std::shared_ptr<qnn_interface>;
+
 class qnn_instance {
   public:
     using BackendIdType = decltype(QnnInterface_t{}.backendId);
@@ -180,7 +182,7 @@ class qnn_instance {
     int qnn_init(const QnnSaver_Config_t ** saver_config);
     int qnn_finalize();
 
-    std::shared_ptr<qnn_interface> get_qnn_interface() {
+    qnn_interface_ptr get_qnn_interface() {
         if (!_qnn_interface) {
             QNN_LOG_WARN("pls check why _qnn_interface is not loaded\n");
         }
@@ -472,5 +474,7 @@ class qnn_instance {
 
     qnn::qcom_socinfo _soc_info = {};
 };
+
+using qnn_instance_ptr = std::shared_ptr<qnn_instance>;
 
 }  // namespace qnn

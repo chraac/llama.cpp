@@ -271,7 +271,7 @@ qnn_tensor_ptr_t ggml_qnn_matmul_op_config::create_gather_nodes(QNNBackend devic
     constexpr const auto create_node =
         [](const std::string & name, const int rank, const int axis, const qnn_dimension_array_t & dimensions,
            qnn_tensor_ptr_t tensor_input, QNNBackend device, Qnn_GraphHandle_t graph_handle,
-           std::shared_ptr<qnn_instance> qnn_instance, qnn_tensor_ptr_t & tensor_output) -> qnn_op_config_ptr_t {
+           qnn_instance_ptr qnn_instance, qnn_tensor_ptr_t & tensor_output) -> qnn_op_config_ptr_t {
         auto gather_out =
             std::make_shared<ggml_qnn_tensor>(ggml_qnn_tensor::INTERMEDIATE, name + "_out", dimensions,
                                               tensor_input->get_data_type(), rank, device, graph_handle, qnn_instance);

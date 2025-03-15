@@ -27,7 +27,7 @@ class qnn_graph {
         kHtpFp16,
     };
 
-    explicit qnn_graph(const std::string & graph_name, QNNBackend device, std::shared_ptr<qnn_instance> qnn_instance,
+    explicit qnn_graph(const std::string & graph_name, QNNBackend device, qnn_instance_ptr qnn_instance,
                        htp_precision precision, size_t vtcm_size_in_mb);
 
     ~qnn_graph();
@@ -40,7 +40,7 @@ class qnn_graph {
 
     Qnn_GraphHandle_t get_graph_handler() const { return _graph_handle; }
 
-    std::shared_ptr<qnn_instance> get_qnn_instance() { return _qnn_instance; }
+    qnn_instance_ptr get_qnn_instance() { return _qnn_instance; }
 
     const std::string & get_name() const { return _graph_name; }
 
@@ -49,12 +49,12 @@ class qnn_graph {
   private:
     bool finalize();
 
-    const std::string              _graph_name;
-    const QNNBackend               _device;
-    Qnn_GraphHandle_t              _graph_handle = nullptr;
-    std::shared_ptr<qnn_instance>  _qnn_instance;
-    std::shared_ptr<qnn_interface> _qnn_interface;
-    qnn_op_config_array_t          _operations;
+    const std::string     _graph_name;
+    const QNNBackend      _device;
+    Qnn_GraphHandle_t     _graph_handle = nullptr;
+    qnn_instance_ptr      _qnn_instance;
+    qnn_interface_ptr     _qnn_interface;
+    qnn_op_config_array_t _operations;
 
     qnn_tensor_array_t        _tensor_inputs;
     qnn_tensor_array_t        _tensor_outputs;
