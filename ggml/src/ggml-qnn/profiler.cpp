@@ -1,6 +1,9 @@
 
 #include "profiler.hpp"
 
+#include <HTP/QnnHtpProfile.h>
+#include <QnnProfile.h>
+
 #include "logger.hpp"
 #include "qnn-lib.hpp"
 
@@ -59,7 +62,58 @@ qnn_event_tracer::~qnn_event_tracer() {
 }
 
 void qnn_event_tracer::print_profile_events() {
-    // TODO: Implement this function
+    const QnnProfile_EventId_t * events_ptr = nullptr;
+    uint32_t                     num_events = 0;
+    auto                         error      = _interface->qnn_profile_get_events(_handle, &events_ptr, &num_events);
+    if (error != QNN_SUCCESS) {
+        QNN_LOG_ERROR("Failed to get QNN profile events. Backend ID %u, error %ld", _interface->get_backend_id(),
+                      (long) QNN_GET_ERROR_CODE(error));
+        return;
+    }
+
+    // see also: https://github.com/pytorch/executorch/blob/0ccf5093823761cf8ad98c75e5fe81f15ea42366/backends/qualcomm/runtime/backends/QnnProfiler.cpp#L73
+    QnnProfile_EventData_t event_data;
+    for (uint32_t i = 0; i < num_events; ++i) {
+        error = _interface->qnn_profile_get_event_data(events_ptr[i], &event_data);
+        if (error != QNN_SUCCESS) {
+            QNN_LOG_ERROR("Failed to get QNN profile event data. Backend ID %u, event[%d], error: %ld",
+                          _interface->get_backend_id(), i, (long) QNN_GET_ERROR_CODE(error));
+            continue;
+        }
+
+        if (event_data.type != QNN_HTP_PROFILE_EVENTTYPE_GRAPH_EXECUTE_ACCEL_TIME_CYCLE) {
+            QNN_LOG_DEBUG("qnn_event[%d]%s, type %d, skipping", i, event_data.identifier, event_data.type);
+            continue;
+        }
+
+        const QnnProfile_EventId_t * sub_events_ptr = nullptr;
+        uint32_t                     num_sub_events = 0;
+        error = _interface->qnn_profile_get_sub_events(events_ptr[i], &sub_events_ptr, &num_sub_events);
+        if (error != QNN_SUCCESS) {
+            QNN_LOG_ERROR("Failed to get QNN profile sub events. Backend ID %u, event[%d], error: %ld",
+                          _interface->get_backend_id(), i, (long) QNN_GET_ERROR_CODE(error));
+            continue;
+        }
+
+        QnnProfile_EventData_t sub_event_data;
+        for (std::uint32_t j = 0; j < num_sub_events; ++j) {
+            error = _interface->qnn_profile_get_event_data(sub_events_ptr[j], &sub_event_data);
+            if (error != QNN_SUCCESS) {
+                QNN_LOG_ERROR(
+                    "Failed to get QNN profile sub event data. Backend ID %u, event[%d], sub_event[%d], error: "
+                    "%ld",
+                    _interface->get_backend_id(), i, j, (long) QNN_GET_ERROR_CODE(error));
+                continue;
+            }
+
+            if (sub_event_data.type == QNN_PROFILE_EVENTTYPE_NODE &&
+                (sub_event_data.unit == QNN_PROFILE_EVENTUNIT_MICROSEC ||
+                 sub_event_data.unit == QNN_PROFILE_EVENTUNIT_CYCLES)) {
+                QNN_LOG_INFO("[profiler]event[%d]: %s, sub_event[%d]: %s, duration %lld", i, event_data.identifier, j,
+                             sub_event_data.identifier, (long long int) sub_event_data.value);
+            }
+        }
+    }
 }
 
 }  // namespace qnn
