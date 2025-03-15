@@ -44,7 +44,7 @@ struct qnn_device_caps {
 constexpr const qnn_device_caps kDeviceCaps[] = {
     {
      // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/CpuOpDefSupplement.html#matmul
-        "qnn-cpu",                                                                        "Qualcomm Kryo CPU", kQnnCpuLibName, GGML_BACKEND_DEVICE_TYPE_CPU,
+        "qnn-cpu",                                                                        "Qualcomm Kryo CPU", kQnnCpuLibName, GGML_BACKEND_DEVICE_TYPE_ACCEL,
      (1L << GGML_TYPE_I8) | (1L << GGML_TYPE_F32),
      0xFFFFFE,                                                                                                                                                                                                                                                                                         // all quantized types can be offload to CPU, at current implementation, those types will be dequantized into float32 on cpu
         0,                                                    // 0 for no limitation
@@ -71,9 +71,10 @@ static_assert(sizeof(kDeviceCaps) / sizeof(kDeviceCaps[0]) == GGML_QNN_MAX_DEVIC
 static_assert(kDeviceCaps[QNN_BACKEND_NPU].type == GGML_BACKEND_DEVICE_TYPE_ACCEL,
               "The NPU device should be an accelerator device");
 static_assert(kDeviceCaps[QNN_BACKEND_GPU].type == GGML_BACKEND_DEVICE_TYPE_GPU,
-              "The GPU device should be an accelerator device");
-static_assert(kDeviceCaps[QNN_BACKEND_CPU].type == GGML_BACKEND_DEVICE_TYPE_CPU,
-              "The CPU device should be an accelerator device");
+              "The GPU device should be an GPU device");
+static_assert(
+    kDeviceCaps[QNN_BACKEND_CPU].type == GGML_BACKEND_DEVICE_TYPE_ACCEL,
+    "The CPU device should be an accelerator device");  // we treat qnn-cpu as a supplementary accelerator device
 static_assert(GGML_TYPE_Q4_0 == 2 && GGML_TYPE_Q8_K == 15, "The quantized type order is not correct");
 
 ggml_backend_qnn_device_context * get_device_context(ggml_backend_dev_t dev) {
@@ -338,7 +339,7 @@ ggml_backend_t ggml_backend_qnn_init_with_device_context(ggml_backend_dev_t dev,
     dev_ctx->cpu_preprocess_types     = kDeviceCaps[device].cpu_preprocess_types;
     dev_ctx->max_tensor_size_in_bytes = kDeviceCaps[device].max_tensor_size_in_bytes;
     // TODO: remove npu from here if hardware quantization is supported
-    dev_ctx->enable_cpu_dequantize    = device == QNN_BACKEND_NPU || device == QNN_BACKEND_GPU;
+    dev_ctx->enable_cpu_dequantize    = true;
 
     ggml_backend_t qnn_backend = new ggml_backend{
         /* .guid      = */ ggml_backend_qnn_guid(),
