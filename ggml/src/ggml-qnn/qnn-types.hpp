@@ -8,15 +8,6 @@
 #include "System/QnnSystemInterface.h"
 
 namespace qnn {
-// =================================================================================================
-//
-// helper data type / data structure / macros / functions of
-// Qualcomm QNN(Qualcomm Neural Network, aka Qualcomm AI Engine Direct) SDK
-// ref:
-//   https://github.com/pytorch/executorch/blob/ae3d558d5e6aa04fc52a3065399fe6a773702f52/backends/qualcomm/serialization/qc_schema.py#L53
-//   https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/overview.html#supported-snapdragon-devices
-// =================================================================================================
-enum sdk_profile_level { profile_off = 0, profile_basic, profile_detail };
 
 enum qcom_htp_arch {
     NONE = 0,

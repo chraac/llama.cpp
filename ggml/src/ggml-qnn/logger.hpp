@@ -1,10 +1,11 @@
 #pragma once
 
+#include <QnnLog.h>
+
 #include <cstdint>
 
 #include "ggml-impl.h"
 #include "ggml.h"
-#include "QnnLog.h"
 
 namespace qnn {
 void sdk_logcallback(const char * fmt, QnnLog_Level_t level, uint64_t timestamp, va_list argp);

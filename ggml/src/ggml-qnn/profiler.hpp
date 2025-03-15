@@ -1,10 +1,14 @@
 #pragma once
 
+#include <QnnCommon.h>
+
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
 
 #include "logger.hpp"
+#include "qnn-types.hpp"
 
 namespace qnn {
 
@@ -56,6 +60,30 @@ inline qnn_scoped_timer make_scope_perf_timer(const char * format, ...) {
 inline void make_scope_perf_timer(const char *, ...) {}
 
 #endif
+
+// forward declaration of qnn_interface
+class qnn_interface;
+
+class qnn_event_tracer {
+  public:
+    // ref:
+    //   https://github.com/pytorch/executorch/blob/ae3d558d5e6aa04fc52a3065399fe6a773702f52/backends/qualcomm/serialization/qc_schema.py#L53
+    //   https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/overview.html#supported-snapdragon-devices
+    enum sdk_profile_level { PROFILE_OFF = 0, PROFILE_BASIC, PROFILE_DETAIL, PROFILE_OP_TRACE };
+
+    explicit qnn_event_tracer(std::shared_ptr<qnn_interface> interface, Qnn_BackendHandle_t backend_handle,
+                              sdk_profile_level level);
+    ~qnn_event_tracer();
+
+    void print_profile_events();
+
+  private:
+    std::shared_ptr<qnn_interface> _interface;
+    Qnn_ProfileHandle_t            _handle = nullptr;
+
+    DISABLE_COPY(qnn_event_tracer);
+    DISABLE_MOVE(qnn_event_tracer);
+};
 
 }  // namespace qnn
 

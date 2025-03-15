@@ -229,20 +229,6 @@ int qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
         QNN_LOG_INFO("create QNN device successfully\n");
     }
 
-    if (_profile_level != sdk_profile_level::profile_off) {
-        QNN_LOG_INFO("profiling turned on; level = %d\n", _profile_level);
-        auto profile_level =
-            _profile_level == sdk_profile_level::profile_detail ? QNN_PROFILE_LEVEL_DETAILED : QNN_PROFILE_LEVEL_BASIC;
-
-        if (QNN_PROFILE_NO_ERROR !=
-            _qnn_interface->qnn_profile_create(_qnn_backend_handle, profile_level, &_qnn_profile_handle)) {
-            QNN_LOG_WARN("unable to create profile handle in the backend\n");
-            return 6;
-        } else {
-            QNN_LOG_DEBUG("initialize qnn profile successfully\n");
-        }
-    }
-
     _rpc_lib_handle = load_lib_with_fallback(kQnnRpcLibName, _additional_lib_load_path);
     if (_rpc_lib_handle) {
         _pfn_rpc_mem_alloc = reinterpret_cast<qnn::pfn_rpc_mem_alloc>(dl_sym(_rpc_lib_handle, "rpcmem_alloc"));
@@ -339,21 +325,12 @@ int qnn_instance::qnn_finalize() {
     }
 
     if (_qnn_context_handle) {
-        error = _qnn_interface->qnn_context_free(_qnn_context_handle, _qnn_profile_handle);
+        error = _qnn_interface->qnn_context_free(_qnn_context_handle, nullptr);
         if (error != QNN_SUCCESS) {
             QNN_LOG_WARN("failed to free QNN context_handle: ID %u, error %d\n", _qnn_interface->get_backend_id(),
                          (int) QNN_GET_ERROR_CODE(error));
         }
         _qnn_context_handle = nullptr;
-    }
-
-    if (_qnn_profile_handle) {
-        error = _qnn_interface->qnn_profile_free(_qnn_profile_handle);
-        if (error != QNN_SUCCESS) {
-            QNN_LOG_WARN("failed to free QNN profile_handle: ID %u, error %d\n", _qnn_interface->get_backend_id(),
-                         (int) QNN_GET_ERROR_CODE(error));
-        }
-        _qnn_profile_handle = nullptr;
     }
 
     if (_qnn_device_handle) {
