@@ -7,6 +7,7 @@
 #include "ggml-impl.h"
 #include "logger.hpp"
 #include "op-config.hpp"
+#include "profiler.hpp"
 #include "tensor.hpp"
 
 namespace {
