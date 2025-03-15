@@ -75,6 +75,8 @@ class qnn_event_tracer {
                               Qnn_BackendHandle_t backend_handle, sdk_profile_level level);
     ~qnn_event_tracer();
 
+    Qnn_ProfileHandle_t get_handle() const { return _handle; }
+
     void print_profile_events();
 
   private:

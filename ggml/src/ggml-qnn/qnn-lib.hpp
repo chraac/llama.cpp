@@ -402,10 +402,10 @@ class qnn_instance {
     std::string   _backend_lib_name;
     BackendIdType _backend_id;
 
-#ifndef NDEBUG
+#ifdef NDEBUG
     QnnLog_Level_t _qnn_log_level = QNN_LOG_LEVEL_INFO;  // TODO: should we consider changing this dynamically?
 #else
-    QnnLog_Level_t _qnn_log_level = QNN_LOG_LEVEL_MAX;
+    QnnLog_Level_t _qnn_log_level = QNN_LOG_LEVEL_DEBUG;
 #endif
 
     std::shared_ptr<qnn::qnn_system_interface> _qnn_sys_interface;

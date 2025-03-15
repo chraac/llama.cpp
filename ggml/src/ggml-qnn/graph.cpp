@@ -308,8 +308,10 @@ qnn_graph::qnn_graph(const std::string & graph_name, QNNBackend device, qnn_inst
     }
 
 #ifdef GGML_QNN_ENABLE_PERFORMANCE_TRACKING
-    _event_tracer = std::make_shared<qnn_event_tracer>(
-        graph_name, _qnn_interface, _qnn_instance->get_qnn_backend_handle(), qnn_event_tracer::PROFILE_DETAIL);
+    if (device == QNN_BACKEND_NPU) {
+        _event_tracer = std::make_shared<qnn_event_tracer>(
+            graph_name, qnn_interface, qnn_instance->get_qnn_backend_handle(), qnn_event_tracer::PROFILE_DETAIL);
+    }
 #endif
 
     _graph_handle  = graph_handle;
@@ -428,9 +430,15 @@ bool qnn_graph::execute(const ggml_cgraph * cgraph, std::shared_ptr<qnn_convert_
         QNN_SCOPED_PERFORMANCE_TRACKER("[%s][%s]execute", get_backend_name(_device), _graph_name.c_str());
         auto & qnn_tensor_inputs  = _qnn_tensor_inputs;
         auto & qnn_tensor_outputs = _qnn_tensor_outputs;
-        auto   error =
+#ifdef GGML_QNN_ENABLE_PERFORMANCE_TRACKING
+        auto error = _qnn_interface->qnn_graph_execute(
+            _graph_handle, qnn_tensor_inputs.data(), qnn_tensor_inputs.size(), qnn_tensor_outputs.data(),
+            qnn_tensor_outputs.size(), (_event_tracer ? _event_tracer->get_handle() : nullptr), nullptr);
+#else
+        auto error =
             _qnn_interface->qnn_graph_execute(_graph_handle, qnn_tensor_inputs.data(), qnn_tensor_inputs.size(),
                                               qnn_tensor_outputs.data(), qnn_tensor_outputs.size(), nullptr, nullptr);
+#endif
         unbind_tensors(_tensor_inputs);
         unbind_tensors(_tensor_outputs);
 
@@ -446,13 +454,14 @@ bool qnn_graph::execute(const ggml_cgraph * cgraph, std::shared_ptr<qnn_convert_
         }
 
         QNN_LOG_DEBUG("[%s][%s]execute succeed\n", get_backend_name(_device), _graph_name.c_str());
-#ifdef GGML_QNN_ENABLE_PERFORMANCE_TRACKING
-        if (_event_tracer) {
-            _event_tracer->print_profile_events();
-        }
-#endif
-        return true;
     }
+
+#ifdef GGML_QNN_ENABLE_PERFORMANCE_TRACKING
+    if (_event_tracer) {
+        _event_tracer->print_profile_events();
+    }
+#endif
+    return true;
 }
 
 bool qnn_graph::finalize() {
@@ -463,7 +472,13 @@ bool qnn_graph::finalize() {
         return false;
     }
 
+#ifdef GGML_QNN_ENABLE_PERFORMANCE_TRACKING
+    auto error = _qnn_interface->qnn_graph_finalize(_graph_handle,
+                                                    (_event_tracer ? _event_tracer->get_handle() : nullptr), nullptr);
+#else
     auto error = _qnn_interface->qnn_graph_finalize(_graph_handle, nullptr, nullptr);
+#endif
+
     if (error != QNN_SUCCESS) {
         QNN_LOG_ERROR("[%s][%s]qnn_graph_finalize.error: %s\n", get_backend_name(_device), _graph_name.c_str(),
                       get_qnn_error_string(error));
