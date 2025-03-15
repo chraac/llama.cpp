@@ -307,6 +307,11 @@ qnn_graph::qnn_graph(const std::string & graph_name, QNNBackend device, qnn_inst
         return;
     }
 
+#ifdef GGML_QNN_ENABLE_PERFORMANCE_TRACKING
+    _event_tracer = std::make_shared<qnn_event_tracer>(
+        graph_name, _qnn_interface, _qnn_instance->get_qnn_backend_handle(), qnn_event_tracer::PROFILE_DETAIL);
+#endif
+
     _graph_handle  = graph_handle;
     _qnn_interface = qnn_interface;
     QNN_LOG_DEBUG("[%s][%s]create succeed\n", get_backend_name(device), graph_name.c_str());
@@ -441,6 +446,11 @@ bool qnn_graph::execute(const ggml_cgraph * cgraph, std::shared_ptr<qnn_convert_
         }
 
         QNN_LOG_DEBUG("[%s][%s]execute succeed\n", get_backend_name(_device), _graph_name.c_str());
+#ifdef GGML_QNN_ENABLE_PERFORMANCE_TRACKING
+        if (_event_tracer) {
+            _event_tracer->print_profile_events();
+        }
+#endif
         return true;
     }
 }

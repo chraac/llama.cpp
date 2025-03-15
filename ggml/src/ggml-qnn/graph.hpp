@@ -8,6 +8,7 @@
 #include "convert.hpp"
 #include "ggml-qnn.h"
 #include "op-config.hpp"
+#include "profiler.hpp"
 #include "qnn-lib.hpp"
 
 namespace qnn {
@@ -63,6 +64,11 @@ class qnn_graph {
 
     // the actual data type to use for the input tensors of qnn graph
     ggml_type _override_data_type = GGML_TYPE_COUNT;
+
+#ifdef GGML_QNN_ENABLE_PERFORMANCE_TRACKING
+    // profiler
+    qnn_event_tracer_ptr _event_tracer;
+#endif
 
     DISABLE_COPY(qnn_graph);
     DISABLE_MOVE(qnn_graph);

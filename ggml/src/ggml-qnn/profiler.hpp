@@ -71,8 +71,8 @@ class qnn_event_tracer {
     //   https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/overview.html#supported-snapdragon-devices
     enum sdk_profile_level { PROFILE_OFF = 0, PROFILE_BASIC, PROFILE_DETAIL, PROFILE_OP_TRACE };
 
-    explicit qnn_event_tracer(std::shared_ptr<qnn_interface> interface, Qnn_BackendHandle_t backend_handle,
-                              sdk_profile_level level);
+    explicit qnn_event_tracer(const std::string & prefix, std::shared_ptr<qnn_interface> interface,
+                              Qnn_BackendHandle_t backend_handle, sdk_profile_level level);
     ~qnn_event_tracer();
 
     void print_profile_events();
@@ -80,10 +80,13 @@ class qnn_event_tracer {
   private:
     std::shared_ptr<qnn_interface> _interface;
     Qnn_ProfileHandle_t            _handle = nullptr;
+    std::string                    _prefix;
 
     DISABLE_COPY(qnn_event_tracer);
     DISABLE_MOVE(qnn_event_tracer);
 };
+
+using qnn_event_tracer_ptr = std::shared_ptr<qnn_event_tracer>;
 
 }  // namespace qnn
 

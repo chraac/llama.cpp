@@ -9,9 +9,10 @@
 
 namespace qnn {
 
-qnn_event_tracer::qnn_event_tracer(std::shared_ptr<qnn_interface> interface, Qnn_BackendHandle_t backend_handle,
-                                   sdk_profile_level level) :
-    _interface(interface) {
+qnn_event_tracer::qnn_event_tracer(const std::string & prefix, std::shared_ptr<qnn_interface> interface,
+                                   Qnn_BackendHandle_t backend_handle, sdk_profile_level level) :
+    _interface(interface),
+    _prefix(prefix) {
     QnnProfile_Level_t qnn_profile_level = 0;
     switch (level) {
         case sdk_profile_level::PROFILE_BASIC:
@@ -109,8 +110,8 @@ void qnn_event_tracer::print_profile_events() {
             if (sub_event_data.type == QNN_PROFILE_EVENTTYPE_NODE &&
                 (sub_event_data.unit == QNN_PROFILE_EVENTUNIT_MICROSEC ||
                  sub_event_data.unit == QNN_PROFILE_EVENTUNIT_CYCLES)) {
-                QNN_LOG_INFO("[profiler]event[%d]: %s, sub_event[%d]: %s, duration %lld", i, event_data.identifier, j,
-                             sub_event_data.identifier, (long long int) sub_event_data.value);
+                QNN_LOG_INFO("[profiler][%s]event[%d]: %s, sub_event[%d]: %s, duration %lld", _prefix.c_str(), i,
+                             event_data.identifier, j, sub_event_data.identifier, (long long int) sub_event_data.value);
             }
         }
     }
