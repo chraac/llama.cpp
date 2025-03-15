@@ -36,7 +36,6 @@ qnn_event_tracer::qnn_event_tracer(std::shared_ptr<qnn_interface> interface, Qnn
         QnnProfile_Config_t qnn_profile_config                     = QNN_PROFILE_CONFIG_INIT;
         qnn_profile_config.option                                  = QNN_PROFILE_CONFIG_OPTION_ENABLE_OPTRACE;
         std::array<const QnnProfile_Config_t *, 2> profile_configs = { &qnn_profile_config, nullptr };
-
         error = _interface->qnn_profile_set_config(_handle, profile_configs.data());
         if (error != QNN_SUCCESS) {
             QNN_LOG_ERROR("Failed to set QNN profile event. Backend ID %u, error %ld", _interface->get_backend_id(),
