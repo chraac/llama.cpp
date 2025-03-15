@@ -71,9 +71,9 @@ static_assert(sizeof(kDeviceCaps) / sizeof(kDeviceCaps[0]) == GGML_QNN_MAX_DEVIC
 static_assert(kDeviceCaps[QNN_BACKEND_NPU].type == GGML_BACKEND_DEVICE_TYPE_ACCEL,
               "The NPU device should be an accelerator device");
 static_assert(kDeviceCaps[QNN_BACKEND_GPU].type == GGML_BACKEND_DEVICE_TYPE_GPU,
-              "The NPU device should be an accelerator device");
+              "The GPU device should be an accelerator device");
 static_assert(kDeviceCaps[QNN_BACKEND_CPU].type == GGML_BACKEND_DEVICE_TYPE_CPU,
-              "The NPU device should be an accelerator device");
+              "The CPU device should be an accelerator device");
 static_assert(GGML_TYPE_Q4_0 == 2 && GGML_TYPE_Q8_K == 15, "The quantized type order is not correct");
 
 ggml_backend_qnn_device_context * get_device_context(ggml_backend_dev_t dev) {
