@@ -110,11 +110,19 @@ void qnn_event_tracer::print_profile_events() {
                 continue;
             }
 
-            if (sub_event_data.type == QNN_PROFILE_EVENTTYPE_NODE &&
-                (sub_event_data.unit == QNN_PROFILE_EVENTUNIT_MICROSEC ||
-                 sub_event_data.unit == QNN_PROFILE_EVENTUNIT_CYCLES)) {
-                QNN_LOG_INFO("[profiler][%s]event[%d]: %s, sub_event[%d]: %s, duration %lld\n", _prefix.c_str(), i,
+            if (sub_event_data.type != QNN_PROFILE_EVENTTYPE_NODE) {
+                QNN_LOG_DEBUG("qnn_event[%d]%s, sub_event[%d]%s, type %d, skipping\n", i, event_data.identifier, j,
+                              sub_event_data.identifier, sub_event_data.type);
+                continue;
+            }
+
+            if (sub_event_data.unit == QNN_PROFILE_EVENTUNIT_CYCLES) {
+                QNN_LOG_INFO("[profiler][%s]event[%d]: %s, sub_event[%d]: %s, cycles: %lld\n", _prefix.c_str(), i,
                              event_data.identifier, j, sub_event_data.identifier, (long long int) sub_event_data.value);
+            } else if (sub_event_data.unit == QNN_PROFILE_EVENTUNIT_MICROSEC) {
+                double duration_ms = sub_event_data.value / 1000.0;
+                QNN_LOG_INFO("[profiler][%s]event[%d]: %s, sub_event[%d]: %s, duration: %.3f ms\n", _prefix.c_str(), i,
+                             event_data.identifier, j, sub_event_data.identifier, duration_ms);
             }
         }
     }
