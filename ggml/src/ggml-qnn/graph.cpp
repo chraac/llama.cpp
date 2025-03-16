@@ -310,7 +310,7 @@ qnn_graph::qnn_graph(const std::string & graph_name, QNNBackend device, qnn_inst
 #ifdef GGML_QNN_ENABLE_PERFORMANCE_TRACKING
     if (device == QNN_BACKEND_NPU) {
         _event_tracer = std::make_shared<qnn_event_tracer>(
-            graph_name, qnn_interface, qnn_instance->get_qnn_backend_handle(), qnn_event_tracer::PROFILE_DETAIL);
+            graph_name, qnn_interface, qnn_instance->get_qnn_backend_handle(), qnn_event_tracer::PROFILE_OP_TRACE);
     }
 #endif
 
