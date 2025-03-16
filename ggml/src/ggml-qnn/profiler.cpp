@@ -11,11 +11,24 @@ namespace {
 
 std::string get_duration_string(const QnnProfile_EventData_t & event_data) {
     char time_str[128] = {};
-    if (event_data.unit == QNN_PROFILE_EVENTUNIT_CYCLES) {
-        snprintf(time_str, sizeof(time_str), "cycles: %lld", (long long int) event_data.value);
-    } else if (event_data.unit == QNN_PROFILE_EVENTUNIT_MICROSEC) {
-        double duration_ms = event_data.value / 1000.0;
-        snprintf(time_str, sizeof(time_str), "duration: %.3f ms", duration_ms);
+    switch (event_data.unit) {
+        case QNN_PROFILE_EVENTUNIT_CYCLES:
+            snprintf(time_str, sizeof(time_str), "cycles: %lld", (long long int) event_data.value);
+            break;
+        case QNN_PROFILE_EVENTUNIT_COUNT:
+            snprintf(time_str, sizeof(time_str), "count: %lld", (long long int) event_data.value);
+            break;
+        case QNN_PROFILE_EVENTUNIT_BYTES:
+            snprintf(time_str, sizeof(time_str), "size: %lld bytes", (long long int) event_data.value);
+            break;
+        case QNN_PROFILE_EVENTUNIT_MICROSEC:
+            {
+                double duration_ms = event_data.value / 1000.0;
+                snprintf(time_str, sizeof(time_str), "duration: %.3f ms", duration_ms);
+            }
+            break;
+        default:
+            break;
     }
 
     return time_str;
@@ -91,6 +104,11 @@ void qnn_event_tracer::print_profile_events() {
         return;
     }
 
+    if (!num_events) {
+        QNN_LOG_INFO("[profiler][%s]no QNN profile events\n", _prefix.c_str());
+        return;
+    }
+
     QNN_LOG_INFO("[profiler][%s]print_profile_events start ----------------\n", _prefix.c_str());
     // see also: https://github.com/pytorch/executorch/blob/0ccf5093823761cf8ad98c75e5fe81f15ea42366/backends/qualcomm/runtime/backends/QnnProfiler.cpp#L73
     QnnProfile_EventData_t event_data;
@@ -102,20 +120,19 @@ void qnn_event_tracer::print_profile_events() {
             continue;
         }
 
-        if (event_data.type != QNN_HTP_PROFILE_EVENTTYPE_GRAPH_EXECUTE_ACCEL_TIME_CYCLE &&
-            event_data.type != QNN_HTP_PROFILE_EVENTTYPE_GRAPH_EXECUTE_ACCEL_TIME_MICROSEC &&
-            event_data.type != QNN_HTP_PROFILE_EVENTTYPE_GRAPH_EXECUTE_MISC_ACCEL_TIME_MICROSEC) {
-            QNN_LOG_DEBUG("[profiler][%s]event[%d]%s, type %d, skipping\n", _prefix.c_str(), i, event_data.identifier,
-                          event_data.type);
-            continue;
-        }
-
         const QnnProfile_EventId_t * sub_events_ptr = nullptr;
         uint32_t                     num_sub_events = 0;
         error = _interface->qnn_profile_get_sub_events(events_ptr[i], &sub_events_ptr, &num_sub_events);
         if (error != QNN_SUCCESS) {
             QNN_LOG_ERROR("[profiler][%s]failed to get QNN profile sub events. Backend ID %u, event[%d], error: %ld\n",
                           _prefix.c_str(), _interface->get_backend_id(), i, (long) QNN_GET_ERROR_CODE(error));
+            continue;
+        }
+
+        if (!num_sub_events) {
+            auto duration = get_duration_string(event_data);
+            QNN_LOG_INFO("[profiler][%s]event[%d]: %s, %s\n", _prefix.c_str(), i, event_data.identifier,
+                         duration.c_str());
             continue;
         }
 
