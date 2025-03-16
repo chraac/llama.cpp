@@ -427,7 +427,6 @@ bool qnn_graph::execute(const ggml_cgraph * cgraph, std::shared_ptr<qnn_convert_
     }
 
     {
-        QNN_SCOPED_PERFORMANCE_TRACKER("[%s][%s]execute", get_backend_name(_device), _graph_name.c_str());
         auto & qnn_tensor_inputs  = _qnn_tensor_inputs;
         auto & qnn_tensor_outputs = _qnn_tensor_outputs;
 #ifdef GGML_QNN_ENABLE_PERFORMANCE_TRACKING

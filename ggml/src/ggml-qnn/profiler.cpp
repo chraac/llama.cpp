@@ -129,8 +129,8 @@ void qnn_event_tracer::print_profile_events() {
             continue;
         }
 
+        auto duration = get_duration_string(event_data);
         if (!num_sub_events) {
-            auto duration = get_duration_string(event_data);
             QNN_LOG_INFO("[profiler][%s]event[%d]: %s, %s\n", _prefix.c_str(), i, event_data.identifier,
                          duration.c_str());
             continue;
@@ -155,12 +155,13 @@ void qnn_event_tracer::print_profile_events() {
                 continue;
             }
 
-            auto duration = get_duration_string(sub_event_data);
+            auto sub_duration = get_duration_string(sub_event_data);
             QNN_LOG_INFO("[profiler][%s]sub_event[%d]: %s, %s\n", _prefix.c_str(), j, sub_event_data.identifier,
-                         duration.c_str());
+                         sub_duration.c_str());
         }
 
-        QNN_LOG_INFO("[profiler][%s]event[%d]: %s, end --------------\n", _prefix.c_str(), i, event_data.identifier);
+        QNN_LOG_INFO("[profiler][%s]event[%d]: %s, %s, end --------------\n", _prefix.c_str(), i, event_data.identifier,
+                     duration.c_str());
     }
 
     QNN_LOG_INFO("[profiler][%s]print_profile_events end -----------------\n", _prefix.c_str());
