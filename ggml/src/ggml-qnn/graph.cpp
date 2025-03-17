@@ -10,6 +10,12 @@
 #include "profiler.hpp"
 #include "tensor.hpp"
 
+#ifdef GGML_QNN_ENABLE_PERFORMANCE_TRACKING
+#    define GRAPH_PROFILE_HANDLE (_event_tracer ? _event_tracer->get_handle() : nullptr)
+#else
+#    define GRAPH_PROFILE_HANDLE (nullptr)
+#endif
+
 namespace {
 using qnn_tensor_cache_t = std::unordered_map<ggml_tensor *, qnn::qnn_tensor_ptr_t>;
 
@@ -427,20 +433,14 @@ bool qnn_graph::execute(const ggml_cgraph * cgraph, std::shared_ptr<qnn_convert_
     }
 
     {
+        QNN_SCOPED_PERFORMANCE_TRACKER("[%s][%s]execute", get_backend_name(_device), _graph_name.c_str());
         auto & qnn_tensor_inputs  = _qnn_tensor_inputs;
         auto & qnn_tensor_outputs = _qnn_tensor_outputs;
-#ifdef GGML_QNN_ENABLE_PERFORMANCE_TRACKING
-        auto error = _qnn_interface->qnn_graph_execute(
-            _graph_handle, qnn_tensor_inputs.data(), qnn_tensor_inputs.size(), qnn_tensor_outputs.data(),
-            qnn_tensor_outputs.size(), (_event_tracer ? _event_tracer->get_handle() : nullptr), nullptr);
-#else
-        auto error =
-            _qnn_interface->qnn_graph_execute(_graph_handle, qnn_tensor_inputs.data(), qnn_tensor_inputs.size(),
-                                              qnn_tensor_outputs.data(), qnn_tensor_outputs.size(), nullptr, nullptr);
-#endif
+        auto   error              = _qnn_interface->qnn_graph_execute(_graph_handle, qnn_tensor_inputs.data(),
+                                                                      qnn_tensor_inputs.size(), qnn_tensor_outputs.data(),
+                                                                      qnn_tensor_outputs.size(), GRAPH_PROFILE_HANDLE, nullptr);
         unbind_tensors(_tensor_inputs);
         unbind_tensors(_tensor_outputs);
-
         if (error != QNN_SUCCESS) {
             if (_device == QNN_BACKEND_NPU && error == QNN_COMMON_ERROR_SYSTEM_COMMUNICATION) {
                 QNN_LOG_WARN("[%s][%s][execute]NPU crashed. SSR detected. Caused QNN graph execute error.\n",
@@ -471,13 +471,7 @@ bool qnn_graph::finalize() {
         return false;
     }
 
-#ifdef GGML_QNN_ENABLE_PERFORMANCE_TRACKING
-    auto error = _qnn_interface->qnn_graph_finalize(_graph_handle,
-                                                    (_event_tracer ? _event_tracer->get_handle() : nullptr), nullptr);
-#else
-    auto error = _qnn_interface->qnn_graph_finalize(_graph_handle, nullptr, nullptr);
-#endif
-
+    auto error = _qnn_interface->qnn_graph_finalize(_graph_handle, GRAPH_PROFILE_HANDLE, nullptr);
     if (error != QNN_SUCCESS) {
         QNN_LOG_ERROR("[%s][%s]qnn_graph_finalize.error: %s\n", get_backend_name(_device), _graph_name.c_str(),
                       get_qnn_error_string(error));
