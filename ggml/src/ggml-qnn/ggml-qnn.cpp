@@ -307,7 +307,7 @@ ggml_backend_t ggml_backend_qnn_init_with_device_context(ggml_backend_dev_t dev,
         extend_lib_search_path = GGML_QNN_DEFAULT_LIB_SEARCH_PATH;
         QNN_LOG_WARN(
             "extend_lib_search_path is nullptr, will "
-            "use " GGML_QNN_DEFAULT_LIB_SEARCH_PATH " as default");
+            "use " GGML_QNN_DEFAULT_LIB_SEARCH_PATH " as default\n");
     }
 
     auto *     dev_ctx = get_device_context(dev);
@@ -337,7 +337,7 @@ ggml_backend_t ggml_backend_qnn_init_with_device_context(ggml_backend_dev_t dev,
     {
         char buffer[256];
         snprintf(buffer, sizeof(buffer), "%s(%s)", qnn::get_chipset_desc(dev_ctx->socinfo.soc_model),
-                 qnn::get_chipset_model(dev_ctx->socinfo.soc_model));
+                 qnn::get_backend_desc(dev_ctx->device));
         dev_ctx->description = buffer;
     }
     // TODO: remove npu from here if hardware quantization is supported
