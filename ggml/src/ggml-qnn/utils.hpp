@@ -23,8 +23,10 @@ qnn_dimension_array_t get_view_internal_dimension(const ggml_tensor * tensor, si
 
 uint32_t     get_ggml_tensor_rank(const ggml_tensor * tensor);
 const char * get_ggml_type_name(ggml_type type);
-const char * get_backend_name(QNNBackend device_index);
-const char * get_chipset_desc(uint32_t chipset_id);
+const char * get_backend_name(QNNBackend device);
+const char * get_backend_desc(QNNBackend device);
+const char * get_chipset_desc(uint32_t soc_model);
+const char * get_chipset_model(uint32_t soc_model);
 const char * get_htparch_desc(size_t htp_arch);
 intptr_t     align_to(size_t alignment, intptr_t offset);
 uint32_t     get_ggml_tensor_data_size(const ggml_tensor * tensor);

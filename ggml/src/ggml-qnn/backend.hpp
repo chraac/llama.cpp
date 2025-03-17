@@ -27,6 +27,7 @@ struct ggml_backend_qnn_device_context {
     size_t      threads;
     std::string name;
     std::string lib_name;
+    std::string description;
 
     // initialize in qnn init
     qnn::qcom_socinfo                   socinfo = {};

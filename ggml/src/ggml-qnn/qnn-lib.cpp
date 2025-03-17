@@ -181,21 +181,27 @@ int qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
         qnn_status                              = _qnn_interface->qnn_device_get_platform_info(nullptr, &p_info);
         if (qnn_status == QNN_SUCCESS) {
             QNN_LOG_INFO("device counts %d\n", p_info->v1.numHwDevices);
-            QnnDevice_HardwareDeviceInfo_t *         infos    = p_info->v1.hwDevices;
-            QnnHtpDevice_OnChipDeviceInfoExtension_t chipinfo = {};
+            QnnDevice_HardwareDeviceInfo_t * infos = p_info->v1.hwDevices;
             for (uint32_t i = 0; i < p_info->v1.numHwDevices; i++) {
                 QNN_LOG_INFO("deviceID:%d, deviceType:%d, numCores %d\n", (int) infos[i].v1.deviceId,
                              (int) infos[i].v1.deviceType, (int) infos[i].v1.numCores);
-                QnnDevice_DeviceInfoExtension_t devinfo = infos[i].v1.deviceInfoExtension;
-                chipinfo                                = devinfo->onChipDevice;
-                size_t htp_arch                         = (size_t) chipinfo.arch;
+                QnnDevice_DeviceInfoExtension_t          devinfo  = infos[i].v1.deviceInfoExtension;
+                QnnHtpDevice_OnChipDeviceInfoExtension_t chipinfo = devinfo->onChipDevice;
+                size_t                                   htp_arch = (size_t) chipinfo.arch;
                 QNN_LOG_INFO("htp_type:%d(%s)\n", devinfo->devType,
                              (devinfo->devType == QNN_HTP_DEVICE_TYPE_ON_CHIP) ? "ON_CHIP" : "");
-                QNN_LOG_INFO("qualcomm soc_model:%d(%s), htp_arch:%d(%s), vtcm_size:%d MB\n", (int) chipinfo.socModel,
-                             qnn::get_chipset_desc(chipinfo.socModel), (int) htp_arch, qnn::get_htparch_desc(htp_arch),
-                             (int) chipinfo.vtcmSize);
-                _soc_info = { chipinfo.socModel, htp_arch, chipinfo.vtcmSize };
+                QNN_LOG_INFO("soc_model:%s(%s), htp_arch:%s(%d), vtcm_size:%d MB\n",
+                             get_chipset_desc(chipinfo.socModel), get_chipset_model(chipinfo.socModel),
+                             get_htparch_desc(htp_arch), (int) htp_arch, (int) chipinfo.vtcmSize);
             }
+
+            if (p_info->v1.numHwDevices) {
+                QnnDevice_DeviceInfoExtension_t devinfo = infos[p_info->v1.numHwDevices - 1].v1.deviceInfoExtension;
+                QnnHtpDevice_OnChipDeviceInfoExtension_t chipinfo = devinfo->onChipDevice;
+                size_t                                   htp_arch = (size_t) chipinfo.arch;
+                _soc_info                                         = { chipinfo.socModel, htp_arch, chipinfo.vtcmSize };
+            }
+
             _qnn_interface->qnn_device_free_platform_info(nullptr, p_info);
         } else {
             // For emulator, we can't get platform info
