@@ -12,8 +12,14 @@
 
 #ifdef GGML_QNN_ENABLE_PERFORMANCE_TRACKING
 #    define GRAPH_PROFILE_HANDLE (_event_tracer ? _event_tracer->get_handle() : nullptr)
+#    define GRAPH_PROFILE_PRINT()                  \
+        if (_event_tracer) {                       \
+            _event_tracer->print_profile_events(); \
+        }                                          \
+        (void) 0
 #else
 #    define GRAPH_PROFILE_HANDLE (nullptr)
+#    define GRAPH_PROFILE_PRINT  (void) 0
 #endif
 
 namespace {
@@ -267,6 +273,48 @@ constexpr QnnGraph_Config_t make_graph_config(const QnnHtpGraph_CustomConfig_t *
 
 namespace qnn {
 
+ggml_type qnn_graph::get_graph_key_from_cgraph(const ggml_cgraph * cgraph, std::string & output) {
+    if (cgraph->n_nodes == 0) {
+        QNN_LOG_DEBUG("empty cgraph\n");
+        return GGML_TYPE_COUNT;
+    }
+
+    ggml_type min_op_type = GGML_TYPE_COUNT;
+    {
+        bool is_start = true;
+        for (int i = 0; i < cgraph->n_nodes; ++i) {
+            auto * op = cgraph->nodes[i];
+            if (ggml_is_empty(op)) {
+                QNN_LOG_DEBUG("empty op in graph, skipping\n");
+                continue;
+            }
+
+            if (op->op == GGML_OP_NONE || op->op == GGML_OP_VIEW || op->op == GGML_OP_PERMUTE) {
+                QNN_LOG_DEBUG("%s in graph, skipping\n", ggml_op_desc(op));
+                continue;
+            }
+
+            min_op_type = std::min(min_op_type, op->type);
+            if (is_start) {
+                qnn::get_qnn_op_desc(cgraph->nodes[0], is_start, output);
+                is_start = false;
+            } else {
+                output += '#';
+                qnn::get_qnn_op_desc(op, is_start, output);
+            }
+        }
+    }
+
+    if (cgraph->n_nodes > 1) {
+        auto * last_op = cgraph->nodes[cgraph->n_nodes - 1];
+        output += qnn::get_ggml_type_name(last_op->type);
+        output += '_';
+        qnn::append_tensor_shape_and_type(last_op, output);
+    }
+
+    return min_op_type;
+}
+
 qnn_graph::qnn_graph(const std::string & graph_name, QNNBackend device, qnn_instance_ptr qnn_instance,
                      htp_precision precision, size_t vtcm_size_in_mb) :
     _graph_name(graph_name),
@@ -455,11 +503,7 @@ bool qnn_graph::execute(const ggml_cgraph * cgraph, std::shared_ptr<qnn_convert_
         QNN_LOG_DEBUG("[%s][%s]execute succeed\n", get_backend_name(_device), _graph_name.c_str());
     }
 
-#ifdef GGML_QNN_ENABLE_PERFORMANCE_TRACKING
-    if (_event_tracer) {
-        _event_tracer->print_profile_events();
-    }
-#endif
+    GRAPH_PROFILE_PRINT();
     return true;
 }
 

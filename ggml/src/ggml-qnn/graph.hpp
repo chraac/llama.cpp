@@ -28,6 +28,23 @@ class qnn_graph {
         kHtpFp16,
     };
 
+    /**
+     * @brief Generates a unique key for a given computation graph (cgraph).
+     *
+     * This key is used to cache the graph, enabling efficient reuse of previously
+     * compiled graphs. The key is constructed by concatenating the descriptions
+     * of the operations and their associated tensor dimensions within the graph.
+     *
+     * Example key format: "MUL_MATf32_2048x8192q4_K_2048x2f32#MUL(SILU,MUL_MAT)#MUL_MAT(NONE,MUL)#ADD(MUL_MAT,ADD)f32_2048x2f32"
+     *
+     * @param cgraph The computation graph for which the key is generated.
+     * @param output The string where the generated key will be stored.
+     * @return The max ggml_type of all tensors in the graph.
+     *
+     * TODO: Improve the key generation logic to handle more complex graph structures and edge cases.
+     */
+    static ggml_type get_graph_key_from_cgraph(const ggml_cgraph * cgraph, std::string & output);
+
     explicit qnn_graph(const std::string & graph_name, QNNBackend device, qnn_instance_ptr qnn_instance,
                        htp_precision precision, size_t vtcm_size_in_mb);
 

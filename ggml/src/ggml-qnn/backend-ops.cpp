@@ -12,68 +12,10 @@
 
 namespace {
 
-typedef bool (*ggml_qnn_op_t)(ggml_backend_qnn_device_context * ctx, ggml_tensor * dst);
-
-/**
- * @brief Generates a unique key for a given computation graph (cgraph).
- *
- * This key is used to cache the graph, enabling efficient reuse of previously
- * compiled graphs. The key is constructed by concatenating the descriptions
- * of the operations and their associated tensor dimensions within the graph.
- *
- * Example key format: "MUL_MATf32_256x16x10f32_256x1x10f32#LOG#ADD#ADDf32_16x1x10f32"
- *
- * @param cgraph The computation graph for which the key is generated.
- * @param output The string where the generated key will be stored.
- *
- * TODO: Improve the key generation logic to handle more complex graph structures and edge cases.
- */
-ggml_type get_graph_key_from_cgraph(const ggml_cgraph * cgraph, std::string & output) {
-    if (cgraph->n_nodes == 0) {
-        QNN_LOG_DEBUG("empty cgraph\n");
-        return GGML_TYPE_COUNT;
-    }
-
-    ggml_type min_op_type = GGML_TYPE_COUNT;
-    {
-        bool is_start = true;
-        for (int i = 0; i < cgraph->n_nodes; ++i) {
-            auto * op = cgraph->nodes[i];
-            if (ggml_is_empty(op)) {
-                QNN_LOG_DEBUG("empty op in graph, skipping\n");
-                continue;
-            }
-
-            if (op->op == GGML_OP_NONE || op->op == GGML_OP_VIEW || op->op == GGML_OP_PERMUTE) {
-                QNN_LOG_DEBUG("%s in graph, skipping\n", ggml_op_desc(op));
-                continue;
-            }
-
-            min_op_type = std::min(min_op_type, op->type);
-            if (is_start) {
-                qnn::get_qnn_op_desc(cgraph->nodes[0], is_start, output);
-                is_start = false;
-            } else {
-                output += '#';
-                qnn::get_qnn_op_desc(op, is_start, output);
-            }
-        }
-    }
-
-    if (cgraph->n_nodes > 1) {
-        auto * last_op = cgraph->nodes[cgraph->n_nodes - 1];
-        output += qnn::get_ggml_type_name(last_op->type);
-        output += '_';
-        qnn::append_tensor_shape_and_type(last_op, output);
-    }
-
-    return min_op_type;
-}
-
 qnn::qnn_graph * get_qnn_graph_from_cache(ggml_backend_qnn_device_context * ctx, const ggml_cgraph * cgraph) {
     auto &      graph_cache = ctx->qnn_graph_cache;
     std::string graph_key;
-    auto        op_data_type = get_graph_key_from_cgraph(cgraph, graph_key);
+    auto        op_data_type = qnn::qnn_graph::get_graph_key_from_cgraph(cgraph, graph_key);
     if (graph_key.empty()) {
         QNN_LOG_DEBUG("[%s]empty graph key for cgraph: %p, size: %d\n", qnn::get_backend_name(ctx->device),
                       (const void *) cgraph, (int) cgraph->n_nodes);
