@@ -16,12 +16,11 @@ constexpr const char * kQnnCpuLibName    = "QnnCpu.dll";
 constexpr const char * kQnnGpuLibName    = "QnnGpu.dll";
 constexpr const char * kQnnNpuLibName    = "QnnHtp.dll";
 #else
+constexpr const char * kQnnSystemLibName = "libQnnSystem.so";
+constexpr const char * kQnnRpcLibName    = "libcdsprpc.so";
 constexpr const char * kQnnCpuLibName    = "libQnnCpu.so";
 constexpr const char * kQnnGpuLibName    = "libQnnGpu.so";
 constexpr const char * kQnnNpuLibName    = "libQnnHtp.so";
-constexpr const char * kQnnSystemLibName = "libQnnSystem.so";
-constexpr const char * kQnnRpcLibName    = "libcdsprpc.so";
-
 #endif
 
 constexpr const qnn::device_caps kDeviceCaps[] = {
@@ -148,9 +147,8 @@ qnn_system_interface::~qnn_system_interface() {
     }
 }
 
-qnn_instance::qnn_instance(const std::string & lib_path, const std::string & backend_lib_name) :
-    _additional_lib_load_path(lib_path),
-    _backend_lib_name(std::move(backend_lib_name)) {
+qnn_instance::qnn_instance(const std::string & lib_path, QNNBackend device) : _additional_lib_load_path(lib_path) {
+    _backend_lib_name = kDeviceCaps[device].lib_name;
     if (set_qnn_lib_search_path(lib_path)) {
         QNN_LOG_DEBUG("[%s] set_qnn_lib_search_path succeed\n", _backend_lib_name.c_str());
     } else {

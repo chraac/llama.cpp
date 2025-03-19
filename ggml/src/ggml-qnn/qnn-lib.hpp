@@ -152,7 +152,7 @@ class qnn_instance {
   public:
     using BackendIdType = decltype(QnnInterface_t{}.backendId);
 
-    explicit qnn_instance(const std::string & lib_path, const std::string & backend_lib_name);
+    explicit qnn_instance(const std::string & lib_path, QNNBackend device);
 
     ~qnn_instance() {}
 

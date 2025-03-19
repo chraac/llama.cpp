@@ -255,7 +255,7 @@ ggml_backend_t ggml_backend_qnn_init_with_device_context(ggml_backend_dev_t dev,
     const auto device  = dev_ctx->device;
     QNN_LOG_DEBUG("device %s\n", qnn::get_backend_name(device));
     QNN_LOG_DEBUG("extend_lib_search_path %s\n", extend_lib_search_path);
-    auto instance = std::make_shared<qnn::qnn_instance>(extend_lib_search_path, dev_ctx->lib_name);
+    auto instance = std::make_shared<qnn::qnn_instance>(extend_lib_search_path, device);
     auto result   = instance->qnn_init(nullptr);
     if (result != 0) {
         QNN_LOG_WARN("failed to init qnn backend %s\n", qnn::get_backend_name(device));
@@ -384,7 +384,6 @@ struct ggml_backend_qnn_reg_impl : ggml_backend_reg {
                 /* .device   = */ device_enum,  // init from the last device, i.e. NPU
                 /* .threads  = */ 1,
                 /* .name     = */ qnn::get_backend_name(device_enum),
-                /* .lib_name = */ device_caps.lib_name,
                 /* .supported_types = */ device_caps.supported_types));
 
             devices.emplace_back(ggml_backend_device{
