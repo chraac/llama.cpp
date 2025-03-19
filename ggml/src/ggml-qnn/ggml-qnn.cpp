@@ -14,65 +14,6 @@
 
 namespace {
 
-#ifdef _WIN32
-constexpr const char * kQnnCpuLibName = "QnnCpu.dll";
-constexpr const char * kQnnGpuLibName = "QnnGpu.dll";
-constexpr const char * kQnnNpuLibName = "QnnHtp.dll";
-#else
-constexpr const char * kQnnCpuLibName = "libQnnCpu.so";
-constexpr const char * kQnnGpuLibName = "libQnnGpu.so";
-constexpr const char * kQnnNpuLibName = "libQnnHtp.so";
-#endif
-
-struct qnn_device_caps {
-    const char *               lib_name;
-    enum ggml_backend_dev_type type;
-
-    // TODO: should we get this from device?
-    uint64_t supported_types;
-
-    // TODO: should we merge this with supported_types?
-    uint64_t cpu_preprocess_types;
-
-    // TODO: should we get this from device?
-    size_t max_tensor_size_in_bytes;
-};
-
-// TODO: should move this to qnn-lib.cpp
-constexpr const qnn_device_caps kDeviceCaps[] = {
-    {
-     // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/CpuOpDefSupplement.html#matmul
-        kQnnCpuLibName,                                                                   GGML_BACKEND_DEVICE_TYPE_ACCEL, (1L << GGML_TYPE_I8) | (1L << GGML_TYPE_F32),
-     0xFFFFFE,                                                                                                                                                                                                                                                                            // all quantized types can be offload to CPU, at current implementation, those types will be dequantized into float32 on cpu
-        0,                                                    // 0 for no limitation
-    },
-    {
-     // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/GpuOpDefSupplement.html#matmul
-        kQnnGpuLibName,                                                                                    GGML_BACKEND_DEVICE_TYPE_GPU,                                                                                                   (1L << GGML_TYPE_F32) | (1L << GGML_TYPE_F16),
-     // all quantized types can be offload to GPU, at current implementation, those types will be dequantized into float32 on cpu
-        0xFFFFFE,                                                           (128256L * 4096 *
-         sizeof(float)), // tested on 8 gen 2, failed to allocate tensor with size 128256x4096 and float32
-    },
-    {
-     // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/HtpOpDefSupplement.html#matmul
-        kQnnNpuLibName, GGML_BACKEND_DEVICE_TYPE_ACCEL,
-     (1L << GGML_TYPE_F32) | (1L << GGML_TYPE_F16) | (1L << GGML_TYPE_I16),
-     (1L << GGML_TYPE_Q2_K) | (1L << GGML_TYPE_Q3_K) | (1L << GGML_TYPE_Q4_K) | (1L << GGML_TYPE_Q8_K),
-     (8192L * 2048 + 8192 * 512 + 2048 * 512) * sizeof(float),  // TODO: should have a better way to get this value
-    },
-};
-
-static_assert(sizeof(kDeviceCaps) / sizeof(kDeviceCaps[0]) == GGML_QNN_MAX_DEVICES,
-              "The number of qnn devices should be equal to GGML_QNN_MAX_DEVICES");
-static_assert(kDeviceCaps[QNN_BACKEND_NPU].type == GGML_BACKEND_DEVICE_TYPE_ACCEL,
-              "The NPU device should be an accelerator device");
-static_assert(kDeviceCaps[QNN_BACKEND_GPU].type == GGML_BACKEND_DEVICE_TYPE_GPU,
-              "The GPU device should be an GPU device");
-static_assert(
-    kDeviceCaps[QNN_BACKEND_CPU].type == GGML_BACKEND_DEVICE_TYPE_ACCEL,
-    "The CPU device should be an accelerator device");  // we treat qnn-cpu as a supplementary accelerator device
-static_assert(GGML_TYPE_Q4_0 == 2 && GGML_TYPE_Q8_K == 15, "The quantized type order is not correct");
-
 ggml_backend_qnn_device_context * get_device_context(ggml_backend_dev_t dev) {
     return reinterpret_cast<ggml_backend_qnn_device_context *>(dev->context);
 }
@@ -280,7 +221,7 @@ void ggml_backend_qnn_device_get_memory(ggml_backend_dev_t dev, size_t * free, s
 }
 
 enum ggml_backend_dev_type ggml_backend_qnn_device_get_type(ggml_backend_dev_t dev) {
-    return kDeviceCaps[get_device_context(dev)->device].type;
+    return qnn::get_device_caps(get_device_context(dev)->device).type;
 }
 
 void ggml_backend_qnn_device_get_props(ggml_backend_dev_t dev, ggml_backend_dev_props * props) {
@@ -328,12 +269,13 @@ ggml_backend_t ggml_backend_qnn_init_with_device_context(ggml_backend_dev_t dev,
 
     std::string device_name = qnn::get_backend_name(device);
     QNN_LOG_INFO("qnn device name %s\n", device_name.c_str());
+    const auto & device_caps          = qnn::get_device_caps(device);
     dev_ctx->instance                 = instance;
     dev_ctx->qnn_interface            = qnn_interface;
     dev_ctx->socinfo                  = instance->get_soc_info();
-    dev_ctx->supported_types          = kDeviceCaps[device].supported_types;
-    dev_ctx->cpu_preprocess_types     = kDeviceCaps[device].cpu_preprocess_types;
-    dev_ctx->max_tensor_size_in_bytes = kDeviceCaps[device].max_tensor_size_in_bytes;
+    dev_ctx->supported_types          = device_caps.supported_types;
+    dev_ctx->cpu_preprocess_types     = device_caps.cpu_preprocess_types;
+    dev_ctx->max_tensor_size_in_bytes = device_caps.max_tensor_size_in_bytes;
     {
         char buffer[256];
         snprintf(buffer, sizeof(buffer), "%s(%s)", qnn::get_chipset_desc(dev_ctx->socinfo.soc_model),
@@ -437,12 +379,13 @@ struct ggml_backend_qnn_reg_impl : ggml_backend_reg {
             }
 #endif
 
+            const auto & device_caps = qnn::get_device_caps(device_enum);
             device_contexts.emplace_back(std::make_unique<ggml_backend_qnn_device_context>(
                 /* .device   = */ device_enum,  // init from the last device, i.e. NPU
                 /* .threads  = */ 1,
                 /* .name     = */ qnn::get_backend_name(device_enum),
-                /* .lib_name = */ kDeviceCaps[device_enum].lib_name,
-                /* .supported_types = */ kDeviceCaps[device_enum].supported_types));
+                /* .lib_name = */ device_caps.lib_name,
+                /* .supported_types = */ device_caps.supported_types));
 
             devices.emplace_back(ggml_backend_device{
                 /* iface = */ ggml_backend_qnn_device_interface,

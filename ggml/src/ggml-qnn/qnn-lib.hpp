@@ -443,4 +443,20 @@ class qnn_instance {
 
 using qnn_instance_ptr = std::shared_ptr<qnn_instance>;
 
+struct device_caps {
+    const char *               lib_name;
+    enum ggml_backend_dev_type type;
+
+    // TODO: should we get this from device?
+    uint64_t supported_types;
+
+    // TODO: should we merge this with supported_types?
+    uint64_t cpu_preprocess_types;
+
+    // TODO: should we get this from device?
+    size_t max_tensor_size_in_bytes;
+};
+
+const device_caps & get_device_caps(QNNBackend device);
+
 }  // namespace qnn

@@ -12,11 +12,51 @@ namespace {
 #ifdef _WIN32
 constexpr const char * kQnnSystemLibName = "QnnSystem.dll";
 constexpr const char * kQnnRpcLibName    = "libcdsprpc.dll";
+constexpr const char * kQnnCpuLibName    = "QnnCpu.dll";
+constexpr const char * kQnnGpuLibName    = "QnnGpu.dll";
+constexpr const char * kQnnNpuLibName    = "QnnHtp.dll";
 #else
+constexpr const char * kQnnCpuLibName    = "libQnnCpu.so";
+constexpr const char * kQnnGpuLibName    = "libQnnGpu.so";
+constexpr const char * kQnnNpuLibName    = "libQnnHtp.so";
 constexpr const char * kQnnSystemLibName = "libQnnSystem.so";
 constexpr const char * kQnnRpcLibName    = "libcdsprpc.so";
 
 #endif
+
+constexpr const qnn::device_caps kDeviceCaps[] = {
+    {
+     // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/CpuOpDefSupplement.html#matmul
+        kQnnCpuLibName,                                                                   GGML_BACKEND_DEVICE_TYPE_ACCEL, (1L << GGML_TYPE_I8) | (1L << GGML_TYPE_F32),
+     0xFFFFFE,                                                                                                                                                                                                                                                                            // all quantized types can be offload to CPU, at current implementation, those types will be dequantized into float32 on cpu
+        0,                                                    // 0 for no limitation
+    },
+    {
+     // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/GpuOpDefSupplement.html#matmul
+        kQnnGpuLibName,                                                                                    GGML_BACKEND_DEVICE_TYPE_GPU,                                                                                                   (1L << GGML_TYPE_F32) | (1L << GGML_TYPE_F16),
+     // all quantized types can be offload to GPU, at current implementation, those types will be dequantized into float32 on cpu
+        0xFFFFFE,                                                           (128256L * 4096 *
+         sizeof(float)), // tested on 8 gen 2, failed to allocate tensor with size 128256x4096 and float32
+    },
+    {
+     // https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/HtpOpDefSupplement.html#matmul
+        kQnnNpuLibName, GGML_BACKEND_DEVICE_TYPE_ACCEL,
+     (1L << GGML_TYPE_F32) | (1L << GGML_TYPE_F16) | (1L << GGML_TYPE_I16),
+     (1L << GGML_TYPE_Q2_K) | (1L << GGML_TYPE_Q3_K) | (1L << GGML_TYPE_Q4_K) | (1L << GGML_TYPE_Q8_K),
+     (8192L * 2048 + 8192 * 512 + 2048 * 512) * sizeof(float),  // TODO: should have a better way to get this value
+    },
+};
+
+static_assert(sizeof(kDeviceCaps) / sizeof(kDeviceCaps[0]) == GGML_QNN_MAX_DEVICES,
+              "The number of qnn devices should be equal to GGML_QNN_MAX_DEVICES");
+static_assert(kDeviceCaps[QNN_BACKEND_NPU].type == GGML_BACKEND_DEVICE_TYPE_ACCEL,
+              "The NPU device should be an accelerator device");
+static_assert(kDeviceCaps[QNN_BACKEND_GPU].type == GGML_BACKEND_DEVICE_TYPE_GPU,
+              "The GPU device should be an GPU device");
+static_assert(
+    kDeviceCaps[QNN_BACKEND_CPU].type == GGML_BACKEND_DEVICE_TYPE_ACCEL,
+    "The CPU device should be an accelerator device");  // we treat qnn-cpu as a supplementary accelerator device
+static_assert(GGML_TYPE_Q4_0 == 2 && GGML_TYPE_Q8_K == 15, "The quantized type order is not correct");
 
 void insert_path(std::string & path, std::string insert_path, const char separator = ':') {
     if (!insert_path.empty() && !path.empty()) {
@@ -516,6 +556,10 @@ int qnn_instance::unload_backend() {
     _loaded_backend.clear();
 
     return 0;
+}
+
+const device_caps & get_device_caps(QNNBackend device) {
+    return kDeviceCaps[device];
 }
 
 }  // namespace qnn
