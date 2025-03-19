@@ -6,19 +6,45 @@ namespace {
 using op_constructor_t = std::shared_ptr<qnn::ggml_qnn_op_config> (*)(const ggml_tensor *, const std::string &,
                                                                       std::shared_ptr<qnn::qnn_instance>);
 
-using op_description_generator_t = void (*)(const ggml_tensor * op, bool append_dimensions, std::string & output);
+using op_description_generator_t = void (*)(const ggml_tensor * op, bool append_dimensions,
+                                            ggml_type override_data_type, std::string & output);
 
-void get_graph_key_from_op(const ggml_tensor * op, std::string & output) {
+void append_tensor_shape_and_type_impl(const ggml_tensor * tensor, ggml_type override_data_type, std::string & output) {
+    char         buffer[256] = {};
+    const auto * type_name   = qnn::get_ggml_type_name(std::min(tensor->type, override_data_type));
+    int          len         = 0;
+    switch (ggml_n_dims(tensor)) {
+        case 1:
+            len = snprintf(buffer, sizeof(buffer), "%ld%s", (long) tensor->ne[0], type_name);
+            break;
+        case 2:
+            len = snprintf(buffer, sizeof(buffer), "%ldx%ld%s", (long) tensor->ne[0], (long) tensor->ne[1], type_name);
+            break;
+        case 3:
+            len = snprintf(buffer, sizeof(buffer), "%ldx%ldx%ld%s", (long) tensor->ne[0], (long) tensor->ne[1],
+                           (long) tensor->ne[2], type_name);
+            break;
+        case 4:
+        default:
+            len = snprintf(buffer, sizeof(buffer), "%ldx%ldx%ldx%ld%s", (long) tensor->ne[0], (long) tensor->ne[1],
+                           (long) tensor->ne[2], (long) tensor->ne[3], type_name);
+            break;
+    }
+    GGML_ASSERT(len > 0 && len < (int) sizeof(buffer));
+    output.append(buffer, len);
+}
+
+void get_graph_key_from_op(const ggml_tensor * op, ggml_type override_data_type, std::string & output) {
     output += ggml_op_desc(op);
     output += qnn::get_ggml_type_name(op->type);
     for (size_t i = 0; i < GGML_MAX_SRC && op->src[i]; ++i) {
-        auto * input = op->src[i];
-        if (!input) {
+        auto * src = op->src[i];
+        if (!src) {
             break;
         }
 
         output += '_';
-        qnn::append_tensor_shape_and_type(input, output);
+        append_tensor_shape_and_type_impl(src, override_data_type, output);
     }
 }
 
@@ -35,9 +61,10 @@ void get_op_key_with_src_op_desc(const ggml_tensor * op, std::string & output) {
     output += ')';
 }
 
-void generic_get_op_desc(const ggml_tensor * op, bool append_dimensions, std::string & output) {
+void generic_get_op_desc(const ggml_tensor * op, bool append_dimensions, ggml_type override_data_type,
+                         std::string & output) {
     if (append_dimensions) {
-        get_graph_key_from_op(op, output);
+        get_graph_key_from_op(op, override_data_type, output);
     } else {
         get_op_key_with_src_op_desc(op, output);
     }
@@ -366,28 +393,7 @@ static_assert(std::size(kOpConstructors) == (GGML_OP_COUNT + GGML_UNARY_OP_COUNT
 namespace qnn {
 
 void append_tensor_shape_and_type(const ggml_tensor * tensor, std::string & output) {
-    char         buffer[256] = {};
-    const auto * type_name   = qnn::get_ggml_type_name(tensor->type);
-    int          len         = 0;
-    switch (ggml_n_dims(tensor)) {
-        case 1:
-            len = snprintf(buffer, sizeof(buffer), "%ld%s", (long) tensor->ne[0], type_name);
-            break;
-        case 2:
-            len = snprintf(buffer, sizeof(buffer), "%ldx%ld%s", (long) tensor->ne[0], (long) tensor->ne[1], type_name);
-            break;
-        case 3:
-            len = snprintf(buffer, sizeof(buffer), "%ldx%ldx%ld%s", (long) tensor->ne[0], (long) tensor->ne[1],
-                           (long) tensor->ne[2], type_name);
-            break;
-        case 4:
-        default:
-            len = snprintf(buffer, sizeof(buffer), "%ldx%ldx%ldx%ld%s", (long) tensor->ne[0], (long) tensor->ne[1],
-                           (long) tensor->ne[2], (long) tensor->ne[3], type_name);
-            break;
-    }
-    GGML_ASSERT(len > 0 && len < (int) sizeof(buffer));
-    output.append(buffer, len);
+    append_tensor_shape_and_type_impl(tensor, GGML_TYPE_COUNT, output);
 }
 
 size_t get_qnn_op_index(const ggml_tensor * tensor) {
@@ -405,14 +411,15 @@ const char * get_qnn_op_name(const ggml_tensor * op) {
     return kOpCaps[op_index].qnn_op_name;
 }
 
-void get_qnn_op_desc(const ggml_tensor * op, bool append_dimensions, std::string & output) {
+void get_qnn_op_desc(const ggml_tensor * op, bool append_dimensions, ggml_type override_data_type,
+                     std::string & output) {
     auto op_index = get_qnn_op_index(op);
     GGML_ASSERT(op_index < std::size(kOpCaps));
     auto get_desc = kOpCaps[op_index].get_desc;
     if (get_desc) {
-        get_desc(op, append_dimensions, output);
+        get_desc(op, append_dimensions, override_data_type, output);
     } else {
-        generic_get_op_desc(op, append_dimensions, output);
+        generic_get_op_desc(op, append_dimensions, override_data_type, output);
     }
 }
 

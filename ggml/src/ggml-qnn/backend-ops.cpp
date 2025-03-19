@@ -349,7 +349,7 @@ bool ggml_qnn_supports_matmul_op(ggml_backend_qnn_device_context * ctx, const gg
 void print_tensor_info(ggml_backend_qnn_device_context * ctx, const ggml_tensor * op, bool is_supported) {
     const char * supported = is_supported ? "supported" : "unsupported";
     std::string  op_key;
-    qnn::get_qnn_op_desc(op, true, op_key);
+    qnn::get_qnn_op_desc(op, true, GGML_TYPE_COUNT, op_key);
 
     QNN_LOG_DEBUG("[%s][%s]op was %s, support/unsupported: %d/%d\n", qnn::get_backend_name(ctx->device), op_key.c_str(),
                   supported, ctx->supported_op_count.load(), ctx->unsupported_op_count.load());

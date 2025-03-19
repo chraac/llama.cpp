@@ -296,11 +296,11 @@ ggml_type qnn_graph::get_graph_key_from_cgraph(const ggml_cgraph * cgraph, std::
 
             min_op_type = std::min(min_op_type, op->type);
             if (is_start) {
-                qnn::get_qnn_op_desc(cgraph->nodes[0], is_start, output);
+                qnn::get_qnn_op_desc(cgraph->nodes[0], is_start, GGML_TYPE_COUNT, output);
                 is_start = false;
             } else {
                 output += '#';
-                qnn::get_qnn_op_desc(op, is_start, output);
+                qnn::get_qnn_op_desc(op, is_start, GGML_TYPE_COUNT, output);
             }
         }
     }
@@ -420,7 +420,7 @@ bool qnn_graph::build_graph_from_ggml_graph(const ggml_cgraph * cgraph) {
 #ifndef NDEBUG
             {
                 std::string op_desc;
-                get_qnn_op_desc(dst, true, op_desc);
+                get_qnn_op_desc(dst, true, GGML_TYPE_COUNT, op_desc);
                 QNN_LOG_DEBUG("[%s]create op(%s) with qnn op(%s)\n", get_backend_name(_device), op_desc.c_str(),
                               get_qnn_op_name(dst));
             }

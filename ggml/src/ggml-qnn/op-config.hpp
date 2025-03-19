@@ -19,7 +19,8 @@ void append_tensor_shape_and_type(const ggml_tensor * tensor, std::string & outp
 
 size_t       get_qnn_op_index(const ggml_tensor * tensor);
 const char * get_qnn_op_name(const ggml_tensor * op);
-void         get_qnn_op_desc(const ggml_tensor * op, bool append_dimensions, std::string & output);
+void         get_qnn_op_desc(const ggml_tensor * op, bool append_dimensions, ggml_type override_data_type,
+                             std::string & output);
 
 std::shared_ptr<ggml_qnn_op_config> create_op(const ggml_tensor * op, const std::string & name,
                                               qnn_instance_ptr qnn_instance);
