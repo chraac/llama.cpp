@@ -79,9 +79,6 @@ class qnn_graph {
     std::vector<Qnn_Tensor_t> _qnn_tensor_inputs;
     std::vector<Qnn_Tensor_t> _qnn_tensor_outputs;
 
-    // the actual data type to use for the input tensors of qnn graph
-    ggml_type _override_data_type = GGML_TYPE_COUNT;
-
 #ifdef GGML_QNN_ENABLE_PERFORMANCE_TRACKING
     // profiler
     qnn_event_tracer_ptr _event_tracer;

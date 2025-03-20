@@ -18,8 +18,8 @@
         }                                          \
         (void) 0
 #else
-#    define GRAPH_PROFILE_HANDLE (nullptr)
-#    define GRAPH_PROFILE_PRINT  (void) 0
+#    define GRAPH_PROFILE_HANDLE  (nullptr)
+#    define GRAPH_PROFILE_PRINT() (void) 0
 #endif
 
 namespace {
@@ -279,6 +279,21 @@ ggml_type qnn_graph::get_graph_key_from_cgraph(const ggml_cgraph * cgraph, std::
         return GGML_TYPE_COUNT;
     }
 
+    ggml_type override_type = GGML_TYPE_COUNT;
+    {
+        // TODO: can we have a better approach to get the override_type here?
+        //   though it is O(n) + O(mlog(m)) complexity, our graph is small, so it is fine
+        ggml_tensor_array_t inputs;
+        ggml_tensor_array_t outputs;
+        get_io_tensors_from_graph(cgraph, inputs, outputs);
+        if (!inputs.empty() && !outputs.empty()) {
+            override_type = get_override_data_type(inputs, outputs);
+            QNN_LOG_DEBUG("get_graph_key, override_type: %s\n", ggml_type_name(override_type));
+        } else {
+            QNN_LOG_DEBUG("get_graph_key, no input or output tensors\n");
+        }
+    }
+
     ggml_type min_op_type = GGML_TYPE_COUNT;
     {
         bool is_start = true;
@@ -296,11 +311,11 @@ ggml_type qnn_graph::get_graph_key_from_cgraph(const ggml_cgraph * cgraph, std::
 
             min_op_type = std::min(min_op_type, op->type);
             if (is_start) {
-                qnn::get_qnn_op_desc(cgraph->nodes[0], is_start, GGML_TYPE_COUNT, output);
+                qnn::get_qnn_op_desc(op, is_start, override_type, output);
                 is_start = false;
             } else {
                 output += '#';
-                qnn::get_qnn_op_desc(op, is_start, GGML_TYPE_COUNT, output);
+                qnn::get_qnn_op_desc(op, is_start, override_type, output);
             }
         }
     }
@@ -394,14 +409,14 @@ bool qnn_graph::build_graph_from_ggml_graph(const ggml_cgraph * cgraph) {
         QNN_SCOPED_PERFORMANCE_TRACKER("[%s][%s]build_graph_from_ggml_graph", get_backend_name(_device),
                                        _graph_name.c_str());
 
-        _override_data_type = get_override_data_type(inputs, outputs);
-        if (_override_data_type != GGML_TYPE_COUNT) {
+        auto override_data_type = get_override_data_type(inputs, outputs);
+        if (override_data_type != GGML_TYPE_COUNT) {
             QNN_LOG_DEBUG("[%s][%s]set override_data_type: %s\n", get_backend_name(_device), _graph_name.c_str(),
-                          ggml_type_name(_override_data_type));
+                          ggml_type_name(override_data_type));
         }
 
         qnn_tensor_cache_t tensor_cache;
-        auto input_tensors  = create_tensors_with_cache(inputs, ggml_qnn_tensor::INPUT, rank, _override_data_type,
+        auto input_tensors  = create_tensors_with_cache(inputs, ggml_qnn_tensor::INPUT, rank, override_data_type,
                                                         _device, _graph_handle, _qnn_instance, tensor_cache);
         auto output_tensors = create_tensors_with_cache(outputs, ggml_qnn_tensor::OUTPUT, rank, GGML_TYPE_COUNT,
                                                         _device, _graph_handle, _qnn_instance, tensor_cache);
@@ -459,10 +474,11 @@ bool qnn_graph::execute(const ggml_cgraph * cgraph, std::shared_ptr<qnn_convert_
 
     {
         QNN_SCOPED_PERFORMANCE_TRACKER("[%s][%s]bind_tensors", get_backend_name(_device), _graph_name.c_str());
-        if (_override_data_type != GGML_TYPE_COUNT) {
+        auto override_data_type = get_override_data_type(inputs, outputs);
+        if (override_data_type != GGML_TYPE_COUNT) {
             QNN_LOG_DEBUG("[%s][%s]override_data_type: %s\n", get_backend_name(_device), _graph_name.c_str(),
-                          ggml_type_name(_override_data_type));
-            auto buffers = convert(convert_context, inputs, _override_data_type);
+                          ggml_type_name(override_data_type));
+            auto buffers = convert(convert_context, inputs, override_data_type);
             if (!qnn::bind_tensors_with_custom_buffers(inputs, buffers, _tensor_inputs, _qnn_tensor_inputs)) {
                 QNN_LOG_ERROR("[%s][%s]bind input tensors failed\n", get_backend_name(_device), _graph_name.c_str());
                 return false;
