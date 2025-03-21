@@ -442,7 +442,6 @@ bool device_compute_graph(ggml_backend_qnn_device_context * ctx, ggml_cgraph * c
                   (int) cgraph->n_nodes);
 
     auto qnn_graph = get_qnn_graph_from_cache(ctx, cgraph);
-    // TODO: [convert]set in the allocator and override_data_type
     bool success   = qnn_graph && qnn_graph->execute(cgraph, ctx->convert_context);
 
     QNN_LOG_DEBUG("[%s]compute graph, success: %d\n", qnn::get_backend_name(ctx->device), (int) success);
