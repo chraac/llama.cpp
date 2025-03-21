@@ -46,9 +46,14 @@ qnn::qnn_tensor_ptr_t create_tensor_with_cache(ggml_tensor * tensor, qnn::ggml_q
 
     QNN_LOG_DEBUG("[%s]create_tensor_with_cache, data_type: %s, override_data_type: %s\n",
                   qnn::get_backend_name(device), ggml_type_name(tensor->type), ggml_type_name(override_data_type));
-    auto data_type  = override_data_type != GGML_TYPE_COUNT ? override_data_type : tensor->type;
-    auto qnn_tensor = std::make_shared<qnn::ggml_qnn_tensor>(type, tensor->name, tensor->ne, data_type, rank, device,
-                                                             graph_handle, qnn_instance);
+    auto data_type = override_data_type != GGML_TYPE_COUNT ? override_data_type : tensor->type;
+
+    // We've observed that some tensors have the same name with different op types will be added to the same graph
+    // which will cause the graph build failed. To avoid this, we append the op type to the tensor name.
+    char tensor_name[256];
+    snprintf(tensor_name, sizeof(tensor_name), "%s_%s", ggml_get_name(tensor), ggml_op_desc(tensor));
+    auto qnn_tensor      = std::make_shared<qnn::ggml_qnn_tensor>(type, std::string(tensor_name), tensor->ne, data_type,
+                                                                  rank, device, graph_handle, qnn_instance);
     tensor_cache[tensor] = qnn_tensor;
     return qnn_tensor;
 }
