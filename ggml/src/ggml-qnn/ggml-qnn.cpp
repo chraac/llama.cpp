@@ -283,7 +283,7 @@ ggml_backend_t ggml_backend_qnn_init_with_device_context(ggml_backend_dev_t dev,
         dev_ctx->description = buffer;
     }
     // TODO: remove npu from here if hardware quantization is supported
-    dev_ctx->enable_cpu_dequantize = true;
+    dev_ctx->enable_cpu_dequantize = device == QNN_BACKEND_CPU;
 
     ggml_backend_t qnn_backend = new ggml_backend{
         /* .guid      = */ ggml_backend_qnn_guid(),
