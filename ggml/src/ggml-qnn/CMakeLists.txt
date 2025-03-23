@@ -42,7 +42,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Android" OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
     list(APPEND QNN_DYNAMIC_LIBS ${HTP_STUB_LIBS})
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Android")
-        file(GLOB HTP_SKEL_LIBS "${QNN_SDK_LIB_PATH}/lib/hexagon-*/unsigned/libQnnHtp*Skel.so")
+        file(GLOB HTP_SKEL_LIBS "${GGML_QNN_SDK_PATH}/lib/hexagon-*/unsigned/libQnnHtp*Skel.so")
         list(APPEND QNN_DYNAMIC_LIBS ${HTP_SKEL_LIBS})
 
         if(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
