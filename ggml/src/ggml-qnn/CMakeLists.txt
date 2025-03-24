@@ -50,9 +50,21 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Android" OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
             list(APPEND QNN_DYNAMIC_LIBS "${CMAKE_ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/12.0.9/lib/linux/aarch64/libomp.so")
         endif()
     endif()
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    # TODO: add windows support
+    if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+        # x86_64
+        set(QNN_SDK_LIB_PATH "${GGML_QNN_SDK_PATH}/lib/x86_64-windows-msvc")
+    else()
+        # aarch64
+        set(QNN_SDK_LIB_PATH "${GGML_QNN_SDK_PATH}/lib/aarch64-windows-msvc")
+    endif()
+
+    list(APPEND QNN_DYNAMIC_LIBS "${QNN_SDK_LIB_PATH}/QnnSystem.dll")
+    list(APPEND QNN_DYNAMIC_LIBS "${QNN_SDK_LIB_PATH}/QnnCpu.dll")
+    list(APPEND QNN_DYNAMIC_LIBS "${QNN_SDK_LIB_PATH}/QnnGpu.dll")
+    list(APPEND QNN_DYNAMIC_LIBS "${QNN_SDK_LIB_PATH}/QnnHtp.dll")
+    file(GLOB HTP_STUB_LIBS "${QNN_SDK_LIB_PATH}/QnnHtp*.dll")
+    list(APPEND QNN_DYNAMIC_LIBS ${HTP_STUB_LIBS})
 endif()
 
 message("CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
