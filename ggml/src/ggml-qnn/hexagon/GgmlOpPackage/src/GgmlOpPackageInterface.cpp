@@ -211,7 +211,7 @@ Qnn_ErrorHandle_t GgmlOpPackageValidateOpConfig (Qnn_OpConfig_t opConfig){
      * If a match is found, check number of inputs, outputs and params
      */
     if (std::string(opConfig.v1.typeName) == "GgmlMulMat"){
-        if (opConfig.v1.numOfParams != 2 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1){
+        if (opConfig.v1.numOfParams != 0 || opConfig.v1.numOfInputs != 2 || opConfig.v1.numOfOutputs != 1){
           return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
     }

@@ -50,25 +50,6 @@
                 </Shape>
             </Output>
 
-            <Parameter>
-                <Name>transpose_in0</Name>
-                <Mandatory>false</Mandatory>
-                <Datatype>QNN_DATATYPE_BOOL_8</Datatype>
-                <Shape>
-                    <Rank>SCALAR</Rank>
-                </Shape>
-            </Parameter>
-
-            <Parameter>
-                <Name>transpose_in1</Name>
-                <Mandatory>false</Mandatory>
-                <Datatype>QNN_DATATYPE_BOOL_8</Datatype>
-                <Shape>
-                    <Rank>SCALAR</Rank>
-                </Shape>
-            </Parameter>
-
-
             <!--This Op is implemented on these Backends-->
             <SupportedBackend>HTP</SupportedBackend>
         </OpDef>

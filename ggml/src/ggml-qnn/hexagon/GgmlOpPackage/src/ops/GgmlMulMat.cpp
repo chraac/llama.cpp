@@ -12,22 +12,12 @@
 
 BEGIN_PKG_OP_DEFINITION(PKG_GgmlMulMat);
 
-static Qnn_Scalar_t sg_opDefaultTranspose_In0Scalar = {.dataType = Qnn_DataType_t::QNN_DATATYPE_BOOL_8,
-                                                      .bool8Value = False};
-static Qnn_Param_t sg_opDefaultTranspose_In0 = {.paramType = QNN_PARAMTYPE_SCALAR,
-                                               .scalarParam = sg_opDefaultTranspose_In0Scalar};
-static Qnn_Scalar_t sg_opDefaultTranspose_In1Scalar = {.dataType = Qnn_DataType_t::QNN_DATATYPE_BOOL_8,
-                                                      .bool8Value = False};
-static Qnn_Param_t sg_opDefaultTranspose_In1 = {.paramType = QNN_PARAMTYPE_SCALAR,
-                                               .scalarParam = sg_opDefaultTranspose_In1Scalar};
 
 // op execute function declarations
 template<typename TensorType>
 GraphStatus ggmlmulmatImpl(TensorType& out_0,
                            const TensorType& in_0,
-                           const TensorType& in_1,
-                           const QuantUint16Tensor& transpose_in0,
-                           const QuantUint16Tensor& transpose_in1);
+                           const TensorType& in_1);
 
 // forward declaration of sample cost function
 static float ggmlmulmatCostFunc(const Op *op);
@@ -89,13 +79,6 @@ DEF_PACKAGE_OP((ggmlmulmatImpl<Tensor>), "GgmlMulMat")
  *       graph construction will skip this parameter when this parameter is not provided at
  *       Qnn_addNode
  */
-DEF_PACKAGE_PARAM_ORDER("GgmlMulMat", 
-                        "transpose_in0",
-                        false,
-                        &sg_opDefaultTranspose_In0,
-                        "transpose_in1",
-                        false,
-                        &sg_opDefaultTranspose_In1)
 
 
 /* execute functions for ops */
@@ -103,9 +86,7 @@ DEF_PACKAGE_PARAM_ORDER("GgmlMulMat",
 template<typename TensorType>
 GraphStatus ggmlmulmatImpl(TensorType& out_0,
                            const TensorType& in_0,
-                           const TensorType& in_1,
-                           const QuantUint16Tensor& transpose_in0,
-                           const QuantUint16Tensor& transpose_in1)
+                           const TensorType& in_1)
 
 {
   /*
