@@ -20,6 +20,40 @@ if(NOT DEFINED GGML_QNN_SDK_PATH)
     endif()
 endif()
 
+message("CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
+message("CMAKE_CXX_FLAGS_RELEASE: ${CMAKE_CXX_FLAGS_RELEASE}")
+message("QNN_SDK_PATH: ${GGML_QNN_SDK_PATH}")
+
+file(GLOB QNN_SOURCES "${CMAKE_CURRENT_LIST_DIR}/*.cpp")
+ggml_add_backend_library(ggml-qnn
+    ${QNN_SOURCES}
+)
+
+target_include_directories(ggml-qnn PRIVATE ${GGML_QNN_SDK_PATH}/include/QNN ${CMAKE_CURRENT_LIST_DIR})
+target_link_libraries(ggml-qnn PRIVATE ${QNN_LINK_LIBRARIES})
+
+if(NOT "${QNN_DEFAULT_LIB_SEARCH_PATH}" STREQUAL "")
+    string(REGEX REPLACE "/$" "" QNN_DEFAULT_LIB_SEARCH_PATH "${QNN_DEFAULT_LIB_SEARCH_PATH}")
+endif()
+
+message("GGML_QNN_DEFAULT_LIB_SEARCH_PATH: ${QNN_DEFAULT_LIB_SEARCH_PATH}")
+target_compile_definitions(ggml-qnn PRIVATE GGML_QNN_DEFAULT_LIB_SEARCH_PATH="${QNN_DEFAULT_LIB_SEARCH_PATH}")
+
+if(GGML_QNN_ENABLE_CPU_BACKEND)
+    message("GGML_QNN_ENABLE_CPU_BACKEND is enabled")
+    target_compile_definitions(ggml-qnn PRIVATE GGML_QNN_ENABLE_CPU_BACKEND)
+else()
+    message("GGML_QNN_ENABLE_CPU_BACKEND is disabled")
+endif()
+
+if(GGML_QNN_ENABLE_PERFORMANCE_TRACKING)
+    message("GGML_QNN_ENABLE_PERFORMANCE_TRACKING is enabled")
+    target_compile_definitions(ggml-qnn PRIVATE GGML_QNN_ENABLE_PERFORMANCE_TRACKING)
+else()
+    message("GGML_QNN_ENABLE_PERFORMANCE_TRACKING is disabled")
+endif()
+
+# Copy QNN dynamic libraries
 set(QNN_DYNAMIC_LIBS "")
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Android" OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -67,40 +101,6 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     list(APPEND QNN_DYNAMIC_LIBS ${HTP_STUB_LIBS})
 endif()
 
-message("CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
-message("CMAKE_CXX_FLAGS_RELEASE: ${CMAKE_CXX_FLAGS_RELEASE}")
-message("QNN_SDK_PATH: ${GGML_QNN_SDK_PATH}")
-
-file(GLOB QNN_SOURCES "${CMAKE_CURRENT_LIST_DIR}/*.cpp")
-ggml_add_backend_library(ggml-qnn
-    ${QNN_SOURCES}
-)
-
-target_include_directories(ggml-qnn PRIVATE ${GGML_QNN_SDK_PATH}/include/QNN ${CMAKE_CURRENT_LIST_DIR})
-target_link_libraries(ggml-qnn PRIVATE ${QNN_LINK_LIBRARIES})
-
-if(NOT "${QNN_DEFAULT_LIB_SEARCH_PATH}" STREQUAL "")
-    string(REGEX REPLACE "/$" "" QNN_DEFAULT_LIB_SEARCH_PATH "${QNN_DEFAULT_LIB_SEARCH_PATH}")
-endif()
-
-message("GGML_QNN_DEFAULT_LIB_SEARCH_PATH: ${QNN_DEFAULT_LIB_SEARCH_PATH}")
-target_compile_definitions(ggml-qnn PRIVATE GGML_QNN_DEFAULT_LIB_SEARCH_PATH="${QNN_DEFAULT_LIB_SEARCH_PATH}")
-
-if(GGML_QNN_ENABLE_CPU_BACKEND)
-    message("GGML_QNN_ENABLE_CPU_BACKEND is enabled")
-    target_compile_definitions(ggml-qnn PRIVATE GGML_QNN_ENABLE_CPU_BACKEND)
-else()
-    message("GGML_QNN_ENABLE_CPU_BACKEND is disabled")
-endif()
-
-if(GGML_QNN_ENABLE_PERFORMANCE_TRACKING)
-    message("GGML_QNN_ENABLE_PERFORMANCE_TRACKING is enabled")
-    target_compile_definitions(ggml-qnn PRIVATE GGML_QNN_ENABLE_PERFORMANCE_TRACKING)
-else()
-    message("GGML_QNN_ENABLE_PERFORMANCE_TRACKING is disabled")
-endif()
-
-# foreach QNN_DYNAMIC_LIBS
 foreach(QNN_DYNAMIC_LIB ${QNN_DYNAMIC_LIBS})
     message("Copy: ${QNN_DYNAMIC_LIB} -> ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
     add_custom_command(
