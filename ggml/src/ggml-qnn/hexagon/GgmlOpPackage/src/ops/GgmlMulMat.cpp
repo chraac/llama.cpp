@@ -6,21 +6,17 @@
 #include "HTP/core/op_package_feature_support.h"
 #include "HTP/core/op_register_ext.h"
 #include "HTP/core/optimize.h"
-#include "QnnOpPackage.h"
 #include "HTP/core/simple_reg.h"
-
+#include "QnnOpPackage.h"
 
 BEGIN_PKG_OP_DEFINITION(PKG_GgmlMulMat);
 
-
 // op execute function declarations
-template<typename TensorType>
-GraphStatus ggmlmulmatImpl(TensorType& out_0,
-                           const TensorType& in_0,
-                           const TensorType& in_1);
+template <typename TensorType>
+GraphStatus ggmlmulmatImpl(TensorType & out_0, const TensorType & in_0, const TensorType & in_1);
 
 // forward declaration of sample cost function
-static float ggmlmulmatCostFunc(const Op *op);
+static float ggmlmulmatCostFunc(const Op * op);
 
 /*
  * method 1 for defining op, using default cost value (i.e. GLACIAL) and default flag (Flags::RESOURCE_HVX)
@@ -80,43 +76,46 @@ DEF_PACKAGE_OP((ggmlmulmatImpl<Tensor>), "GgmlMulMat")
  *       Qnn_addNode
  */
 
+#define BLOCK_SIZE    (8 * 1024 / VLEN)  // 8k prefetch
+#define L2FETCH_AHEAD (BLOCK_SIZE)
+
+float vec_dot_product_f32(const float * restrict src0, const float * restrict src1, size_t count) {
+    for (int i = 0; i < n; i++) {
+        c[i] = a[i] * b[i];
+    }
+}
 
 /* execute functions for ops */
 
-template<typename TensorType>
-GraphStatus ggmlmulmatImpl(TensorType& out_0,
-                           const TensorType& in_0,
-                           const TensorType& in_1)
+template <typename TensorType>
+GraphStatus ggmlmulmatImpl(TensorType & out_0, const TensorType & in_0, const TensorType & in_1) {
+    auto rank = in_0.rank();
+    switch (rank) {
+        case 4:
+            out_0.set_dims({ in_1.get_dims()[3], in_1.get_dims()[2], in_1.get_dims()[1], in_0.get_dims()[1] });
+            break;
+        case 3:
+            out_0.set_dims({ in_1.get_dims()[2], in_1.get_dims()[1], in_0.get_dims()[1] });
+            break;
+        case 2:
+            out_0.set_dims({ in_1.get_dims()[1], in_0.get_dims()[1] });
+            break;
 
-{
-  /*
-   * add code here
-   * */
-  /*
-   * To have good performance and stability, it is required to avoid heap memory
-   * allocation in this function. The heap memory allocation includes but not
-   * limited to calling malloc, operator new, constructing STL container objects
-   * like std::vector with default allocator, and adding items like calling
-   * std::vector::push_back to STL container objects with default allocator.
-   *
-   * Please check in SDK documentation for more information.
-   */
-  return GraphStatus::Success;
+        default:
+            return GraphStatus::ErrorRank;
+    }
+
+    return GraphStatus::Success;
 }
 
-__attribute__((unused)) static float ggmlmulmatCostFunc(const Op *op)
-{
-  /*
+__attribute__((unused)) static float ggmlmulmatCostFunc(const Op * op) {
+    /*
    * add code here
    * */
 
-  float cost = 0.0;  // add cost computation here
-  return cost;
+    float cost = 0.0;  // add cost computation here
+    return cost;
 }
-
-
-
-
 
 /* At the bottom of the op file, call END_PKG_OP_DEFINITION(<name>),
    where <name> is as BEGIN_PKG_OP_DEFINITION
