@@ -76,15 +76,14 @@ DEF_PACKAGE_OP((ggmlmulmatImpl<Tensor>), "GgmlMulMat")
  *       Qnn_addNode
  */
 
-#define VELEM(x)      (1024 / (x))
-#define BLOCK_SIZE    (8 * 1024 / VLEN)  // 8k prefetch
-#define L2FETCH_AHEAD (BLOCK_SIZE)
+#define VELEM(x) (1024 / (x))
 
 namespace {
 
 constexpr const size_t kFloatsPerVector = VELEM(sizeof(float));
 constexpr const size_t kBytesPerVector  = VELEM(sizeof(uint8_t));
 constexpr const size_t kAlignMask       = kBytesPerVector - 1;
+constexpr const size_t kPrefetchVectors = 8 * 1024 / kBytesPerVector;  // 8k prefetch
 
 inline bool is_addr_aligned(void * addr) {
     return ((size_t) addr & kAlignMask) == 0;
@@ -92,21 +91,52 @@ inline bool is_addr_aligned(void * addr) {
 
 inline float vec_dot_product_f32(const float * restrict src0, const float * restrict src1, size_t count) {
     HVX_Vector * iptr0_end = ((HVX_Vector *) src0) + (count / kFloatsPerVector);
-    HVX_Vector * iptr0     = ((HVX_Vector *) (src0 + kFloatsPerVector - 1));
-    HVX_Vector * iptr1     = ((HVX_Vector *) src1) + 1;
+    HVX_Vector * iptr0     = ((HVX_Vector *) src0);
+    HVX_Vector * iptr1     = ((HVX_Vector *) src1);
+    HVX_Vector   prev0     = *iptr0++;
+    HVX_Vector   prev1     = *iptr1++;
     HVX_Vector   sum       = Q6_V_vzero();
 
+    // TODO: prefetch?
     while (iptr0 < iptr0_end) {
-        HVX_Vector v0 = *iptr0++;
-        HVX_Vector v1 = *iptr1++;
-        sum           = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_VsfVsf(v0, v1), sum);
+        HVX_Vector curr0 = *iptr0++;
+        HVX_Vector curr1 = *iptr1++;
+        HVX_Vector s0    = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
+        HVX_Vector s1    = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
+        sum              = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_VsfVsf(s0, s1), sum);
+        prev0            = curr0;
+        prev1            = curr1;
     }
 
-    HVX_Vector before0     = *((HVX_Vector *) src0);
-    HVX_Vector before1     = *((HVX_Vector *) src1);
-    const auto left_before = (count % kFloatsPerVector) * sizeof(float);
-    const auto remaining   = count % kFloatsPerVector;
-    ;
+    const auto remaining = count % kFloatsPerVector;
+    // TODO: handle the remaining float
+
+    return Q6_Vsf_equals_Vqf32(sum);
+}
+
+inline GraphStatus mul_mat_2d_f32(TensorType & out_0, const TensorType & in_0, const TensorType & in_1) {
+    // TODO: handle strides?
+    if (in_1.dim(1) != in_0.dim(1)) {
+        return GraphStatus::ErrorDimensions;
+    }
+
+    size_t dims[4] = { in_1.dim(0), in_0.dim(0) };
+    out_0.set_dims(dims);
+
+    auto in0_ptr = (float *) in_0.raw_data_const();
+    auto in1_ptr = (float *) in_1.raw_data_const();
+    auto out_ptr = (float *) out_0.raw_data();
+
+    for (size_t i = 0; i < dims[0]; i++) {
+        // TODO: prefetch?
+        auto * in1_row = in1_ptr + i * in_1.dim(1);
+        auto * out_row = out_ptr + i * dims[1];
+        for (size_t j = 0; j < dims[1]; j++) {
+            *out_row++ = vec_dot_product_f32(in0_ptr + j * in_0.dim(1), in1_row, in_0.dim(1));
+        }
+    }
+
+    return GraphStatus::Success;
 }
 
 }  // namespace
@@ -115,6 +145,10 @@ inline float vec_dot_product_f32(const float * restrict src0, const float * rest
 
 template <typename TensorType>
 GraphStatus ggmlmulmatImpl(TensorType & out_0, const TensorType & in_0, const TensorType & in_1) {
+    if (!in_0.raw_data_const() || !in_1.raw_data_const() || !out_0.raw_data()) {
+        return GraphStatus::ErrorBadInput;
+    }
+
     if (in_0.rank() != in_1.rank()) {
         return GraphStatus::ErrorRank;
     }
@@ -134,16 +168,10 @@ GraphStatus ggmlmulmatImpl(TensorType & out_0, const TensorType & in_0, const Te
             dims[2] = in_0.dim(1);
             break;
         case 2:
-            dims[0] = in_1.dim(0);
-            dims[1] = in_0.dim(1);
-            break;
-
-        default:
-            return GraphStatus::ErrorRank;
+            return mul_mat_2d_f32(out_0, in_0, in_1);
     }
 
-    out_0.set_dims(dims);
-    return GraphStatus::Success;
+    return GraphStatus::ErrorRank;
 }
 
 __attribute__((unused)) static float ggmlmulmatCostFunc(const Op * op) {
