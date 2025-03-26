@@ -76,6 +76,7 @@ DEF_PACKAGE_OP((ggmlmulmatImpl<Tensor>), "GgmlMulMat")
  *       Qnn_addNode
  */
 
+#define VLEN          (1 << 7)           // 1024bits
 #define BLOCK_SIZE    (8 * 1024 / VLEN)  // 8k prefetch
 #define L2FETCH_AHEAD (BLOCK_SIZE)
 
@@ -104,13 +105,13 @@ GraphStatus ggmlmulmatImpl(TensorType & out_0, const TensorType & in_0, const Te
     auto rank = in_0.rank();
     switch (rank) {
         case 4:
-            out_0.set_dims({ in_1.get_dims()[3], in_1.get_dims()[2], in_1.get_dims()[1], in_0.get_dims()[1] });
+            out_0.set_dims({ in_1.dim(3), in_1.dim(2), in_1.dim(1), in_0.dim(1) });
             break;
         case 3:
-            out_0.set_dims({ in_1.get_dims()[2], in_1.get_dims()[1], in_0.get_dims()[1] });
+            out_0.set_dims({ in_1.dim(2), in_1.dim(1), in_0.dim(1) });
             break;
         case 2:
-            out_0.set_dims({ in_1.get_dims()[1], in_0.get_dims()[1] });
+            out_0.set_dims({ in_1.dim(1), in_0.dim(1) });
             break;
 
         default:
