@@ -102,22 +102,30 @@ GraphStatus ggmlmulmatImpl(TensorType & out_0, const TensorType & in_0, const Te
         return GraphStatus::ErrorRank;
     }
 
-    auto rank = in_0.rank();
+    auto   rank    = in_0.rank();
+    size_t dims[4] = {};
     switch (rank) {
         case 4:
-            out_0.set_dims({ in_1.dim(3), in_1.dim(2), in_1.dim(1), in_0.dim(1) });
+            dims[0] = in_1.dim(0);
+            dims[1] = in_1.dim(1);
+            dims[2] = in_1.dim(2);
+            dims[3] = in_0.dim(2);
             break;
         case 3:
-            out_0.set_dims({ in_1.dim(2), in_1.dim(1), in_0.dim(1) });
+            dims[0] = in_1.dim(0);
+            dims[1] = in_1.dim(1);
+            dims[2] = in_0.dim(1);
             break;
         case 2:
-            out_0.set_dims({ in_1.dim(1), in_0.dim(1) });
+            dims[0] = in_1.dim(0);
+            dims[1] = in_0.dim(1);
             break;
 
         default:
             return GraphStatus::ErrorRank;
     }
 
+    out_0.set_dims(dims);
     return GraphStatus::Success;
 }
 
