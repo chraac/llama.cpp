@@ -18,7 +18,7 @@ add_custom_target(GgmlOpPackage ALL
     COMMAND ${CMAKE_MAKE_PROGRAM} -C "${CMAKE_CURRENT_SOURCE_DIR}/GgmlOpPackage" clean
 
     COMMAND ${CMAKE_COMMAND} -E echo "Building GgmlOpPackage..."
-    COMMAND ${CMAKE_MAKE_PROGRAM} -C "${CMAKE_CURRENT_SOURCE_DIR}/GgmlOpPackage"
+    COMMAND ${CMAKE_MAKE_PROGRAM} -C "${CMAKE_CURRENT_SOURCE_DIR}/GgmlOpPackage" htp_aarch64
         QNN_SDK_ROOT=${GGML_QNN_SDK_PATH}
         HEXAGON_SDK_ROOT=${GGML_HEXAGON_SDK_PATH}
 

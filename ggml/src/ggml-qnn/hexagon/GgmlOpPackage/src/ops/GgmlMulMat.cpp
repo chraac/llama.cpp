@@ -79,9 +79,17 @@ DEF_PACKAGE_OP((ggmlmulmatImpl<Tensor>), "GgmlMulMat")
 #define BLOCK_SIZE    (8 * 1024 / VLEN)  // 8k prefetch
 #define L2FETCH_AHEAD (BLOCK_SIZE)
 
-float vec_dot_product_f32(const float * restrict src0, const float * restrict src1, size_t count) {
-    for (int i = 0; i < n; i++) {
-        c[i] = a[i] * b[i];
+inline float vec_dot_product_f32(const float * restrict src0, const float * restrict src1, size_t count) {
+    constexpr const size_t kFloatsPerVector = VLEN / sizeof(float);
+    const auto             remaining        = count % kFloatsPerVector;
+    HVX_Vector *           iptr0            = (HVX_Vector *) src0;
+    HVX_Vector *           iptr0_end        = iptr0 + (count / kFloatsPerVector);
+    HVX_Vector *           iptr1            = (HVX_Vector *) src1;
+    HVX_Vector             sum              = Q6_V_vzero();
+    while (iptr0 < iptr0_end) {
+        HVX_Vector v0 = *iptr0++;
+        HVX_Vector v1 = *iptr1++;
+        sum           = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_VsfVsf(v0, v1), sum);
     }
 }
 
@@ -89,6 +97,10 @@ float vec_dot_product_f32(const float * restrict src0, const float * restrict sr
 
 template <typename TensorType>
 GraphStatus ggmlmulmatImpl(TensorType & out_0, const TensorType & in_0, const TensorType & in_1) {
+    if (in_0.rank() != in_1.rank()) {
+        return GraphStatus::ErrorRank;
+    }
+
     auto rank = in_0.rank();
     switch (rank) {
         case 4:

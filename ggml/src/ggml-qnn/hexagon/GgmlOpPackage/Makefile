@@ -32,14 +32,15 @@ HEXAGON_SDK_BASE := $(dir $(HEXAGON_SDK_ROOT))
 $(info "HEXAGON_SDK_ROOT is [${HEXAGON_SDK_ROOT}]")
 # Users should note that the tools version may change between hexagon sdk versions
 # Following combination of SDK and Tool version is supported
-HEXAGON_SDK_ROOT_V68 := $(HEXAGON_SDK_BASE)/hexagon-sdk-4.2.0
-HEXAGON_SDK_ROOT_V69 := $(HEXAGON_SDK_BASE)/hexagon-sdk-4.3.0
-HEXAGON_SDK_ROOT_V73 := $(HEXAGON_SDK_BASE)/hexagon-sdk-5.4.0
-HEXAGON_SDK_ROOT_V75 := $(HEXAGON_SDK_BASE)/hexagon-sdk-5.4.0
-HEXAGON_SDK_ROOT_V79 := $(HEXAGON_SDK_BASE)/hexagon-sdk-6.0.0
+# fix the sdk root for new versions
+HEXAGON_SDK_ROOT_V68 := $(HEXAGON_SDK_ROOT)
+HEXAGON_SDK_ROOT_V69 := $(HEXAGON_SDK_ROOT)
+HEXAGON_SDK_ROOT_V73 := $(HEXAGON_SDK_ROOT)
+HEXAGON_SDK_ROOT_V75 := $(HEXAGON_SDK_ROOT)
+HEXAGON_SDK_ROOT_V79 := $(HEXAGON_SDK_ROOT)
 
 #Updated to point to latest sdk to match with libQnnHtp.so
-HEXAGON_SDK_ROOT_X86 := $(HEXAGON_SDK_BASE)/hexagon-sdk-6.0.0
+HEXAGON_SDK_ROOT_X86 := $(HEXAGON_SDK_ROOT)
 HEXAGON_TOOLS_VERSION_V68 := 8.4.09
 HEXAGON_TOOLS_VERSION_V69 := 8.5.03
 HEXAGON_TOOLS_VERSION_V73 := 8.6.02

@@ -1,5 +1,7 @@
 message(STATUS "Using QNN backend")
 
+option(GGML_QNN_ENABLE_HEXAGON_PACKAGE "ggml-qnn: Enable Hexagon custom package" OFF)
+
 if(CMAKE_SYSTEM_NAME STREQUAL "Android")
     find_library(LOG_LIB log)
     set(QNN_LINK_LIBRARIES ${LOG_LIB})
@@ -51,6 +53,14 @@ if(GGML_QNN_ENABLE_PERFORMANCE_TRACKING)
     target_compile_definitions(ggml-qnn PRIVATE GGML_QNN_ENABLE_PERFORMANCE_TRACKING)
 else()
     message("GGML_QNN_ENABLE_PERFORMANCE_TRACKING is disabled")
+endif()
+
+if(GGML_QNN_ENABLE_HEXAGON_PACKAGE)
+    message("GGML_QNN_ENABLE_HEXAGON_PACKAGE is enabled")
+    target_compile_definitions(ggml-qnn PRIVATE GGML_QNN_ENABLE_HEXAGON_PACKAGE)
+    add_subdirectory(hexagon)
+else()
+    message("GGML_QNN_ENABLE_HEXAGON_PACKAGE is disabled")
 endif()
 
 # Copy QNN dynamic libraries
