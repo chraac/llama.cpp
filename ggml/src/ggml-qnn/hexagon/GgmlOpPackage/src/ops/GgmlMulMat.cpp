@@ -76,12 +76,10 @@ DEF_PACKAGE_OP((ggmlmulmatImpl<Tensor>), "GgmlMulMat")
  *       Qnn_addNode
  */
 
-#define VELEM(x) (1024 / (x))
-
 namespace {
 
-constexpr const size_t kFloatsPerVector = VELEM(sizeof(float));
-constexpr const size_t kBytesPerVector  = VELEM(sizeof(uint8_t));
+constexpr const size_t kBytesPerVector  = sizeof(HVX_Vector);  // 128 for v73
+constexpr const size_t kFloatsPerVector = kBytesPerVector / sizeof(float);
 constexpr const size_t kAlignMask       = kBytesPerVector - 1;
 
 inline size_t unaligned_bytes(const void * addr) {
