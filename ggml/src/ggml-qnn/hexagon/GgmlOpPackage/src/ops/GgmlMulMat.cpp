@@ -143,7 +143,9 @@ inline float vec_dot_product_f32(const float * restrict src0, const float * rest
         sum = Q6_Vqf32_vadd_Vqf32Vqf32(sum, Q6_V_vror_VR(sum, i * sizeof(float)));
     }
 
-    return Q6_Vsf_equals_Vqf32(sum);
+    float result;
+    q6op_vstu_variable_ARV(&result, sizeof(float), Q6_Vsf_equals_Vqf32(sum));
+    return result;
 }
 
 inline GraphStatus mul_mat_2d_f32(TensorType & out_0, const TensorType & in_0, const TensorType & in_1) {
@@ -189,16 +191,9 @@ GraphStatus ggmlmulmatImpl(TensorType & out_0, const TensorType & in_0, const Te
     size_t dims[4] = {};
     switch (rank) {
         case 4:
-            dims[0] = in_1.dim(0);
-            dims[1] = in_1.dim(1);
-            dims[2] = in_1.dim(2);
-            dims[3] = in_0.dim(2);
-            break;
         case 3:
-            dims[0] = in_1.dim(0);
-            dims[1] = in_1.dim(1);
-            dims[2] = in_0.dim(1);
-            break;
+            // TODO: add implementation
+            return GraphStatus::ErrorUnsupported;
         case 2:
             return mul_mat_2d_f32(out_0, in_0, in_1);
     }
