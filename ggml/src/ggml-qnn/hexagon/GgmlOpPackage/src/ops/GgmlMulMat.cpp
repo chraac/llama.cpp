@@ -85,13 +85,17 @@ constexpr const size_t kBytesPerVector  = VELEM(sizeof(uint8_t));
 constexpr const size_t kAlignMask       = kBytesPerVector - 1;
 constexpr const size_t kPrefetchVectors = 8 * 1024 / kBytesPerVector;  // 8k prefetch
 
+inline size_t unaligned_bytes(const void * addr) {
+    return ((size_t) addr) & kAlignMask;
+}
+
 inline bool is_addr_aligned(void * addr) {
-    return ((size_t) addr & kAlignMask) == 0;
+    return unaligned_bytes(addr) == 0;
 }
 
 inline float vec_dot_product_f32(const float * restrict src0, const float * restrict src1, size_t count) {
-    HVX_Vector * iptr0_end = ((HVX_Vector *) src0) + (count / kFloatsPerVector);
     HVX_Vector * iptr0     = ((HVX_Vector *) src0);
+    HVX_Vector * iptr0_end = ((HVX_Vector *) src0) + (count / kFloatsPerVector);
     HVX_Vector * iptr1     = ((HVX_Vector *) src1);
     HVX_Vector   prev0     = *iptr0++;
     HVX_Vector   prev1     = *iptr1++;
@@ -108,8 +112,31 @@ inline float vec_dot_product_f32(const float * restrict src0, const float * rest
         prev1            = curr1;
     }
 
-    const auto remaining = count % kFloatsPerVector;
-    // TODO: handle the remaining float
+    if ((iptr0_end - ((HVX_Vector *) src0)) > 0) {
+        // handle the last vector
+        // see also: https://github.com/UbiquitousLearning/mllm/blob/babf4410352ce8730824c87699c025a0d4ce3a6f/src/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/src/ops/LLaMAMul.cpp#L147
+        HVX_Vector curr0 = is_addr_aligned(iptr0) ? prev0 : *iptr0++;
+        HVX_Vector curr1 = is_addr_aligned(iptr1) ? prev1 : *iptr1++;
+        HVX_Vector s0    = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
+        HVX_Vector s1    = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
+        sum              = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_VsfVsf(s0, s1), sum);
+        prev0            = curr0;
+        prev1            = curr1;
+    }
+
+    const size_t leftover       = count % kFloatsPerVector;
+    const size_t leftover_bytes = leftover * sizeof(float);
+    if (leftover > 0) {
+        // handle the leftover elements
+        HVX_Vector curr0 = (leftover_bytes + unaligned_bytes(iptr0) > kBytesPerVector) ? *iptr0 : prev0;
+        curr0            = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
+
+        HVX_Vector curr1 = (leftover_bytes + unaligned_bytes(iptr1) > kBytesPerVector) ? *iptr1 : prev1;
+        curr1            = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
+
+        sum = Q6_Vqf32_vadd_Vqf32Vqf32(
+            Q6_V_valign_VVR(Q6_Vqf32_vmpy_VsfVsf(curr0, curr1), Q6_V_vzero(), leftover_bytes), sum);
+    }
 
     return Q6_Vsf_equals_Vqf32(sum);
 }
