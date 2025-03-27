@@ -92,7 +92,7 @@ inline bool is_addr_aligned(void * addr) {
     return unaligned_bytes(addr) == 0;
 }
 
-inline float vec_dot_product_f32(const float * restrict src0, const float * restrict src1, size_t count) {
+inline float vec_dot_product_f32(const float * src0, const float * src1, size_t count) {
     HVX_Vector * iptr0     = ((HVX_Vector *) src0);
     HVX_Vector * iptr0_end = ((HVX_Vector *) src0) + (count / kFloatsPerVector);
     HVX_Vector * iptr1     = ((HVX_Vector *) src1);
