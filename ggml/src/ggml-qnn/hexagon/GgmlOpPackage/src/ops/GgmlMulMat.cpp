@@ -83,7 +83,6 @@ namespace {
 constexpr const size_t kFloatsPerVector = VELEM(sizeof(float));
 constexpr const size_t kBytesPerVector  = VELEM(sizeof(uint8_t));
 constexpr const size_t kAlignMask       = kBytesPerVector - 1;
-constexpr const size_t kPrefetchVectors = 8 * 1024 / kBytesPerVector;  // 8k prefetch
 
 inline size_t unaligned_bytes(const void * addr) {
     return ((size_t) addr) & kAlignMask;
@@ -148,6 +147,7 @@ inline float vec_dot_product_f32(const float * restrict src0, const float * rest
     return result;
 }
 
+template <typename TensorType>
 inline GraphStatus mul_mat_2d_f32(TensorType & out_0, const TensorType & in_0, const TensorType & in_1) {
     // TODO: handle strides?
     if (in_1.dim(1) != in_0.dim(1)) {
@@ -187,8 +187,7 @@ GraphStatus ggmlmulmatImpl(TensorType & out_0, const TensorType & in_0, const Te
         return GraphStatus::ErrorRank;
     }
 
-    auto   rank    = in_0.rank();
-    size_t dims[4] = {};
+    auto rank = in_0.rank();
     switch (rank) {
         case 4:
         case 3:
