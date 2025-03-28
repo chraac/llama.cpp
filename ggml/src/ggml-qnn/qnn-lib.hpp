@@ -442,7 +442,8 @@ class qnn_instance {
 
     qnn::qcom_socinfo _soc_info = {};
 
-    bool _has_custom_op_package = false;
+    bool         _has_custom_op_package      = false;
+    dl_handler_t _custom_op_extra_lib_handle = nullptr;
 };
 
 using qnn_instance_ptr = std::shared_ptr<qnn_instance>;

@@ -125,16 +125,18 @@ struct op_package_lib_info {
     const char * interface;
     const char * type;
     size_t       htp_arch;
+    const char * extra_lib_name = nullptr;
 };
 
 const op_package_lib_info & get_op_package_lib_info(uint32_t soc_model, size_t htp_arch) {
     constexpr static const op_package_lib_info kOpPackageLibInfo[] = {
-        { kQnnCpuPackageLibName,                         "GgmlOpPackageInterfaceProvider", "CPU", qnn::NONE },
-        { PLATFORM_LIB_FILENAME("QnnGgmlOpPackage_v68"), "GgmlOpPackageInterfaceProvider", "HTP", qnn::V68  },
-        { PLATFORM_LIB_FILENAME("QnnGgmlOpPackage_v69"), "GgmlOpPackageInterfaceProvider", "HTP", qnn::V69  },
-        { PLATFORM_LIB_FILENAME("QnnGgmlOpPackage_v73"), "GgmlOpPackageInterfaceProvider", "HTP", qnn::V73  },
-        { PLATFORM_LIB_FILENAME("QnnGgmlOpPackage_v75"), "GgmlOpPackageInterfaceProvider", "HTP", qnn::V75  },
-        { PLATFORM_LIB_FILENAME("QnnGgmlOpPackage_v79"), "GgmlOpPackageInterfaceProvider", "HTP", qnn::V79  },
+        { kQnnCpuPackageLibName, "GgmlOpPackageInterfaceProvider", "CPU", qnn::NONE,
+         PLATFORM_LIB_FILENAME("HtpPrepare") },
+        { PLATFORM_LIB_FILENAME("QnnGgmlOpPackage_v68"), "GgmlOpPackageInterfaceProvider", "HTP", qnn::V68 },
+        { PLATFORM_LIB_FILENAME("QnnGgmlOpPackage_v69"), "GgmlOpPackageInterfaceProvider", "HTP", qnn::V69 },
+        { PLATFORM_LIB_FILENAME("QnnGgmlOpPackage_v73"), "GgmlOpPackageInterfaceProvider", "HTP", qnn::V73 },
+        { PLATFORM_LIB_FILENAME("QnnGgmlOpPackage_v75"), "GgmlOpPackageInterfaceProvider", "HTP", qnn::V75 },
+        { PLATFORM_LIB_FILENAME("QnnGgmlOpPackage_v79"), "GgmlOpPackageInterfaceProvider", "HTP", qnn::V79 },
     };
 
     if (soc_model == qnn::UNKNOWN || soc_model == qnn::EMULATOR_X64 || soc_model == qnn::EMULATOR_AARCH64) {
@@ -304,6 +306,11 @@ bool qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
 
     {
         auto & op_package_info = get_op_package_lib_info(_soc_info.soc_model, _soc_info.htp_arch);
+        if (op_package_info.extra_lib_name) {
+            _custom_op_extra_lib_handle =
+                load_lib_with_fallback(op_package_info.extra_lib_name, _additional_lib_load_path);
+        }
+
         qnn_status = _qnn_interface->qnn_backend_register_op_package(_qnn_backend_handle, op_package_info.lib_name,
                                                                      op_package_info.interface, op_package_info.type);
         if (qnn_status != QNN_SUCCESS) {
@@ -470,6 +477,10 @@ bool qnn_instance::qnn_finalize() {
                          (int) QNN_GET_ERROR_CODE(error));
         }
         _qnn_log_handle = nullptr;
+    }
+
+    if (_custom_op_extra_lib_handle) {
+        dl_unload(_custom_op_extra_lib_handle);
     }
 
     unload_backend();

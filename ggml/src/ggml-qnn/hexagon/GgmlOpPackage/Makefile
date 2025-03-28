@@ -156,7 +156,7 @@ X86_CXX ?= clang++-9
 ifeq ($(shell $(X86_CXX) -v 2>&1 | grep -c "clang version"), 0)
   X86_CXX := clang++
 endif
-X86_LDFLAGS:= -Wl,--whole-archive -L$(X86_LIBNATIVE_RELEASE_DIR)/libnative/lib -lnative -Wl,--no-whole-archive -lpthread
+X86_LDFLAGS:= -Wl,--whole-archive -L$(X86_LIBNATIVE_RELEASE_DIR)/libnative/lib -lnative -Wl,--no-whole-archive -lpthread -L$(QNN_SDK_ROOT)/lib/x86_64-linux-clang -lHtpPrepare
 X86_C_FLAGS := -D__HVXDBL__ -I$(X86_LIBNATIVE_RELEASE_DIR)/libnative/include -ffast-math -DUSE_OS_LINUX
 X86_CXX_FLAGS = $(COMMON_CXX_FLAGS) $(X86_C_FLAGS) -fomit-frame-pointer -Wno-invalid-offsetof
 linux_objs =
