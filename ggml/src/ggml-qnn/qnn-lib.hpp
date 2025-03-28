@@ -156,8 +156,8 @@ class qnn_instance {
 
     ~qnn_instance() {}
 
-    int qnn_init(const QnnSaver_Config_t ** saver_config);
-    int qnn_finalize();
+    bool qnn_init(const QnnSaver_Config_t ** saver_config);
+    bool qnn_finalize();
 
     qnn_interface_ptr get_qnn_interface() {
         if (!_qnn_interface) {

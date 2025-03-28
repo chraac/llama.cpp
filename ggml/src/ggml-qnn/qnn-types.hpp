@@ -19,7 +19,7 @@ enum qcom_htp_arch {
 };
 
 enum qcom_chipset {
-    UNKNOWN_SM       = 0,
+    UNKNOWN          = 0,
     EMULATOR_X64     = 0xFF00,  // x86_64 emulator
     EMULATOR_AARCH64 = 0xFF01,  // ARM64 emulator
     SM8350           = 30,      // v68, SD 888/888+

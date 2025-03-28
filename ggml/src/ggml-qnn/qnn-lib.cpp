@@ -10,18 +10,24 @@
 namespace {
 
 #ifdef _WIN32
-constexpr const char * kQnnSystemLibName = "QnnSystem.dll";
-constexpr const char * kQnnRpcLibName    = "libcdsprpc.dll";
-constexpr const char * kQnnCpuLibName    = "QnnCpu.dll";
-constexpr const char * kQnnGpuLibName    = "QnnGpu.dll";
-constexpr const char * kQnnNpuLibName    = "QnnHtp.dll";
+#    define PLATFORM_LIB_FILENAME(name) (name ".dll")
+constexpr const char * kQnnRpcLibName = "libcdsprpc.dll";
 #else
-constexpr const char * kQnnSystemLibName = "libQnnSystem.so";
-constexpr const char * kQnnRpcLibName    = "libcdsprpc.so";
-constexpr const char * kQnnCpuLibName    = "libQnnCpu.so";
-constexpr const char * kQnnGpuLibName    = "libQnnGpu.so";
-constexpr const char * kQnnNpuLibName    = "libQnnHtp.so";
+#    define PLATFORM_LIB_FILENAME(name) ("lib" name ".so")
+constexpr const char * kQnnRpcLibName = "libcdsprpc.so";
 #endif
+
+#if defined(__aarch64__) || defined(_M_ARM64)  // TODO: check for other platforms
+#    define PLATFORM_LIB_POSFIX "_aarch64"
+#else
+#    define PLATFORM_LIB_POSFIX "_x64"
+#endif
+
+constexpr const char * kQnnSystemLibName     = PLATFORM_LIB_FILENAME("QnnSystem");
+constexpr const char * kQnnCpuLibName        = PLATFORM_LIB_FILENAME("QnnCpu");
+constexpr const char * kQnnGpuLibName        = PLATFORM_LIB_FILENAME("QnnGpu");
+constexpr const char * kQnnNpuLibName        = PLATFORM_LIB_FILENAME("QnnHtp");
+constexpr const char * kQnnCpuPackageLibName = PLATFORM_LIB_FILENAME("QnnGgmlOpPackage" PLATFORM_LIB_POSFIX);
 
 constexpr const qnn::device_caps kDeviceCaps[] = {
     {
@@ -114,6 +120,26 @@ qnn::dl_handler_t load_lib_with_fallback(const std::string & lib_path, const std
     return handle;
 }
 
+constexpr const char * get_op_package_lib_name(uint32_t soc_model, size_t htp_arch) {
+    if (soc_model == qnn::UNKNOWN || soc_model == qnn::EMULATOR_X64 || soc_model == qnn::EMULATOR_AARCH64) {
+        return kQnnCpuPackageLibName;
+    }
+
+    switch (htp_arch) {
+        case qnn::V68:
+            return PLATFORM_LIB_FILENAME("QnnGgmlOpPackage_v68");
+        case qnn::V69:
+            return PLATFORM_LIB_FILENAME("QnnGgmlOpPackage_v69");
+        case qnn::V73:
+            return PLATFORM_LIB_FILENAME("QnnGgmlOpPackage_v73");
+        case qnn::V75:
+            return PLATFORM_LIB_FILENAME("QnnGgmlOpPackage_v75");
+        case qnn::V79:
+        default:
+            return PLATFORM_LIB_FILENAME("QnnGgmlOpPackage_v79");
+    }
+}
+
 }  // namespace
 
 namespace qnn {
@@ -156,14 +182,14 @@ qnn_instance::qnn_instance(const std::string & lib_path, QNNBackend device) : _a
     }
 }
 
-int qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
+bool qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
     BackendIdType backend_id = QNN_BACKEND_ID_NULL;
     QNN_LOG_DEBUG("enter qnn_init\n");
 
     std::lock_guard<std::mutex> lock(_init_mutex);
     if (load_system() != 0) {
         QNN_LOG_WARN("failed to load QNN system lib\n");
-        return 1;
+        return false;
     } else {
         QNN_LOG_DEBUG("load QNN system lib successfully\n");
     }
@@ -172,7 +198,7 @@ int qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
     if (_lib_path_to_backend_id.count(backend_lib_path) == 0) {
         if (load_backend(backend_lib_path, saver_config) != 0) {
             QNN_LOG_WARN("failed to load QNN backend\n");
-            return 2;
+            return false;
         }
     }
 
@@ -182,15 +208,15 @@ int qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
             "library %s is loaded but loaded backend count=%zu, "
             "loaded lib_handle count=%zu",
             backend_lib_path.c_str(), _loaded_backend.count(backend_id), _loaded_lib_handle.count(backend_id));
-        return 3;
+        return false;
     }
 
     _qnn_interface = std::make_shared<qnn_interface>(*_loaded_backend[backend_id]);
     _qnn_interface->qnn_log_create(qnn::sdk_logcallback, _qnn_log_level, &_qnn_log_handle);
     if (!_qnn_log_handle) {
         // NPU backend not work on Qualcomm SoC equipped low-end phone
-        QNN_LOG_WARN("why failed to initialize qnn log\n");
-        return 4;
+        QNN_LOG_WARN("failed to initialize qnn log\n");
+        return false;
     } else {
         QNN_LOG_DEBUG("initialize qnn log successfully\n");
     }
@@ -199,8 +225,8 @@ int qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
     _qnn_interface->qnn_backend_create(
         _qnn_log_handle, temp_backend_config.empty() ? nullptr : temp_backend_config.data(), &_qnn_backend_handle);
     if (!_qnn_backend_handle) {
-        QNN_LOG_WARN("why failed to initialize qnn backend\n");
-        return 5;
+        QNN_LOG_WARN("failed to initialize qnn backend\n");
+        return false;
     } else {
         QNN_LOG_DEBUG("initialize qnn backend successfully\n");
     }
@@ -248,7 +274,7 @@ int qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
 #elif defined(__x86_64__) || defined(__amd64__) || defined(_M_X64)
             _soc_info = { EMULATOR_X64, NONE, 0 };
 #else
-            _soc_info = { UNKNOWN_SM, NONE, 0 };
+            _soc_info = { UNKNOWN, NONE, 0 };
 #endif
         }
 
@@ -289,7 +315,7 @@ int qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
         if (!_pfn_rpc_mem_alloc || !_pfn_rpc_mem_free || !_pfn_rpc_mem_to_fd) {
             QNN_LOG_WARN("unable to access symbols in QNN RPC lib. error: %s\n", dl_error());
             dl_unload(_rpc_lib_handle);
-            return 9;
+            return false;
         }
 
         _pfn_rpc_mem_init   = reinterpret_cast<qnn::pfn_rpc_mem_init>(dl_sym(_rpc_lib_handle, "rpcmem_init"));
@@ -312,7 +338,7 @@ int qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
     _qnn_interface->qnn_context_create(_qnn_backend_handle, _qnn_device_handle, nullptr, &_qnn_context_handle);
     if (nullptr == _qnn_context_handle) {
         QNN_LOG_WARN("why failed to initialize qnn context\n");
-        return 10;
+        return false;
     } else {
         QNN_LOG_DEBUG("initialize qnn context successfully\n");
     }
@@ -351,14 +377,10 @@ int qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
     }
 
     QNN_LOG_DEBUG("leave qnn_init\n");
-
-    return 0;
+    return true;
 }
 
-int qnn_instance::qnn_finalize() {
-    int               ret_status = 0;
-    Qnn_ErrorHandle_t error      = QNN_SUCCESS;
-
+bool qnn_instance::qnn_finalize() {
     if (_rpc_lib_handle) {
         if (_pfn_rpc_mem_deinit) {
             _pfn_rpc_mem_deinit();
@@ -377,7 +399,7 @@ int qnn_instance::qnn_finalize() {
     }
 
     if (_qnn_context_handle) {
-        error = _qnn_interface->qnn_context_free(_qnn_context_handle, nullptr);
+        auto error = _qnn_interface->qnn_context_free(_qnn_context_handle, nullptr);
         if (error != QNN_SUCCESS) {
             QNN_LOG_WARN("failed to free QNN context_handle: ID %u, error %d\n", _qnn_interface->get_backend_id(),
                          (int) QNN_GET_ERROR_CODE(error));
@@ -386,7 +408,7 @@ int qnn_instance::qnn_finalize() {
     }
 
     if (_qnn_device_handle) {
-        error = _qnn_interface->qnn_device_free(_qnn_device_handle);
+        auto error = _qnn_interface->qnn_device_free(_qnn_device_handle);
         if (error != QNN_SUCCESS) {
             QNN_LOG_WARN("failed to free QNN device_handle: ID %u, error %d\n", _qnn_interface->get_backend_id(),
                          (int) QNN_GET_ERROR_CODE(error));
@@ -395,7 +417,7 @@ int qnn_instance::qnn_finalize() {
     }
 
     if (_qnn_backend_handle) {
-        error = _qnn_interface->qnn_backend_free(_qnn_backend_handle);
+        auto error = _qnn_interface->qnn_backend_free(_qnn_backend_handle);
         if (error != QNN_SUCCESS) {
             QNN_LOG_WARN("failed to free QNN backend_handle: ID %u, error %d\n", _qnn_interface->get_backend_id(),
                          (int) QNN_GET_ERROR_CODE(error));
@@ -404,7 +426,7 @@ int qnn_instance::qnn_finalize() {
     }
 
     if (_qnn_log_handle) {
-        error = _qnn_interface->qnn_log_free(_qnn_log_handle);
+        auto error = _qnn_interface->qnn_log_free(_qnn_log_handle);
         if (error != QNN_SUCCESS) {
             QNN_LOG_WARN("failed to free QNN log_handle: ID %u, error %d\n", _qnn_interface->get_backend_id(),
                          (int) QNN_GET_ERROR_CODE(error));
@@ -416,7 +438,7 @@ int qnn_instance::qnn_finalize() {
 
     _qnn_sys_interface.reset();
 
-    return ret_status;
+    return true;
 }
 
 int qnn_instance::load_system() {
