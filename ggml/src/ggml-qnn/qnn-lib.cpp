@@ -305,24 +305,6 @@ bool qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
     }
 
     {
-        auto & op_package_info = get_op_package_lib_info(_soc_info.soc_model, _soc_info.htp_arch);
-        if (op_package_info.extra_lib_name) {
-            _custom_op_extra_lib_handle =
-                load_lib_with_fallback(op_package_info.extra_lib_name, _additional_lib_load_path);
-        }
-
-        qnn_status = _qnn_interface->qnn_backend_register_op_package(_qnn_backend_handle, op_package_info.lib_name,
-                                                                     op_package_info.interface, op_package_info.type);
-        if (qnn_status != QNN_SUCCESS) {
-            QNN_LOG_WARN("failed to register op package %s, interface: %s, error: %s\n", op_package_info.lib_name,
-                         op_package_info.interface, qnn::get_qnn_error_string(qnn_status));
-        } else {
-            QNN_LOG_DEBUG("register op package %s successfully\n", op_package_info.lib_name);
-            _has_custom_op_package = true;
-        }
-    }
-
-    {
         if (_backend_lib_name.find("Htp") != _backend_lib_name.npos) {
             QnnHtpDevice_CustomConfig_t soc_customconfig;
             soc_customconfig.option   = QNN_HTP_DEVICE_CONFIG_OPTION_SOC;
@@ -373,6 +355,25 @@ bool qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
         QNN_LOG_DEBUG("load rpcmem lib successfully\n");
     } else {
         QNN_LOG_WARN("failed to load qualcomm rpc lib, skipping, error:%s\n", dl_error());
+    }
+
+    {
+        auto & op_package_info = get_op_package_lib_info(_soc_info.soc_model, _soc_info.htp_arch);
+        if (op_package_info.extra_lib_name) {
+            _custom_op_extra_lib_handle =
+                load_lib_with_fallback(op_package_info.extra_lib_name, _additional_lib_load_path);
+        }
+
+        qnn_status = _qnn_interface->qnn_backend_register_op_package(_qnn_backend_handle, op_package_info.lib_name,
+                                                                     op_package_info.interface, nullptr);
+        if (qnn_status != QNN_SUCCESS) {
+            QNN_LOG_WARN("failed to register op package %s, interface: %s, error: %s\n", op_package_info.lib_name,
+                         op_package_info.interface, qnn::get_qnn_error_string(qnn_status));
+        } else {
+            QNN_LOG_DEBUG("register op package %s successfully, ID %u\n", op_package_info.lib_name,
+                          _qnn_interface->get_backend_id());
+            _has_custom_op_package = true;
+        }
     }
 
     /* TODO: not used, keep it for further usage
