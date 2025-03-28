@@ -213,8 +213,7 @@ int qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
         QNN_LOG_WARN("device property is not known to backend\n");
     }
 
-    qnn_status = QNN_SUCCESS;
-    if (_backend_lib_name.find("Htp") != _backend_lib_name.npos) {
+    {
         const QnnDevice_PlatformInfo_t * p_info = nullptr;
         qnn_status                              = _qnn_interface->qnn_device_get_platform_info(nullptr, &p_info);
         if (qnn_status == QNN_SUCCESS) {
@@ -243,34 +242,43 @@ int qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
             _qnn_interface->qnn_device_free_platform_info(nullptr, p_info);
         } else {
             // For emulator, we can't get platform info
-            QNN_LOG_WARN("failed to get platform info, are we in emulator?\n");
-            _soc_info = { NONE, UNKNOWN_SM, 0 };
+            QNN_LOG_INFO("failed to get platform info, emulator or cpu backend?\n");
+#if defined(__aarch64__) || defined(_M_ARM64)
+            _soc_info = { EMULATOR_AARCH64, NONE, 0 };
+#elif defined(__x86_64__) || defined(__amd64__) || defined(_M_X64)
+            _soc_info = { EMULATOR_X64, NONE, 0 };
+#else
+            _soc_info = { UNKNOWN_SM, NONE, 0 };
+#endif
         }
 
-        QnnHtpDevice_CustomConfig_t soc_customconfig;
-        soc_customconfig.option   = QNN_HTP_DEVICE_CONFIG_OPTION_SOC;
-        soc_customconfig.socModel = _soc_info.soc_model;
-        QnnDevice_Config_t soc_devconfig;
-        soc_devconfig.option       = QNN_DEVICE_CONFIG_OPTION_CUSTOM;
-        soc_devconfig.customConfig = &soc_customconfig;
+        if (_backend_lib_name.find("Htp") != _backend_lib_name.npos) {
+            QnnHtpDevice_CustomConfig_t soc_customconfig;
+            soc_customconfig.option   = QNN_HTP_DEVICE_CONFIG_OPTION_SOC;
+            soc_customconfig.socModel = _soc_info.soc_model;
+            QnnDevice_Config_t soc_devconfig;
+            soc_devconfig.option       = QNN_DEVICE_CONFIG_OPTION_CUSTOM;
+            soc_devconfig.customConfig = &soc_customconfig;
 
-        QnnHtpDevice_CustomConfig_t arch_customconfig;
-        arch_customconfig.option        = QNN_HTP_DEVICE_CONFIG_OPTION_ARCH;
-        arch_customconfig.arch.arch     = (QnnHtpDevice_Arch_t) _soc_info.htp_arch;
-        arch_customconfig.arch.deviceId = 0;  // Id of device to be used. 0 will use by default.
-        QnnDevice_Config_t arch_devconfig;
-        arch_devconfig.option       = QNN_DEVICE_CONFIG_OPTION_CUSTOM;
-        arch_devconfig.customConfig = &arch_customconfig;
+            QnnHtpDevice_CustomConfig_t arch_customconfig;
+            arch_customconfig.option        = QNN_HTP_DEVICE_CONFIG_OPTION_ARCH;
+            arch_customconfig.arch.arch     = (QnnHtpDevice_Arch_t) _soc_info.htp_arch;
+            arch_customconfig.arch.deviceId = 0;  // Id of device to be used. 0 will use by default.
+            QnnDevice_Config_t arch_devconfig;
+            arch_devconfig.option       = QNN_DEVICE_CONFIG_OPTION_CUSTOM;
+            arch_devconfig.customConfig = &arch_customconfig;
 
-        const QnnDevice_Config_t * p_deviceconfig[] = { &soc_devconfig, &arch_devconfig, nullptr };
-        qnn_status = _qnn_interface->qnn_device_create(_qnn_log_handle, p_deviceconfig, &_qnn_device_handle);
-    } else {
-        qnn_status = _qnn_interface->qnn_device_create(_qnn_log_handle, nullptr, &_qnn_device_handle);
-    }
-    if (QNN_SUCCESS != qnn_status && QNN_DEVICE_ERROR_UNSUPPORTED_FEATURE != qnn_status) {
-        QNN_LOG_WARN("failed to create QNN device\n");
-    } else {
-        QNN_LOG_INFO("create QNN device successfully\n");
+            const QnnDevice_Config_t * p_deviceconfig[] = { &soc_devconfig, &arch_devconfig, nullptr };
+            qnn_status = _qnn_interface->qnn_device_create(_qnn_log_handle, p_deviceconfig, &_qnn_device_handle);
+        } else {
+            qnn_status = _qnn_interface->qnn_device_create(_qnn_log_handle, nullptr, &_qnn_device_handle);
+        }
+
+        if (QNN_SUCCESS != qnn_status && QNN_DEVICE_ERROR_UNSUPPORTED_FEATURE != qnn_status) {
+            QNN_LOG_WARN("failed to create QNN device\n");
+        } else {
+            QNN_LOG_INFO("create QNN device successfully\n");
+        }
     }
 
     _rpc_lib_handle = load_lib_with_fallback(kQnnRpcLibName, _additional_lib_load_path);

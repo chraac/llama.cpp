@@ -224,6 +224,10 @@ const char * get_chipset_desc(uint32_t soc_model) {
             return "Snapdragon 8 Gen 3";
         case SM8750:
             return "Snapdragon 8 Elite";
+        case EMULATOR_AARCH64:
+            return "AArch64 Emulator";
+        case EMULATOR_X64:
+            return "x86_64 Emulator";
         default:
             return "unknown";
     }
@@ -251,6 +255,10 @@ const char * get_chipset_model(uint32_t soc_model) {
             return "SM8650";
         case SM8750:
             return "SM8750";
+        case EMULATOR_AARCH64:
+            return "AARCH64EMU";
+        case EMULATOR_X64:
+            return "X64EMU";
         default:
             return "unknown";
     }
