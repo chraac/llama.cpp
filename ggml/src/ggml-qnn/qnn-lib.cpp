@@ -361,7 +361,7 @@ bool qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
              const QnnContext_Config_t * context_configs[] = {&qnn_context_config, nullptr};
     */
     _qnn_interface->qnn_context_create(_qnn_backend_handle, _qnn_device_handle, nullptr, &_qnn_context_handle);
-    if (nullptr == _qnn_context_handle) {
+    if (!_qnn_context_handle) {
         QNN_LOG_WARN("failed to initialize qnn context\n");
         return false;
     } else {
