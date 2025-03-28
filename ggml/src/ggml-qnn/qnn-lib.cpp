@@ -305,28 +305,7 @@ bool qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
     }
 
     {
-        if (_backend_lib_name.find("Htp") != _backend_lib_name.npos) {
-            QnnHtpDevice_CustomConfig_t soc_customconfig;
-            soc_customconfig.option   = QNN_HTP_DEVICE_CONFIG_OPTION_SOC;
-            soc_customconfig.socModel = _soc_info.soc_model;
-            QnnDevice_Config_t soc_devconfig;
-            soc_devconfig.option       = QNN_DEVICE_CONFIG_OPTION_CUSTOM;
-            soc_devconfig.customConfig = &soc_customconfig;
-
-            QnnHtpDevice_CustomConfig_t arch_customconfig;
-            arch_customconfig.option        = QNN_HTP_DEVICE_CONFIG_OPTION_ARCH;
-            arch_customconfig.arch.arch     = (QnnHtpDevice_Arch_t) _soc_info.htp_arch;
-            arch_customconfig.arch.deviceId = 0;  // Id of device to be used. 0 will use by default.
-            QnnDevice_Config_t arch_devconfig;
-            arch_devconfig.option       = QNN_DEVICE_CONFIG_OPTION_CUSTOM;
-            arch_devconfig.customConfig = &arch_customconfig;
-
-            const QnnDevice_Config_t * p_deviceconfig[] = { &soc_devconfig, &arch_devconfig, nullptr };
-            qnn_status = _qnn_interface->qnn_device_create(_qnn_log_handle, p_deviceconfig, &_qnn_device_handle);
-        } else {
-            qnn_status = _qnn_interface->qnn_device_create(_qnn_log_handle, nullptr, &_qnn_device_handle);
-        }
-
+        qnn_status = _qnn_interface->qnn_device_create(_qnn_log_handle, nullptr, &_qnn_device_handle);
         if (QNN_SUCCESS != qnn_status && QNN_DEVICE_ERROR_UNSUPPORTED_FEATURE != qnn_status) {
             QNN_LOG_WARN("failed to create QNN device\n");
         } else {
