@@ -128,15 +128,8 @@ bool ggml_qnn_op_config_base::add_op_to_graph(Qnn_GraphHandle_t graph_handle) {
         _qnn_tensor_outputs[i] = tensor->get_qnn_tensor();
     }
 
-    auto op_config     = get_op_config();
     auto qnn_interface = _qnn_instance->get_qnn_interface();
-    auto error         = qnn_interface->qnn_backend_validate_op_config(_qnn_instance->get_qnn_backend_handle(), op_config);
-    if (error != QNN_SUCCESS) {
-        QNN_LOG_ERROR("[%s]qnn_backend_validate_op_config.error: %s\n", _name.c_str(), get_qnn_error_string(error));
-        return false;
-    }
-
-    error = qnn_interface->qnn_graph_add_node(graph_handle, op_config);
+    auto error         = qnn_interface->qnn_graph_add_node(graph_handle, get_op_config());
     if (error != QNN_SUCCESS) {
         QNN_LOG_ERROR("[%s]qnn_graph_add_node.error: %s\n", _name.c_str(), get_qnn_error_string(error));
         return false;
