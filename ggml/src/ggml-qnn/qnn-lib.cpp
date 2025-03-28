@@ -303,25 +303,6 @@ bool qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
 #endif
         }
     }
-
-    {
-        auto & op_package_info = get_op_package_lib_info(_soc_info.soc_model, _soc_info.htp_arch);
-        if (op_package_info.extra_lib_name) {
-            _custom_op_extra_lib_handle =
-                load_lib_with_fallback(op_package_info.extra_lib_name, _additional_lib_load_path);
-        }
-
-        qnn_status = _qnn_interface->qnn_backend_register_op_package(_qnn_backend_handle, op_package_info.lib_name,
-                                                                     op_package_info.interface, op_package_info.type);
-        if (qnn_status != QNN_SUCCESS) {
-            QNN_LOG_WARN("failed to register op package %s, interface: %s, error: %s\n", op_package_info.lib_name,
-                         op_package_info.interface, qnn::get_qnn_error_string(qnn_status));
-        } else {
-            QNN_LOG_DEBUG("register op package %s successfully\n", op_package_info.lib_name);
-            _has_custom_op_package = true;
-        }
-    }
-
     {
         if (_backend_lib_name.find("Htp") != _backend_lib_name.npos) {
             QnnHtpDevice_CustomConfig_t soc_customconfig;
@@ -381,7 +362,7 @@ bool qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
              const QnnContext_Config_t * context_configs[] = {&qnn_context_config, nullptr};
     */
     _qnn_interface->qnn_context_create(_qnn_backend_handle, _qnn_device_handle, nullptr, &_qnn_context_handle);
-    if (nullptr == _qnn_context_handle) {
+    if (!_qnn_context_handle) {
         QNN_LOG_WARN("failed to initialize qnn context\n");
         return false;
     } else {
@@ -418,6 +399,24 @@ bool qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
         }
         if (set_high_performance_mode() != 0) {
             QNN_LOG_WARN("set HTP high performance mode failure\n");
+        }
+    }
+
+    {
+        auto & op_package_info = get_op_package_lib_info(_soc_info.soc_model, _soc_info.htp_arch);
+        if (op_package_info.extra_lib_name) {
+            _custom_op_extra_lib_handle =
+                load_lib_with_fallback(op_package_info.extra_lib_name, _additional_lib_load_path);
+        }
+
+        qnn_status = _qnn_interface->qnn_backend_register_op_package(_qnn_backend_handle, op_package_info.lib_name,
+                                                                     op_package_info.interface, op_package_info.type);
+        if (qnn_status != QNN_SUCCESS) {
+            QNN_LOG_WARN("failed to register op package %s, interface: %s, error: %s\n", op_package_info.lib_name,
+                         op_package_info.interface, qnn::get_qnn_error_string(qnn_status));
+        } else {
+            QNN_LOG_DEBUG("register op package %s successfully\n", op_package_info.lib_name);
+            _has_custom_op_package = true;
         }
     }
 
