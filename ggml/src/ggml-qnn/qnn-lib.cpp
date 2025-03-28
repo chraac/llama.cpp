@@ -120,23 +120,44 @@ qnn::dl_handler_t load_lib_with_fallback(const std::string & lib_path, const std
     return handle;
 }
 
-constexpr const char * get_op_package_lib_name(uint32_t soc_model, size_t htp_arch) {
+struct op_package_lib_info {
+    const char * lib_name;
+    const char * interface;
+    const char * type;
+    size_t       htp_arch;
+};
+
+const op_package_lib_info & get_op_package_lib_info(uint32_t soc_model, size_t htp_arch) {
+    constexpr static const op_package_lib_info kOpPackageLibInfo[] = {
+        { kQnnCpuPackageLibName,                         "GgmlOpPackageInterfaceProvider", "CPU", qnn::NONE },
+        { PLATFORM_LIB_FILENAME("QnnGgmlOpPackage_v68"), "GgmlOpPackageInterfaceProvider", "HTP", qnn::V68  },
+        { PLATFORM_LIB_FILENAME("QnnGgmlOpPackage_v69"), "GgmlOpPackageInterfaceProvider", "HTP", qnn::V69  },
+        { PLATFORM_LIB_FILENAME("QnnGgmlOpPackage_v73"), "GgmlOpPackageInterfaceProvider", "HTP", qnn::V73  },
+        { PLATFORM_LIB_FILENAME("QnnGgmlOpPackage_v75"), "GgmlOpPackageInterfaceProvider", "HTP", qnn::V75  },
+        { PLATFORM_LIB_FILENAME("QnnGgmlOpPackage_v79"), "GgmlOpPackageInterfaceProvider", "HTP", qnn::V79  },
+    };
+
     if (soc_model == qnn::UNKNOWN || soc_model == qnn::EMULATOR_X64 || soc_model == qnn::EMULATOR_AARCH64) {
-        return kQnnCpuPackageLibName;
+        return kOpPackageLibInfo[0];
     }
 
     switch (htp_arch) {
         case qnn::V68:
-            return PLATFORM_LIB_FILENAME("QnnGgmlOpPackage_v68");
+            static_assert(kOpPackageLibInfo[1].htp_arch == qnn::V68);
+            return kOpPackageLibInfo[1];
         case qnn::V69:
-            return PLATFORM_LIB_FILENAME("QnnGgmlOpPackage_v69");
+            static_assert(kOpPackageLibInfo[2].htp_arch == qnn::V69);
+            return kOpPackageLibInfo[2];
         case qnn::V73:
-            return PLATFORM_LIB_FILENAME("QnnGgmlOpPackage_v73");
+            static_assert(kOpPackageLibInfo[3].htp_arch == qnn::V73);
+            return kOpPackageLibInfo[3];
         case qnn::V75:
-            return PLATFORM_LIB_FILENAME("QnnGgmlOpPackage_v75");
+            static_assert(kOpPackageLibInfo[4].htp_arch == qnn::V75);
+            return kOpPackageLibInfo[4];
         case qnn::V79:
         default:
-            return PLATFORM_LIB_FILENAME("QnnGgmlOpPackage_v79");
+            static_assert(kOpPackageLibInfo[5].htp_arch == qnn::V79);
+            return kOpPackageLibInfo[5];
     }
 }
 
@@ -232,11 +253,13 @@ bool qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
     }
 
     auto qnn_status = _qnn_interface->qnn_property_has_capability(QNN_PROPERTY_GROUP_DEVICE);
-    if (QNN_PROPERTY_NOT_SUPPORTED == qnn_status) {
-        QNN_LOG_WARN("device property is not supported\n");
-    }
-    if (QNN_PROPERTY_ERROR_UNKNOWN_KEY == qnn_status) {
-        QNN_LOG_WARN("device property is not known to backend\n");
+    switch (qnn_status) {
+        case QNN_PROPERTY_NOT_SUPPORTED:
+            QNN_LOG_WARN("device property is not supported\n");
+            break;
+        case QNN_PROPERTY_ERROR_UNKNOWN_KEY:
+            QNN_LOG_WARN("device property is unknown\n");
+            break;
     }
 
     {
@@ -277,7 +300,22 @@ bool qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
             _soc_info = { UNKNOWN, NONE, 0 };
 #endif
         }
+    }
 
+    {
+        auto & op_package_info = get_op_package_lib_info(_soc_info.soc_model, _soc_info.htp_arch);
+        qnn_status = _qnn_interface->qnn_backend_register_op_package(_qnn_backend_handle, op_package_info.lib_name,
+                                                                     op_package_info.interface, op_package_info.type);
+        if (qnn_status != QNN_SUCCESS) {
+            QNN_LOG_WARN("failed to register op package %s, interface: %s, error: %s\n", op_package_info.lib_name,
+                         op_package_info.interface, qnn::get_qnn_error_string(qnn_status));
+        } else {
+            QNN_LOG_DEBUG("register op package %s successfully\n", op_package_info.lib_name);
+            _has_custom_op_package = true;
+        }
+    }
+
+    {
         if (_backend_lib_name.find("Htp") != _backend_lib_name.npos) {
             QnnHtpDevice_CustomConfig_t soc_customconfig;
             soc_customconfig.option   = QNN_HTP_DEVICE_CONFIG_OPTION_SOC;
@@ -337,7 +375,7 @@ bool qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
     */
     _qnn_interface->qnn_context_create(_qnn_backend_handle, _qnn_device_handle, nullptr, &_qnn_context_handle);
     if (nullptr == _qnn_context_handle) {
-        QNN_LOG_WARN("why failed to initialize qnn context\n");
+        QNN_LOG_WARN("failed to initialize qnn context\n");
         return false;
     } else {
         QNN_LOG_DEBUG("initialize qnn context successfully\n");

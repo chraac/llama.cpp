@@ -390,6 +390,8 @@ class qnn_instance {
 
     const qnn::qcom_socinfo & get_soc_info() { return _soc_info; }
 
+    bool has_custom_op_package() const { return _has_custom_op_package; }
+
   private:
     int load_system();
     int load_backend(std::string & lib_path, const QnnSaver_Config_t ** /*saver_config*/);
@@ -439,6 +441,8 @@ class qnn_instance {
     std::string _graph_name;
 
     qnn::qcom_socinfo _soc_info = {};
+
+    bool _has_custom_op_package = false;
 };
 
 using qnn_instance_ptr = std::shared_ptr<qnn_instance>;
