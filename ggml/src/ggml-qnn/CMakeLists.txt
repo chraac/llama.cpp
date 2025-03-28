@@ -93,6 +93,9 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Android" OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
             list(APPEND QNN_DYNAMIC_LIBS "${CMAKE_ANDROID_NDK}/prebuilt/android-arm64/gdbserver/gdbserver")
             list(APPEND QNN_DYNAMIC_LIBS "${CMAKE_ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/12.0.9/lib/linux/aarch64/libomp.so")
         endif()
+    else()
+        # Linux
+        list(APPEND QNN_DYNAMIC_LIBS "${QNN_SDK_LIB_PATH}/libHtpPrepare.so")
     endif()
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
@@ -108,6 +111,11 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     list(APPEND QNN_DYNAMIC_LIBS "${QNN_SDK_LIB_PATH}/QnnGpu.dll")
     list(APPEND QNN_DYNAMIC_LIBS "${QNN_SDK_LIB_PATH}/QnnHtp.dll")
     file(GLOB HTP_STUB_LIBS "${QNN_SDK_LIB_PATH}/QnnHtp*.dll")
+
+    if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+        list(APPEND QNN_DYNAMIC_LIBS "${QNN_SDK_LIB_PATH}/HtpPrepare.dll")
+    endif()
+
     list(APPEND QNN_DYNAMIC_LIBS ${HTP_STUB_LIBS})
 endif()
 
