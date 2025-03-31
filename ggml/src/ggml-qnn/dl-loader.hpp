@@ -19,7 +19,7 @@ namespace qnn {
 typedef void * dl_handler_t;
 
 inline qnn::dl_handler_t dl_load(const std::string & lib_path) {
-    return dlopen(lib_path.c_str(), RTLD_NOW | RTLD_LOCAL);
+    return dlopen(lib_path.c_str(), RTLD_NOW | RTLD_GLOBAL);
 }
 
 inline void * dl_sym(qnn::dl_handler_t handle, const std::string & symbol) {

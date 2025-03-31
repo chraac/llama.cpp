@@ -219,7 +219,7 @@ bool qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
 
     std::string backend_lib_path = _backend_lib_name;
     if (_lib_path_to_backend_id.count(backend_lib_path) == 0) {
-        if (load_backend(backend_lib_path, saver_config) != 0) {
+        if (!load_backend(backend_lib_path, saver_config)) {
             QNN_LOG_WARN("failed to load QNN backend\n");
             return false;
         }
@@ -344,7 +344,7 @@ bool qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
         }
 
         qnn_status = _qnn_interface->qnn_backend_register_op_package(_qnn_backend_handle, op_package_info.lib_name,
-                                                                     op_package_info.interface, nullptr);
+                                                                     op_package_info.interface, op_package_info.type);
         if (qnn_status != QNN_SUCCESS) {
             QNN_LOG_WARN("failed to register op package %s, interface: %s, error: %s\n", op_package_info.lib_name,
                          op_package_info.interface, qnn::get_qnn_error_string(qnn_status));
@@ -532,38 +532,41 @@ int qnn_instance::load_system() {
     return 0;
 }
 
-int qnn_instance::load_backend(std::string & lib_path, const QnnSaver_Config_t ** /*saver_config*/) {
-    Qnn_ErrorHandle_t error = QNN_SUCCESS;
+bool qnn_instance::load_backend(std::string & lib_path, const QnnSaver_Config_t ** /*saver_config*/) {
     QNN_LOG_DEBUG("lib_path:%s\n", lib_path.c_str());
 
     auto lib_handle = load_lib_with_fallback(lib_path, _additional_lib_load_path);
     if (!lib_handle) {
         QNN_LOG_WARN("can not open QNN library %s, with error: %s\n", lib_path.c_str(), dl_error());
-        return 1;
+        return false;
     }
 
     auto get_providers = dl_sym_typed<qnn::pfn_qnninterface_getproviders *>(lib_handle, "QnnInterface_getProviders");
     if (!get_providers) {
         QNN_LOG_WARN("can not load symbol QnnInterface_getProviders : %s\n", dl_error());
-        return 2;
+        dl_unload(lib_handle);
+        return false;
     }
 
     std::uint32_t           num_providers = 0;
     const QnnInterface_t ** provider_list = nullptr;
-    error                                 = get_providers(&provider_list, &num_providers);
+    auto                    error         = get_providers(&provider_list, &num_providers);
     if (error != QNN_SUCCESS) {
         QNN_LOG_WARN("failed to get providers, error %d\n", (int) QNN_GET_ERROR_CODE(error));
-        return 3;
+        dl_unload(lib_handle);
+        return false;
     }
     QNN_LOG_DEBUG("num_providers=%d\n", num_providers);
     if (num_providers != _required_num_providers) {
         QNN_LOG_WARN("providers is %d instead of required %d\n", num_providers, _required_num_providers);
-        return 4;
+        dl_unload(lib_handle);
+        return false;
     }
 
     if (!provider_list) {
         QNN_LOG_WARN("failed to get qnn interface providers\n");
-        return 5;
+        dl_unload(lib_handle);
+        return false;
     }
     bool                   found_valid_interface = false;
     QNN_INTERFACE_VER_TYPE qnn_interface;
@@ -578,7 +581,8 @@ int qnn_instance::load_backend(std::string & lib_path, const QnnSaver_Config_t *
 
     if (!found_valid_interface) {
         QNN_LOG_WARN("unable to find a valid qnn interface\n");
-        return 6;
+        dl_unload(lib_handle);
+        return false;
     } else {
         QNN_LOG_DEBUG("find a valid qnn interface\n");
     }
@@ -598,10 +602,10 @@ int qnn_instance::load_backend(std::string & lib_path, const QnnSaver_Config_t *
     _loaded_lib_handle[backend_id] = lib_handle;
     _backend_id                    = backend_id;
 
-    return 0;
+    return true;
 }
 
-int qnn_instance::unload_backend() {
+void qnn_instance::unload_backend() {
     for (auto & it : _loaded_lib_handle) {
         if (!dl_unload(it.second)) {
             QNN_LOG_WARN("failed to close QNN backend %d, error %s\n", it.first, dl_error());
@@ -611,8 +615,6 @@ int qnn_instance::unload_backend() {
     _loaded_lib_handle.clear();
     _lib_path_to_backend_id.clear();
     _loaded_backend.clear();
-
-    return 0;
 }
 
 const device_caps & get_device_caps(QNNBackend device) {

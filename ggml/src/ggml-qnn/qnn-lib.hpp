@@ -393,9 +393,9 @@ class qnn_instance {
     bool has_custom_op_package() const { return _has_custom_op_package; }
 
   private:
-    int load_system();
-    int load_backend(std::string & lib_path, const QnnSaver_Config_t ** /*saver_config*/);
-    int unload_backend();
+    int  load_system();
+    bool load_backend(std::string & lib_path, const QnnSaver_Config_t ** /*saver_config*/);
+    void unload_backend();
 
   private:
     static constexpr const int _required_num_providers = 1;
