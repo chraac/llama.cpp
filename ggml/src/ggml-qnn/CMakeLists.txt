@@ -26,12 +26,12 @@ message("CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 message("CMAKE_CXX_FLAGS_RELEASE: ${CMAKE_CXX_FLAGS_RELEASE}")
 message("QNN_SDK_PATH: ${GGML_QNN_SDK_PATH}")
 
-file(GLOB QNN_SOURCES "${CMAKE_CURRENT_LIST_DIR}/*.cpp")
+file(GLOB QNN_SOURCES "${CMAKE_CURRENT_LIST_DIR}/qnn/*.cpp")
 ggml_add_backend_library(ggml-qnn
     ${QNN_SOURCES}
 )
 
-target_include_directories(ggml-qnn PRIVATE ${GGML_QNN_SDK_PATH}/include/QNN ${CMAKE_CURRENT_LIST_DIR})
+target_include_directories(ggml-qnn PRIVATE ${GGML_QNN_SDK_PATH}/include/QNN ${CMAKE_CURRENT_LIST_DIR}/qnn)
 target_link_libraries(ggml-qnn PRIVATE ${QNN_LINK_LIBRARIES})
 
 if(NOT "${QNN_DEFAULT_LIB_SEARCH_PATH}" STREQUAL "")
