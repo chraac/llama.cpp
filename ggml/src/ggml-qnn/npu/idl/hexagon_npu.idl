@@ -1,0 +1,54 @@
+
+#include "AEEStdDef.idl"
+#include "remote.idl"
+
+enum npu_op {
+    NPU_OP_MUL_MAT = 0,
+    NPU_OP_COUNT,
+};
+
+struct tensor_info {
+    int64_t ne[4];
+    size_t nb[4]; // TODO: handle stride here
+    long buffer_fd;
+    size_t offset;
+    uint32_t type;
+    npu_op op;
+};
+
+interface npu_device : remote_handle64{
+    typedef remote_handle64 tensor_handle;
+    typedef remote_handle64 graph_handle;
+
+    AEEResult tensor_init(
+        in tensor_info info,
+        out tensor_handle tensor,
+    );
+
+    AEEResult tensor_set_src(
+        in tensor_handle tensor,
+        in size_t index,
+        in tensor_handle src
+    );
+
+    AEEResult tensor_free(
+        in tensor_handle tensor
+    );
+
+    AEEResult graph_init(
+        out graph_handle graph
+    );
+
+    AEEResult graph_set_tensor(
+        in graph_handle graph,
+        in sequence<tensor_handle> tensors
+    );
+
+    AEEResult graph_compute(
+        in graph_handle graph
+    );
+
+    AEEResult graph_free(
+        in graph_handle graph
+    );
+};

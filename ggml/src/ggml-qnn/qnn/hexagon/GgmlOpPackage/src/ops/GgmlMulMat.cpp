@@ -135,7 +135,7 @@ inline float vec_dot_product_f32(const float * src0, const float * src1, size_t 
             Q6_V_valign_VVR(Q6_Vqf32_vmpy_VsfVsf(curr0, curr1), Q6_V_vzero(), leftover_bytes), sum);
     }
 
-    // TODO: do we have a better way to reduce the sum?
+    // TODO: do we have a better way to do the reduction?
     for (size_t i = kFloatsPerVector / 2; i > 0; i /= 2) {
         sum = Q6_Vqf32_vadd_Vqf32Vqf32(sum, Q6_V_vror_VR(sum, i * sizeof(float)));
     }
