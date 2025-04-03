@@ -11,10 +11,10 @@ constexpr const size_t kMaxTensorSrc = 2;
 
 class tensor {
   public:
-    explicit tensor(const tensor_info & info) noexcept : _info(info) {
+    explicit tensor(const npu_device_tensor_info_t & info) noexcept : _info(info) {
         uint64 phy_address  = 0;
         void * mmap_address = nullptr;
-        auto   ret          = HAP_mmap_get(buffer_fd, &mmap_address, &phy_address);
+        auto   ret          = HAP_mmap_get(_info.buffer_fd, &mmap_address, &phy_address);
         if (ret != AEE_SUCCESS) {
             FARF(FATAL, "Failed to mmap tensor buffer: %d", (int) ret);
             return;
@@ -49,20 +49,20 @@ class tensor {
         return _src[index];
     }
 
-    const tensor_info & get_info() const { return _info; }
+    const npu_device_tensor_info_t & get_info() const { return _info; }
 
-    const int64_t * get_ne(size_t index) const { return _info.ne[index]; }
+    const int64_t get_ne(size_t index) const { return _info.ne[index]; }
 
-    npu_op get_op() const { return _info.op; }
+    npu_device_tensor_op_e get_op() const { return _info.op; }
 
     uint8_t * get_data() const { return _data + _info.offset; }
 
-    bool is_valid() const { return data != nullptr; }
+    bool is_valid() const { return _data != nullptr; }
 
   private:
-    tensor_info _info;
-    Tensor *    _src[kMaxTensorSrc] = {};
-    uint8_t *   _data               = nullptr;
+    npu_device_tensor_info_t _info;
+    tensor *                 _src[kMaxTensorSrc] = {};
+    uint8_t *                _data               = nullptr;
 
     tensor(const tensor &)             = delete;
     tensor & operator=(const tensor &) = delete;

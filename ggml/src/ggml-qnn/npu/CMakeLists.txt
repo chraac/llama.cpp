@@ -25,7 +25,6 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
     file(GLOB host_srcs "${CMAKE_CURRENT_LIST_DIR}/host/*.cpp")
     add_library(hexagon_npu_host STATIC ${host_srcs})
 
-    # Build interface files using user IDL
     build_idl(idl/hexagon_npu.idl hexagon_npu_host)
 
     # Find the DSP from provided domain value, default is CDSP
@@ -39,7 +38,6 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
         target_link_options(hexagon_npu_host PUBLIC -pie)
     endif()
 
-    # Add common HLOS-specific linker options
     link_options(hexagon_npu_host)
 
     # Add compile definitions to the target
@@ -47,7 +45,6 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
 
     # Link target with custom libraries
     link_custom_library(hexagon_npu_host rpcmem)
-    link_custom_library(hexagon_npu_host getopt_custom)
     link_custom_library(hexagon_npu_host ${dsprpc})
 
     add_dependencies(hexagon_npu_host hap_example)
@@ -57,31 +54,30 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
     copy_binaries(hexagon_npu_host hexagon_npu)
 
 else()
+    cmake_minimum_required(VERSION 3.14.3)
+    project(hexagon_npu C CXX ASM)
+
+    # check if QNN_SDK_ROOT is set
+    if(NOT DEFINED ENV{QNN_SDK_ROOT})
+        message(FATAL_ERROR "QNN_SDK_ROOT not defined")
+    endif()
+
+    set(QNN_SDK_ROOT $ENV{QNN_SDK_ROOT})
+    message("QNN_SDK_ROOT: ${QNN_SDK_ROOT}")
+    include_directories(${QNN_SDK_ROOT}/include/QNN/)
+
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
     file(GLOB common_srcs "${CMAKE_CURRENT_LIST_DIR}/common/*.cpp")
     file(GLOB skel_srcs "${CMAKE_CURRENT_LIST_DIR}/device/*.cpp")
     add_library(hexagon_npu_skel_OBJS OBJECT ${common_srcs} ${skel_srcs})
 
-    # creating shared skel library
     add_library(hexagon_npu_skel SHARED $<TARGET_OBJECTS:hexagon_npu_skel_OBJS>)
 
     build_idl(idl/hexagon_npu.idl hexagon_npu_skel_OBJS)
 
-    set(q_exec_srcs ${CMAKE_CURRENT_SOURCE_DIR}/src_app/hexagon_npu_main
-        ${CMAKE_CURRENT_SOURCE_DIR}/src_app/hexagon_npu
-        ${HEXAGON_SDK_ROOT}/utils/examples/dsp_capabilities_utils
-    )
+    set_target_properties(hexagon_npu_skel PROPERTIES OUTPUT_NAME "hexagon_npu_skel_${HEXAGON_ARCH}")
 
-    add_library(hexagon_npu_skel_static STATIC $<TARGET_OBJECTS:hexagon_npu_skel_OBJS>)
-    add_library(hexagon_npu_q SHARED ${q_exec_srcs})
-
-    # Link target with custom libraries
-    link_custom_library(hexagon_npu_q rpcmem)
-
-    add_dependencies(hexagon_npu_q hexagon_npu_skel_static)
-    target_link_libraries(hexagon_npu_q hexagon_npu_skel_static)
-
-    # Copy binaries from ship to CMAKE_CURRENT_BINARY_DIR folder
-    copy_binaries(hexagon_npu_q hexagon_npu_skel)
+    copy_binaries(hexagon_npu_skel)
 endif()
 
 # vim: set noet fenc=utf-8 ff=unix ft=cmake :

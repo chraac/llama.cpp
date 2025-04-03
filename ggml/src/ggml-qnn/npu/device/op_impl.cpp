@@ -1,6 +1,9 @@
 
 
+#include "op_impl.hpp"
+
 #include <hexagon_types.h>
+#include <HTP/core/intrinsics.h>
 
 #include "tensor.hpp"
 
@@ -114,17 +117,17 @@ bool mul_mat_f32(hexagon::tensor * out) {
     return true;
 }
 
-constexpr const compute_func_t kOpArray[] = {
+constexpr const hexagon::compute_func_t kOpArray[] = {
     mul_mat_f32,  // NPU_OP_MUL_MAT
 };
 
-static_assert((sizeof(kOpArray) / sizeof(kOpArray[0])) == NPU_OP_COUNT)
+static_assert((sizeof(kOpArray) / sizeof(kOpArray[0])) == NPU_OP_COUNT);
 
 }  // namespace
 
 namespace hexagon {
 
-compute_func_t get_compute_func(npu_op op) {
+compute_func_t get_compute_func(npu_device_tensor_op_e op) {
     return kOpArray[op];
 }
 

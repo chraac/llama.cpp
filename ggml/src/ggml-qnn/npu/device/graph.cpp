@@ -5,12 +5,12 @@
 
 namespace hexagon {
 
-void graph::set_tensor(const remote_handle64 * tensors, size_t tensor_count) {
-    _tensors = new Tensor *[tensor_count];
-    for (size_t i = 0; i < tensor_count; ++i) {
-        _tensors[i] = reinterpret_cast<Tensor *>(tensors[i]);
+void graph::set_tensor(const npu_device_tensor_handle_t * tensors, int tensor_count) {
+    _tensors = new tensor *[tensor_count];
+    for (int i = 0; i < tensor_count; ++i) {
+        _tensors[i] = reinterpret_cast<tensor *>(tensors[i]);
     }
-    _tensor_count = tensor_count
+    _tensor_count = tensor_count;
 }
 
 bool graph::compute() {
@@ -20,7 +20,7 @@ bool graph::compute() {
 
     for (size_t i = 0; i < _tensor_count; ++i) {
         auto * op   = _tensors[i];
-        auto * func = get_compute_func(op->op);
+        auto * func = get_compute_func(op->get_op());
         func(op);
     }
 

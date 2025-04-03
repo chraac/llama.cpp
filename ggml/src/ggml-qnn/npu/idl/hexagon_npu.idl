@@ -1,54 +1,55 @@
-
 #include "AEEStdDef.idl"
+#include "AEEStdErr.idl"
 #include "remote.idl"
 
-enum npu_op {
-    NPU_OP_MUL_MAT = 0,
-    NPU_OP_COUNT,
-};
-
-struct tensor_info {
-    int64_t ne[4];
-    size_t nb[4]; // TODO: handle stride here
-    long buffer_fd;
-    size_t offset;
-    uint32_t type;
-    npu_op op;
-};
-
 interface npu_device : remote_handle64{
-    typedef remote_handle64 tensor_handle;
-    typedef remote_handle64 graph_handle;
+
+    enum tensor_op_e {
+        NPU_OP_MUL_MAT,
+        NPU_OP_COUNT
+    };
+
+    struct tensor_info_t {
+        int64_t ne[4];
+        uint64_t nb[4]; // TODO: handle stride here
+        long buffer_fd;
+        uint64_t offset;
+        uint32_t type;
+        tensor_op_e op;
+    };
+
+    typedef uint64_t tensor_handle_t;
+    typedef uint64_t graph_handle_t;
 
     AEEResult tensor_init(
-        in tensor_info info,
-        out tensor_handle tensor,
+        in tensor_info_t info,
+        rout tensor_handle_t tensor_handle
     );
 
     AEEResult tensor_set_src(
-        in tensor_handle tensor,
-        in size_t index,
-        in tensor_handle src
+        in tensor_handle_t tensor_handle,
+        in uint64_t index,
+        in tensor_handle_t src
     );
 
     AEEResult tensor_free(
-        in tensor_handle tensor
+        in tensor_handle_t tensor_handle
     );
 
     AEEResult graph_init(
-        out graph_handle graph
+        rout graph_handle_t graph_handle
     );
 
     AEEResult graph_set_tensor(
-        in graph_handle graph,
-        in sequence<tensor_handle> tensors
+        in graph_handle_t graph_handle,
+        in sequence<tensor_handle_t> tensor_handles
     );
 
     AEEResult graph_compute(
-        in graph_handle graph
+        in graph_handle_t graph_handle
     );
 
     AEEResult graph_free(
-        in graph_handle graph
+        in graph_handle_t graph_handle
     );
 };

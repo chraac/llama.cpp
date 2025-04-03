@@ -1,5 +1,6 @@
 #pragma once
 
+#include "hexagon_npu.h"
 #include "tensor.hpp"
 
 namespace hexagon {
@@ -15,12 +16,12 @@ class graph {
         }
     }
 
-    void set_tensor(const remote_handle64 * tensors, size_t tensor_count);
+    void set_tensor(const npu_device_tensor_handle_t * tensors, int tensor_count);
 
     bool compute();
 
   private:
-    Tensor ** _tensors      = nullptr;
+    tensor ** _tensors      = nullptr;
     size_t    _tensor_count = 0;
 
     graph(const graph &)             = delete;
