@@ -46,13 +46,6 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
     # Link target with custom libraries
     link_custom_library(hexagon_npu_host rpcmem)
     link_custom_library(hexagon_npu_host ${dsprpc})
-
-    add_dependencies(hexagon_npu_host hap_example)
-    target_link_libraries(hap_example_device hap_example)
-
-    # Copy binaries from ship to CMAKE_CURRENT_BINARY_DIR folder
-    copy_binaries(hexagon_npu_host hexagon_npu)
-
 else()
     cmake_minimum_required(VERSION 3.14.3)
     project(hexagon_npu C CXX ASM)

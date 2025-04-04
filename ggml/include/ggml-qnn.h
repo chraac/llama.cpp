@@ -1,7 +1,6 @@
 #pragma once
 
 #include "ggml-backend.h"
-#include "ggml.h"
 
 #ifdef __cplusplus
 extern "C" {

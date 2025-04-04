@@ -27,8 +27,10 @@ message("CMAKE_CXX_FLAGS_RELEASE: ${CMAKE_CXX_FLAGS_RELEASE}")
 message("QNN_SDK_PATH: ${GGML_QNN_SDK_PATH}")
 
 file(GLOB QNN_SOURCES "${CMAKE_CURRENT_LIST_DIR}/qnn/*.cpp")
+file(GLOB COMMON_SOURCES "${CMAKE_CURRENT_LIST_DIR}/*.cpp")
 ggml_add_backend_library(ggml-qnn
     ${QNN_SOURCES}
+    ${COMMON_SOURCES}
 )
 
 target_include_directories(ggml-qnn PRIVATE
@@ -62,7 +64,8 @@ endif()
 if(GGML_QNN_ENABLE_HEXAGON_PACKAGE)
     message("GGML_QNN_ENABLE_HEXAGON_PACKAGE is enabled")
     target_compile_definitions(ggml-qnn PRIVATE GGML_QNN_ENABLE_HEXAGON_PACKAGE)
-    add_subdirectory(hexagon)
+    add_subdirectory(npu)
+    target_link_libraries(ggml-qnn PRIVATE hexagon_npu_host)
 else()
     message("GGML_QNN_ENABLE_HEXAGON_PACKAGE is disabled")
 endif()

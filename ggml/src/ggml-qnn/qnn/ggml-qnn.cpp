@@ -1,11 +1,10 @@
-#include "ggml-qnn.h"
-
 #include <functional>
 #include <memory>
 #include <vector>
 
 #include "backend-ops.hpp"
 #include "backend.hpp"
+#include "common.hpp"
 #include "ggml-backend-impl.h"
 #include "ggml-impl.h"
 #include "logger.hpp"
@@ -354,77 +353,43 @@ constexpr const ggml_backend_device_i ggml_backend_qnn_device_interface = {
     /* .event_synchronize    = */ nullptr,
 };
 
-/*
- * -----------------------------------------------------------------------------------------------
- * qnn backend registry object
- * -----------------------------------------------------------------------------------------------
- */
-
-struct ggml_backend_qnn_reg_impl : ggml_backend_reg {
-    std::vector<std::unique_ptr<ggml_backend_qnn_device_context>> device_contexts;
-    std::vector<ggml_backend_device>                              devices;
-
-    explicit ggml_backend_qnn_reg_impl(ggml_backend_reg_i interface) {
-        context = this;
-        iface   = interface;
-
-        QNN_LOG_DEBUG("qnn backend registry init\n");
-        for (size_t i = 0; i < QNN_BACKEND_COUNT; i++) {
-            const auto device_enum =
-                (backend_index_type) (QNN_BACKEND_COUNT - 1 - i);  // init from the last device, i.e. NPU
-#ifndef GGML_QNN_ENABLE_CPU_BACKEND
-            if (device_enum == QNN_BACKEND_CPU) {
-                /*
-                 * here we skip the initialization of CPU device,
-                 *   cause it'll block unsupported ops fallback to ggml cpu backend
-                 */
-                QNN_LOG_DEBUG("qnn backend registry skip CPU device\n");
-                continue;
-            }
-#endif
-
-            const auto & device_caps = qnn::get_device_caps(device_enum);
-            device_contexts.emplace_back(std::make_unique<ggml_backend_qnn_device_context>(
-                /* .device   = */ device_enum,  // init from the last device, i.e. NPU
-                /* .threads  = */ 1,
-                /* .name     = */ qnn::get_backend_name(device_enum),
-                /* .supported_types = */ device_caps.supported_types));
-
-            devices.emplace_back(ggml_backend_device{
-                /* iface = */ ggml_backend_qnn_device_interface,
-                /* reg = */ this,
-                /* context = */ device_contexts.back().get(),
-            });
-        }
+class qnn_device_proxy : public backend_device_proxy {
+  public:
+    explicit qnn_device_proxy(backend_index_type device) {
+        const auto & device_caps = qnn::get_device_caps(device);
+        _device_context          = std::make_unique<ggml_backend_qnn_device_context>(
+            /* .device   = */ device,  // init from the last device, i.e. NPU
+            /* .threads  = */ 1,       // TODO: fix this
+            /* .name     = */ qnn::get_backend_name(device),
+            /* .supported_types = */ device_caps.supported_types);
     }
-};
 
-const char * ggml_backend_qnn_reg_get_name(ggml_backend_reg_t reg) {
-    GGML_UNUSED(reg);
-    return "qnn";
-}
+    const ggml_backend_device_i & get_iface() const { return ggml_backend_qnn_device_interface; }
 
-size_t ggml_backend_qnn_reg_get_device_count(ggml_backend_reg_t reg) {
-    auto * ctx = (ggml_backend_qnn_reg_impl *) reg->context;
-    return ctx->devices.size();
-}
+    void * get_context() { return _device_context.get(); }
 
-ggml_backend_dev_t ggml_backend_qnn_reg_get_device(ggml_backend_reg_t reg, size_t index) {
-    auto * ctx = (ggml_backend_qnn_reg_impl *) reg->context;
-    GGML_ASSERT(index < ctx->devices.size());
-    return &(ctx->devices[index]);
-}
-
-const ggml_backend_reg_i ggml_backend_qnn_reg_interface = {
-    /* .get_name         = */ ggml_backend_qnn_reg_get_name,
-    /* .get_device_count = */ ggml_backend_qnn_reg_get_device_count,
-    /* .get_device_get   = */ ggml_backend_qnn_reg_get_device,
-    /* .get_proc_address = */ nullptr,
+  private:
+    std::unique_ptr<ggml_backend_qnn_device_context> _device_context;
 };
 
 }  // namespace
 
-ggml_backend_reg_t ggml_backend_qnn_reg() {
-    static ggml_backend_qnn_reg_impl reg{ ggml_backend_qnn_reg_interface };
-    return &reg;
+backend_device_proxy_ptr create_qnn_backend_context(backend_index_type device) {
+    if (device >= QNN_BACKEND_COUNT) {
+        QNN_LOG_ERROR("[qnn]invalid device %d\n", device);
+        return backend_device_proxy_ptr();
+    }
+
+#ifndef GGML_QNN_ENABLE_CPU_BACKEND
+    if (device == QNN_BACKEND_CPU) {
+        /*
+                     * here we skip the initialization of CPU device,
+                     *   cause it'll block unsupported ops fallback to ggml cpu backend
+                     */
+        GGML_LOG_DEBUG("qnn backend registry skip CPU device\n");
+        return backend_device_proxy_ptr();
+    }
+#endif
+
+    return std::make_unique<qnn_device_proxy>(device);
 }
