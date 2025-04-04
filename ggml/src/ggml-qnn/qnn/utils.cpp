@@ -178,7 +178,7 @@ const char * get_ggml_type_name(ggml_type type) {
     return traits->type_name;
 }
 
-const char * get_backend_name(QNNBackend device) {
+const char * get_backend_name(backend_index_type device) {
     switch (device) {
         case QNN_BACKEND_CPU:
             return "qnn-cpu";
@@ -192,7 +192,7 @@ const char * get_backend_name(QNNBackend device) {
     }
 }
 
-const char * get_backend_desc(QNNBackend device) {
+const char * get_backend_desc(backend_index_type device) {
     switch (device) {
         case QNN_BACKEND_CPU:
             return "CPU";

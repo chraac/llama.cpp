@@ -141,6 +141,16 @@ void ggml_backend_qnn_free(ggml_backend_t backend) {
     delete backend;
 }
 
+ggml_guid_t ggml_backend_qnn_guid() {
+    static ggml_guid guid = { 0x1a, 0x2b, 0x3c, 0x4d, 0x5e, 0x6f, 0x70, 0x81,
+                              0x92, 0xa3, 0xb4, 0xc5, 0xd6, 0xe7, 0xf8, 0x09 };
+    return &guid;
+}
+
+bool ggml_backend_is_qnn(ggml_backend_t backend) {
+    return ggml_guid_matches(backend->guid, ggml_backend_qnn_guid());
+}
+
 bool ggml_backend_qnn_cpy_tensor_async(ggml_backend_t backend_src, ggml_backend_t backend_dst, const ggml_tensor * src,
                                        ggml_tensor * dst) {
     GGML_UNUSED(backend_src);
@@ -154,7 +164,7 @@ bool ggml_backend_qnn_cpy_tensor_async(ggml_backend_t backend_src, ggml_backend_
 }
 
 ggml_backend_buffer_type_t ggml_backend_qnn_buffer_type(ggml_backend_dev_t dev) {
-    static ggml_backend_buffer_type ggml_backend_qnn_buffer_types[GGML_QNN_MAX_DEVICES];
+    static ggml_backend_buffer_type ggml_backend_qnn_buffer_types[QNN_BACKEND_COUNT];
     auto *                          dev_ctx = get_device_context(dev);
     if (!ggml_backend_qnn_buffer_types[dev_ctx->device].device) {
         ggml_backend_qnn_buffer_types[dev_ctx->device] = {
@@ -235,12 +245,6 @@ void ggml_backend_qnn_device_get_props(ggml_backend_dev_t dev, ggml_backend_dev_
         /* buffer_from_host_ptr */ false,
         /* events               */ false,
     };
-}
-
-ggml_guid_t ggml_backend_qnn_guid() {
-    static ggml_guid guid = { 0x1a, 0x2b, 0x3c, 0x4d, 0x5e, 0x6f, 0x70, 0x81,
-                              0x92, 0xa3, 0xb4, 0xc5, 0xd6, 0xe7, 0xf8, 0x09 };
-    return &guid;
 }
 
 ggml_backend_t ggml_backend_qnn_init_with_device_context(ggml_backend_dev_t dev, const char * extend_lib_search_path) {
@@ -366,7 +370,8 @@ struct ggml_backend_qnn_reg_impl : ggml_backend_reg {
 
         QNN_LOG_DEBUG("qnn backend registry init\n");
         for (size_t i = 0; i < QNN_BACKEND_COUNT; i++) {
-            const auto device_enum = (QNNBackend) (QNN_BACKEND_COUNT - 1 - i);  // init from the last device, i.e. NPU
+            const auto device_enum =
+                (backend_index_type) (QNN_BACKEND_COUNT - 1 - i);  // init from the last device, i.e. NPU
 #ifndef GGML_QNN_ENABLE_CPU_BACKEND
             if (device_enum == QNN_BACKEND_CPU) {
                 /*
@@ -396,7 +401,7 @@ struct ggml_backend_qnn_reg_impl : ggml_backend_reg {
 
 const char * ggml_backend_qnn_reg_get_name(ggml_backend_reg_t reg) {
     GGML_UNUSED(reg);
-    return GGML_QNN_NAME;
+    return "qnn";
 }
 
 size_t ggml_backend_qnn_reg_get_device_count(ggml_backend_reg_t reg) {
@@ -418,10 +423,6 @@ const ggml_backend_reg_i ggml_backend_qnn_reg_interface = {
 };
 
 }  // namespace
-
-bool ggml_backend_is_qnn(ggml_backend_t backend) {
-    return ggml_guid_matches(backend->guid, ggml_backend_qnn_guid());
-}
 
 ggml_backend_reg_t ggml_backend_qnn_reg() {
     static ggml_backend_qnn_reg_impl reg{ ggml_backend_qnn_reg_interface };

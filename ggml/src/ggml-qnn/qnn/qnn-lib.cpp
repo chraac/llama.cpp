@@ -3,6 +3,8 @@
 
 #include <filesystem>
 
+#include "common.hpp"
+
 #if defined(__linux__)
 #    include <unistd.h>
 #endif
@@ -52,8 +54,8 @@ constexpr const qnn::device_caps kDeviceCaps[] = {
     },
 };
 
-static_assert(sizeof(kDeviceCaps) / sizeof(kDeviceCaps[0]) == GGML_QNN_MAX_DEVICES,
-              "The number of qnn devices should be equal to GGML_QNN_MAX_DEVICES");
+static_assert(sizeof(kDeviceCaps) / sizeof(kDeviceCaps[0]) == QNN_BACKEND_COUNT,
+              "The number of qnn devices should be equal to QNN_BACKEND_COUNT");
 static_assert(kDeviceCaps[QNN_BACKEND_NPU].type == GGML_BACKEND_DEVICE_TYPE_ACCEL,
               "The NPU device should be an accelerator device");
 static_assert(kDeviceCaps[QNN_BACKEND_GPU].type == GGML_BACKEND_DEVICE_TYPE_GPU,
@@ -196,7 +198,7 @@ qnn_system_interface::~qnn_system_interface() {
     }
 }
 
-qnn_instance::qnn_instance(const std::string & lib_path, QNNBackend device) : _additional_lib_load_path(lib_path) {
+qnn_instance::qnn_instance(const std::string & lib_path, backend_index_type device) : _additional_lib_load_path(lib_path) {
     _backend_lib_name = kDeviceCaps[device].lib_name;
     if (set_qnn_lib_search_path(lib_path)) {
         QNN_LOG_DEBUG("[%s] set_qnn_lib_search_path succeed\n", _backend_lib_name.c_str());
@@ -617,7 +619,7 @@ void qnn_instance::unload_backend() {
     _loaded_backend.clear();
 }
 
-const device_caps & get_device_caps(QNNBackend device) {
+const device_caps & get_device_caps(backend_index_type device) {
     return kDeviceCaps[device];
 }
 

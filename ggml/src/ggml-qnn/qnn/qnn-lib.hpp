@@ -152,7 +152,7 @@ class qnn_instance {
   public:
     using BackendIdType = decltype(QnnInterface_t{}.backendId);
 
-    explicit qnn_instance(const std::string & lib_path, QNNBackend device);
+    explicit qnn_instance(const std::string & lib_path, backend_index_type device);
 
     ~qnn_instance() {}
 
@@ -462,6 +462,6 @@ struct device_caps {
     size_t max_tensor_size_in_bytes;
 };
 
-const device_caps & get_device_caps(QNNBackend device);
+const device_caps & get_device_caps(backend_index_type device);
 
 }  // namespace qnn

@@ -31,7 +31,11 @@ ggml_add_backend_library(ggml-qnn
     ${QNN_SOURCES}
 )
 
-target_include_directories(ggml-qnn PRIVATE ${GGML_QNN_SDK_PATH}/include/QNN ${CMAKE_CURRENT_LIST_DIR}/qnn)
+target_include_directories(ggml-qnn PRIVATE
+    ${GGML_QNN_SDK_PATH}/include/QNN
+    ${CMAKE_CURRENT_LIST_DIR}/qnn
+    ${CMAKE_CURRENT_LIST_DIR}
+)
 target_link_libraries(ggml-qnn PRIVATE ${QNN_LINK_LIBRARIES})
 
 if(NOT "${QNN_DEFAULT_LIB_SEARCH_PATH}" STREQUAL "")
