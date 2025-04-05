@@ -3,7 +3,6 @@
 #include <vector>
 
 #include "backend-ops.hpp"
-#include "backend.hpp"
 #include "common.hpp"
 #include "ggml-backend-impl.h"
 #include "ggml-impl.h"
@@ -13,8 +12,8 @@
 
 namespace {
 
-ggml_backend_qnn_device_context * get_device_context(ggml_backend_dev_t dev) {
-    return reinterpret_cast<ggml_backend_qnn_device_context *>(dev->context);
+qnn::ggml_backend_qnn_device_context * get_device_context(ggml_backend_dev_t dev) {
+    return reinterpret_cast<qnn::ggml_backend_qnn_device_context *>(dev->context);
 }
 
 qnn::qnn_buffer_interface * get_buffer_context(ggml_backend_buffer_t buffer) {
@@ -357,7 +356,7 @@ class qnn_device_proxy : public backend_device_proxy {
   public:
     explicit qnn_device_proxy(backend_index_type device) {
         const auto & device_caps = qnn::get_device_caps(device);
-        _device_context          = std::make_unique<ggml_backend_qnn_device_context>(
+        _device_context          = std::make_unique<qnn::ggml_backend_qnn_device_context>(
             /* .device   = */ device,  // init from the last device, i.e. NPU
             /* .threads  = */ 1,       // TODO: fix this
             /* .name     = */ qnn::get_backend_name(device),
@@ -369,7 +368,7 @@ class qnn_device_proxy : public backend_device_proxy {
     void * get_context() { return _device_context.get(); }
 
   private:
-    std::unique_ptr<ggml_backend_qnn_device_context> _device_context;
+    std::unique_ptr<qnn::ggml_backend_qnn_device_context> _device_context;
 };
 
 }  // namespace

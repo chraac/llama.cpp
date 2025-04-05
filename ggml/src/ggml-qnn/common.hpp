@@ -27,3 +27,11 @@ using backend_device_proxy_ptr = std::shared_ptr<backend_device_proxy>;
 
 backend_device_proxy_ptr create_qnn_backend_context(backend_index_type device);
 backend_device_proxy_ptr create_hexagon_backend_context(backend_index_type device);
+
+#define DISABLE_COPY(class_name)                 \
+    class_name(const class_name &)     = delete; \
+    void operator=(const class_name &) = delete
+
+#define DISABLE_MOVE(class_name)            \
+    class_name(class_name &&)     = delete; \
+    void operator=(class_name &&) = delete
