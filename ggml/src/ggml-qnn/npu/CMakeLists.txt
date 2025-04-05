@@ -1,6 +1,18 @@
 enable_language(ASM)
 cmake_policy(SET CMP0115 OLD)
 
+if(DEFINED ENV{HEXAGON_SDK_ROOT})
+    set(HEXAGON_SDK_ROOT $ENV{HEXAGON_SDK_ROOT})
+    message("HEXAGON_SDK_ROOT: ${HEXAGON_SDK_ROOT}")
+else()
+    message(FATAL_ERROR "HEXAGON_SDK_ROOT not defined")
+endif()
+
+if(NOT DEFINED DSP_TYPE OR NOT DEFINED ENV{DSP_TYPE})
+    set(DSP_TYPE "3")
+    message("DSP_TYPE not defined, defaulting to CDSP")
+endif()
+
 if(HEXAGON_SDK_ROOT)
     include(${HEXAGON_SDK_ROOT}/build/cmake/hexagon_fun.cmake)
 else()
@@ -9,7 +21,6 @@ endif()
 
 # Base Include dirs for the Project
 set(common_incs
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/
     ${CMAKE_CURRENT_BINARY_DIR}/
     ${HEXAGON_SDK_ROOT}/incs/
     ${HEXAGON_SDK_ROOT}/incs/stddef/
@@ -21,6 +32,15 @@ set(common_incs
 include_directories(${common_incs})
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
+    include_directories(
+        ${QNN_SDK_ROOT}/include/QNN/
+        ${CMAKE_CURRENT_LIST_DIR}/host/
+        ${CMAKE_CURRENT_LIST_DIR}/
+        ${CMAKE_CURRENT_LIST_DIR}/../
+        ${CMAKE_CURRENT_LIST_DIR}/../../
+        ${CMAKE_CURRENT_LIST_DIR}/../../../include/ # TODO: figure out how to remove this
+    )
+
     # Hexagon npu backend
     file(GLOB host_srcs "${CMAKE_CURRENT_LIST_DIR}/host/*.cpp")
     add_library(hexagon_npu_host STATIC ${host_srcs})
@@ -41,7 +61,10 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
     link_options(hexagon_npu_host)
 
     # Add compile definitions to the target
-    target_compile_definitions(hexagon_npu_host PUBLIC VERIFY_PRINT_ERROR)
+    target_compile_definitions(hexagon_npu_host PUBLIC
+        VERIFY_PRINT_ERROR
+        GGML_QNN_ENABLE_HEXAGON_PACKAGE
+    )
 
     # Link target with custom libraries
     link_custom_library(hexagon_npu_host rpcmem)

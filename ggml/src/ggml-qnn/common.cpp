@@ -17,7 +17,7 @@ struct ggml_backend_qnn_reg_impl : ggml_backend_reg {
         context = this;
         iface   = interface;
 
-        GGML_LOG_DEBUG("backend registry init\n");
+        LOG_INFO("backend registry init\n");
         for (size_t i = 0; i < QNN_BACKEND_COUNT; i++) {
             const auto device_enum =
                 (backend_index_type) (QNN_BACKEND_COUNT - 1 - i);  // init from the last device, i.e. NPU
@@ -29,13 +29,13 @@ struct ggml_backend_qnn_reg_impl : ggml_backend_reg {
 #if defined(GGML_QNN_ENABLE_HEXAGON_PACKAGE)
                 device_proxy = create_hexagon_backend_context(device_enum);
 #else
-                GGML_LOG_DEBUG("skip hexagon device %d\n", (int) device_enum);
+                LOG_DEBUG("skip hexagon device %d\n", (int) device_enum);
                 continue;
 #endif
             }
 
             if (!device_proxy) {
-                GGML_LOG_DEBUG("skip device %d\n", (int) device_enum);
+                LOG_DEBUG("skip device %d\n", (int) device_enum);
                 continue;
             }
 

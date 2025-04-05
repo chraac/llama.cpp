@@ -24,8 +24,8 @@ class graph {
     tensor ** _tensors      = nullptr;
     size_t    _tensor_count = 0;
 
-    graph(const graph &)             = delete;
-    graph & operator=(const graph &) = delete;
+    DISABLE_COPY(graph);
+    DISABLE_MOVE(graph);
 };
 
 }  // namespace hexagon

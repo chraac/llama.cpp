@@ -64,8 +64,8 @@ class tensor {
     tensor *                 _src[kMaxTensorSrc] = {};
     uint8_t *                _data               = nullptr;
 
-    tensor(const tensor &)             = delete;
-    tensor & operator=(const tensor &) = delete;
+    DISABLE_COPY(tensor);
+    DISABLE_MOVE(tensor);
 };
 
 }  // namespace hexagon

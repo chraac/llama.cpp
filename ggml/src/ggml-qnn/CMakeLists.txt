@@ -63,7 +63,6 @@ endif()
 
 if(GGML_QNN_ENABLE_HEXAGON_PACKAGE)
     message("GGML_QNN_ENABLE_HEXAGON_PACKAGE is enabled")
-    target_compile_definitions(ggml-qnn PRIVATE GGML_QNN_ENABLE_HEXAGON_PACKAGE)
     add_subdirectory(npu)
     target_link_libraries(ggml-qnn PRIVATE hexagon_npu_host)
 else()

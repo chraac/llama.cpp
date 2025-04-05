@@ -3,6 +3,7 @@
 #include <memory>
 
 #include "ggml-backend-impl.h"
+#include "ggml-impl.h"
 
 enum backend_index_type {
     QNN_BACKEND_CPU = 0,
@@ -35,3 +36,13 @@ backend_device_proxy_ptr create_hexagon_backend_context(backend_index_type devic
 #define DISABLE_MOVE(class_name)            \
     class_name(class_name &&)     = delete; \
     void operator=(class_name &&) = delete
+
+#define LOG_ERROR(...) (GGML_LOG_ERROR(__VA_ARGS__))
+#define LOG_WARN(...)  (GGML_LOG_WARN(__VA_ARGS__))
+#define LOG_INFO(...)  (GGML_LOG_INFO(__VA_ARGS__))
+
+#ifndef NDEBUG
+#    define LOG_DEBUG(...) (GGML_LOG_DEBUG(__VA_ARGS__))
+#else
+#    define LOG_DEBUG(...)
+#endif
