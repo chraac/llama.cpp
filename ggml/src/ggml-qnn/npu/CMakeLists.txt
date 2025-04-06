@@ -73,7 +73,9 @@ else()
 
     set(QNN_SDK_ROOT $ENV{QNN_SDK_ROOT})
     message("QNN_SDK_ROOT: ${QNN_SDK_ROOT}")
-    include_directories(${QNN_SDK_ROOT}/include/QNN/)
+    include_directories(
+        ${QNN_SDK_ROOT}/include/QNN/
+    )
 
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
     file(GLOB common_srcs "${CMAKE_CURRENT_LIST_DIR}/common/*.cpp")
