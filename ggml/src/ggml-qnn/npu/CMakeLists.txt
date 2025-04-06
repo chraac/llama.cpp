@@ -8,11 +8,6 @@ else()
     message(FATAL_ERROR "HEXAGON_SDK_ROOT not defined")
 endif()
 
-if(NOT DEFINED DSP_TYPE OR NOT DEFINED ENV{DSP_TYPE})
-    set(DSP_TYPE "3")
-    message("DSP_TYPE not defined, defaulting to CDSP")
-endif()
-
 if(HEXAGON_SDK_ROOT)
     include(${HEXAGON_SDK_ROOT}/build/cmake/hexagon_fun.cmake)
 else()
