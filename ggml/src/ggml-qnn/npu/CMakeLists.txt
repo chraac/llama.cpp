@@ -47,9 +47,6 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
 
     build_idl(idl/hexagon_npu.idl hexagon_npu_host)
 
-    # Find the DSP from provided domain value, default is CDSP
-    choose_dsprpc(${DSP_TYPE} dsprpc)
-
     if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")
         set_target_properties(hexagon_npu_host PROPERTIES OUTPUT_NAME "hexagon_npu")
     endif()
@@ -65,10 +62,6 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
         VERIFY_PRINT_ERROR
         GGML_QNN_ENABLE_HEXAGON_PACKAGE
     )
-
-    # Link target with custom libraries
-    link_custom_library(hexagon_npu_host rpcmem)
-    link_custom_library(hexagon_npu_host ${dsprpc})
 else()
     cmake_minimum_required(VERSION 3.14.3)
     project(hexagon_npu C CXX ASM)

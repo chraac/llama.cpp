@@ -42,12 +42,6 @@ struct qcom_socinfo {
     size_t   vtcm_size_in_mb;
 };
 
-using pfn_rpc_mem_init   = void (*)(void);
-using pfn_rpc_mem_deinit = void (*)(void);
-using pfn_rpc_mem_alloc  = void * (*) (int, uint32_t, int);
-using pfn_rpc_mem_free   = void (*)(void *);
-using pfn_rpc_mem_to_fd  = int (*)(void *);
-
 using pfn_qnnsaver_initialize             = decltype(QnnSaver_initialize);
 using pfn_qnninterface_getproviders       = decltype(QnnInterface_getProviders);
 using pfn_qnnsysteminterface_getproviders = decltype(QnnSystemInterface_getProviders);

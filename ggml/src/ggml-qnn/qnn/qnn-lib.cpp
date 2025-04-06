@@ -4,6 +4,7 @@
 #include <filesystem>
 
 #include "common.hpp"
+#include "rpc-mem.hpp"
 
 #if defined(__linux__)
 #    include <unistd.h>
@@ -13,10 +14,8 @@ namespace {
 
 #ifdef _WIN32
 #    define PLATFORM_LIB_FILENAME(name) (name ".dll")
-constexpr const char * kQnnRpcLibName = "libcdsprpc.dll";
 #else
 #    define PLATFORM_LIB_FILENAME(name) ("lib" name ".so")
-constexpr const char * kQnnRpcLibName = "libcdsprpc.so";
 #endif
 
 #if defined(__aarch64__) || defined(_M_ARM64)  // TODO: check for other platforms
@@ -110,13 +109,13 @@ bool set_qnn_lib_search_path(const std::string & custom_lib_search_path) {
     return true;
 }
 
-qnn::dl_handler_t load_lib_with_fallback(const std::string & lib_path, const std::string & load_directory) {
+common::dl_handler_t load_lib_with_fallback(const std::string & lib_path, const std::string & load_directory) {
     std::filesystem::path full_path(load_directory);
     full_path /= std::filesystem::path(lib_path).filename();
-    auto handle = qnn::dl_load(full_path.string());
+    auto handle = common::dl_load(full_path.string());
     if (!handle) {
         QNN_LOG_WARN("failed to load %s, fallback to %s\n", full_path.c_str(), lib_path.c_str());
-        handle = qnn::dl_load(lib_path);
+        handle = common::dl_load(lib_path);
     }
 
     return handle;
@@ -169,7 +168,8 @@ const op_package_lib_info & get_op_package_lib_info(uint32_t soc_model, size_t h
 
 namespace qnn {
 
-qnn_system_interface::qnn_system_interface(const QnnSystemInterface_t & qnn_sys_interface, dl_handler_t lib_handle) :
+qnn_system_interface::qnn_system_interface(const QnnSystemInterface_t & qnn_sys_interface,
+                                           common::dl_handler_t         lib_handle) :
     _qnn_sys_interface(qnn_sys_interface),
     _lib_handle(lib_handle) {
     qnn_system_context_create(&_qnn_system_handle);
@@ -190,15 +190,16 @@ qnn_system_interface::~qnn_system_interface() {
     }
 
     if (_lib_handle) {
-        if (!dl_unload(_lib_handle)) {
-            QNN_LOG_WARN("failed to close QnnSystem library, error %s\n", dl_error());
+        if (!common::dl_unload(_lib_handle)) {
+            QNN_LOG_WARN("failed to close QnnSystem library, error %s\n", common::dl_error());
         }
     } else {
         QNN_LOG_WARN("system lib handle is null\n");
     }
 }
 
-qnn_instance::qnn_instance(const std::string & lib_path, backend_index_type device) : _additional_lib_load_path(lib_path) {
+qnn_instance::qnn_instance(const std::string & lib_path, backend_index_type device) :
+    _additional_lib_load_path(lib_path) {
     _backend_lib_name = kDeviceCaps[device].lib_name;
     if (set_qnn_lib_search_path(lib_path)) {
         QNN_LOG_DEBUG("[%s] set_qnn_lib_search_path succeed\n", _backend_lib_name.c_str());
@@ -315,27 +316,11 @@ bool qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
         }
     }
 
-    _rpc_lib_handle = load_lib_with_fallback(kQnnRpcLibName, _additional_lib_load_path);
-    if (_rpc_lib_handle) {
-        _pfn_rpc_mem_alloc = reinterpret_cast<qnn::pfn_rpc_mem_alloc>(dl_sym(_rpc_lib_handle, "rpcmem_alloc"));
-        _pfn_rpc_mem_free  = reinterpret_cast<qnn::pfn_rpc_mem_free>(dl_sym(_rpc_lib_handle, "rpcmem_free"));
-        _pfn_rpc_mem_to_fd = reinterpret_cast<qnn::pfn_rpc_mem_to_fd>(dl_sym(_rpc_lib_handle, "rpcmem_to_fd"));
-        if (!_pfn_rpc_mem_alloc || !_pfn_rpc_mem_free || !_pfn_rpc_mem_to_fd) {
-            QNN_LOG_WARN("unable to access symbols in QNN RPC lib. error: %s\n", dl_error());
-            dl_unload(_rpc_lib_handle);
-            return false;
+    {
+        auto rpc_mem = std::make_unique<common::rpc_mem>();
+        if (rpc_mem->is_valid()) {
+            _rpc_mem = std::move(rpc_mem);
         }
-
-        _pfn_rpc_mem_init   = reinterpret_cast<qnn::pfn_rpc_mem_init>(dl_sym(_rpc_lib_handle, "rpcmem_init"));
-        _pfn_rpc_mem_deinit = reinterpret_cast<qnn::pfn_rpc_mem_deinit>(dl_sym(_rpc_lib_handle, "rpcmem_deinit"));
-        if (_pfn_rpc_mem_init) {
-            _pfn_rpc_mem_init();
-        }
-
-        _rpcmem_initialized = true;
-        QNN_LOG_DEBUG("load rpcmem lib successfully\n");
-    } else {
-        QNN_LOG_WARN("failed to load qualcomm rpc lib, skipping, error:%s\n", dl_error());
     }
 
     {
@@ -371,27 +356,6 @@ bool qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
     }
 
     if (_backend_lib_name.find("Htp") != _backend_lib_name.npos) {
-        // TODO: faster approach to probe the accurate capacity of rpc ion memory
-        size_t    candidate_size = 0;
-        uint8_t * rpc_buffer     = nullptr;
-        const int size_in_mb     = (1 << 20);
-        size_t    probe_slots[]  = { 1024, 1536, 2048 - 48, 2048 };
-        size_t    probe_counts   = sizeof(probe_slots) / sizeof(size_t);
-        for (size_t idx = 0; idx < probe_counts; idx++) {
-            rpc_buffer = static_cast<uint8_t *>(alloc_rpcmem(probe_slots[idx] * size_in_mb, sizeof(void *)));
-            if (!rpc_buffer) {
-                QNN_LOG_DEBUG("alloc rpcmem %d (MB) failure, %s\n", (int) probe_slots[idx], strerror(errno));
-                break;
-            } else {
-                candidate_size = probe_slots[idx];
-                free_rpcmem(rpc_buffer);
-                rpc_buffer = nullptr;
-            }
-        }
-
-        _rpcmem_capacity = std::max(candidate_size, _rpcmem_capacity);
-        QNN_LOG_INFO("capacity of QNN rpc ion memory is about %d MB\n", (int) _rpcmem_capacity);
-
         if (init_htp_perfinfra() != 0) {
             QNN_LOG_WARN("initialize HTP performance failure\n");
         }
@@ -408,19 +372,6 @@ bool qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
 }
 
 bool qnn_instance::qnn_finalize() {
-    if (_rpc_lib_handle) {
-        if (_pfn_rpc_mem_deinit) {
-            _pfn_rpc_mem_deinit();
-            _pfn_rpc_mem_deinit = nullptr;
-        }
-
-        if (dl_unload(_rpc_lib_handle)) {
-            QNN_LOG_DEBUG("succeed to close rpcmem lib\n");
-        } else {
-            QNN_LOG_WARN("failed to unload qualcomm's rpc lib, error:%s\n", dl_error());
-        }
-    }
-
     if (_backend_lib_name.find("Htp") != _backend_lib_name.npos) {
         _qnn_htp_perfinfra->destroyPowerConfigId(_qnn_power_configid);
     }
@@ -462,12 +413,14 @@ bool qnn_instance::qnn_finalize() {
     }
 
     if (_custom_op_extra_lib_handle) {
-        dl_unload(_custom_op_extra_lib_handle);
+        common::dl_unload(_custom_op_extra_lib_handle);
     }
 
     unload_backend();
 
     _qnn_sys_interface.reset();
+
+    _rpc_mem.reset();
 
     return true;
 }
@@ -476,14 +429,14 @@ int qnn_instance::load_system() {
     QNN_LOG_DEBUG("[%s]lib: %s\n", _backend_lib_name.c_str(), kQnnSystemLibName);
     auto system_lib_handle = load_lib_with_fallback(kQnnSystemLibName, _additional_lib_load_path);
     if (!system_lib_handle) {
-        QNN_LOG_WARN("can not load QNN library %s, error: %s\n", kQnnSystemLibName, dl_error());
+        QNN_LOG_WARN("can not load QNN library %s, error: %s\n", kQnnSystemLibName, common::dl_error());
         return 1;
     }
 
-    auto * get_providers =
-        dl_sym_typed<qnn::pfn_qnnsysteminterface_getproviders *>(system_lib_handle, "QnnSystemInterface_getProviders");
+    auto * get_providers = common::dl_sym_typed<qnn::pfn_qnnsysteminterface_getproviders *>(
+        system_lib_handle, "QnnSystemInterface_getProviders");
     if (!get_providers) {
-        QNN_LOG_WARN("can not load QNN symbol QnnSystemInterface_getProviders: %s\n", dl_error());
+        QNN_LOG_WARN("can not load QNN symbol QnnSystemInterface_getProviders: %s\n", common::dl_error());
         return 2;
     }
 
@@ -539,14 +492,15 @@ bool qnn_instance::load_backend(std::string & lib_path, const QnnSaver_Config_t 
 
     auto lib_handle = load_lib_with_fallback(lib_path, _additional_lib_load_path);
     if (!lib_handle) {
-        QNN_LOG_WARN("can not open QNN library %s, with error: %s\n", lib_path.c_str(), dl_error());
+        QNN_LOG_WARN("can not open QNN library %s, with error: %s\n", lib_path.c_str(), common::dl_error());
         return false;
     }
 
-    auto get_providers = dl_sym_typed<qnn::pfn_qnninterface_getproviders *>(lib_handle, "QnnInterface_getProviders");
+    auto get_providers =
+        common::dl_sym_typed<qnn::pfn_qnninterface_getproviders *>(lib_handle, "QnnInterface_getProviders");
     if (!get_providers) {
-        QNN_LOG_WARN("can not load symbol QnnInterface_getProviders : %s\n", dl_error());
-        dl_unload(lib_handle);
+        QNN_LOG_WARN("can not load symbol QnnInterface_getProviders : %s\n", common::dl_error());
+        common::dl_unload(lib_handle);
         return false;
     }
 
@@ -555,19 +509,19 @@ bool qnn_instance::load_backend(std::string & lib_path, const QnnSaver_Config_t 
     auto                    error         = get_providers(&provider_list, &num_providers);
     if (error != QNN_SUCCESS) {
         QNN_LOG_WARN("failed to get providers, error %d\n", (int) QNN_GET_ERROR_CODE(error));
-        dl_unload(lib_handle);
+        common::dl_unload(lib_handle);
         return false;
     }
     QNN_LOG_DEBUG("num_providers=%d\n", num_providers);
     if (num_providers != _required_num_providers) {
         QNN_LOG_WARN("providers is %d instead of required %d\n", num_providers, _required_num_providers);
-        dl_unload(lib_handle);
+        common::dl_unload(lib_handle);
         return false;
     }
 
     if (!provider_list) {
         QNN_LOG_WARN("failed to get qnn interface providers\n");
-        dl_unload(lib_handle);
+        common::dl_unload(lib_handle);
         return false;
     }
     bool                   found_valid_interface = false;
@@ -583,7 +537,7 @@ bool qnn_instance::load_backend(std::string & lib_path, const QnnSaver_Config_t 
 
     if (!found_valid_interface) {
         QNN_LOG_WARN("unable to find a valid qnn interface\n");
-        dl_unload(lib_handle);
+        common::dl_unload(lib_handle);
         return false;
     } else {
         QNN_LOG_DEBUG("find a valid qnn interface\n");
@@ -597,8 +551,8 @@ bool qnn_instance::load_backend(std::string & lib_path, const QnnSaver_Config_t 
     _loaded_backend[backend_id] = provider_list[0];
     if (_loaded_lib_handle.count(backend_id) > 0) {
         QNN_LOG_WARN("closing %p\n", _loaded_lib_handle[backend_id]);
-        if (!dl_unload(_loaded_lib_handle[backend_id])) {
-            QNN_LOG_WARN("fail to close %p with error %s\n", _loaded_lib_handle[backend_id], dl_error());
+        if (!common::dl_unload(_loaded_lib_handle[backend_id])) {
+            QNN_LOG_WARN("fail to close %p with error %s\n", _loaded_lib_handle[backend_id], common::dl_error());
         }
     }
     _loaded_lib_handle[backend_id] = lib_handle;
@@ -609,8 +563,8 @@ bool qnn_instance::load_backend(std::string & lib_path, const QnnSaver_Config_t 
 
 void qnn_instance::unload_backend() {
     for (auto & it : _loaded_lib_handle) {
-        if (!dl_unload(it.second)) {
-            QNN_LOG_WARN("failed to close QNN backend %d, error %s\n", it.first, dl_error());
+        if (!common::dl_unload(it.second)) {
+            QNN_LOG_WARN("failed to close QNN backend %d, error %s\n", it.first, common::dl_error());
         }
     }
 
