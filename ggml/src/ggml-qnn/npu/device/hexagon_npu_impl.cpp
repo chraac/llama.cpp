@@ -13,6 +13,11 @@
 
 namespace {
 
+struct npu_device_context {
+    int unused = 0;
+    // TODO: should we add tensor context here?
+};
+
 inline hexagon::tensor * tensor_from_handle(npu_device_graph_handle_t h) {
     return reinterpret_cast<hexagon::tensor *>(h);
 }
@@ -33,12 +38,24 @@ inline npu_device_tensor_handle_t graph_to_handle(hexagon::graph * graph) {
 
 int npu_device_open(const char * uri, remote_handle64 * h) {
     // TODO: should we have a device context here?
-    *h = 0;
+    auto * context = new (std::nothrow) npu_device_context();
+    if (!context) {
+        FARF(ERROR, "Failed to allocate memory for the npu_device_context");
+        return AEE_ENOMEMORY;
+    }
+
+    *h = reinterpret_cast<remote_handle64>(context);
     return AEE_SUCCESS;
 }
 
 int npu_device_close(remote_handle64 h) {
-    (void) h;
+    auto * context = reinterpret_cast<npu_device_context *>(h);
+    if (!context) {
+        FARF(ERROR, "Invalid npu_device_context handle");
+        return AEE_EINVHANDLE;
+    }
+
+    delete context;
     return AEE_SUCCESS;
 }
 

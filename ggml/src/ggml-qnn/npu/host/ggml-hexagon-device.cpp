@@ -5,6 +5,7 @@
 #include "common.hpp"
 #include "ggml-backend-impl.h"
 #include "ggml-impl.h"
+#include "hexagon_npu.h"
 #include "rpc-mem.hpp"
 
 namespace {
@@ -74,24 +75,46 @@ class npu_device_impl {
         return dev->iface.get_name(dev) == npu_device_impl::get_name(dev);
     }
 
-    explicit npu_device_impl(backend_index_type device) : _device(device) {}
+    explicit npu_device_impl(backend_index_type device) : _device_index(device) {}
+
+    ~npu_device_impl() {
+        if (_device_handle) {
+            npu_device_close(_device_handle);
+        }
+    }
 
     bool init_device(const char * params) {
-        auto rpc_mem = std::make_unique<common::rpc_mem>();
-        if (!rpc_mem->is_valid()) {
-            LOG_ERROR("Failed to create rpc memory\n");
-            return false;
+        if (!_rpc_mem) {
+            auto rpc_mem = std::make_unique<common::rpc_mem>();
+            if (!rpc_mem->is_valid()) {
+                LOG_ERROR("Failed to create rpc memory\n");
+                return false;
+            }
+
+            _rpc_mem = std::move(rpc_mem);
+        } else {
+            LOG_DEBUG("NPU device is already initialized\n");
         }
 
-        // TODO: load the NPU library and initialize it here
+        if (!_device_handle) {
+            // TODO: fix uri here for each npu
+            auto ret = npu_device_open(npu_device_URI, &_device_handle);
+            if (ret != 0) {
+                LOG_ERROR("ERROR 0x%x: Unable to open NPU device on domain %s\n", ret, npu_device_URI);
+                _device_handle = 0;
+                return false;
+            }
+        } else {
+            LOG_DEBUG("NPU device is already opened\n");
+        }
 
-        _rpc_mem = std::move(rpc_mem);
         return true;
     }
 
   private:
-    backend_index_type               _device;
+    backend_index_type               _device_index;
     std::unique_ptr<common::rpc_mem> _rpc_mem;
+    remote_handle64                  _device_handle = 0;
 
     DISABLE_COPY(npu_device_impl);
     DISABLE_MOVE(npu_device_impl);
