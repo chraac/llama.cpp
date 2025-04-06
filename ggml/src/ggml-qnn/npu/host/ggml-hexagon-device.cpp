@@ -1,9 +1,11 @@
 
+#include <memory>
 #include <string>
 
 #include "common.hpp"
 #include "ggml-backend-impl.h"
 #include "ggml-impl.h"
+#include "rpc-mem.hpp"
 
 namespace {
 
@@ -75,12 +77,21 @@ class npu_device_impl {
     explicit npu_device_impl(backend_index_type device) : _device(device) {}
 
     bool init_device(const char * params) {
-        // TODO: implement this
+        auto rpc_mem = std::make_unique<common::rpc_mem>();
+        if (!rpc_mem->is_valid()) {
+            LOG_ERROR("Failed to create rpc memory\n");
+            return false;
+        }
+
+        // TODO: load the NPU library and initialize it here
+
+        _rpc_mem = std::move(rpc_mem);
         return true;
     }
 
   private:
-    backend_index_type _device;
+    backend_index_type               _device;
+    std::unique_ptr<common::rpc_mem> _rpc_mem;
 
     DISABLE_COPY(npu_device_impl);
     DISABLE_MOVE(npu_device_impl);
