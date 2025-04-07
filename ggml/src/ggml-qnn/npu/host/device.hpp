@@ -20,9 +20,12 @@ class npu_device {
 
     const char * get_description() const { return "Hexagon NPU"; }
 
-    bool                       is_device_valid() const;
-    bool                       init_device(ggml_backend_dev_t dev, const char * params);
+    bool is_device_valid() const;
+    bool init_device(ggml_backend_dev_t dev, const char * params);
+
     ggml_backend_buffer_type_t get_default_buffer_type();
+
+    remote_handle64 get_device_handle() const { return _device_handle; }
 
   private:
     std::string                      _name = "hexagon-npu";

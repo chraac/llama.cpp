@@ -1,5 +1,8 @@
 #include "buffer.hpp"
 
+#include "device.hpp"
+#include "tensor.hpp"
+
 namespace {
 
 static hexagon::npu_buffer * get_buffer_object(ggml_backend_buffer_t buffer) {
@@ -19,7 +22,14 @@ void * backend_buffer_get_base(ggml_backend_buffer_t buffer) {
 }
 
 ggml_status backend_buffer_init_tensor(ggml_backend_buffer_t buffer, ggml_tensor * tensor) {
-    // TODO: implement this
+    auto * device_object = get_buffer_type_object(buffer->buft)->get_device();
+    auto   tensor_object = get_buffer_object(buffer)->init_tensor(tensor, device_object->get_device_handle());
+    if (!tensor_object) {
+        LOG_ERROR("Failed to init tensor\n");
+        return GGML_STATUS_ALLOC_FAILED;
+    }
+
+    tensor->extra = tensor_object.get();
     return GGML_STATUS_SUCCESS;
 }
 
@@ -67,7 +77,7 @@ const char * backend_buffer_type_get_name(ggml_backend_buffer_type_t buft) {
 }
 
 ggml_backend_buffer_t backend_buffer_type_alloc_buffer(ggml_backend_buffer_type_t buft, size_t size) {
-    return get_buffer_type_object(buft)->allocate_buffer(buft, size);
+    return get_buffer_type_object(buft)->allocate_buffer(size);
 }
 
 size_t backend_buffer_type_get_alignment(ggml_backend_buffer_type_t buft) {
@@ -108,6 +118,21 @@ npu_buffer::npu_buffer(common::rpc_mem_ptr allocator, size_t size) : _allocator(
     }
 }
 
+npu_buffer::~npu_buffer() {
+    _allocator->free(_data);
+}
+
+std::unique_ptr<npu_tensor> npu_buffer::init_tensor(ggml_tensor * tensor, remote_handle64 device_handle) {
+    if (!_data) {
+        LOG_ERROR("failed to init tensor, rpc memory not initialized\n");
+        return std::unique_ptr<npu_tensor>();
+    }
+
+    auto tensor_object = std::make_unique<npu_tensor>(
+        tensor, _allocator->to_fd(_data),
+        (uint64_t) (reinterpret_cast<uint8_t *>(tensor->data) - reinterpret_cast<uint8_t *>(_data)), device_handle);
+}
+
 npu_buffer_type::npu_buffer_type(ggml_backend_dev_t dev, const std::string & name, common::rpc_mem_ptr rpc_mem) :
     _name(name),
     _rpc_mem(rpc_mem) {
@@ -121,6 +146,8 @@ npu_buffer_type::npu_buffer_type(ggml_backend_dev_t dev, const std::string & nam
     };
     device  = dev;
     context = this;
+
+    _device = reinterpret_cast<npu_device *>(device->context);
 }
 
 size_t npu_buffer_type::get_max_buffer_size() const {
@@ -132,7 +159,7 @@ size_t npu_buffer_type::get_max_buffer_size() const {
     return _rpc_mem->get_max_alloc_size();
 }
 
-ggml_backend_buffer_t npu_buffer_type::allocate_buffer(ggml_backend_buffer_type_t buft, size_t size) {
+ggml_backend_buffer_t npu_buffer_type::allocate_buffer(size_t size) {
     if (!_rpc_mem) {
         LOG_ERROR("rpc memory not initialized\n");
         return nullptr;
@@ -145,7 +172,7 @@ ggml_backend_buffer_t npu_buffer_type::allocate_buffer(ggml_backend_buffer_type_
         return nullptr;
     }
 
-    return ggml_backend_buffer_init(buft, backend_buffer_interface, buffer, size);
+    return ggml_backend_buffer_init(this, backend_buffer_interface, buffer, size);
 }
 
 }  // namespace hexagon
