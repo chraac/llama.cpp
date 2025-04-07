@@ -2,6 +2,7 @@
 #pragma once
 
 #include <limits>
+#include <memory>
 
 #include "common.hpp"
 #include "dyn-lib-loader.hpp"
@@ -123,5 +124,7 @@ class rpc_mem {
     rpc_mem_free_t   _rpc_mem_free   = nullptr;
     rpc_mem_to_fd_t  _rpc_mem_to_fd  = nullptr;
 };
+
+using rpc_mem_ptr = std::shared_ptr<rpc_mem>;
 
 }  // namespace common

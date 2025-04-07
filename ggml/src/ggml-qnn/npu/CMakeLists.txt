@@ -37,8 +37,9 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
     )
 
     # Hexagon npu backend
+    file(GLOB common_srcs "${CMAKE_CURRENT_LIST_DIR}/common/*.cpp")
     file(GLOB host_srcs "${CMAKE_CURRENT_LIST_DIR}/host/*.cpp")
-    add_library(hexagon_npu_host STATIC ${host_srcs})
+    add_library(hexagon_npu_host STATIC ${host_srcs} ${common_srcs})
 
     build_idl(idl/hexagon_npu.idl hexagon_npu_host)
 
@@ -75,7 +76,7 @@ else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
     file(GLOB common_srcs "${CMAKE_CURRENT_LIST_DIR}/common/*.cpp")
     file(GLOB skel_srcs "${CMAKE_CURRENT_LIST_DIR}/device/*.cpp")
-    add_library(hexagon_npu_skel_OBJS OBJECT ${common_srcs} ${skel_srcs})
+    add_library(hexagon_npu_skel_OBJS OBJECT ${skel_srcs} ${common_srcs})
 
     add_library(hexagon_npu_skel SHARED $<TARGET_OBJECTS:hexagon_npu_skel_OBJS>)
 
