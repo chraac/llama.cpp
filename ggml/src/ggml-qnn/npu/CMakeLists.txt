@@ -39,9 +39,27 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
     # Hexagon npu backend
     file(GLOB common_srcs "${CMAKE_CURRENT_LIST_DIR}/common/*.cpp")
     file(GLOB host_srcs "${CMAKE_CURRENT_LIST_DIR}/host/*.cpp")
-    add_library(hexagon_npu_host STATIC ${host_srcs} ${common_srcs})
+    set(stub_srcs "${CMAKE_CURRENT_BINARY_DIR}/npu_device_stub.c")
+    add_library(hexagon_npu_host STATIC
+        ${common_srcs}
+        ${host_srcs}
+        ${stub_srcs}
+    )
+
+    # disable warnings for the stub
+    set_source_files_properties(
+        ${stub_srcs}
+        PROPERTIES
+        COMPILE_FLAGS "-w"
+    )
 
     build_idl(idl/hexagon_npu.idl hexagon_npu_host)
+
+    # Add compile definitions to the target
+    target_compile_definitions(hexagon_npu_host PUBLIC
+        VERIFY_PRINT_ERROR
+        GGML_QNN_ENABLE_HEXAGON_PACKAGE
+    )
 
     if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")
         set_target_properties(hexagon_npu_host PROPERTIES OUTPUT_NAME "hexagon_npu")
@@ -53,11 +71,17 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
 
     link_options(hexagon_npu_host)
 
-    # Add compile definitions to the target
-    target_compile_definitions(hexagon_npu_host PUBLIC
-        VERIFY_PRINT_ERROR
-        GGML_QNN_ENABLE_HEXAGON_PACKAGE
-    )
+    if(${CMAKE_SYSTEM_NAME} MATCHES "Android")
+        set(PREBUILT_LIB_DIR "android_aarch64")
+    elseif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+        set(PREBUILT_LIB_DIR "UbuntuARM_aarch64")
+    else()
+        # Windows
+        set(PREBUILT_LIB_DIR "windows_aarch64")
+    endif()
+
+    choose_dsprpc("3" dsprpc) # cdsprpc
+    link_custom_library(hexagon_npu_host ${dsprpc})
 else()
     cmake_minimum_required(VERSION 3.14.3)
     project(hexagon_npu C CXX ASM)
@@ -75,8 +99,20 @@ else()
 
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
     file(GLOB common_srcs "${CMAKE_CURRENT_LIST_DIR}/common/*.cpp")
-    file(GLOB skel_srcs "${CMAKE_CURRENT_LIST_DIR}/device/*.cpp")
-    add_library(hexagon_npu_skel_OBJS OBJECT ${skel_srcs} ${common_srcs})
+    file(GLOB device_srcs "${CMAKE_CURRENT_LIST_DIR}/device/*.cpp")
+    set(skel_srcs "${CMAKE_CURRENT_BINARY_DIR}/npu_device_skel.c")
+    add_library(hexagon_npu_skel_OBJS OBJECT
+        ${common_srcs}
+        ${device_srcs}
+        ${skel_srcs}
+    )
+
+    # disable warnings for the skel
+    set_source_files_properties(
+        ${skel_srcs}
+        PROPERTIES
+        COMPILE_FLAGS "-w"
+    )
 
     add_library(hexagon_npu_skel SHARED $<TARGET_OBJECTS:hexagon_npu_skel_OBJS>)
 

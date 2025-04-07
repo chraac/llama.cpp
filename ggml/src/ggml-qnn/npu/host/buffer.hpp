@@ -2,7 +2,6 @@
 
 #include <memory>
 
-#include "common.hpp"
 #include "ggml-backend-impl.h"
 #include "rpc-mem.hpp"
 
