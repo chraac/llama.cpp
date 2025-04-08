@@ -23,14 +23,14 @@ class npu_buffer {
 
     size_t get_size() const { return _size; }
 
-    std::unique_ptr<npu_tensor> init_tensor(ggml_tensor * tensor, remote_handle64 device_handle);
+    std::shared_ptr<npu_tensor> init_tensor(ggml_tensor * tensor, remote_handle64 device_handle);
 
   private:
     common::rpc_mem_ptr _allocator;
     void *              _data = nullptr;
     size_t              _size = 0;
 
-    std::list<std::unique_ptr<npu_tensor>> _tensors;
+    std::list<std::shared_ptr<npu_tensor>> _tensors;
 
     DISABLE_COPY(npu_buffer);
     DISABLE_MOVE(npu_buffer);

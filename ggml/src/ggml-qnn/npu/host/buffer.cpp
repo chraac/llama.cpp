@@ -122,15 +122,21 @@ npu_buffer::~npu_buffer() {
     _allocator->free(_data);
 }
 
-std::unique_ptr<npu_tensor> npu_buffer::init_tensor(ggml_tensor * tensor, remote_handle64 device_handle) {
+std::shared_ptr<npu_tensor> npu_buffer::init_tensor(ggml_tensor * tensor, remote_handle64 device_handle) {
     if (!_data) {
         LOG_ERROR("failed to init tensor, rpc memory not initialized\n");
-        return std::unique_ptr<npu_tensor>();
+        return std::shared_ptr<npu_tensor>();
     }
 
-    auto tensor_object = std::make_unique<npu_tensor>(
+    auto tensor_object = std::make_shared<npu_tensor>(
         tensor, _allocator->to_fd(_data),
         (uint64_t) (reinterpret_cast<uint8_t *>(tensor->data) - reinterpret_cast<uint8_t *>(_data)), device_handle);
+    if (!tensor_object->is_valid()) {
+        LOG_ERROR("failed to init tensor, device handle: %p\n", (void *) device_handle);
+        return std::shared_ptr<npu_tensor>();
+    }
+    _tensors.push_back(std::move(tensor_object));
+    return std::move(_tensors.back());
 }
 
 npu_buffer_type::npu_buffer_type(ggml_backend_dev_t dev, const std::string & name, common::rpc_mem_ptr rpc_mem) :

@@ -18,6 +18,13 @@ inline enum npu_device_tensor_op_e op_to_npu_op(ggml_op op) {
 // TODO: merge this with device tensor?
 class npu_tensor {
   public:
+    static npu_tensor * from_ggml_tensor(ggml_tensor * tensor) {
+        if (!tensor || !tensor->extra) {
+            return nullptr;
+        }
+        return static_cast<npu_tensor *>(tensor->extra);
+    }
+
     explicit npu_tensor(ggml_tensor * tensor, int buffer_fd, uint64_t offset, remote_handle64 device_handle) :
         _device_handle(device_handle) {
         _info.buffer_fd = buffer_fd;
@@ -41,6 +48,21 @@ class npu_tensor {
         if (_device_tensor_handle) {
             npu_device_tensor_free(_device_handle, _device_tensor_handle);
         }
+    }
+
+    npu_device_tensor_handle_t get_device_tensor_handle() const { return _device_tensor_handle; }
+
+    void set_src(size_t index, npu_tensor * src) {
+        if (index >= npu_device_MAX_TENSOR_SRC) {
+            return;
+        }
+
+        npu_device_tensor_set_src(_device_handle, _device_tensor_handle, index, src->get_device_tensor_handle());
+    }
+
+    void set_op(ggml_op op) {
+        _info.op = op_to_npu_op(op);
+        npu_device_tensor_set_op(_device_handle, _device_tensor_handle, _info.op);
     }
 
     bool is_valid() const { return _device_tensor_handle != 0; }

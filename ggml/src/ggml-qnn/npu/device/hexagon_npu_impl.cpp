@@ -11,6 +11,8 @@
 #include "remote.h"
 #include "tensor.hpp"
 
+#define NPU_UNUSED(x) (void) (x)
+
 namespace {
 
 struct npu_device_context {
@@ -61,9 +63,10 @@ int npu_device_close(remote_handle64 h) {
 
 AEEResult npu_device_tensor_init(remote_handle64 _h, const npu_device_tensor_info_t * info,
                                  npu_device_tensor_handle_t * tensor_handle) {
-    (void) _h;
+    NPU_UNUSED(_h);
     auto * tensor = new (std::nothrow) hexagon::tensor(*info);
     if (!tensor) {
+        FARF(ERROR, "Failed to allocate memory for the tensor");
         return AEE_ENOMEMORY;
     }
 
@@ -73,7 +76,7 @@ AEEResult npu_device_tensor_init(remote_handle64 _h, const npu_device_tensor_inf
 
 AEEResult npu_device_tensor_set_src(remote_handle64 _h, npu_device_tensor_handle_t tensor_handle, uint64_t index,
                                     npu_device_tensor_handle_t src) {
-    (void) _h;
+    NPU_UNUSED(_h);
     auto * tensor = tensor_from_handle(tensor_handle);
     if (!tensor) {
         return AEE_EINVHANDLE;
@@ -84,8 +87,20 @@ AEEResult npu_device_tensor_set_src(remote_handle64 _h, npu_device_tensor_handle
     return AEE_SUCCESS;
 }
 
+AEEResult npu_device_tensor_set_op(remote_handle64 _h, npu_device_tensor_handle_t tensor_handle,
+                                   npu_device_tensor_op_e op) {
+    NPU_UNUSED(_h);
+    auto * tensor = tensor_from_handle(tensor_handle);
+    if (!tensor) {
+        return AEE_EINVHANDLE;
+    }
+
+    tensor->set_op(op);
+    return AEE_SUCCESS;
+}
+
 AEEResult npu_device_tensor_free(remote_handle64 _h, npu_device_tensor_handle_t tensor_handle) {
-    (void) _h;
+    NPU_UNUSED(_h);
     auto * tensor = tensor_from_handle(tensor_handle);
     if (!tensor) {
         return AEE_EINVHANDLE;
@@ -96,7 +111,7 @@ AEEResult npu_device_tensor_free(remote_handle64 _h, npu_device_tensor_handle_t 
 }
 
 AEEResult npu_device_graph_init(remote_handle64 _h, npu_device_graph_handle_t * graph_handle) {
-    (void) _h;
+    NPU_UNUSED(_h);
     auto * graph = new (std::nothrow) hexagon::graph();
     if (!graph) {
         return AEE_ENOMEMORY;
@@ -108,7 +123,7 @@ AEEResult npu_device_graph_init(remote_handle64 _h, npu_device_graph_handle_t * 
 
 AEEResult npu_device_graph_set_tensor(remote_handle64 _h, npu_device_graph_handle_t graph_handle,
                                       const npu_device_tensor_handle_t * tensor_handles, int tensor_handlesLen) {
-    (void) _h;
+    NPU_UNUSED(_h);
     auto * graph = graph_from_handle(graph_handle);
     if (!graph || !tensor_handles || tensor_handlesLen <= 0) {
         return AEE_EINVHANDLE;
@@ -119,7 +134,7 @@ AEEResult npu_device_graph_set_tensor(remote_handle64 _h, npu_device_graph_handl
 }
 
 AEEResult npu_device_graph_compute(remote_handle64 _h, npu_device_graph_handle_t graph_handle) {
-    (void) _h;
+    NPU_UNUSED(_h);
     auto * graph = graph_from_handle(graph_handle);
     if (!graph) {
         return AEE_EINVHANDLE;
@@ -133,7 +148,7 @@ AEEResult npu_device_graph_compute(remote_handle64 _h, npu_device_graph_handle_t
 }
 
 AEEResult npu_device_graph_free(remote_handle64 _h, npu_device_graph_handle_t graph_handle) {
-    (void) _h;
+    NPU_UNUSED(_h);
     auto * graph = graph_from_handle(graph_handle);
     if (graph) {
         delete graph;

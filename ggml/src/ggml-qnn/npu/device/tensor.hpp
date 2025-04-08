@@ -7,7 +7,7 @@
 
 namespace hexagon {
 
-constexpr const size_t kMaxTensorSrc = 2;
+constexpr const size_t kMaxTensorSrc = npu_device_MAX_TENSOR_SRC;
 
 class tensor {
   public:
@@ -39,6 +39,10 @@ class tensor {
 
         _src[index] = src;
         return true;
+    }
+
+    void set_op(npu_device_tensor_op_e op) {
+        _info.op = op;
     }
 
     tensor * get_src(size_t index) const {

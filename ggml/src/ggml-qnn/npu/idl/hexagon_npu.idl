@@ -4,6 +4,8 @@
 
 interface npu_device : remote_handle64{
 
+    const uint32_t MAX_TENSOR_SRC = 2;
+
     enum tensor_op_e {
         NPU_OP_MUL_MAT,
         NPU_OP_COUNT
@@ -30,6 +32,11 @@ interface npu_device : remote_handle64{
         in tensor_handle_t tensor_handle,
         in uint64_t index,
         in tensor_handle_t src
+    );
+
+    AEEResult tensor_set_op(
+        in tensor_handle_t tensor_handle,
+        in tensor_op_e op
     );
 
     AEEResult tensor_free(

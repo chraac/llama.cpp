@@ -87,8 +87,8 @@ bool backend_dev_supports_buft(ggml_backend_dev_t dev, ggml_backend_buffer_type_
         return false;
     }
 
-    // TODO: check if the buffer type is for this device
-    return true;
+    auto * device = get_device_object(dev);
+    return device->support_buft(buft);
 }
 
 bool backend_dev_offload_op(ggml_backend_dev_t dev, const struct ggml_tensor * op) {
@@ -136,6 +136,5 @@ backend_device_proxy_ptr create_hexagon_backend_context(backend_index_type devic
         return backend_device_proxy_ptr();
     }
 
-    // TODO: implement hexagon backend context creation
     return std::make_shared<npu_device_proxy>(device);
 }

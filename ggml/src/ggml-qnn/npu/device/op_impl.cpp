@@ -85,7 +85,7 @@ bool mul_mat_f32(hexagon::tensor * out) {
     auto * src0 = out->get_src(0);
     auto * src1 = out->get_src(1);
     if (!src0 || !src1) {
-        return false;
+        return true;  // skip if no src
     }
 
     if (src0->get_ne(0) != src1->get_ne(0)) {
