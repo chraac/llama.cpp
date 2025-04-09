@@ -61,6 +61,12 @@ int npu_device_close(remote_handle64 h) {
     return AEE_SUCCESS;
 }
 
+AEEResult npu_device_device_get_alignment(remote_handle64 _h, uint32_t * alignment) {
+    NPU_UNUSED(_h);
+    *alignment = sizeof(HVX_Vector);
+    return AEE_SUCCESS;
+}
+
 AEEResult npu_device_tensor_init(remote_handle64 _h, const npu_device_tensor_info_t * info,
                                  npu_device_tensor_handle_t * tensor_handle) {
     NPU_UNUSED(_h);

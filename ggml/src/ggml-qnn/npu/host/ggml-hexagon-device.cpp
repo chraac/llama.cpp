@@ -26,7 +26,7 @@ const char * backend_dev_get_description(ggml_backend_dev_t dev) {
 }
 
 void backend_dev_get_memory(ggml_backend_dev_t dev, size_t * free, size_t * total) {
-    // TODO: implement this
+    // TODO: get the memory from the device?
     GGML_UNUSED(dev);
     *free  = 0;
     *total = 0;
@@ -73,13 +73,16 @@ ggml_backend_buffer_t backend_dev_buffer_from_host_ptr(ggml_backend_dev_t dev, v
     return ggml_backend_cpu_buffer_from_ptr(ptr, size);
 }
 
-bool backend_dev_supports_op(ggml_backend_dev_t dev, const struct ggml_tensor * op) {
-    // TODO: implement this
-    return false;
-}
-
 bool backend_dev_is_npu_device(ggml_backend_dev_t dev) {
     return dev->iface.get_name == backend_dev_get_name;
+}
+
+bool backend_dev_supports_op(ggml_backend_dev_t dev, const struct ggml_tensor * op) {
+    if (!backend_dev_is_npu_device(dev)) {
+        return false;
+    }
+
+    return get_device_object(dev)->supports_op(op);
 }
 
 bool backend_dev_supports_buft(ggml_backend_dev_t dev, ggml_backend_buffer_type_t buft) {
@@ -87,13 +90,15 @@ bool backend_dev_supports_buft(ggml_backend_dev_t dev, ggml_backend_buffer_type_
         return false;
     }
 
-    auto * device = get_device_object(dev);
-    return device->support_buft(buft);
+    return get_device_object(dev)->supports_buft(buft);
 }
 
 bool backend_dev_offload_op(ggml_backend_dev_t dev, const struct ggml_tensor * op) {
-    // TODO: implement this
-    return false;
+    if (!backend_dev_is_npu_device(dev)) {
+        return false;
+    }
+
+    return get_device_object(dev)->offload_op(op);
 }
 
 constexpr const ggml_backend_device_i npu_device_interface = {

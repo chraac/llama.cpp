@@ -21,11 +21,16 @@ class npu_device {
 
     const char * get_description() const { return "Hexagon NPU"; }
 
+    size_t get_alignment() const;
+
     bool is_device_valid() const;
     bool init_device(ggml_backend_dev_t dev, const char * params);
 
     ggml_backend_buffer_type_t get_default_buffer_type();
-    bool                       support_buft(ggml_backend_buffer_type_t buft) const;
+
+    bool supports_buft(ggml_backend_buffer_type_t buft) const;
+    bool supports_op(const ggml_tensor * op);
+    bool offload_op(const ggml_tensor * op);
 
     remote_handle64 get_device_handle() const { return _device_handle; }
 

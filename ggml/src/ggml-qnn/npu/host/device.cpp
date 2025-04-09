@@ -1,6 +1,7 @@
 #include "device.hpp"
 
 #include "graph.hpp"
+#include "util.hpp"
 
 namespace {
 
@@ -38,6 +39,12 @@ npu_device::~npu_device() {
     if (_device_handle) {
         npu_device_close(_device_handle);
     }
+}
+
+size_t npu_device::get_alignment() const {
+    uint32_t alignment = 0;
+    npu_device_device_get_alignment(_device_handle, &alignment);
+    return alignment;
 }
 
 bool npu_device::is_device_valid() const {
@@ -83,8 +90,21 @@ bool npu_device::init_device(ggml_backend_dev_t dev, const char * params) {
     return true;
 }
 
-bool npu_device::support_buft(ggml_backend_buffer_type_t buft) const {
+bool npu_device::supports_buft(ggml_backend_buffer_type_t buft) const {
     return buft->device->context == this;
+}
+
+bool npu_device::supports_op(const ggml_tensor * op) {
+    if (op->op == GGML_OP_NONE) {
+        return true;
+    }
+
+    return op_to_npu_op(op->op) != NPU_OP_COUNT;
+}
+
+bool npu_device::offload_op(const ggml_tensor * op) {
+    // TODO: implement this
+    return false;
 }
 
 ggml_backend_buffer_type_t npu_device::get_default_buffer_type() {

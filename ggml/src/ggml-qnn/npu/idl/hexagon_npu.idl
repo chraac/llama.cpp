@@ -23,6 +23,10 @@ interface npu_device : remote_handle64{
     typedef uint64_t tensor_handle_t;
     typedef uint64_t graph_handle_t;
 
+    AEEResult device_get_alignment(
+        rout uint32_t alignment
+    );
+
     AEEResult tensor_init(
         in tensor_info_t info,
         rout tensor_handle_t tensor_handle

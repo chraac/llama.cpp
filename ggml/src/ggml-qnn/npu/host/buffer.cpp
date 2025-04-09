@@ -7,7 +7,9 @@
 
 namespace {
 
-constexpr const int kDefaultDomainId = CDSP_DOMAIN_ID;
+constexpr const int      kDefaultDomainId     = CDSP_DOMAIN_ID;
+constexpr const int      kRpcMemDefaultHeapId = RPCMEM_HEAP_ID_SYSTEM;
+constexpr const uint32_t kRpcMemDefaultFlags  = RPCMEM_DEFAULT_FLAGS;  // TODO: should we use a different flag?
 
 static hexagon::npu_buffer * get_buffer_object(ggml_backend_buffer_t buffer) {
     return reinterpret_cast<hexagon::npu_buffer *>(buffer->context);
@@ -101,9 +103,6 @@ bool backend_buffer_is_host(ggml_backend_buffer_type_t buft) {
 namespace hexagon {
 
 npu_buffer::npu_buffer(common::rpc_mem_ptr allocator, size_t size) : _allocator(allocator), _size(size) {
-    constexpr const uint32_t kRpcMemDefaultFlags  = RPCMEM_DEFAULT_FLAGS;
-    constexpr const int      kRpcMemDefaultHeapId = RPCMEM_HEAP_ID_SYSTEM;
-
     if (!_allocator->is_valid()) {
         LOG_ERROR("rpc memory not initialized\n");
         return;
@@ -114,8 +113,7 @@ npu_buffer::npu_buffer(common::rpc_mem_ptr allocator, size_t size) : _allocator(
         return;
     }
 
-    _data = _allocator->alloc(kRpcMemDefaultHeapId, kRpcMemDefaultFlags,
-                              size);  // TODO: should we use a different flag?
+    _data = _allocator->alloc(kRpcMemDefaultHeapId, kRpcMemDefaultFlags, size);
     if (!_data) {
         LOG_ERROR("failed to allocate rpc memory, size: %d MB\n", (int) (size / (1 << 20)));
         return;
@@ -180,6 +178,10 @@ npu_buffer_type::npu_buffer_type(ggml_backend_dev_t dev, const std::string & nam
     context = this;
 
     _device = reinterpret_cast<npu_device *>(device->context);
+}
+
+size_t npu_buffer_type::get_buffer_alignment() const {
+    return _device->get_alignment();
 }
 
 size_t npu_buffer_type::get_max_buffer_size() const {

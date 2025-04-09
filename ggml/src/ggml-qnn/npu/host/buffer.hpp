@@ -45,9 +45,7 @@ class npu_buffer_type : public ggml_backend_buffer_type {
 
     const char * get_name() const { return _name.c_str(); }
 
-    size_t get_buffer_alignment() const {
-        return 32;  // TODO: get the alignment from device
-    }
+    size_t get_buffer_alignment() const;
 
     size_t get_max_buffer_size() const;
 
