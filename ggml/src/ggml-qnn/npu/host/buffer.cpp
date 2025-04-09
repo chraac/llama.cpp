@@ -1,9 +1,13 @@
 #include "buffer.hpp"
 
+#include <rpcmem.h>
+
 #include "device.hpp"
 #include "tensor.hpp"
 
 namespace {
+
+constexpr const int kDefaultDomainId = CDSP_DOMAIN_ID;
 
 static hexagon::npu_buffer * get_buffer_object(ggml_backend_buffer_t buffer) {
     return reinterpret_cast<hexagon::npu_buffer *>(buffer->context);
@@ -97,8 +101,8 @@ bool backend_buffer_is_host(ggml_backend_buffer_type_t buft) {
 namespace hexagon {
 
 npu_buffer::npu_buffer(common::rpc_mem_ptr allocator, size_t size) : _allocator(allocator), _size(size) {
-    constexpr const uint32_t kRpcMemDefaultFlags  = 1;
-    constexpr const int      kRpcMemDefaultHeapId = 25;
+    constexpr const uint32_t kRpcMemDefaultFlags  = RPCMEM_DEFAULT_FLAGS;
+    constexpr const int      kRpcMemDefaultHeapId = RPCMEM_HEAP_ID_SYSTEM;
 
     if (!_allocator->is_valid()) {
         LOG_ERROR("rpc memory not initialized\n");
@@ -119,6 +123,13 @@ npu_buffer::npu_buffer(common::rpc_mem_ptr allocator, size_t size) : _allocator(
 }
 
 npu_buffer::~npu_buffer() {
+    if (_buffer_fd != -1) {
+        auto ret = _allocator->fastrpc_munmap(kDefaultDomainId, _buffer_fd, nullptr, 0);
+        if (ret != AEE_SUCCESS) {
+            LOG_ERROR("failed to munmap rpc memory, fd: %d, ret: %d\n", _buffer_fd, ret);
+            return;
+        }
+    }
     _allocator->free(_data);
 }
 
@@ -128,9 +139,24 @@ std::shared_ptr<npu_tensor> npu_buffer::init_tensor(ggml_tensor * tensor, remote
         return std::shared_ptr<npu_tensor>();
     }
 
+    if (_buffer_fd == -1) {
+        _buffer_fd = _allocator->to_fd(_data);
+        if (_buffer_fd < 0) {
+            LOG_ERROR("failed to get fd from rpc memory\n");
+            return std::shared_ptr<npu_tensor>();
+        }
+
+        // TODO: use another domain id?
+        auto ret = _allocator->fastrpc_mmap(kDefaultDomainId, _buffer_fd, _data, 0, _size, FASTRPC_MAP_FD);
+        if (ret != AEE_SUCCESS) {
+            LOG_ERROR("failed to mmap rpc memory, fd: %d, ret: %d\n", _buffer_fd, ret);
+            return std::shared_ptr<npu_tensor>();
+        }
+    }
+
     auto tensor_object = std::make_shared<npu_tensor>(
-        tensor, _allocator->to_fd(_data),
-        (uint64_t) (reinterpret_cast<uint8_t *>(tensor->data) - reinterpret_cast<uint8_t *>(_data)), device_handle);
+        tensor, _buffer_fd, (uint64_t) (reinterpret_cast<uint8_t *>(tensor->data) - reinterpret_cast<uint8_t *>(_data)),
+        device_handle);
     if (!tensor_object->is_valid()) {
         LOG_ERROR("failed to init tensor, device handle: %p\n", (void *) device_handle);
         return std::shared_ptr<npu_tensor>();

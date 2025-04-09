@@ -27,15 +27,6 @@ set(common_incs
 include_directories(${common_incs})
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
-    include_directories(
-        ${QNN_SDK_ROOT}/include/QNN/
-        ${CMAKE_CURRENT_LIST_DIR}/host/
-        ${CMAKE_CURRENT_LIST_DIR}/
-        ${CMAKE_CURRENT_LIST_DIR}/../
-        ${CMAKE_CURRENT_LIST_DIR}/../../
-        ${CMAKE_CURRENT_LIST_DIR}/../../../include/ # TODO: figure out how to remove this
-    )
-
     # Hexagon npu backend
     file(GLOB common_srcs "${CMAKE_CURRENT_LIST_DIR}/common/*.cpp")
     file(GLOB host_srcs "${CMAKE_CURRENT_LIST_DIR}/host/*.cpp")
@@ -59,6 +50,20 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
     target_compile_definitions(hexagon_npu_host PUBLIC
         VERIFY_PRINT_ERROR
         GGML_QNN_ENABLE_HEXAGON_PACKAGE
+    )
+
+    target_include_directories(hexagon_npu_host PRIVATE
+        ${HEXAGON_SDK_ROOT}/ipc/fastrpc/rpcmem/inc/
+        ${QNN_SDK_ROOT}/include/QNN/
+        ${CMAKE_CURRENT_LIST_DIR}/host/
+        ${CMAKE_CURRENT_LIST_DIR}/
+        ${CMAKE_CURRENT_LIST_DIR}/../
+        ${CMAKE_CURRENT_LIST_DIR}/../../
+        ${CMAKE_CURRENT_LIST_DIR}/../../../include/ # TODO: figure out how to remove this
+    )
+
+    target_include_directories(hexagon_npu_host PUBLIC
+        ${HEXAGON_SDK_ROOT}/incs/ # TODO: this is for rpc-mem
     )
 
     if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")

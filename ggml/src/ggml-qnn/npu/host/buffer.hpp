@@ -27,8 +27,9 @@ class npu_buffer {
 
   private:
     common::rpc_mem_ptr _allocator;
-    void *              _data = nullptr;
-    size_t              _size = 0;
+    void *              _data      = nullptr;
+    size_t              _size      = 0;
+    int                 _buffer_fd = -1;
 
     std::list<std::shared_ptr<npu_tensor>> _tensors;
 
