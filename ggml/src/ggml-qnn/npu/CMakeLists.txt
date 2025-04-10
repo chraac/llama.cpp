@@ -31,7 +31,7 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
     file(GLOB common_srcs "${CMAKE_CURRENT_LIST_DIR}/common/*.cpp")
     file(GLOB host_srcs "${CMAKE_CURRENT_LIST_DIR}/host/*.cpp")
     set(stub_srcs "${CMAKE_CURRENT_BINARY_DIR}/npu_device_stub.c")
-    add_library(hexagon_npu_host STATIC
+    add_library(hexagon-npu-host STATIC
         ${common_srcs}
         ${host_srcs}
         ${stub_srcs}
@@ -44,37 +44,34 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
         COMPILE_FLAGS "-w"
     )
 
-    build_idl(idl/hexagon_npu.idl hexagon_npu_host)
+    build_idl(idl/hexagon_npu.idl hexagon-npu-host)
 
     # Add compile definitions to the target
-    target_compile_definitions(hexagon_npu_host PUBLIC
+    target_compile_definitions(hexagon-npu-host PUBLIC
         VERIFY_PRINT_ERROR
         GGML_QNN_ENABLE_HEXAGON_PACKAGE
     )
 
-    target_include_directories(hexagon_npu_host PRIVATE
+    target_include_directories(hexagon-npu-host PRIVATE
         ${HEXAGON_SDK_ROOT}/ipc/fastrpc/rpcmem/inc/
         ${QNN_SDK_ROOT}/include/QNN/
         ${CMAKE_CURRENT_LIST_DIR}/host/
         ${CMAKE_CURRENT_LIST_DIR}/
-        ${CMAKE_CURRENT_LIST_DIR}/../
-        ${CMAKE_CURRENT_LIST_DIR}/../../
-        ${CMAKE_CURRENT_LIST_DIR}/../../../include/ # TODO: figure out how to remove this
     )
 
-    target_include_directories(hexagon_npu_host PUBLIC
+    target_include_directories(hexagon-npu-host PUBLIC
         ${HEXAGON_SDK_ROOT}/incs/ # TODO: this is for rpc-mem
     )
 
     if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-        set_target_properties(hexagon_npu_host PROPERTIES OUTPUT_NAME "hexagon_npu")
+        set_target_properties(hexagon-npu-host PROPERTIES OUTPUT_NAME "hexagon_npu")
     endif()
 
     if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux")
-        target_link_options(hexagon_npu_host PUBLIC -pie)
+        target_link_options(hexagon-npu-host PUBLIC -pie)
     endif()
 
-    link_options(hexagon_npu_host)
+    link_options(hexagon-npu-host)
 
     if(${CMAKE_SYSTEM_NAME} MATCHES "Android")
         set(PREBUILT_LIB_DIR "android_aarch64")
@@ -86,7 +83,7 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
     endif()
 
     choose_dsprpc("3" dsprpc) # cdsprpc
-    link_custom_library(hexagon_npu_host ${dsprpc})
+    link_custom_library(hexagon-npu-host ${dsprpc})
 else()
     cmake_minimum_required(VERSION 3.14.3)
     project(hexagon_npu C CXX ASM)

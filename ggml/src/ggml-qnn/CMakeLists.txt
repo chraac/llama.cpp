@@ -61,12 +61,15 @@ else()
     message("GGML_QNN_ENABLE_PERFORMANCE_TRACKING is disabled")
 endif()
 
+add_subdirectory(shared)
 if(GGML_QNN_ENABLE_HEXAGON_PACKAGE)
     message("GGML_QNN_ENABLE_HEXAGON_PACKAGE is enabled")
     add_subdirectory(npu)
-    target_link_libraries(ggml-qnn PRIVATE hexagon_npu_host)
+    target_link_libraries(hexagon-npu-host runtime-common)
+    target_link_libraries(ggml-qnn PRIVATE hexagon-npu-host)
 else()
     message("GGML_QNN_ENABLE_HEXAGON_PACKAGE is disabled")
+    target_link_libraries(ggml-qnn PRIVATE runtime-common)
 endif()
 
 # Copy QNN dynamic libraries
