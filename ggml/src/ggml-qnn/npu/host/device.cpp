@@ -9,8 +9,6 @@
 
 namespace {
 
-constexpr const int kDefaultDomainId = CDSP_DOMAIN_ID;
-
 struct device_library_info {
     hexagon::hexagon_dsp_arch arch;
     const char *              device_lib_uri;
