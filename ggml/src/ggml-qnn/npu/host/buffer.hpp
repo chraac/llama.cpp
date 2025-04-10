@@ -13,7 +13,7 @@ class npu_tensor;
 
 class npu_buffer {
   public:
-    explicit npu_buffer(common::rpc_mem_ptr allocator, size_t size);
+    explicit npu_buffer(common::rpc_mem_ptr allocator, size_t size, uint32_t domain_id);
 
     ~npu_buffer();
 
@@ -26,6 +26,7 @@ class npu_buffer {
     std::shared_ptr<npu_tensor> init_tensor(ggml_tensor * tensor, remote_handle64 device_handle);
 
   private:
+    uint32_t            _domain_id = 0;
     common::rpc_mem_ptr _allocator;
     void *              _data      = nullptr;
     size_t              _size      = 0;

@@ -13,7 +13,7 @@ namespace hexagon {
 
 class npu_device {
   public:
-    explicit npu_device(backend_index_type device) { GGML_UNUSED(device); }
+    explicit npu_device(backend_index_type device);
 
     ~npu_device();
 
@@ -22,6 +22,8 @@ class npu_device {
     const char * get_description() const { return "Hexagon NPU"; }
 
     size_t get_alignment() const;
+
+    uint32_t get_dsp_domain_id() const { return _dsp_domain_id; }
 
     bool is_device_valid() const;
     bool init_device(ggml_backend_dev_t dev, const char * params);
@@ -36,9 +38,11 @@ class npu_device {
 
   private:
     std::string                      _name = "hexagon-npu";
-    std::shared_ptr<common::rpc_mem> _rpc_mem;
+    common::rpc_interface_ptr        _rpc_interface;
+    common::rpc_mem_ptr              _rpc_mem;
     remote_handle64                  _device_handle = 0;
     std::unique_ptr<npu_buffer_type> _default_buffer_type;
+    uint32_t                         _dsp_domain_id = 0;
 
     DISABLE_COPY(npu_device);
     DISABLE_MOVE(npu_device);

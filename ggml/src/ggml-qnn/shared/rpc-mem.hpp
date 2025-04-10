@@ -19,6 +19,18 @@ class rpc_mem {
             return;
         }
 
+        interface->rpcmem_init();
+        _rpc_interface = interface;
+        LOG_DEBUG("load rpcmem lib successfully\n");
+    }
+
+    explicit rpc_mem(rpc_interface_ptr interface) {
+        if (!interface->is_valid()) {
+            LOG_ERROR("failed to load rpcmem lib\n");
+            return;
+        }
+
+        interface->rpcmem_init();
         _rpc_interface = interface;
         LOG_DEBUG("load rpcmem lib successfully\n");
     }
@@ -29,7 +41,11 @@ class rpc_mem {
             return;
         }
 
-        _rpc_interface.reset();
+        if (_rpc_interface) {
+            _rpc_interface->rpcmem_deinit();
+            _rpc_interface.reset();
+        }
+
         LOG_DEBUG("unload rpcmem lib successfully\n");
     }
 

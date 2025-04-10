@@ -7,7 +7,6 @@
 
 namespace {
 
-constexpr const int      kDefaultDomainId     = CDSP_DOMAIN_ID;
 constexpr const int      kRpcMemDefaultHeapId = RPCMEM_HEAP_ID_SYSTEM;
 constexpr const uint32_t kRpcMemDefaultFlags  = RPCMEM_DEFAULT_FLAGS;  // TODO: should we use a different flag?
 
@@ -102,7 +101,10 @@ bool backend_buffer_is_host(ggml_backend_buffer_type_t buft) {
 
 namespace hexagon {
 
-npu_buffer::npu_buffer(common::rpc_mem_ptr allocator, size_t size) : _allocator(allocator), _size(size) {
+npu_buffer::npu_buffer(common::rpc_mem_ptr allocator, size_t size, uint32_t domain_id) :
+    _allocator(allocator),
+    _size(size),
+    _domain_id(domain_id) {
     if (!_allocator->is_valid()) {
         LOG_ERROR("rpc memory not initialized\n");
         return;
@@ -122,7 +124,7 @@ npu_buffer::npu_buffer(common::rpc_mem_ptr allocator, size_t size) : _allocator(
 
 npu_buffer::~npu_buffer() {
     if (_buffer_fd != -1) {
-        auto ret = _allocator->fastrpc_munmap(kDefaultDomainId, _buffer_fd, nullptr, 0);
+        auto ret = _allocator->fastrpc_munmap((int) _domain_id, _buffer_fd, nullptr, 0);
         if (ret != AEE_SUCCESS) {
             LOG_ERROR("failed to munmap rpc memory, fd: %d, ret: %d\n", _buffer_fd, ret);
             return;
@@ -144,8 +146,7 @@ std::shared_ptr<npu_tensor> npu_buffer::init_tensor(ggml_tensor * tensor, remote
             return std::shared_ptr<npu_tensor>();
         }
 
-        // TODO: use another domain id?
-        auto ret = _allocator->fastrpc_mmap(kDefaultDomainId, _buffer_fd, _data, 0, _size, FASTRPC_MAP_FD);
+        auto ret = _allocator->fastrpc_mmap((int) _domain_id, _buffer_fd, _data, 0, _size, FASTRPC_MAP_FD);
         if (ret != AEE_SUCCESS) {
             LOG_ERROR("failed to mmap rpc memory, fd: %d, ret: %d\n", _buffer_fd, ret);
             return std::shared_ptr<npu_tensor>();
@@ -199,7 +200,7 @@ ggml_backend_buffer_t npu_buffer_type::allocate_buffer(size_t size) {
         return nullptr;
     }
 
-    auto * buffer = new npu_buffer(_rpc_mem, size);
+    auto * buffer = new npu_buffer(_rpc_mem, size, _device->get_dsp_domain_id());
     if (!buffer->is_valid()) {
         delete buffer;
         LOG_ERROR("Failed to allocate buffer of size %zu\n", size);

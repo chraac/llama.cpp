@@ -1,9 +1,40 @@
 #include "device.hpp"
 
+#include <remote.h>
+
 #include "graph.hpp"
 #include "util.hpp"
 
+#define SKEL_URI_DEFINE(arch) ("file:///libhexagon_npu_skel_" arch ".so?npu_device_skel_handle_invoke&_modver=1.0")
+
 namespace {
+
+constexpr const int kDefaultDomainId = CDSP_DOMAIN_ID;
+
+struct device_library_info {
+    hexagon::hexagon_dsp_arch arch;
+    const char *              device_lib_uri;
+};
+
+constexpr const device_library_info kDeviceLibraryInfo[] = {
+    { hexagon::NONE, SKEL_URI_DEFINE("")    },
+    { hexagon::V68,  SKEL_URI_DEFINE("v68") },
+    { hexagon::V69,  SKEL_URI_DEFINE("v69") },
+    { hexagon::V73,  SKEL_URI_DEFINE("v73") },
+    { hexagon::V75,  SKEL_URI_DEFINE("v75") },
+    { hexagon::V79,  SKEL_URI_DEFINE("v79") },
+};
+
+const device_library_info & get_device_library_info(hexagon::hexagon_dsp_arch arch) {
+    for (const auto & info : kDeviceLibraryInfo) {
+        if (info.arch == arch) {
+            return info;
+        }
+    }
+
+    LOG_ERROR("Unknown DSP arch: %d, using hexagon::NONE\n", arch);
+    return kDeviceLibraryInfo[0];
+}
 
 constexpr const ggml_guid kBackendNpuGuid = { 0x7a, 0xd7, 0x59, 0x7d, 0x8f, 0x66, 0x4f, 0x35,
                                               0x84, 0x8e, 0xf5, 0x9a, 0x9b, 0x83, 0x7d, 0x0a };
@@ -35,6 +66,11 @@ ggml_status backend_graph_compute(ggml_backend_t backend, ggml_cgraph * cgraph) 
 
 namespace hexagon {
 
+// TODO: should we use another domain?
+npu_device::npu_device(backend_index_type device) : _dsp_domain_id(CDSP_DOMAIN_ID) {
+    GGML_UNUSED(device);
+}
+
 npu_device::~npu_device() {
     if (_device_handle) {
         npu_device_close(_device_handle);
@@ -63,20 +99,25 @@ bool npu_device::is_device_valid() const {
 
 bool npu_device::init_device(ggml_backend_dev_t dev, const char * params) {
     if (!_rpc_mem) {
-        auto rpc_mem = std::make_shared<common::rpc_mem>();
-        if (!rpc_mem->is_valid()) {
-            LOG_ERROR("[%s]Failed to create rpc memory\n", get_name());
+        auto rpc_interface = std::make_shared<common::rpc_interface>();
+        if (!rpc_interface->is_valid()) {
+            LOG_ERROR("[%s]Failed to load rpc memory library\n", get_name());
             return false;
         }
 
-        _rpc_mem = std::move(rpc_mem);
+        auto rpc_mem   = std::make_shared<common::rpc_mem>(rpc_interface);
+        _rpc_interface = rpc_interface;
+        _rpc_mem       = rpc_mem;
     } else {
         LOG_DEBUG("[%s]NPU device is already initialized\n", get_name());
     }
 
     if (!_device_handle) {
-        // TODO: fix uri here for each npu
-        auto ret = npu_device_open(npu_device_URI, &_device_handle);
+        auto arch = get_dsp_arch(_rpc_interface, _dsp_domain_id);
+        LOG_DEBUG("[%s]NPU device arch: %d\n", get_name(), arch);
+
+        const auto & device_lib_info = get_device_library_info(arch);
+        auto         ret             = npu_device_open(device_lib_info.device_lib_uri, &_device_handle);
         if (ret != 0) {
             LOG_ERROR("[%s]ERROR 0x%x: Unable to open NPU device on domain %s\n", get_name(), ret, npu_device_URI);
             _device_handle = 0;
