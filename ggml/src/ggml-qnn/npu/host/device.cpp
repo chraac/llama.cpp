@@ -125,7 +125,7 @@ bool npu_device::init_device(ggml_backend_dev_t dev, const char * params) {
         LOG_DEBUG("[%s]NPU device is already opened\n", get_name());
     }
 
-    _default_buffer_type = std::make_unique<hexagon::npu_buffer_type>(dev, _name + "_buffer_type", _rpc_mem);
+    _default_buffer_type = std::make_unique<hexagon::host_buffer_type>(dev, _name + "_buffer_type", _rpc_mem);
     return true;
 }
 
@@ -165,10 +165,10 @@ npu_backend::npu_backend(npu_device * device) : ggml_backend{}, _device(device) 
 }
 
 ggml_status npu_backend::graph_compute(ggml_cgraph * cgraph) {
-    std::shared_ptr<npu_graph> graph;
+    std::shared_ptr<host_graph> graph;
     if (_graph_cache.count(cgraph) == 0) {
         LOG_DEBUG("[%s]Graph not found in cache, creating new graph\n", get_name());
-        graph = std::make_shared<npu_graph>(cgraph, _device->get_device_handle());
+        graph = std::make_shared<host_graph>(cgraph, _device->get_device_handle());
         if (!graph->is_valid()) {
             LOG_ERROR("Failed to create graph\n");
             return GGML_STATUS_FAILED;

@@ -8,11 +8,11 @@
 
 namespace hexagon {
 
-class npu_graph {
+class host_graph {
   public:
-    npu_graph(ggml_cgraph * cgraph, remote_handle64 device_handle);
+    host_graph(ggml_cgraph * cgraph, remote_handle64 device_handle);
 
-    ~npu_graph();
+    ~host_graph();
 
     bool is_valid() const { return _graph_handle != 0; }
 
@@ -23,8 +23,8 @@ class npu_graph {
     npu_device_graph_handle_t               _graph_handle  = 0;
     std::vector<npu_device_tensor_handle_t> _tensor_handles;
 
-    DISABLE_COPY(npu_graph);
-    DISABLE_MOVE(npu_graph);
+    DISABLE_COPY(host_graph);
+    DISABLE_MOVE(host_graph);
 };
 
 }  // namespace hexagon

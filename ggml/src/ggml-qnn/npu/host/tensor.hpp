@@ -8,16 +8,16 @@
 namespace hexagon {
 
 // TODO: merge this with device tensor?
-class npu_tensor {
+class host_tensor {
   public:
-    static npu_tensor * from_ggml_tensor(ggml_tensor * tensor) {
+    static host_tensor * from_ggml_tensor(ggml_tensor * tensor) {
         if (!tensor || !tensor->extra) {
             return nullptr;
         }
-        return static_cast<npu_tensor *>(tensor->extra);
+        return static_cast<host_tensor *>(tensor->extra);
     }
 
-    explicit npu_tensor(ggml_tensor * tensor, int buffer_fd, uint64_t offset, remote_handle64 device_handle) :
+    explicit host_tensor(ggml_tensor * tensor, int buffer_fd, uint64_t offset, remote_handle64 device_handle) :
         _device_handle(device_handle) {
         _info.buffer_fd = buffer_fd;
         _info.offset    = offset;
@@ -36,7 +36,7 @@ class npu_tensor {
         }
     }
 
-    ~npu_tensor() {
+    ~host_tensor() {
         if (_device_tensor_handle) {
             npu_device_tensor_free(_device_handle, _device_tensor_handle);
         }
@@ -44,7 +44,7 @@ class npu_tensor {
 
     npu_device_tensor_handle_t get_device_tensor_handle() const { return _device_tensor_handle; }
 
-    void set_src(size_t index, npu_tensor * src) {
+    void set_src(size_t index, host_tensor * src) {
         if (index >= npu_device_MAX_TENSOR_SRC) {
             return;
         }
@@ -64,8 +64,8 @@ class npu_tensor {
     npu_device_tensor_handle_t _device_tensor_handle = 0;
     npu_device_tensor_info_t   _info                 = {};
 
-    DISABLE_COPY(npu_tensor);
-    DISABLE_MOVE(npu_tensor);
+    DISABLE_COPY(host_tensor);
+    DISABLE_MOVE(host_tensor);
 };
 
 }  // namespace hexagon

@@ -10,12 +10,12 @@ namespace {
 constexpr const int      kRpcMemDefaultHeapId = RPCMEM_HEAP_ID_SYSTEM;
 constexpr const uint32_t kRpcMemDefaultFlags  = RPCMEM_DEFAULT_FLAGS;  // TODO: should we use a different flag?
 
-static hexagon::npu_buffer * get_buffer_object(ggml_backend_buffer_t buffer) {
-    return reinterpret_cast<hexagon::npu_buffer *>(buffer->context);
+static hexagon::host_buffer * get_buffer_object(ggml_backend_buffer_t buffer) {
+    return reinterpret_cast<hexagon::host_buffer *>(buffer->context);
 }
 
-static hexagon::npu_buffer_type * get_buffer_type_object(ggml_backend_buffer_type_t buft) {
-    return reinterpret_cast<hexagon::npu_buffer_type *>(buft->context);
+static hexagon::host_buffer_type * get_buffer_type_object(ggml_backend_buffer_type_t buft) {
+    return reinterpret_cast<hexagon::host_buffer_type *>(buft->context);
 }
 
 void backend_buffer_free_buffer(ggml_backend_buffer_t buffer) {
@@ -101,7 +101,7 @@ bool backend_buffer_is_host(ggml_backend_buffer_type_t buft) {
 
 namespace hexagon {
 
-npu_buffer::npu_buffer(common::rpc_mem_ptr allocator, size_t size, uint32_t domain_id) :
+host_buffer::host_buffer(common::rpc_mem_ptr allocator, size_t size, uint32_t domain_id) :
     _allocator(allocator),
     _size(size),
     _domain_id(domain_id) {
@@ -122,7 +122,7 @@ npu_buffer::npu_buffer(common::rpc_mem_ptr allocator, size_t size, uint32_t doma
     }
 }
 
-npu_buffer::~npu_buffer() {
+host_buffer::~host_buffer() {
     if (_buffer_fd != -1) {
         auto ret = _allocator->fastrpc_munmap((int) _domain_id, _buffer_fd, nullptr, 0);
         if (ret != AEE_SUCCESS) {
@@ -133,38 +133,38 @@ npu_buffer::~npu_buffer() {
     _allocator->free(_data);
 }
 
-std::shared_ptr<npu_tensor> npu_buffer::init_tensor(ggml_tensor * tensor, remote_handle64 device_handle) {
+std::shared_ptr<host_tensor> host_buffer::init_tensor(ggml_tensor * tensor, remote_handle64 device_handle) {
     if (!_data) {
         LOG_ERROR("failed to init tensor, rpc memory not initialized\n");
-        return std::shared_ptr<npu_tensor>();
+        return std::shared_ptr<host_tensor>();
     }
 
     if (_buffer_fd == -1) {
         _buffer_fd = _allocator->to_fd(_data);
         if (_buffer_fd < 0) {
             LOG_ERROR("failed to get fd from rpc memory\n");
-            return std::shared_ptr<npu_tensor>();
+            return std::shared_ptr<host_tensor>();
         }
 
         auto ret = _allocator->fastrpc_mmap((int) _domain_id, _buffer_fd, _data, 0, _size, FASTRPC_MAP_FD);
         if (ret != AEE_SUCCESS) {
             LOG_ERROR("failed to mmap rpc memory, fd: %d, ret: %d\n", _buffer_fd, ret);
-            return std::shared_ptr<npu_tensor>();
+            return std::shared_ptr<host_tensor>();
         }
     }
 
-    auto tensor_object = std::make_shared<npu_tensor>(
+    auto tensor_object = std::make_shared<host_tensor>(
         tensor, _buffer_fd, (uint64_t) (reinterpret_cast<uint8_t *>(tensor->data) - reinterpret_cast<uint8_t *>(_data)),
         device_handle);
     if (!tensor_object->is_valid()) {
         LOG_ERROR("failed to init tensor, device handle: %p\n", (void *) device_handle);
-        return std::shared_ptr<npu_tensor>();
+        return std::shared_ptr<host_tensor>();
     }
     _tensors.push_back(std::move(tensor_object));
     return std::move(_tensors.back());
 }
 
-npu_buffer_type::npu_buffer_type(ggml_backend_dev_t dev, const std::string & name, common::rpc_mem_ptr rpc_mem) :
+host_buffer_type::host_buffer_type(ggml_backend_dev_t dev, const std::string & name, common::rpc_mem_ptr rpc_mem) :
     _name(name),
     _rpc_mem(rpc_mem) {
     iface = {
@@ -181,11 +181,11 @@ npu_buffer_type::npu_buffer_type(ggml_backend_dev_t dev, const std::string & nam
     _device = reinterpret_cast<npu_device *>(device->context);
 }
 
-size_t npu_buffer_type::get_buffer_alignment() const {
+size_t host_buffer_type::get_buffer_alignment() const {
     return _device->get_alignment();
 }
 
-size_t npu_buffer_type::get_max_buffer_size() const {
+size_t host_buffer_type::get_max_buffer_size() const {
     if (!_rpc_mem) {
         LOG_ERROR("rpc memory not initialized\n");
         return 0;
@@ -194,13 +194,13 @@ size_t npu_buffer_type::get_max_buffer_size() const {
     return _rpc_mem->get_max_alloc_size();
 }
 
-ggml_backend_buffer_t npu_buffer_type::allocate_buffer(size_t size) {
+ggml_backend_buffer_t host_buffer_type::allocate_buffer(size_t size) {
     if (!_rpc_mem) {
         LOG_ERROR("rpc memory not initialized\n");
         return nullptr;
     }
 
-    auto * buffer = new npu_buffer(_rpc_mem, size, _device->get_dsp_domain_id());
+    auto * buffer = new host_buffer(_rpc_mem, size, _device->get_dsp_domain_id());
     if (!buffer->is_valid()) {
         delete buffer;
         LOG_ERROR("Failed to allocate buffer of size %zu\n", size);
