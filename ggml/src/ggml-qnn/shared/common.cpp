@@ -18,9 +18,9 @@ struct ggml_backend_qnn_reg_impl : ggml_backend_reg {
         iface   = interface;
 
         LOG_INFO("backend registry init\n");
-        for (size_t i = 0; i < QNN_BACKEND_COUNT; i++) {
+        for (size_t i = 0; i < TOTAL_BACKEND_COUNT; i++) {
             const auto device_enum =
-                (backend_index_type) (QNN_BACKEND_COUNT - 1 - i);  // init from the last device, i.e. NPU
+                (backend_index_type) (TOTAL_BACKEND_COUNT - 1 - i);  // init from the last device, i.e. NPU
 
             backend_device_proxy_ptr device_proxy;
             if (device_enum < QNN_BACKEND_COUNT) {

@@ -27,19 +27,21 @@ hexagon_dsp_arch get_dsp_arch(common::rpc_interface_ptr rpc_interface, uint32_t 
         return NONE;
     }
 
-    switch (dsp_caps.capability) {
-        case V68:
+    LOG_DEBUG("get DSP arch: 0x%x\n", (int) dsp_caps.capability);
+    auto arch = dsp_caps.capability & 0xFF;
+    switch (arch) {
+        case 0x68:
             return V68;
-        case V69:
+        case 0x69:
             return V69;
-        case V73:
+        case 0x73:
             return V73;
-        case V75:
+        case 0x75:
             return V75;
-        case V79:
+        case 0x79:
             return V79;
         default:
-            LOG_ERROR("unknown DSP arch: %d\n", dsp_caps.capability);
+            LOG_ERROR("unknown DSP arch: %x\n", arch);
             return NONE;
     }
 }

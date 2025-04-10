@@ -67,6 +67,7 @@ namespace hexagon {
 // TODO: should we use another domain?
 npu_device::npu_device(backend_index_type device) : _dsp_domain_id(CDSP_DOMAIN_ID) {
     GGML_UNUSED(device);
+    LOG_DEBUG("[%s]NPU device created\n", _name.c_str());
 }
 
 npu_device::~npu_device() {
@@ -111,11 +112,10 @@ bool npu_device::init_device(ggml_backend_dev_t dev, const char * params) {
     }
 
     if (!_device_handle) {
-        auto arch = get_dsp_arch(_rpc_interface, _dsp_domain_id);
-        LOG_DEBUG("[%s]NPU device arch: %d\n", get_name(), arch);
-
+        auto         arch            = get_dsp_arch(_rpc_interface, _dsp_domain_id);
         const auto & device_lib_info = get_device_library_info(arch);
-        auto         ret             = npu_device_open(device_lib_info.device_lib_uri, &_device_handle);
+        LOG_DEBUG("[%s]NPU device arch: %d, uri: %s\n", get_name(), arch, device_lib_info.device_lib_uri);
+        auto ret = npu_device_open(device_lib_info.device_lib_uri, &_device_handle);
         if (ret != 0) {
             LOG_ERROR("[%s]ERROR 0x%x: Unable to open NPU device on domain %s\n", get_name(), ret, npu_device_URI);
             _device_handle = 0;
