@@ -1,5 +1,6 @@
 #include "device.hpp"
 
+#include <domain_default.h>
 #include <remote.h>
 
 #include "graph.hpp"
@@ -32,6 +33,14 @@ const device_library_info & get_device_library_info(hexagon::hexagon_dsp_arch ar
 
     LOG_ERROR("Unknown DSP arch: %d, using hexagon::NONE\n", arch);
     return kDeviceLibraryInfo[0];
+}
+
+const char * get_domain_param(uint32_t domain_id) {
+    for (const auto & domain : supported_domains) {
+        if ((uint32_t) domain.id == domain_id) {
+            return domain.uri;
+        }
+    }
 }
 
 constexpr const ggml_guid kBackendNpuGuid = { 0x7a, 0xd7, 0x59, 0x7d, 0x8f, 0x66, 0x4f, 0x35,
@@ -114,12 +123,24 @@ bool npu_device::init_device(ggml_backend_dev_t dev, const char * params) {
     if (!_device_handle) {
         auto         arch            = get_dsp_arch(_rpc_interface, _dsp_domain_id);
         const auto & device_lib_info = get_device_library_info(arch);
-        LOG_DEBUG("[%s]NPU device arch: %d, uri: %s\n", get_name(), arch, device_lib_info.device_lib_uri);
-        auto ret = npu_device_open(device_lib_info.device_lib_uri, &_device_handle);
-        if (ret != 0) {
-            LOG_ERROR("[%s]ERROR 0x%x: Unable to open NPU device on domain %s\n", get_name(), ret, npu_device_URI);
-            _device_handle = 0;
-            return false;
+        std::string  device_lib_uri  = device_lib_info.device_lib_uri;
+        device_lib_uri += get_domain_param(_dsp_domain_id);
+        LOG_DEBUG("[%s]NPU device arch: %d, uri: %s\n", get_name(), arch, device_lib_uri.c_str());
+        auto err = npu_device_open(device_lib_uri.c_str(), &_device_handle);
+        if (err != AEE_SUCCESS) {
+            if (err == AEE_ECONNREFUSED) {
+                LOG_DEBUG("[%s]NPU device is not available, trying to enable unsigned DSP module and reopen\n",
+                          get_name());
+                enable_unsigned_dsp_module(_rpc_interface, _dsp_domain_id);
+                err = npu_device_open(device_lib_uri.c_str(), &_device_handle);
+            }
+
+            if (err != AEE_SUCCESS) {
+                LOG_ERROR("[%s]ERROR 0x%x: Unable to open NPU device on domain %s\n", get_name(), err,
+                          device_lib_uri.c_str());
+                _device_handle = 0;
+                return false;
+            }
         }
     } else {
         LOG_DEBUG("[%s]NPU device is already opened\n", get_name());

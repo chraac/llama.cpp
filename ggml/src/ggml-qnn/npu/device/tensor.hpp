@@ -41,9 +41,7 @@ class tensor {
         return true;
     }
 
-    void set_op(npu_device_tensor_op_e op) {
-        _info.op = op;
-    }
+    void set_op(npu_device_tensor_op op) { _info.op = op; }
 
     tensor * get_src(size_t index) const {
         if (index >= kMaxTensorSrc) {
@@ -57,7 +55,7 @@ class tensor {
 
     const int64_t get_ne(size_t index) const { return _info.ne[index]; }
 
-    npu_device_tensor_op_e get_op() const { return _info.op; }
+    npu_device_tensor_op get_op() const { return _info.op; }
 
     uint8_t * get_data() const { return _data + _info.offset; }
 

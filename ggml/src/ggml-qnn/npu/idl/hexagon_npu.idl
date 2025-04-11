@@ -6,18 +6,23 @@ interface npu_device : remote_handle64{
 
     const uint32_t MAX_TENSOR_SRC = 2;
 
-    enum tensor_op_e {
+    enum tensor_op {
         NPU_OP_MUL_MAT,
         NPU_OP_COUNT
     };
 
+    enum tensor_data_type {
+        NPU_DATA_TYPE_F32,
+        NPU_DATA_TYPE_COUNT
+    };
+
     struct tensor_info_t {
         int64_t ne[4];
-        uint64_t nb[4]; // TODO: handle stride here
+        uint64_t nb[4]; // TODO: handle dimension strides
         long buffer_fd;
         uint64_t offset;
         uint32_t type;
-        tensor_op_e op;
+        tensor_op op;
     };
 
     typedef uint64_t tensor_handle_t;
@@ -40,7 +45,7 @@ interface npu_device : remote_handle64{
 
     AEEResult tensor_set_op(
         in tensor_handle_t tensor_handle,
-        in tensor_op_e op
+        in tensor_op op
     );
 
     AEEResult tensor_free(

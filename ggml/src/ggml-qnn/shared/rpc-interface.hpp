@@ -86,6 +86,7 @@ class rpc_interface {
                                            enum fastrpc_map_flags flags);
     using rpc_mem_fastrpc_munmap_t = int (*)(int domain, int fd, void * addr, size_t length);
     using remote_handle_control_t  = int (*)(uint32_t req, void * data, uint32_t datalen);
+    using remote_session_control_t = int (*)(uint32_t req, void * data, uint32_t datalen);
 
   public:
     rpc_interface(const std::string & rpc_lib_path = kQnnRpcLibName) {
@@ -105,6 +106,8 @@ class rpc_interface {
         _rpc_mem_fastrpc_munmap = reinterpret_cast<rpc_mem_fastrpc_munmap_t>(dl_sym(_rpc_lib_handle, "fastrpc_munmap"));
         _remote_handle_control =
             reinterpret_cast<remote_handle_control_t>(dl_sym(_rpc_lib_handle, "remote_handle_control"));
+        _remote_session_control =
+            reinterpret_cast<remote_session_control_t>(dl_sym(_rpc_lib_handle, "remote_session_control"));
     }
 
     bool is_valid() const { return _rpc_lib_handle != nullptr; }
@@ -178,6 +181,14 @@ class rpc_interface {
         return _remote_handle_control(req, data, datalen);
     }
 
+    int remote_session_control(uint32_t req, void * data, uint32_t datalen) {
+        if (!is_valid()) {
+            return -1;
+        }
+
+        return _remote_session_control(req, data, datalen);
+    }
+
     ~rpc_interface() {
         if (_rpc_lib_handle) {
             if (_rpc_mem_deinit) {
@@ -199,6 +210,7 @@ class rpc_interface {
     rpc_mem_fastrpc_mmap_t   _rpc_mem_fastrpc_mmap   = nullptr;
     rpc_mem_fastrpc_munmap_t _rpc_mem_fastrpc_munmap = nullptr;
     remote_handle_control_t  _remote_handle_control  = nullptr;
+    remote_session_control_t _remote_session_control = nullptr;
 
     rpc_interface(const rpc_interface &)             = delete;
     rpc_interface & operator=(const rpc_interface &) = delete;

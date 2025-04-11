@@ -4,7 +4,7 @@
 
 namespace hexagon {
 
-enum npu_device_tensor_op_e op_to_npu_op(ggml_op op);
+enum npu_device_tensor_op op_to_npu_op(ggml_op op);
 
 // TODO: merge with qcom_htp_arch
 enum hexagon_dsp_arch {
@@ -17,5 +17,7 @@ enum hexagon_dsp_arch {
 };
 
 hexagon_dsp_arch get_dsp_arch(common::rpc_interface_ptr rpc_interface, uint32_t domain_id);
+
+void enable_unsigned_dsp_module(common::rpc_interface_ptr rpc_interface, uint32_t domain_id);
 
 }  // namespace hexagon

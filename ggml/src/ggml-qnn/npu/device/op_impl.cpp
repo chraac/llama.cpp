@@ -127,7 +127,7 @@ static_assert((sizeof(kOpArray) / sizeof(kOpArray[0])) == NPU_OP_COUNT);
 
 namespace hexagon {
 
-compute_func_t get_compute_func(npu_device_tensor_op_e op) {
+compute_func_t get_compute_func(npu_device_tensor_op op) {
     return kOpArray[op];
 }
 

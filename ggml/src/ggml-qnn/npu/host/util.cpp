@@ -4,7 +4,7 @@
 
 namespace hexagon {
 
-enum npu_device_tensor_op_e op_to_npu_op(ggml_op op) {
+enum npu_device_tensor_op op_to_npu_op(ggml_op op) {
     switch (op) {
         case GGML_OP_MUL_MAT:
             return NPU_OP_MUL_MAT;
@@ -23,7 +23,7 @@ hexagon_dsp_arch get_dsp_arch(common::rpc_interface_ptr rpc_interface, uint32_t 
     dsp_caps.attribute_ID          = ARCH_VER;
     auto ret = rpc_interface->remote_handle_control(DSPRPC_GET_DSP_INFO, &dsp_caps, sizeof(dsp_caps));
     if (ret != AEE_SUCCESS) {
-        LOG_ERROR("failed to get DSP arch, ret: %d\n", ret);
+        LOG_ERROR("failed to get DSP arch: %d\n", ret);
         return NONE;
     }
 
@@ -43,6 +43,20 @@ hexagon_dsp_arch get_dsp_arch(common::rpc_interface_ptr rpc_interface, uint32_t 
         default:
             LOG_ERROR("unknown DSP arch: %x\n", arch);
             return NONE;
+    }
+}
+
+void enable_unsigned_dsp_module(common::rpc_interface_ptr rpc_interface, uint32_t domain_id) {
+    if (!rpc_interface || !rpc_interface->is_valid()) {
+        return;
+    }
+
+    remote_rpc_control_unsigned_module data = {};
+    data.domain                             = domain_id;
+    data.enable                             = 1;
+    auto ret = rpc_interface->remote_session_control(DSPRPC_CONTROL_UNSIGNED_MODULE, &data, sizeof(data));
+    if (ret != AEE_SUCCESS) {
+        LOG_ERROR("failed to enable unsigned DSP module: 0x%x\n", ret);
     }
 }
 

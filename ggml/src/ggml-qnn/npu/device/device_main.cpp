@@ -94,7 +94,7 @@ AEEResult npu_device_tensor_set_src(remote_handle64 _h, npu_device_tensor_handle
 }
 
 AEEResult npu_device_tensor_set_op(remote_handle64 _h, npu_device_tensor_handle_t tensor_handle,
-                                   npu_device_tensor_op_e op) {
+                                   npu_device_tensor_op op) {
     NPU_UNUSED(_h);
     auto * tensor = tensor_from_handle(tensor_handle);
     if (!tensor) {
