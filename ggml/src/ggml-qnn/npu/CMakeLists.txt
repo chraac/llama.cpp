@@ -98,8 +98,8 @@ else()
     include_directories(
         ${QNN_SDK_ROOT}/include/QNN/
     )
-
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+
     file(GLOB common_srcs "${CMAKE_CURRENT_LIST_DIR}/common/*.cpp")
     file(GLOB device_srcs "${CMAKE_CURRENT_LIST_DIR}/device/*.cpp")
     set(skel_srcs "${CMAKE_CURRENT_BINARY_DIR}/npu_device_skel.c")
@@ -120,6 +120,10 @@ else()
 
     build_idl(idl/hexagon_npu.idl hexagon_npu_skel_OBJS)
 
+    target_link_libraries(hexagon_npu_skel
+        ${HEXAGON_LIB_DIR}/${HEXAGON_ARCH}/G0/pic/libc++abi.a
+        ${HEXAGON_LIB_DIR}/${HEXAGON_ARCH}/G0/pic/libc++.a
+    )
     set_target_properties(hexagon_npu_skel PROPERTIES OUTPUT_NAME "hexagon_npu_skel_${HEXAGON_ARCH}")
 
     copy_binaries(hexagon_npu_skel)

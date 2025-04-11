@@ -1,6 +1,10 @@
 #include "device.hpp"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-prototypes"
 #include <domain_default.h>
+#pragma GCC diagnostic pop
+
 #include <remote.h>
 
 #include "graph.hpp"
@@ -41,6 +45,8 @@ const char * get_domain_param(uint32_t domain_id) {
             return domain.uri;
         }
     }
+
+    return "";
 }
 
 constexpr const ggml_guid kBackendNpuGuid = { 0x7a, 0xd7, 0x59, 0x7d, 0x8f, 0x66, 0x4f, 0x35,
@@ -142,6 +148,8 @@ bool npu_device::init_device(ggml_backend_dev_t dev, const char * params) {
                 return false;
             }
         }
+
+        LOG_DEBUG("[%s]NPU device opened successfully\n", get_name());
     } else {
         LOG_DEBUG("[%s]NPU device is already opened\n", get_name());
     }
