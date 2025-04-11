@@ -52,7 +52,7 @@ class host_graph;
 
 class npu_backend : public ggml_backend {
   public:
-    explicit npu_backend(npu_device * device);
+    explicit npu_backend(ggml_backend_dev_t dev);
 
     ~npu_backend() {}
 

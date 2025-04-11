@@ -120,6 +120,8 @@ host_buffer::host_buffer(common::rpc_mem_ptr allocator, size_t size, uint32_t do
         LOG_ERROR("failed to allocate rpc memory, size: %d MB\n", (int) (size / (1 << 20)));
         return;
     }
+
+    LOG_DEBUG("create host_buffer, size: %zu, domain_id: %d", size, (int) domain_id);
 }
 
 host_buffer::~host_buffer() {
@@ -179,6 +181,7 @@ host_buffer_type::host_buffer_type(ggml_backend_dev_t dev, const std::string & n
     context = this;
 
     _device = reinterpret_cast<npu_device *>(device->context);
+    LOG_DEBUG("[%s]create host_buffer_type %s\n", _device->get_name(), _name.c_str());
 }
 
 size_t host_buffer_type::get_buffer_alignment() const {
@@ -207,6 +210,7 @@ ggml_backend_buffer_t host_buffer_type::allocate_buffer(size_t size) {
         return nullptr;
     }
 
+    LOG_DEBUG("[%s]allocate buffer %p, size: %zu\n", _device->get_name(), buffer->get_buffer(), size);
     return ggml_backend_buffer_init(this, backend_buffer_interface, buffer, size);
 }
 

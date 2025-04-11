@@ -57,8 +57,7 @@ hexagon::npu_backend * get_backend_object(ggml_backend_t backend) {
 }
 
 const char * backend_get_name(ggml_backend_t backend) {
-    auto * obj = get_backend_object(backend);
-    return obj->get_name();
+    return get_backend_object(backend)->get_name();
 }
 
 void backend_free(ggml_backend_t backend) {
@@ -142,7 +141,7 @@ bool npu_device::init_device(ggml_backend_dev_t dev, const char * params) {
             }
 
             if (err != AEE_SUCCESS) {
-                LOG_ERROR("[%s]ERROR 0x%x: Unable to open NPU device on domain %s\n", get_name(), err,
+                LOG_ERROR("[%s]Unable to open NPU device, err: 0x%x, uri %s\n", get_name(), err,
                           device_lib_uri.c_str());
                 _device_handle = 0;
                 return false;
@@ -159,7 +158,7 @@ bool npu_device::init_device(ggml_backend_dev_t dev, const char * params) {
 }
 
 bool npu_device::supports_buft(ggml_backend_buffer_type_t buft) const {
-    return buft->device->context == this;
+    return buft && buft->device && buft->device->context == this;
 }
 
 bool npu_device::supports_op(const ggml_tensor * op) {
@@ -184,13 +183,15 @@ ggml_backend_buffer_type_t npu_device::get_default_buffer_type() {
     return _default_buffer_type.get();
 }
 
-npu_backend::npu_backend(npu_device * device) : ggml_backend{}, _device(device) {
+npu_backend::npu_backend(ggml_backend_dev_t dev) : ggml_backend{} {
     memccpy(&_guid, &kBackendNpuGuid, 0, sizeof(ggml_guid));
+    device                 = dev;
     guid                   = &_guid;
     iface.get_name         = backend_get_name;
     iface.free             = backend_free;
     iface.cpy_tensor_async = backend_cpy_tensor_async;
     iface.graph_compute    = backend_graph_compute;
+    _device                = reinterpret_cast<npu_device *>(dev->context);
 }
 
 ggml_status npu_backend::graph_compute(ggml_cgraph * cgraph) {

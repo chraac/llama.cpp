@@ -52,7 +52,7 @@ ggml_backend_t backend_dev_init_backend(ggml_backend_dev_t dev, const char * par
         return nullptr;
     }
 
-    return new hexagon::npu_backend(device);
+    return new hexagon::npu_backend(dev);
 }
 
 ggml_backend_buffer_type_t backend_dev_get_buffer_type(ggml_backend_dev_t dev) {

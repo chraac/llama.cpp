@@ -46,7 +46,7 @@ bool host_graph::compute() {
 
     auto status = npu_device_graph_compute(_device_handle, _graph_handle);
     if (status != AEE_SUCCESS) {
-        LOG_ERROR("Failed to compute graph: %d", (int) status);
+        LOG_ERROR("Failed to compute graph: 0x%x\n", (int) status);
         return false;
     }
 

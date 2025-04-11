@@ -74,6 +74,7 @@ class rpc_mem {
             return nullptr;
         }
 
+        LOG_DEBUG("rpc buffer allocated, heapid: %d, flags: 0x%x, size: %zu", heapid, flags, size);
         return buf;
     }
 
