@@ -1,15 +1,15 @@
 
+#include <AEEStdErr.h>
+#include <HAP_compute_res.h>
 #include <hexagon_types.h>
 
 #include <new>
 
-#include "AEEStdErr.h"
 #include "graph.hpp"
-#include "HAP_compute_res.h"
-#include "HAP_farf.h"
 #include "hexagon_npu.h"
 #include "remote.h"
 #include "tensor.hpp"
+#include "util.hpp"
 
 #define NPU_UNUSED(x) (void) (x)
 
@@ -42,7 +42,7 @@ int npu_device_open(const char * uri, remote_handle64 * h) {
     // TODO: should we have a device context here?
     auto * context = new (std::nothrow) npu_device_context();
     if (!context) {
-        FARF(ERROR, "Failed to allocate memory for the npu_device_context");
+        DEVICE_LOG_ERROR("Failed to allocate memory for the npu_device_context");
         return AEE_ENOMEMORY;
     }
 
@@ -53,7 +53,7 @@ int npu_device_open(const char * uri, remote_handle64 * h) {
 int npu_device_close(remote_handle64 h) {
     auto * context = reinterpret_cast<npu_device_context *>(h);
     if (!context) {
-        FARF(ERROR, "Invalid npu_device_context handle");
+        DEVICE_LOG_ERROR("Invalid npu_device_context handle");
         return AEE_EINVHANDLE;
     }
 
@@ -72,7 +72,7 @@ AEEResult npu_device_tensor_init(remote_handle64 _h, const npu_device_tensor_inf
     NPU_UNUSED(_h);
     auto * tensor = new (std::nothrow) hexagon::tensor(*info);
     if (!tensor) {
-        FARF(ERROR, "Failed to allocate memory for the tensor");
+        DEVICE_LOG_ERROR("Failed to allocate memory for the tensor");
         return AEE_ENOMEMORY;
     }
 

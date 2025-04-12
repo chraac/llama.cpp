@@ -10,11 +10,7 @@ class graph {
     // TODO: add execute direction here
     explicit graph() noexcept {}
 
-    ~graph() noexcept {
-        if (_tensors) {
-            delete[] _tensors;
-        }
-    }
+    ~graph() noexcept;
 
     void set_tensor(const npu_device_tensor_handle_t * tensors, int tensor_count);
 
@@ -24,10 +20,10 @@ class graph {
     tensor ** _tensors      = nullptr;
     size_t    _tensor_count = 0;
 
-    graph(const graph &)     = delete;
+    graph(const graph &)          = delete;
     void operator=(const graph &) = delete;
-    graph(graph &&)          = delete;
-    void operator=(graph &&) = delete;
+    graph(graph &&)               = delete;
+    void operator=(graph &&)      = delete;
 };
 
 }  // namespace hexagon

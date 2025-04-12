@@ -1,9 +1,9 @@
 #pragma once
 
-#include <HAP_farf.h>
 #include <HAP_mem.h>
 
 #include "hexagon_npu.h"
+#include "util.hpp"
 
 namespace hexagon {
 
@@ -16,20 +16,22 @@ class tensor {
         void * mmap_address = nullptr;
         auto   ret          = HAP_mmap_get(_info.buffer_fd, &mmap_address, &phy_address);
         if (ret != AEE_SUCCESS) {
-            FARF(FATAL, "Failed to mmap tensor buffer: %d", (int) ret);
+            DEVICE_LOG_ERROR("Failed to mmap tensor buffer: %d", (int) ret);
             return;
         }
 
         _data = static_cast<uint8_t *>(mmap_address);
-        FARF(HIGH, "mmap tensor buffer: %p, phy_address: %lx", mmap_address, (long) phy_address);
+        DEVICE_LOG_INFO("mmap tensor buffer: 0x%p, fd: %d, phy_address: 0x%lx", _data, _info.buffer_fd,
+                        (long) phy_address);
     }
 
     ~tensor() noexcept {
         auto ret = HAP_mmap_put(_info.buffer_fd);
         if (ret != AEE_SUCCESS) {
-            FARF(FATAL, "Failed to unmap tensor buffer: %d", (int) ret);
+            DEVICE_LOG_ERROR("Failed to unmap tensor buffer: %d", (int) ret);
         }
-        FARF(HIGH, "unmap tensor buffer: %p", _data);
+
+        DEVICE_LOG_INFO("unmap tensor buffer: 0x%p, fd: %d", _data, _info.buffer_fd);
     }
 
     bool set_src(size_t index, tensor * src) {

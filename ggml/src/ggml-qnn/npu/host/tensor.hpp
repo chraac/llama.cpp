@@ -33,12 +33,19 @@ class host_tensor {
         if (status != AEE_SUCCESS) {
             LOG_ERROR("Failed to init tensor: %d", (int) status);
             _device_tensor_handle = 0;
+            return;
         }
+
+        tensor->extra = this;
+        _ggml_tensor  = tensor;
+        LOG_DEBUG("create host_tensor: %p, device_tensor_handle: %p\n", (void *) this, (void *) _device_tensor_handle);
     }
 
     ~host_tensor() {
+        LOG_DEBUG("destroy host_tensor: %p, device_tensor_handle: %p\n", (void *) this, (void *) _device_tensor_handle);
         if (_device_tensor_handle) {
             npu_device_tensor_free(_device_handle, _device_tensor_handle);
+            _ggml_tensor->extra = nullptr;
         }
     }
 
@@ -63,6 +70,7 @@ class host_tensor {
     remote_handle64            _device_handle        = 0;
     npu_device_tensor_handle_t _device_tensor_handle = 0;
     npu_device_tensor_info_t   _info                 = {};
+    ggml_tensor *              _ggml_tensor          = nullptr;
 
     DISABLE_COPY(host_tensor);
     DISABLE_MOVE(host_tensor);

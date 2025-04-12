@@ -27,7 +27,7 @@ set(common_incs
 include_directories(${common_incs})
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
-    # Hexagon npu backend
+    # host build
     file(GLOB common_srcs "${CMAKE_CURRENT_LIST_DIR}/common/*.cpp")
     file(GLOB host_srcs "${CMAKE_CURRENT_LIST_DIR}/host/*.cpp")
     set(stub_srcs "${CMAKE_CURRENT_BINARY_DIR}/npu_device_stub.c")
@@ -85,6 +85,7 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
     choose_dsprpc("3" dsprpc) # cdsprpc
     link_custom_library(hexagon-npu-host ${dsprpc})
 else()
+    # hexagon npu build
     cmake_minimum_required(VERSION 3.14.3)
     project(hexagon_npu C CXX ASM)
 
@@ -100,6 +101,14 @@ else()
     )
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
 
+    if(CMAKE_BUILD_TYPE MATCHES "Debug|Dbg")
+        message("Debug build, enable all logging")
+        add_compile_definitions(_DEBUG)
+    else()
+        message("Release build, disable debug logging")
+        add_compile_definitions(NDEBUG)
+    endif()
+
     file(GLOB common_srcs "${CMAKE_CURRENT_LIST_DIR}/common/*.cpp")
     file(GLOB device_srcs "${CMAKE_CURRENT_LIST_DIR}/device/*.cpp")
     set(skel_srcs "${CMAKE_CURRENT_BINARY_DIR}/npu_device_skel.c")
@@ -109,6 +118,8 @@ else()
         ${skel_srcs}
     )
 
+    build_idl(idl/hexagon_npu.idl hexagon_npu_skel_OBJS)
+
     # disable warnings for the skel
     set_source_files_properties(
         ${skel_srcs}
@@ -117,8 +128,6 @@ else()
     )
 
     add_library(hexagon_npu_skel SHARED $<TARGET_OBJECTS:hexagon_npu_skel_OBJS>)
-
-    build_idl(idl/hexagon_npu.idl hexagon_npu_skel_OBJS)
 
     target_link_libraries(hexagon_npu_skel
         ${HEXAGON_LIB_DIR}/${HEXAGON_ARCH}/G0/pic/libc++abi.a

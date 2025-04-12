@@ -34,7 +34,6 @@ ggml_status backend_buffer_init_tensor(ggml_backend_buffer_t buffer, ggml_tensor
         return GGML_STATUS_ALLOC_FAILED;
     }
 
-    tensor->extra = tensor_object.get();
     return GGML_STATUS_SUCCESS;
 }
 
