@@ -13,6 +13,15 @@ enum npu_device_tensor_op op_to_npu_op(ggml_op op) {
     }
 }
 
+enum npu_device_tensor_data_type type_to_npu_type(ggml_type type) {
+    switch (type) {
+        case GGML_TYPE_F32:
+            return NPU_DATA_TYPE_F32;
+        default:
+            return NPU_DATA_TYPE_COUNT;
+    }
+}
+
 hexagon_dsp_arch get_dsp_arch(common::rpc_interface_ptr rpc_interface, uint32_t domain_id) {
     if (!rpc_interface || !rpc_interface->is_valid()) {
         return NONE;

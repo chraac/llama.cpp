@@ -121,7 +121,7 @@ host_buffer::host_buffer(common::rpc_mem_ptr allocator, size_t size, uint32_t do
         return;
     }
 
-    LOG_DEBUG("create host_buffer, size: %zu, domain_id: %d", size, (int) domain_id);
+    LOG_DEBUG("create host_buffer, size: %zu, domain_id: %d\n", size, (int) domain_id);
 }
 
 host_buffer::~host_buffer() {

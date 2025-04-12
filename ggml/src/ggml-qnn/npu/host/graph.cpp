@@ -28,6 +28,7 @@ host_graph::host_graph(ggml_cgraph * cgraph, remote_handle64 device_handle) : _d
         }
     }
 
+    LOG_DEBUG("host_graph tensor count: %zu\n", _tensor_handles.size());
     npu_device_graph_set_tensor(_device_handle, _graph_handle, _tensor_handles.data(), (int) _tensor_handles.size());
 }
 
@@ -40,13 +41,13 @@ host_graph::~host_graph() {
 
 bool host_graph::compute() {
     if (!_graph_handle) {
-        LOG_ERROR("Graph not initialized\n");
+        LOG_ERROR("host_graph not initialized\n");
         return false;
     }
 
     auto status = npu_device_graph_compute(_device_handle, _graph_handle);
     if (status != AEE_SUCCESS) {
-        LOG_ERROR("Failed to compute graph: 0x%x\n", (int) status);
+        LOG_ERROR("Failed to compute host_graph: 0x%x\n", (int) status);
         return false;
     }
 

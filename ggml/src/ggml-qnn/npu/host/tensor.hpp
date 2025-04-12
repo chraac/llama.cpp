@@ -21,7 +21,7 @@ class host_tensor {
         _device_handle(device_handle) {
         _info.buffer_fd = buffer_fd;
         _info.offset    = offset;
-        _info.type      = tensor->type;
+        _info.type      = type_to_npu_type(tensor->type);
         _info.op        = op_to_npu_op(tensor->op);
 
         static_assert(sizeof(_info.ne) == sizeof(tensor->ne), "tensor ne size mismatch");

@@ -166,7 +166,29 @@ bool npu_device::supports_op(const ggml_tensor * op) {
         return true;
     }
 
-    return op_to_npu_op(op->op) != NPU_OP_COUNT;
+    if (type_to_npu_type(op->type) == NPU_DATA_TYPE_COUNT) {
+        LOG_DEBUG("[%s]Unsupported op tensor type: %s\n", get_name(), ggml_type_name(op->type));
+        return false;
+    }
+
+    auto * src0 = op->src[0];
+    auto * src1 = op->src[1];
+    if (type_to_npu_type(src0->type) == NPU_DATA_TYPE_COUNT) {
+        LOG_DEBUG("[%s]Unsupported src0 tensor type: %s\n", get_name(), ggml_type_name(src0->type));
+        return false;
+    }
+
+    if (src1 && type_to_npu_type(src1->type) == NPU_DATA_TYPE_COUNT) {
+        LOG_DEBUG("[%s]Unsupported src1 tensor type: %s\n", get_name(), ggml_type_name(src1->type));
+        return false;
+    }
+
+    if (op_to_npu_op(op->op) == NPU_OP_COUNT) {
+        LOG_DEBUG("[%s]Unsupported op: %s\n", get_name(), ggml_op_name(op->op));
+        return false;
+    }
+
+    return true;
 }
 
 bool npu_device::offload_op(const ggml_tensor * op) {
