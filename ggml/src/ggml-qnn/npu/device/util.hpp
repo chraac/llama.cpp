@@ -7,8 +7,9 @@
 #define DEVICE_LOG_INFO(...)  FARF(HIGH, __VA_ARGS__)
 
 #ifdef _DEBUG
-// TODO: check why FARF_LOW is not working
-#    define DEVICE_LOG_DEBUG(...) FARF(HIGH, __VA_ARGS__)
+#    undef FARF_LOW
+#    define FARF_LOW              1
+#    define DEVICE_LOG_DEBUG(...) FARF(LOW, __VA_ARGS__)
 #else
 #    define DEVICE_LOG_DEBUG(...) (void) 0
 #endif

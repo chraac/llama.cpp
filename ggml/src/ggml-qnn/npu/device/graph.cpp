@@ -13,6 +13,16 @@ graph::~graph() noexcept {
 }
 
 void graph::set_tensor(const npu_device_tensor_handle_t * tensors, int tensor_count) {
+    if (_tensor_count > 0) {
+        delete[] _tensors;
+    }
+
+    if (tensor_count <= 0) {
+        _tensors      = nullptr;
+        _tensor_count = 0;
+        return;
+    }
+
     _tensors = new tensor *[tensor_count];
     for (int i = 0; i < tensor_count; ++i) {
         _tensors[i] = reinterpret_cast<tensor *>(tensors[i]);
@@ -24,7 +34,8 @@ void graph::set_tensor(const npu_device_tensor_handle_t * tensors, int tensor_co
 }
 
 bool graph::compute() {
-    if (!_tensors) {
+    if (!_tensors || !_tensor_count) {
+        DEVICE_LOG_ERROR("graph(%p) no tensors to compute\n", (void *) this);
         return false;
     }
 

@@ -217,9 +217,14 @@ npu_backend::npu_backend(ggml_backend_dev_t dev) : ggml_backend{} {
 }
 
 ggml_status npu_backend::graph_compute(ggml_cgraph * cgraph) {
+    if (!cgraph || !cgraph->n_nodes) {
+        LOG_DEBUG("[%s]Graph is empty, nothing to compute\n", get_name());
+        return GGML_STATUS_SUCCESS;
+    }
+
     std::shared_ptr<host_graph> graph;
     if (_graph_cache.count(cgraph) == 0) {
-        LOG_DEBUG("[%s]Graph not found in cache, creating new graph\n", get_name());
+        LOG_DEBUG("[%s]graph(%p) not found in cache, creating new graph\n", get_name(), (void *) cgraph);
         graph = std::make_shared<host_graph>(cgraph, _device->get_device_handle());
         if (!graph->is_valid()) {
             LOG_ERROR("Failed to create graph\n");
@@ -229,7 +234,7 @@ ggml_status npu_backend::graph_compute(ggml_cgraph * cgraph) {
         _graph_cache[cgraph] = graph;
     } else {
         graph = _graph_cache[cgraph];
-        LOG_DEBUG("[%s]Graph found in cache, reusing existing graph\n", get_name());
+        LOG_DEBUG("[%s]graph(%p) found in cache, using existing graph\n", get_name(), (void *) cgraph);
     }
 
     return graph->compute() ? GGML_STATUS_SUCCESS : GGML_STATUS_FAILED;

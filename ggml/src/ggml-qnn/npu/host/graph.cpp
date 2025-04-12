@@ -28,7 +28,8 @@ host_graph::host_graph(ggml_cgraph * cgraph, remote_handle64 device_handle) : _d
         }
     }
 
-    LOG_DEBUG("host_graph tensor count: %zu\n", _tensor_handles.size());
+    LOG_DEBUG("host_graph(%p), ggml_cgraph(%p), tensor count(%zu)\n", (void *) this, (void *) cgraph,
+              _tensor_handles.size());
     npu_device_graph_set_tensor(_device_handle, _graph_handle, _tensor_handles.data(), (int) _tensor_handles.size());
 }
 
