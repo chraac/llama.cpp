@@ -16,6 +16,8 @@ class host_graph {
 
     bool is_valid() const { return _graph_handle != 0; }
 
+    bool update(ggml_cgraph * cgraph);
+
     bool compute();
 
   private:

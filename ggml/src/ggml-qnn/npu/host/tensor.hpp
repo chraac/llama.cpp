@@ -38,7 +38,8 @@ class host_tensor {
 
         tensor->extra = this;
         _ggml_tensor  = tensor;
-        LOG_DEBUG("create host_tensor: %p, device_tensor_handle: %p\n", (void *) this, (void *) _device_tensor_handle);
+        LOG_DEBUG("create host_tensor(%p), ggml_tensor(%p), device_tensor_handle(%p)\n", (void *) this, (void *) tensor,
+                  (void *) _device_tensor_handle);
     }
 
     ~host_tensor() {

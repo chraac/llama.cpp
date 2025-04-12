@@ -161,8 +161,9 @@ std::shared_ptr<host_tensor> host_buffer::init_tensor(ggml_tensor * tensor, remo
         LOG_ERROR("failed to init tensor, device handle: %p\n", (void *) device_handle);
         return std::shared_ptr<host_tensor>();
     }
-    _tensors.push_back(std::move(tensor_object));
-    return std::move(_tensors.back());
+
+    _tensors.push_back(tensor_object);
+    return tensor_object;
 }
 
 host_buffer_type::host_buffer_type(ggml_backend_dev_t dev, const std::string & name, common::rpc_mem_ptr rpc_mem) :

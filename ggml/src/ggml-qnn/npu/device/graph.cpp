@@ -1,6 +1,8 @@
 
 #include "graph.hpp"
 
+#include <new>
+
 #include "op_impl.hpp"
 #include "util.hpp"
 
@@ -23,7 +25,7 @@ void graph::set_tensor(const npu_device_tensor_handle_t * tensors, int tensor_co
         return;
     }
 
-    _tensors = new tensor *[tensor_count];
+    _tensors = new (std::nothrow) tensor *[tensor_count];
     for (int i = 0; i < tensor_count; ++i) {
         _tensors[i] = reinterpret_cast<tensor *>(tensors[i]);
         DEVICE_LOG_DEBUG("graph(%p) tensor[%d]: %p\n", (void *) this, i, (void *) _tensors[i]);
@@ -35,8 +37,8 @@ void graph::set_tensor(const npu_device_tensor_handle_t * tensors, int tensor_co
 
 bool graph::compute() {
     if (!_tensors || !_tensor_count) {
-        DEVICE_LOG_ERROR("graph(%p) no tensors to compute\n", (void *) this);
-        return false;
+        DEVICE_LOG_DEBUG("graph(%p) no tensors to compute\n", (void *) this);
+        return true;  // return success if no tensors to compute
     }
 
     DEVICE_LOG_DEBUG("graph(%p) compute\n", (void *) this);

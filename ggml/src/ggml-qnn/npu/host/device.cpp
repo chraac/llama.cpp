@@ -188,6 +188,7 @@ bool npu_device::supports_op(const ggml_tensor * op) {
         return false;
     }
 
+    LOG_DEBUG("[%s]Supported op: %s\n", get_name(), ggml_op_name(op->op));
     return true;
 }
 
@@ -235,6 +236,10 @@ ggml_status npu_backend::graph_compute(ggml_cgraph * cgraph) {
     } else {
         graph = _graph_cache[cgraph];
         LOG_DEBUG("[%s]graph(%p) found in cache, using existing graph\n", get_name(), (void *) cgraph);
+        if (!graph->update(cgraph)) {
+            LOG_ERROR("[%s]Failed to update graph(%p)\n", get_name(), (void *) cgraph);
+            return GGML_STATUS_FAILED;
+        }
     }
 
     return graph->compute() ? GGML_STATUS_SUCCESS : GGML_STATUS_FAILED;
