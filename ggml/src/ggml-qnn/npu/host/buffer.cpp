@@ -120,10 +120,11 @@ host_buffer::host_buffer(common::rpc_mem_ptr allocator, size_t size, uint32_t do
         return;
     }
 
-    LOG_DEBUG("create host_buffer, size: %zu, domain_id: %d\n", size, (int) domain_id);
+    LOG_DEBUG("create host_buffer(%p), size: %zu, domain_id: %d\n", (void *) _data, size, (int) domain_id);
 }
 
 host_buffer::~host_buffer() {
+    LOG_DEBUG("destroy host_buffer(%p), size: %zu, domain_id: %d\n", (void *) _data, _size, (int) _domain_id);
     if (_buffer_fd != -1) {
         auto ret = _allocator->fastrpc_munmap((int) _domain_id, _buffer_fd, nullptr, 0);
         if (ret != AEE_SUCCESS) {
@@ -131,6 +132,7 @@ host_buffer::~host_buffer() {
             return;
         }
     }
+
     _allocator->free(_data);
 }
 
@@ -152,6 +154,8 @@ std::shared_ptr<host_tensor> host_buffer::init_tensor(ggml_tensor * tensor, remo
             LOG_ERROR("failed to mmap rpc memory, fd: %d, ret: %d\n", _buffer_fd, ret);
             return std::shared_ptr<host_tensor>();
         }
+
+        LOG_DEBUG("mmap rpc memory(%p), fd: %d, addr: %p, size: %zu\n", (void *) _data, _buffer_fd, _data, _size);
     }
 
     auto tensor_object = std::make_shared<host_tensor>(
