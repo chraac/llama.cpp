@@ -101,14 +101,6 @@ else()
     )
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
 
-    if(CMAKE_BUILD_TYPE MATCHES "Debug|Dbg")
-        message("Debug build, enable all logging")
-        add_compile_definitions(_DEBUG)
-    else()
-        message("Release build, disable debug logging")
-        add_compile_definitions(NDEBUG)
-    endif()
-
     file(GLOB common_srcs "${CMAKE_CURRENT_LIST_DIR}/common/*.cpp")
     file(GLOB device_srcs "${CMAKE_CURRENT_LIST_DIR}/device/*.cpp")
     set(skel_srcs "${CMAKE_CURRENT_BINARY_DIR}/npu_device_skel.c")
@@ -117,6 +109,20 @@ else()
         ${device_srcs}
         ${skel_srcs}
     )
+
+    if(CMAKE_BUILD_TYPE MATCHES "Debug|Dbg")
+        message("Debug build, enable all logging")
+        target_compile_definitions(hexagon_npu_skel_OBJS PUBLIC
+            _DEBUG
+            DEBUG_LOGGING
+        )
+    else()
+        message("Release build, disable debug logging")
+        target_compile_definitions(hexagon_npu_skel_OBJS PUBLIC
+            NDEBUG
+            RELEASE_LOGGING
+        )
+    endif()
 
     build_idl(idl/hexagon_npu.idl hexagon_npu_skel_OBJS)
 
