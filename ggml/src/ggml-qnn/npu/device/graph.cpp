@@ -43,9 +43,15 @@ bool graph::compute() {
 
     DEVICE_LOG_DEBUG("graph(%p) compute\n", (void *) this);
     for (size_t i = 0; i < _tensor_count; ++i) {
-        auto * op   = _tensors[i];
-        auto * func = get_compute_func(op->get_op());
-        func(op);
+        auto * dst  = _tensors[i];
+        auto   op   = dst->get_op();
+        auto * func = get_compute_func(op);
+        if (!func) {
+            DEVICE_LOG_ERROR("graph(%p) tensor[%zu] op %d not supported\n", (void *) this, i, op);
+            return false;
+        }
+
+        func(dst);
     }
 
     return true;

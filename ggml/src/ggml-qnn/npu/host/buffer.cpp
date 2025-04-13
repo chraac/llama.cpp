@@ -125,6 +125,7 @@ host_buffer::host_buffer(common::rpc_mem_ptr allocator, size_t size, uint32_t do
 
 host_buffer::~host_buffer() {
     LOG_DEBUG("destroy host_buffer(%p), size: %zu, domain_id: %d\n", (void *) _data, _size, (int) _domain_id);
+    _tensors.clear();
     if (_buffer_fd != -1) {
         auto ret = _allocator->fastrpc_munmap((int) _domain_id, _buffer_fd, nullptr, 0);
         if (ret != AEE_SUCCESS) {
