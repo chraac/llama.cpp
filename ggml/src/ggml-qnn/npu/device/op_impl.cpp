@@ -21,6 +21,51 @@ inline bool is_addr_aligned(void * addr) {
     return unaligned_bytes(addr) == 0;
 }
 
+inline void vec_add_f32_f32(const float * src0, const float * src1, size_t count, float * dst) {
+    HVX_Vector * iptr0     = ((HVX_Vector *) src0);
+    HVX_Vector * iptr0_end = ((HVX_Vector *) src0) + (count / kFloatsPerVector);
+    HVX_Vector * iptr1     = ((HVX_Vector *) src1);
+    HVX_Vector * optr      = ((HVX_Vector *) dst);
+    HVX_Vector   prev0     = *iptr0++;
+    HVX_Vector   prev1     = *iptr1++;
+
+    // TODO: prefetch?
+    while (iptr0 < iptr0_end) {
+        HVX_Vector curr0 = *iptr0++;
+        HVX_Vector curr1 = *iptr1++;
+        HVX_Vector s0    = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
+        HVX_Vector s1    = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
+        *optr++          = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vadd_VsfVsf(s0, s1));
+        prev0            = curr0;
+        prev1            = curr1;
+    }
+
+    if ((iptr0_end - ((HVX_Vector *) src0)) > 0) {
+        // handle the last vector
+        // see also: https://github.com/UbiquitousLearning/mllm/blob/babf4410352ce8730824c87699c025a0d4ce3a6f/src/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/src/ops/LLaMAMul.cpp#L147
+        HVX_Vector curr0 = is_addr_aligned(iptr0) ? prev0 : *iptr0++;
+        HVX_Vector curr1 = is_addr_aligned(iptr1) ? prev1 : *iptr1++;
+        HVX_Vector s0    = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
+        HVX_Vector s1    = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
+        *optr++          = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vadd_VsfVsf(s0, s1));
+        prev0            = curr0;
+        prev1            = curr1;
+    }
+
+    const size_t leftover       = count % kFloatsPerVector;
+    const size_t leftover_bytes = leftover * sizeof(float);
+    if (leftover > 0) {
+        // handle the leftover elements
+        HVX_Vector curr0 = (leftover_bytes + unaligned_bytes(iptr0) > kBytesPerVector) ? *iptr0 : prev0;
+        curr0            = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
+
+        HVX_Vector curr1 = (leftover_bytes + unaligned_bytes(iptr1) > kBytesPerVector) ? *iptr1 : prev1;
+        curr1            = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
+
+        q6op_vstu_variable_ARV(optr, leftover_bytes, Q6_Vsf_equals_Vqf32(Q6_Vqf32_vadd_VsfVsf(curr0, curr1)));
+    }
+}
+
 inline float vec_dot_product_f32_f32(const float * src0, const float * src1, size_t count) {
     HVX_Vector * iptr0     = ((HVX_Vector *) src0);
     HVX_Vector * iptr0_end = ((HVX_Vector *) src0) + (count / kFloatsPerVector);
@@ -118,7 +163,7 @@ bool mul_mat_f32(hexagon::tensor * out) {
     return true;
 }
 
-template <typename _TySrc, typename _TyDst, void (*_Func)(const _TySrc *, const _TySrc *, _TyDst *)>
+template <typename _TySrc, typename _TyDst, void (*_Func)(const _TySrc *, const _TySrc *, size_t, _TyDst *)>
 bool element_wise_op(hexagon::tensor * out) {
     if (!out) {
         return false;
@@ -147,7 +192,7 @@ bool element_wise_op(hexagon::tensor * out) {
                 auto * src1_row = src1_plane + i1 * src1->get_nb(1);
                 auto * dst_row  = reinterpret_cast<float *>(dst_plane + i1 * out->get_nb(1));
                 _Func(reinterpret_cast<const _TySrc *>(src0_row), reinterpret_cast<const _TySrc *>(src1_row),
-                      reinterpret_cast<_TyDst *>(dst_row));
+                      static_cast<size_t>(out->get_ne(0)), reinterpret_cast<_TyDst *>(dst_row));
             }
         }
     }
@@ -156,7 +201,8 @@ bool element_wise_op(hexagon::tensor * out) {
 }
 
 constexpr const hexagon::compute_func_t kOpArray[] = {
-    mul_mat_f32,  // NPU_OP_MUL_MAT
+    mul_mat_f32,                                     // NPU_OP_MUL_MAT
+    element_wise_op<float, float, vec_add_f32_f32>,  // NPU_OP_ADD
 };
 
 static_assert(kOpArray[NPU_OP_MUL_MAT] == mul_mat_f32, "kOpArray[NPU_OP_MUL_MAT] != mul_mat_f32");

@@ -8,6 +8,7 @@ interface npu_device : remote_handle64{
 
     enum tensor_op {
         NPU_OP_MUL_MAT,
+        NPU_OP_ADD,
         NPU_OP_COUNT
     };
 
