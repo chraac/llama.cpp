@@ -18,7 +18,7 @@ interface npu_device : remote_handle64{
 
     struct tensor_info_t {
         int64_t ne[4];
-        uint64_t nb[4]; // TODO: handle dimension strides
+        uint64_t nb[4];
         long buffer_fd;
         uint64_t offset;
         uint64_t size;

@@ -66,6 +66,8 @@ class tensor {
 
     const int64_t get_ne(size_t index) const { return _info.ne[index]; }
 
+    const size_t get_nb(size_t index) const { return _info.nb[index]; }
+
     npu_device_tensor_op get_op() const { return _info.op; }
 
     npu_device_tensor_data_type get_type() const { return _info.type; }

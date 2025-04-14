@@ -89,31 +89,65 @@ bool mul_mat_f32(hexagon::tensor * out) {
     }
 
     if (src0->get_ne(0) != src1->get_ne(0)) {
-        DEVICE_LOG_ERROR("src0 and src1 first dim not match: %d vs %d\n", src0->get_ne(0), src1->get_ne(0));
+        DEVICE_LOG_ERROR("src0[0] and src1[0] not match: %d vs %d\n", src0->get_ne(0), src1->get_ne(0));
         return false;
     }
 
     if (src0->get_ne(1) != out->get_ne(0)) {
-        DEVICE_LOG_ERROR("src0 and out first dim not match: %d vs %d\n", src0->get_ne(1), out->get_ne(0));
+        DEVICE_LOG_ERROR("src0[1] and out[0] not match: %d vs %d\n", src0->get_ne(1), out->get_ne(0));
         return false;
     }
 
     if (src1->get_ne(1) != out->get_ne(1)) {
-        DEVICE_LOG_ERROR("src1 and out first dim not match: %d vs %d\n", src1->get_ne(1), out->get_ne(1));
+        DEVICE_LOG_ERROR("src1[1] and out[1] not match: %d vs %d\n", src1->get_ne(1), out->get_ne(1));
         return false;
     }
 
-    const auto   first_dim     = src0->get_ne(0);
-    const auto   out_first_dim = out->get_ne(0);
-    const auto * src0_ptr      = (float *) src0->get_data();
-    const auto * src1_ptr      = (float *) src1->get_data();
-    auto *       out_ptr       = (float *) out->get_data();
-    for (int64_t i = 0; i < out->get_ne(1); i++) {
-        // TODO: prefetch?
-        auto * src1_row = src1_ptr + i * first_dim;
-        auto * out_row  = out_ptr + i * out_first_dim;
-        for (int64_t j = 0; j < out_first_dim; j++) {
-            *out_row++ = vec_dot_product_f32(src0_ptr + j * first_dim, src1_row, (size_t) first_dim);
+    if (src1->get_ne(2) != out->get_ne(2)) {
+        DEVICE_LOG_ERROR("src1[2] and out[2] not match: %d vs %d\n", src1->get_ne(2), out->get_ne(2));
+        return false;
+    }
+
+    if (src1->get_ne(3) != out->get_ne(3)) {
+        DEVICE_LOG_ERROR("src1[3] and out[3] not match: %d vs %d\n", src1->get_ne(3), out->get_ne(3));
+        return false;
+    }
+
+    if (src1->get_ne(2) % src0->get_ne(2)) {
+        DEVICE_LOG_ERROR("src1[2] not divisible by src0[2]: %d vs %d\n", src1->get_ne(2), src0->get_ne(2));
+        return false;
+    }
+
+    if (src1->get_ne(3) % src0->get_ne(3)) {
+        DEVICE_LOG_ERROR("src1[3] not divisible by src0[3]: %d vs %d\n", src1->get_ne(3), src0->get_ne(3));
+        return false;
+    }
+
+    const auto   r2       = src1->get_ne(2) / src0->get_ne(2);
+    const auto   r3       = src1->get_ne(3) / src0->get_ne(3);
+    const auto * src0_ptr = reinterpret_cast<const uint8_t *>(src0->get_data());
+    const auto * src1_ptr = reinterpret_cast<const uint8_t *>(src1->get_data());
+    auto *       out_ptr  = reinterpret_cast<uint8_t *>(out->get_data());
+    for (int64_t i3 = 0; i3 < out->get_ne(3); i3++) {
+        const auto * src0_box = src0_ptr + i3 / r3 * src0->get_nb(3);
+        const auto * src1_box = src1_ptr + i3 * src1->get_nb(3);
+        auto *       out_box  = out_ptr + i3 * out->get_nb(3);
+        for (int64_t i2 = 0; i2 < out->get_ne(2); i2++) {
+            const auto * src0_plane = src0_box + i2 / r2 * src0->get_nb(2);
+            const auto * src1_plane = src1_box + i2 * src1->get_nb(2);
+            auto *       out_plane  = out_box + i2 * out->get_nb(2);
+            for (int64_t i1 = 0; i1 < out->get_ne(1); i1++) {
+                // TODO: prefetch row?
+                auto * src1_row = src1_plane + i1 * src1->get_nb(1);
+                auto * out_row  = reinterpret_cast<float *>(out_plane + i1 * out->get_nb(1));
+                for (int64_t i0 = 0; i0 < out->get_ne(0); i0++) {
+                    auto * src0_row = src0_plane + i0 * src0->get_nb(1);
+                    // TODO: figure out how to handle a entire row
+                    *out_row++ =
+                        vec_dot_product_f32(reinterpret_cast<const float *>(src0_row),
+                                            reinterpret_cast<const float *>(src1_row), (size_t) src0->get_ne(0));
+                }
+            }
         }
     }
 
