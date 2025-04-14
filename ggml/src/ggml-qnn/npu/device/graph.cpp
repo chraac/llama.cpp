@@ -57,6 +57,8 @@ bool graph::compute() {
             DEVICE_LOG_ERROR("graph(%p) tensor[%zu] op %d compute failed\n", (void *) this, i, op);
             return false;
         }
+
+        dst->flush();  // TODO: optimize this
     }
 
     return true;

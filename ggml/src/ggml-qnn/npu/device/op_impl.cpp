@@ -91,23 +91,23 @@ bool mul_mat_f32(hexagon::tensor * out) {
     const auto   r3       = src1->get_ne(3) / src0->get_ne(3);
     const auto * src0_ptr = reinterpret_cast<const uint8_t *>(src0->get_data());
     const auto * src1_ptr = reinterpret_cast<const uint8_t *>(src1->get_data());
-    auto *       out_ptr  = reinterpret_cast<uint8_t *>(out->get_data());
+    auto *       dst_ptr  = reinterpret_cast<uint8_t *>(out->get_data());
     for (int64_t i3 = 0; i3 < out->get_ne(3); i3++) {
         const auto * src0_box = src0_ptr + i3 / r3 * src0->get_nb(3);
         const auto * src1_box = src1_ptr + i3 * src1->get_nb(3);
-        auto *       out_box  = out_ptr + i3 * out->get_nb(3);
+        auto *       dst_box  = dst_ptr + i3 * out->get_nb(3);
         for (int64_t i2 = 0; i2 < out->get_ne(2); i2++) {
             const auto * src0_plane = src0_box + i2 / r2 * src0->get_nb(2);
             const auto * src1_plane = src1_box + i2 * src1->get_nb(2);
-            auto *       out_plane  = out_box + i2 * out->get_nb(2);
+            auto *       dst_plane  = dst_box + i2 * out->get_nb(2);
             for (int64_t i1 = 0; i1 < out->get_ne(1); i1++) {
                 // TODO: prefetch row?
                 auto * src1_row = src1_plane + i1 * src1->get_nb(1);
-                auto * out_row  = reinterpret_cast<float *>(out_plane + i1 * out->get_nb(1));
+                auto * dst_row  = reinterpret_cast<float *>(dst_plane + i1 * out->get_nb(1));
                 for (int64_t i0 = 0; i0 < out->get_ne(0); i0++) {
                     auto * src0_row = src0_plane + i0 * src0->get_nb(1);
                     // TODO: figure out how to handle a entire row
-                    *out_row++ =
+                    *dst_row++ =
                         vec_dot_product_f32_f32(reinterpret_cast<const float *>(src0_row),
                                                 reinterpret_cast<const float *>(src1_row), (size_t) src0->get_ne(0));
                 }
@@ -115,7 +115,43 @@ bool mul_mat_f32(hexagon::tensor * out) {
         }
     }
 
-    out->flush();  // TODO: optimize this
+    return true;
+}
+
+template <typename _TySrc, typename _TyDst, void (*_Func)(const _TySrc *, const _TySrc *, _TyDst *)>
+bool element_wise_op(hexagon::tensor * out) {
+    if (!out) {
+        return false;
+    }
+
+    auto * src0 = out->get_src(0);
+    auto * src1 = out->get_src(1);
+    if (!src0 || !src1) {
+        return true;  // skip if no src
+    }
+
+    const auto * src0_ptr = reinterpret_cast<const uint8_t *>(src0->get_data());
+    const auto * src1_ptr = reinterpret_cast<const uint8_t *>(src1->get_data());
+    auto *       dst_ptr  = reinterpret_cast<uint8_t *>(out->get_data());
+    for (int64_t i3 = 0; i3 < out->get_ne(3); i3++) {
+        const auto * src0_box = src0_ptr + i3 * src0->get_nb(3);
+        const auto * src1_box = src1_ptr + i3 * src1->get_nb(3);
+        auto *       dst_box  = dst_ptr + i3 * out->get_nb(3);
+        for (int64_t i2 = 0; i2 < out->get_ne(2); i2++) {
+            const auto * src0_plane = src0_box + i2 * src0->get_nb(2);
+            const auto * src1_plane = src1_box + i2 * src1->get_nb(2);
+            auto *       dst_plane  = dst_box + i2 * out->get_nb(2);
+            for (int64_t i1 = 0; i1 < out->get_ne(1); i1++) {
+                // TODO: prefetch row?
+                auto * src0_row = src0_plane + i1 * src0->get_nb(1);
+                auto * src1_row = src1_plane + i1 * src1->get_nb(1);
+                auto * dst_row  = reinterpret_cast<float *>(dst_plane + i1 * out->get_nb(1));
+                _Func(reinterpret_cast<const _TySrc *>(src0_row), reinterpret_cast<const _TySrc *>(src1_row),
+                      reinterpret_cast<_TyDst *>(dst_row));
+            }
+        }
+    }
+
     return true;
 }
 
