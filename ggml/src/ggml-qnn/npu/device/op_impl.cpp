@@ -88,7 +88,6 @@ bool mul_mat_f32(hexagon::tensor * out) {
         return true;  // skip if no src
     }
 
-    DEVICE_LOG_DEBUG("mul_mat_f32: src0: %p, src1: %p, out: %p\n", (void *) src0, (void *) src1, (void *) out);
     if (src0->get_ne(0) != src1->get_ne(0)) {
         DEVICE_LOG_ERROR("src0 and src1 first dim not match: %d vs %d\n", src0->get_ne(0), src1->get_ne(0));
         return false;

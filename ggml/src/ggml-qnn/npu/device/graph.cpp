@@ -27,8 +27,10 @@ void graph::set_tensor(const npu_device_tensor_handle_t * tensors, int tensor_co
 
     _tensors = new (std::nothrow) tensor *[tensor_count];
     for (int i = 0; i < tensor_count; ++i) {
-        _tensors[i] = reinterpret_cast<tensor *>(tensors[i]);
-        DEVICE_LOG_DEBUG("graph(%p) set_tensor[%d]: %p\n", (void *) this, i, (void *) _tensors[i]);
+        auto * tensor_obj = reinterpret_cast<tensor *>(tensors[i]);
+        _tensors[i]       = tensor_obj;
+        DEVICE_LOG_DEBUG("graph(%p) set_tensor[%d]: %p(%p,%p), op: %d\n", (void *) this, i, (void *) tensor_obj,
+                         (void *) tensor_obj->get_src(0), (void *) tensor_obj->get_src(1), tensor_obj->get_op());
     }
 
     _tensor_count = tensor_count;
