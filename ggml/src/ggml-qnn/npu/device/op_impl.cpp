@@ -21,7 +21,7 @@ inline bool is_addr_aligned(void * addr) {
     return unaligned_bytes(addr) == 0;
 }
 
-inline float vec_dot_product_f32(const float * src0, const float * src1, size_t count) {
+inline float vec_dot_product_f32_f32(const float * src0, const float * src1, size_t count) {
     HVX_Vector * iptr0     = ((HVX_Vector *) src0);
     HVX_Vector * iptr0_end = ((HVX_Vector *) src0) + (count / kFloatsPerVector);
     HVX_Vector * iptr1     = ((HVX_Vector *) src1);
@@ -81,7 +81,6 @@ bool mul_mat_f32(hexagon::tensor * out) {
         return false;
     }
 
-    // TODO: add the 3d and 4d matrix support here
     auto * src0 = out->get_src(0);
     auto * src1 = out->get_src(1);
     if (!src0 || !src1) {
@@ -144,20 +143,22 @@ bool mul_mat_f32(hexagon::tensor * out) {
                     auto * src0_row = src0_plane + i0 * src0->get_nb(1);
                     // TODO: figure out how to handle a entire row
                     *out_row++ =
-                        vec_dot_product_f32(reinterpret_cast<const float *>(src0_row),
-                                            reinterpret_cast<const float *>(src1_row), (size_t) src0->get_ne(0));
+                        vec_dot_product_f32_f32(reinterpret_cast<const float *>(src0_row),
+                                                reinterpret_cast<const float *>(src1_row), (size_t) src0->get_ne(0));
                 }
             }
         }
     }
 
-    out->flush();  // TODO: check if needed
+    out->flush();  // TODO: optimize this
     return true;
 }
 
 constexpr const hexagon::compute_func_t kOpArray[] = {
     mul_mat_f32,  // NPU_OP_MUL_MAT
 };
+
+static_assert(kOpArray[NPU_OP_MUL_MAT] == mul_mat_f32, "kOpArray[NPU_OP_MUL_MAT] != mul_mat_f32");
 
 static_assert((sizeof(kOpArray) / sizeof(kOpArray[0])) == NPU_OP_COUNT);
 
