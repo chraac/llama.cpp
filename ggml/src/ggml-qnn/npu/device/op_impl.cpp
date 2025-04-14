@@ -87,41 +87,6 @@ bool mul_mat_f32(hexagon::tensor * out) {
         return true;  // skip if no src
     }
 
-    if (src0->get_ne(0) != src1->get_ne(0)) {
-        DEVICE_LOG_ERROR("src0[0] and src1[0] not match: %d vs %d\n", src0->get_ne(0), src1->get_ne(0));
-        return false;
-    }
-
-    if (src0->get_ne(1) != out->get_ne(0)) {
-        DEVICE_LOG_ERROR("src0[1] and out[0] not match: %d vs %d\n", src0->get_ne(1), out->get_ne(0));
-        return false;
-    }
-
-    if (src1->get_ne(1) != out->get_ne(1)) {
-        DEVICE_LOG_ERROR("src1[1] and out[1] not match: %d vs %d\n", src1->get_ne(1), out->get_ne(1));
-        return false;
-    }
-
-    if (src1->get_ne(2) != out->get_ne(2)) {
-        DEVICE_LOG_ERROR("src1[2] and out[2] not match: %d vs %d\n", src1->get_ne(2), out->get_ne(2));
-        return false;
-    }
-
-    if (src1->get_ne(3) != out->get_ne(3)) {
-        DEVICE_LOG_ERROR("src1[3] and out[3] not match: %d vs %d\n", src1->get_ne(3), out->get_ne(3));
-        return false;
-    }
-
-    if (src1->get_ne(2) % src0->get_ne(2)) {
-        DEVICE_LOG_ERROR("src1[2] not divisible by src0[2]: %d vs %d\n", src1->get_ne(2), src0->get_ne(2));
-        return false;
-    }
-
-    if (src1->get_ne(3) % src0->get_ne(3)) {
-        DEVICE_LOG_ERROR("src1[3] not divisible by src0[3]: %d vs %d\n", src1->get_ne(3), src0->get_ne(3));
-        return false;
-    }
-
     const auto   r2       = src1->get_ne(2) / src0->get_ne(2);
     const auto   r3       = src1->get_ne(3) / src0->get_ne(3);
     const auto * src0_ptr = reinterpret_cast<const uint8_t *>(src0->get_data());
