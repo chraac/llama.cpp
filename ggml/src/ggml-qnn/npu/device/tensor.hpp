@@ -21,8 +21,9 @@ class tensor {
         }
 
         _data = static_cast<uint8_t *>(mmap_address);
-        DEVICE_LOG_INFO("mmap tensor buffer: 0x%p, fd: %d, phy_address: 0x%lx", _data, _info.buffer_fd,
-                        (long) phy_address);
+        DEVICE_LOG_INFO("tensor(%p[%ldx%ldx%ldx%ld]), fd: %d, offset: %zu, mmap_address: %p, phy_address: 0x%lx\n",
+                        (void *) this, (long) _info.ne[0], (long) _info.ne[1], (long) _info.ne[2], (long) _info.ne[3],
+                        _info.buffer_fd, _info.offset, (void *) mmap_address, phy_address);
     }
 
     ~tensor() noexcept {
@@ -31,7 +32,7 @@ class tensor {
             DEVICE_LOG_ERROR("Failed to unmap tensor buffer: %d", (int) ret);
         }
 
-        DEVICE_LOG_INFO("unmap tensor buffer: 0x%p, fd: %d", _data, _info.buffer_fd);
+        DEVICE_LOG_INFO("~tensor(%p) fd: %d", (void *) this, _info.buffer_fd);
     }
 
     bool set_src(size_t index, tensor * src) {

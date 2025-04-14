@@ -28,7 +28,7 @@ void graph::set_tensor(const npu_device_tensor_handle_t * tensors, int tensor_co
     _tensors = new (std::nothrow) tensor *[tensor_count];
     for (int i = 0; i < tensor_count; ++i) {
         _tensors[i] = reinterpret_cast<tensor *>(tensors[i]);
-        DEVICE_LOG_DEBUG("graph(%p) tensor[%d]: %p\n", (void *) this, i, (void *) _tensors[i]);
+        DEVICE_LOG_DEBUG("graph(%p) set_tensor[%d]: %p\n", (void *) this, i, (void *) _tensors[i]);
     }
 
     _tensor_count = tensor_count;
@@ -51,7 +51,10 @@ bool graph::compute() {
             return false;
         }
 
-        func(dst);
+        if (!func(dst)) {
+            DEVICE_LOG_ERROR("graph(%p) tensor[%zu] op %d compute failed\n", (void *) this, i, op);
+            return false;
+        }
     }
 
     return true;

@@ -49,8 +49,8 @@ bool host_graph::update(ggml_cgraph * cgraph) {
         _tensor_handles.push_back(tensor_obj->get_device_tensor_handle());
         LOG_DEBUG("node[%d]%s(%s), addr: %p, type: %s, tensor_handle: %p\n", i, ggml_get_name(node), ggml_op_desc(node),
                   (void *) node, ggml_type_name(node->type), (void *) tensor_obj->get_device_tensor_handle());
-        for (size_t j = 0; j < GGML_MAX_SRC && node->src[i]; ++j) {
-            auto * src = host_tensor::from_ggml_tensor(node->src[i]);
+        for (size_t j = 0; j < GGML_MAX_SRC && node->src[j]; ++j) {
+            auto * src = host_tensor::from_ggml_tensor(node->src[j]);
             tensor_obj->set_src(j, src);
         }
     }
