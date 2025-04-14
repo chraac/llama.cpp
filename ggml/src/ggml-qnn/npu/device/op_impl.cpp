@@ -117,6 +117,7 @@ bool mul_mat_f32(hexagon::tensor * out) {
         }
     }
 
+    out->flush();  // TODO: check if needed
     return true;
 }
 

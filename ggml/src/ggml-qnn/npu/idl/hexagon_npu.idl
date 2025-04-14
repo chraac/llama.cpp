@@ -21,6 +21,7 @@ interface npu_device : remote_handle64{
         uint64_t nb[4]; // TODO: handle dimension strides
         long buffer_fd;
         uint64_t offset;
+        uint64_t size;
         tensor_data_type type;
         tensor_op op;
     };

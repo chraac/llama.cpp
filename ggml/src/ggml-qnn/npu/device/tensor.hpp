@@ -1,6 +1,7 @@
 #pragma once
 
 #include <HAP_mem.h>
+#include <qurt.h>
 
 #include "hexagon_npu.h"
 #include "util.hpp"
@@ -33,6 +34,13 @@ class tensor {
         }
 
         DEVICE_LOG_INFO("~tensor(%p) fd: %d", (void *) this, _info.buffer_fd);
+    }
+
+    void flush() {
+        if (_data) {
+            qurt_mem_cache_clean((qurt_addr_t) (_data + _info.offset), (qurt_size_t) _info.size,
+                                 QURT_MEM_CACHE_INVALIDATE, QURT_MEM_DCACHE);
+        }
     }
 
     bool set_src(size_t index, tensor * src) {

@@ -23,6 +23,7 @@ class host_tensor {
         _info.offset    = offset;
         _info.type      = type_to_npu_type(tensor->type);
         _info.op        = op_to_npu_op(tensor->op);
+        _info.size      = ggml_nbytes(tensor);
 
         static_assert(sizeof(_info.ne) == sizeof(tensor->ne), "tensor ne size mismatch");
         static_assert(sizeof(_info.nb) == sizeof(tensor->nb), "tensor nb size mismatch");
