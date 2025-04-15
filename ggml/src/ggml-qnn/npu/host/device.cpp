@@ -218,12 +218,17 @@ bool npu_device::supports_op(const ggml_tensor * op) {
     }
 
     auto * src0 = op->src[0];
-    auto * src1 = op->src[1];
+    if (!src0) {
+        LOG_DEBUG("[%s]Unsupported inplace op: %s\n", get_name(), ggml_op_name(op->op));
+        return false;
+    }
+
     if (type_to_npu_type(src0->type) == NPU_DATA_TYPE_COUNT) {
         LOG_DEBUG("[%s]Unsupported src0 tensor type: %s\n", get_name(), ggml_type_name(src0->type));
         return false;
     }
 
+    auto * src1 = op->src[1];
     if (src1 && type_to_npu_type(src1->type) == NPU_DATA_TYPE_COUNT) {
         LOG_DEBUG("[%s]Unsupported src1 tensor type: %s\n", get_name(), ggml_type_name(src1->type));
         return false;
