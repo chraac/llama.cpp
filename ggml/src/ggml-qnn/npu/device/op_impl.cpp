@@ -21,7 +21,8 @@ inline bool is_addr_aligned(void * addr) {
     return unaligned_bytes(addr) == 0;
 }
 
-inline void vec_add_f32_f32(const float * src0, const float * src1, size_t count, float * dst) {
+template <HVX_Vector (*_OpIntrinsic)(HVX_Vector, HVX_Vector)>
+inline void vec_op_f32_f32(const float * src0, const float * src1, size_t count, float * dst) {
     HVX_Vector * iptr0     = ((HVX_Vector *) src0);
     HVX_Vector * iptr0_end = ((HVX_Vector *) src0) + (count / kFloatsPerVector);
     HVX_Vector * iptr1     = ((HVX_Vector *) src1);
@@ -35,7 +36,7 @@ inline void vec_add_f32_f32(const float * src0, const float * src1, size_t count
         HVX_Vector curr1 = *iptr1++;
         HVX_Vector s0    = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
         HVX_Vector s1    = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-        *optr++          = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vadd_VsfVsf(s0, s1));
+        *optr++          = Q6_Vsf_equals_Vqf32(_OpIntrinsic(s0, s1));
         prev0            = curr0;
         prev1            = curr1;
     }
@@ -49,7 +50,7 @@ inline void vec_add_f32_f32(const float * src0, const float * src1, size_t count
         HVX_Vector curr1 = is_addr_aligned(iptr1) ? prev1 : *iptr1++;
         HVX_Vector s0    = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
         HVX_Vector s1    = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-        *optr++          = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vadd_VsfVsf(s0, s1));
+        *optr++          = Q6_Vsf_equals_Vqf32(_OpIntrinsic(s0, s1));
         prev0            = curr0;
         prev1            = curr1;
     }
@@ -64,8 +65,20 @@ inline void vec_add_f32_f32(const float * src0, const float * src1, size_t count
         HVX_Vector curr1 = (leftover_bytes + unaligned_bytes(iptr1) > kBytesPerVector) ? *iptr1 : prev1;
         curr1            = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
 
-        q6op_vstu_variable_ARV(optr, leftover_bytes, Q6_Vsf_equals_Vqf32(Q6_Vqf32_vadd_VsfVsf(curr0, curr1)));
+        q6op_vstu_variable_ARV(optr, leftover_bytes, Q6_Vsf_equals_Vqf32(_OpIntrinsic(curr0, curr1)));
     }
+}
+
+inline HVX_Vector vadd_f32_f32(HVX_Vector a, HVX_Vector b) {
+    return Q6_Vqf32_vadd_VsfVsf(a, b);
+}
+
+inline HVX_Vector vsub_f32_f32(HVX_Vector a, HVX_Vector b) {
+    return Q6_Vqf32_vsub_VsfVsf(a, b);
+}
+
+inline HVX_Vector vmul_f32_f32(HVX_Vector a, HVX_Vector b) {
+    return Q6_Vqf32_vmpy_VsfVsf(a, b);
 }
 
 inline float vec_dot_product_f32_f32(const float * src0, const float * src1, size_t count) {
@@ -218,8 +231,10 @@ bool element_wise_op(hexagon::tensor * out) {
 }
 
 constexpr const hexagon::compute_func_t kOpArray[] = {
-    mul_mat_f32,                                     // NPU_OP_MUL_MAT
-    element_wise_op<float, float, vec_add_f32_f32>,  // NPU_OP_ADD
+    mul_mat_f32,                                                  // NPU_OP_MUL_MAT
+    element_wise_op<float, float, vec_op_f32_f32<vadd_f32_f32>>,  // NPU_OP_ADD
+    element_wise_op<float, float, vec_op_f32_f32<vsub_f32_f32>>,  // NPU_OP_SUB
+    element_wise_op<float, float, vec_op_f32_f32<vmul_f32_f32>>,  // NPU_OP_MUL
 };
 
 static_assert(kOpArray[NPU_OP_MUL_MAT] == mul_mat_f32, "kOpArray[NPU_OP_MUL_MAT] != mul_mat_f32");

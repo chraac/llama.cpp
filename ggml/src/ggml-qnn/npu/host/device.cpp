@@ -74,6 +74,7 @@ ggml_status backend_graph_compute(ggml_backend_t backend, ggml_cgraph * cgraph) 
     return get_backend_object(backend)->graph_compute(cgraph);
 }
 
+// TODO: move this to a device?
 bool is_mul_mat_supported(const ggml_tensor * dst) {
     auto * src0 = dst->src[0];
     auto * src1 = dst->src[1];

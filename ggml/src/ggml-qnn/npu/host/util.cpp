@@ -10,6 +10,10 @@ enum npu_device_tensor_op op_to_npu_op(ggml_op op) {
             return NPU_OP_MUL_MAT;
         case GGML_OP_ADD:
             return NPU_OP_ADD;
+        case GGML_OP_SUB:
+            return NPU_OP_SUB;
+        case GGML_OP_MUL:
+            return NPU_OP_MUL;
         default:
             return NPU_OP_COUNT;
     }
