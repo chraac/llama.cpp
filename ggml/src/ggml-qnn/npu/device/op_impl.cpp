@@ -205,21 +205,18 @@ bool element_wise_op(hexagon::tensor * out) {
     const auto * src0_ptr = reinterpret_cast<const uint8_t *>(src0->get_data());
     const auto * src1_ptr = reinterpret_cast<const uint8_t *>(src1->get_data());
     auto *       dst_ptr  = reinterpret_cast<uint8_t *>(out->get_data());
-    const auto   r13      = out->get_ne(3) / src1->get_ne(3);
-    const auto   r12      = out->get_ne(2) / src1->get_ne(2);
-    const auto   r11      = out->get_ne(1) / src1->get_ne(1);
     for (int64_t i3 = 0; i3 < out->get_ne(3); i3++) {
         const auto * src0_cube = src0_ptr + i3 * src0->get_nb(3);
-        const auto * src1_cube = src1_ptr + i3 / r13 * src1->get_nb(3);
+        const auto * src1_cube = src1_ptr + (i3 % src1->get_ne(3)) * src1->get_nb(3);
         auto *       dst_cube  = dst_ptr + i3 * out->get_nb(3);
         for (int64_t i2 = 0; i2 < out->get_ne(2); i2++) {
             const auto * src0_plane = src0_cube + i2 * src0->get_nb(2);
-            const auto * src1_plane = src1_cube + i2 / r12 * src1->get_nb(2);
+            const auto * src1_plane = src1_cube + (i2 % src1->get_ne(2)) * src1->get_nb(2);
             auto *       dst_plane  = dst_cube + i2 * out->get_nb(2);
             for (int64_t i1 = 0; i1 < out->get_ne(1); i1++) {
                 // TODO: prefetch row?
                 auto * src0_row = src0_plane + i1 * src0->get_nb(1);
-                auto * src1_row = src1_plane + i1 / r11 * src1->get_nb(1);
+                auto * src1_row = src1_plane + (i1 % src1->get_ne(1)) * src1->get_nb(1);
                 auto * dst_row  = reinterpret_cast<float *>(dst_plane + i1 * out->get_nb(1));
                 _RowFunc(reinterpret_cast<const _TySrc *>(src0_row), reinterpret_cast<const _TySrc *>(src1_row),
                          static_cast<size_t>(out->get_ne(0)), reinterpret_cast<_TyDst *>(dst_row));
@@ -243,6 +240,26 @@ static_assert((sizeof(kOpArray) / sizeof(kOpArray[0])) == NPU_OP_COUNT);
 
 bool is_element_wise_op(npu_device_tensor_op op) {
     return op == NPU_OP_ADD || op == NPU_OP_SUB || op == NPU_OP_MUL;
+}
+
+bool is_element_wise_op_supported(const npu_device_ne_type src0, const npu_device_ne_type src1,
+                                  const npu_device_ne_type dst, npu_device_tensor_op op) {
+    if (op != NPU_OP_ADD && op != NPU_OP_SUB && op != NPU_OP_MUL) {
+        DEVICE_LOG_DEBUG("Unsupported element wise op: %d\n", op);
+        return false;
+    }
+
+    if (src0[0] != src1[0]) {
+        DEVICE_LOG_DEBUG("src0[0] and src1[0] not match: %ld vs %ld\n", (long) src0[0], (long) src1[0]);
+        return false;
+    }
+
+    if (strncmp((const char *) src0, (const char *) src1, sizeof(npu_device_ne_type)) != 0) {
+        DEVICE_LOG_DEBUG("src0 and dst dimensions not match\n");
+        return false;
+    }
+
+    return true;
 }
 
 bool is_mul_mat_supported(const npu_device_ne_type src0, const npu_device_ne_type src1, const npu_device_ne_type dst) {
@@ -304,8 +321,8 @@ bool support_op(const npu_device_ne_type src0, const npu_device_ne_type src1, co
     }
 
     if (is_element_wise_op(op)) {
-        if (src0[0] != src1[0]) {
-            DEVICE_LOG_DEBUG("src0[0] and src1[0] not match: %ld vs %ld\n", (long) src0[0], (long) src1[0]);
+        // TODO: move this to op array?
+        if (!is_element_wise_op_supported(src0, src1, dst, op)) {
             return false;
         }
     } else if (op == NPU_OP_MUL_MAT && !is_mul_mat_supported(src0, src1, dst)) {
