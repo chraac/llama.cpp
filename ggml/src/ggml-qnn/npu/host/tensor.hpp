@@ -25,6 +25,7 @@ class host_tensor {
         _info.op        = op_to_npu_op(tensor->op);
         _info.size      = ggml_nbytes(tensor);
 
+        static_assert(DEVICE_TENSOR_MAX_DIMS == GGML_MAX_DIMS, "tensor dimensions mismatch");
         static_assert(sizeof(_info.ne) == sizeof(tensor->ne), "tensor ne size mismatch");
         static_assert(sizeof(_info.nb) == sizeof(tensor->nb), "tensor nb size mismatch");
         memcpy(_info.ne, tensor->ne, sizeof(_info.ne));
@@ -40,7 +41,7 @@ class host_tensor {
         tensor->extra = this;
         _ggml_tensor  = tensor;
         LOG_DEBUG(
-            "create host_tensor(%p), ggml_tensor(%p[%ldx%ldx%ldx%ld], nb[%ld][%ld][%ld][%ld]), "
+            "host_tensor(%p) created, ggml_tensor(%p[%ldx%ldx%ldx%ld], nb[%ld][%ld][%ld][%ld]), "
             "device_tensor_handle(%p)\n",
             (void *) this, (void *) tensor, (long) tensor->ne[0], (long) tensor->ne[1], (long) tensor->ne[2],
             (long) tensor->ne[3], (long) tensor->nb[0], (long) tensor->nb[1], (long) tensor->nb[2],
@@ -48,7 +49,7 @@ class host_tensor {
     }
 
     ~host_tensor() {
-        LOG_DEBUG("destroy host_tensor: %p, device_tensor_handle: %p\n", (void *) this, (void *) _device_tensor_handle);
+        LOG_DEBUG("host_tensor(%p) destroy, device_tensor_handle: %p\n", (void *) this, (void *) _device_tensor_handle);
         if (_device_tensor_handle) {
             npu_device_tensor_free(_device_handle, _device_tensor_handle);
             _ggml_tensor->extra = nullptr;
@@ -58,10 +59,12 @@ class host_tensor {
     npu_device_tensor_handle_t get_device_tensor_handle() const { return _device_tensor_handle; }
 
     void set_src(size_t index, host_tensor * src) {
-        if (index >= npu_device_MAX_TENSOR_SRC) {
+        if (index >= DEVICE_TENSOR_MAX_SRC) {
+            LOG_ERROR("host_tensor(%p) set_src[%zu] out of range\n", (void *) this, index);
             return;
         }
 
+        LOG_DEBUG("host_tensor(%p) set_src[%zu]: %p\n", (void *) this, index, (void *) src);
         npu_device_tensor_set_src(_device_handle, _device_tensor_handle, index, src->get_device_tensor_handle());
     }
 

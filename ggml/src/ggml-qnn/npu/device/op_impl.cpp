@@ -42,7 +42,9 @@ inline void vec_add_f32_f32(const float * src0, const float * src1, size_t count
 
     if ((iptr0_end - ((HVX_Vector *) src0)) > 0) {
         // handle the last vector
-        // see also: https://github.com/UbiquitousLearning/mllm/blob/babf4410352ce8730824c87699c025a0d4ce3a6f/src/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/src/ops/LLaMAMul.cpp#L147
+        // see also:
+        //   https://github.com/UbiquitousLearning/mllm/blob/babf4410352ce8730824c87699c025a0d4ce3a6f/src/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/src/ops/LLaMAMul.cpp#L147
+        //   or qualcomm sdk libs\qhl_hvx\src\qhblas_hvx\qhblas_hvx_aw_vector_add_ah.c
         HVX_Vector curr0 = is_addr_aligned(iptr0) ? prev0 : *iptr0++;
         HVX_Vector curr1 = is_addr_aligned(iptr1) ? prev1 : *iptr1++;
         HVX_Vector s0    = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
@@ -87,7 +89,9 @@ inline float vec_dot_product_f32_f32(const float * src0, const float * src1, siz
 
     if ((iptr0_end - ((HVX_Vector *) src0)) > 0) {
         // handle the last vector
-        // see also: https://github.com/UbiquitousLearning/mllm/blob/babf4410352ce8730824c87699c025a0d4ce3a6f/src/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/src/ops/LLaMAMul.cpp#L147
+        // see also:
+        //   https://github.com/UbiquitousLearning/mllm/blob/babf4410352ce8730824c87699c025a0d4ce3a6f/src/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/src/ops/LLaMAMul.cpp#L147
+        //   or qualcomm sdk libs\qhl_hvx\src\qhblas_hvx\qhblas_hvx_aw_vector_add_ah.c
         HVX_Vector curr0 = is_addr_aligned(iptr0) ? prev0 : *iptr0++;
         HVX_Vector curr1 = is_addr_aligned(iptr1) ? prev1 : *iptr1++;
         HVX_Vector s0    = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
@@ -132,19 +136,21 @@ bool mul_mat_f32(hexagon::tensor * out) {
         return true;  // skip if no src
     }
 
-    const auto   r2       = src1->get_ne(2) / src0->get_ne(2);
-    const auto   r3       = src1->get_ne(3) / src0->get_ne(3);
+    static_assert(DEVICE_TENSOR_MAX_DIMS == 4, "mul_mat_f32 requires max dims 4");
+
+    const auto   r02      = src1->get_ne(2) / src0->get_ne(2);
+    const auto   r03      = src1->get_ne(3) / src0->get_ne(3);
     const auto * src0_ptr = reinterpret_cast<const uint8_t *>(src0->get_data());
     const auto * src1_ptr = reinterpret_cast<const uint8_t *>(src1->get_data());
     auto *       dst_ptr  = reinterpret_cast<uint8_t *>(out->get_data());
     for (int64_t i3 = 0; i3 < out->get_ne(3); i3++) {
-        const auto * src0_box = src0_ptr + i3 / r3 * src0->get_nb(3);
-        const auto * src1_box = src1_ptr + i3 * src1->get_nb(3);
-        auto *       dst_box  = dst_ptr + i3 * out->get_nb(3);
+        const auto * src0_cube = src0_ptr + i3 / r03 * src0->get_nb(3);
+        const auto * src1_cube = src1_ptr + i3 * src1->get_nb(3);
+        auto *       dst_cube  = dst_ptr + i3 * out->get_nb(3);
         for (int64_t i2 = 0; i2 < out->get_ne(2); i2++) {
-            const auto * src0_plane = src0_box + i2 / r2 * src0->get_nb(2);
-            const auto * src1_plane = src1_box + i2 * src1->get_nb(2);
-            auto *       dst_plane  = dst_box + i2 * out->get_nb(2);
+            const auto * src0_plane = src0_cube + i2 / r02 * src0->get_nb(2);
+            const auto * src1_plane = src1_cube + i2 * src1->get_nb(2);
+            auto *       dst_plane  = dst_cube + i2 * out->get_nb(2);
             for (int64_t i1 = 0; i1 < out->get_ne(1); i1++) {
                 // TODO: prefetch row?
                 auto * src1_row = src1_plane + i1 * src1->get_nb(1);
@@ -163,7 +169,7 @@ bool mul_mat_f32(hexagon::tensor * out) {
     return true;
 }
 
-template <typename _TySrc, typename _TyDst, void (*_Func)(const _TySrc *, const _TySrc *, size_t, _TyDst *)>
+template <typename _TySrc, typename _TyDst, void (*_RowFunc)(const _TySrc *, const _TySrc *, size_t, _TyDst *)>
 bool element_wise_op(hexagon::tensor * out) {
     if (!out) {
         return false;
@@ -175,24 +181,35 @@ bool element_wise_op(hexagon::tensor * out) {
         return true;  // skip if no src
     }
 
+    if (src0->get_ne(0) != src1->get_ne(0)) {
+        // TODO: handle this case
+        DEVICE_LOG_ERROR("src0[0] and src1[0] not match: %ld vs %ld\n", (long) src0->get_ne(0), (long) src1->get_ne(0));
+        return false;
+    }
+
+    static_assert(DEVICE_TENSOR_MAX_DIMS == 4, "element_wise_op requires max dims 4");
+
     const auto * src0_ptr = reinterpret_cast<const uint8_t *>(src0->get_data());
     const auto * src1_ptr = reinterpret_cast<const uint8_t *>(src1->get_data());
     auto *       dst_ptr  = reinterpret_cast<uint8_t *>(out->get_data());
+    const auto   r13      = out->get_ne(3) / src1->get_ne(3);
+    const auto   r12      = out->get_ne(2) / src1->get_ne(2);
+    const auto   r11      = out->get_ne(1) / src1->get_ne(1);
     for (int64_t i3 = 0; i3 < out->get_ne(3); i3++) {
-        const auto * src0_box = src0_ptr + i3 * src0->get_nb(3);
-        const auto * src1_box = src1_ptr + i3 * src1->get_nb(3);
-        auto *       dst_box  = dst_ptr + i3 * out->get_nb(3);
+        const auto * src0_cube = src0_ptr + i3 * src0->get_nb(3);
+        const auto * src1_cube = src1_ptr + i3 / r13 * src1->get_nb(3);
+        auto *       dst_cube  = dst_ptr + i3 * out->get_nb(3);
         for (int64_t i2 = 0; i2 < out->get_ne(2); i2++) {
-            const auto * src0_plane = src0_box + i2 * src0->get_nb(2);
-            const auto * src1_plane = src1_box + i2 * src1->get_nb(2);
-            auto *       dst_plane  = dst_box + i2 * out->get_nb(2);
+            const auto * src0_plane = src0_cube + i2 * src0->get_nb(2);
+            const auto * src1_plane = src1_cube + i2 / r12 * src1->get_nb(2);
+            auto *       dst_plane  = dst_cube + i2 * out->get_nb(2);
             for (int64_t i1 = 0; i1 < out->get_ne(1); i1++) {
                 // TODO: prefetch row?
                 auto * src0_row = src0_plane + i1 * src0->get_nb(1);
-                auto * src1_row = src1_plane + i1 * src1->get_nb(1);
+                auto * src1_row = src1_plane + i1 / r11 * src1->get_nb(1);
                 auto * dst_row  = reinterpret_cast<float *>(dst_plane + i1 * out->get_nb(1));
-                _Func(reinterpret_cast<const _TySrc *>(src0_row), reinterpret_cast<const _TySrc *>(src1_row),
-                      static_cast<size_t>(out->get_ne(0)), reinterpret_cast<_TyDst *>(dst_row));
+                _RowFunc(reinterpret_cast<const _TySrc *>(src0_row), reinterpret_cast<const _TySrc *>(src1_row),
+                         static_cast<size_t>(out->get_ne(0)), reinterpret_cast<_TyDst *>(dst_row));
             }
         }
     }

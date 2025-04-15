@@ -2,9 +2,10 @@
 #include "AEEStdErr.idl"
 #include "remote.idl"
 
-interface npu_device : remote_handle64{
+const uint32_t DEVICE_TENSOR_MAX_DIMS = 4;
+const uint32_t DEVICE_TENSOR_MAX_SRC = 2;
 
-    const uint32_t MAX_TENSOR_SRC = 2;
+interface npu_device : remote_handle64{
 
     enum tensor_op {
         NPU_OP_MUL_MAT,
@@ -18,8 +19,8 @@ interface npu_device : remote_handle64{
     };
 
     struct tensor_info_t {
-        int64_t ne[4];
-        uint64_t nb[4];
+        int64_t ne[DEVICE_TENSOR_MAX_DIMS];
+        uint64_t nb[DEVICE_TENSOR_MAX_DIMS];
         long buffer_fd;
         uint64_t offset;
         uint64_t size;
