@@ -74,52 +74,6 @@ ggml_status backend_graph_compute(ggml_backend_t backend, ggml_cgraph * cgraph) 
     return get_backend_object(backend)->graph_compute(cgraph);
 }
 
-// TODO: move this to a device?
-bool is_mul_mat_supported(const ggml_tensor * dst) {
-    auto * src0 = dst->src[0];
-    auto * src1 = dst->src[1];
-    if (!src0 || !src1) {
-        return false;
-    }
-
-    if (src0->ne[0] != src1->ne[0]) {
-        LOG_ERROR("src0[0] and src1[0] not match: %ld vs %ld\n", (long) src0->ne[0], (long) src1->ne[0]);
-        return false;
-    }
-
-    if (src0->ne[1] != dst->ne[0]) {
-        LOG_ERROR("src0[1] and dst[0] not match: %ld vs %ld\n", (long) src0->ne[1], (long) dst->ne[0]);
-        return false;
-    }
-
-    if (src1->ne[1] != dst->ne[1]) {
-        LOG_ERROR("src1[1] and dst[1] not match: %ld vs %ld\n", (long) src1->ne[1], (long) dst->ne[1]);
-        return false;
-    }
-
-    if (src1->ne[2] != dst->ne[2]) {
-        LOG_ERROR("src1[2] and dst[2] not match: %ld vs %ld\n", (long) src1->ne[2], (long) dst->ne[2]);
-        return false;
-    }
-
-    if (src1->ne[3] != dst->ne[3]) {
-        LOG_ERROR("src1[3] and dst[3] not match: %ld vs %ld\n", (long) src1->ne[3], (long) dst->ne[3]);
-        return false;
-    }
-
-    if (src1->ne[2] % src0->ne[2]) {
-        LOG_ERROR("src1[2] not divisible by src0[2]: %ld vs %ld\n", (long) src1->ne[2], (long) src0->ne[2]);
-        return false;
-    }
-
-    if (src1->ne[3] % src0->ne[3]) {
-        LOG_ERROR("src1[3] not divisible by src0[3]: %ld vs %ld\n", (long) src1->ne[3], (long) src0->ne[3]);
-        return false;
-    }
-
-    return true;
-}
-
 }  // namespace
 
 namespace hexagon {
@@ -239,8 +193,12 @@ bool npu_device::supports_op(const ggml_tensor * op) {
         return false;
     }
 
-    if (op->op == GGML_OP_MUL_MAT && !is_mul_mat_supported(op)) {
-        LOG_DEBUG("[%s]Unsupported MUL_MAT\n", get_name());
+    boolean supported = false;
+    auto    ret =
+        npu_device_device_support_op(_device_handle, src0->ne, src1->ne, op->ne, op_to_npu_op(op->op), &supported);
+    if (ret != AEE_SUCCESS || !supported) {
+        LOG_DEBUG("[%s]Unsupported op: %s, ret: 0x%x, supported: %d\n", get_name(), ggml_op_name(op->op), ret,
+                  supported);
         return false;
     }
 

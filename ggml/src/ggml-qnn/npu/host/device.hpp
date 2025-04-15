@@ -2,6 +2,9 @@
 
 #include <memory>
 #include <unordered_map>
+#ifndef NDEBUG
+#    include <atomic>
+#endif
 
 #include "buffer.hpp"
 #include "common.hpp"
@@ -43,6 +46,11 @@ class npu_device {
     remote_handle64                   _device_handle = 0;
     std::unique_ptr<host_buffer_type> _default_buffer_type;
     uint32_t                          _dsp_domain_id = 0;
+
+#ifndef NDEBUG
+    std::atomic_uint32_t _supported_op   = 0;
+    std::atomic_uint32_t _unsupported_op = 0;
+#endif
 
     DISABLE_COPY(npu_device);
     DISABLE_MOVE(npu_device);

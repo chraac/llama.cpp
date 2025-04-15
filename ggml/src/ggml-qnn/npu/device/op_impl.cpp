@@ -241,12 +241,79 @@ static_assert(kOpArray[NPU_OP_MUL_MAT] == mul_mat_f32, "kOpArray[NPU_OP_MUL_MAT]
 
 static_assert((sizeof(kOpArray) / sizeof(kOpArray[0])) == NPU_OP_COUNT);
 
+bool is_element_wise_op(npu_device_tensor_op op) {
+    return op == NPU_OP_ADD || op == NPU_OP_SUB || op == NPU_OP_MUL;
+}
+
+bool is_mul_mat_supported(const npu_device_ne_type src0, const npu_device_ne_type src1, const npu_device_ne_type dst) {
+    if (src0[0] != src1[0]) {
+        DEVICE_LOG_DEBUG("src0[0] and src1[0] not match: %ld vs %ld\n", (long) src0[0], (long) src1[0]);
+        return false;
+    }
+
+    if (src0[1] != dst[0]) {
+        DEVICE_LOG_DEBUG("src0[1] and dst[0] not match: %ld vs %ld\n", (long) src0[1], (long) dst[0]);
+        return false;
+    }
+
+    if (src1[1] != dst[1]) {
+        DEVICE_LOG_DEBUG("src1[1] and dst[1] not match: %ld vs %ld\n", (long) src1[1], (long) dst[1]);
+        return false;
+    }
+
+    if (src1[2] != dst[2]) {
+        DEVICE_LOG_DEBUG("src1[2] and dst[2] not match: %ld vs %ld\n", (long) src1[2], (long) dst[2]);
+        return false;
+    }
+
+    if (src1[3] != dst[3]) {
+        DEVICE_LOG_DEBUG("src1[3] and dst[3] not match: %ld vs %ld\n", (long) src1[3], (long) dst[3]);
+        return false;
+    }
+
+    if (src1[2] % src0[2]) {
+        DEVICE_LOG_DEBUG("src1[2] not divisible by src0[2]: %ld vs %ld\n", (long) src1[2], (long) src0[2]);
+        return false;
+    }
+
+    if (src1[3] % src0[3]) {
+        DEVICE_LOG_DEBUG("src1[3] not divisible by src0[3]: %ld vs %ld\n", (long) src1[3], (long) src0[3]);
+        return false;
+    }
+
+    return true;
+}
+
 }  // namespace
 
 namespace hexagon {
 
 compute_func_t get_compute_func(npu_device_tensor_op op) {
+    if (op >= NPU_OP_COUNT) {
+        return nullptr;
+    }
+
     return kOpArray[op];
+}
+
+bool support_op(const npu_device_ne_type src0, const npu_device_ne_type src1, const npu_device_ne_type dst,
+                npu_device_tensor_op op) {
+    if (get_compute_func(op) == nullptr) {
+        DEVICE_LOG_ERROR("Unsupported op: %d\n", op);
+        return false;
+    }
+
+    if (is_element_wise_op(op)) {
+        if (src0[0] != src1[0]) {
+            DEVICE_LOG_DEBUG("src0[0] and src1[0] not match: %ld vs %ld\n", (long) src0[0], (long) src1[0]);
+            return false;
+        }
+    } else if (op == NPU_OP_MUL_MAT && !is_mul_mat_supported(src0, src1, dst)) {
+        DEVICE_LOG_DEBUG("Unsupported mul_mat\n");
+        return false;
+    }
+
+    return true;
 }
 
 }  // namespace hexagon
