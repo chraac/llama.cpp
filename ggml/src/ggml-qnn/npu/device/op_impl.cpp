@@ -30,7 +30,7 @@ inline void vec_op_f32_f32(const float * src0, const float * src1, size_t count,
     HVX_Vector   prev0     = *iptr0++;
     HVX_Vector   prev1     = *iptr1++;
 
-    // TODO: prefetch?
+    // TODO: prefetch or just use VTCM?
     while (iptr0 < iptr0_end) {
         HVX_Vector curr0 = *iptr0++;
         HVX_Vector curr1 = *iptr1++;
@@ -89,7 +89,7 @@ inline float vec_dot_product_f32_f32(const float * src0, const float * src1, siz
     HVX_Vector   prev1     = *iptr1++;
     HVX_Vector   sum       = Q6_V_vzero();
 
-    // TODO: prefetch?
+    // TODO: prefetch or just use VTCM?
     while (iptr0 < iptr0_end) {
         HVX_Vector curr0 = *iptr0++;
         HVX_Vector curr1 = *iptr1++;
