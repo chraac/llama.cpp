@@ -116,17 +116,6 @@ bool element_wise_op(hexagon::tensor * out) {
     return true;
 }
 
-constexpr const hexagon::compute_func_t kOpArray[] = {
-    hexagon::mul_mat_f32,                                         // NPU_OP_MUL_MAT
-    element_wise_op<float, float, vec_op_f32_f32<vadd_f32_f32>>,  // NPU_OP_ADD
-    element_wise_op<float, float, vec_op_f32_f32<vsub_f32_f32>>,  // NPU_OP_SUB
-    element_wise_op<float, float, vec_op_f32_f32<vmul_f32_f32>>,  // NPU_OP_MUL
-};
-
-static_assert(kOpArray[NPU_OP_MUL_MAT] == hexagon::mul_mat_f32, "kOpArray[NPU_OP_MUL_MAT] != mul_mat_f32");
-
-static_assert((sizeof(kOpArray) / sizeof(kOpArray[0])) == NPU_OP_COUNT);
-
 bool is_element_wise_op(npu_device_tensor_op op) {
     return op == NPU_OP_ADD || op == NPU_OP_SUB || op == NPU_OP_MUL;
 }
@@ -151,16 +140,37 @@ bool is_element_wise_op_supported(const npu_device_ne_type src0, const npu_devic
     return true;
 }
 
+struct op_capabilities {
+    npu_device_tensor_op       op;
+    hexagon::compute_func_type compute_func;
+    bool (*is_supported)(const npu_device_ne_type src0, const npu_device_ne_type src1, const npu_device_ne_type dst,
+                         npu_device_tensor_op op);
+};
+
+constexpr const op_capabilities kOpCapabilities[] = {
+    { NPU_OP_MUL_MAT, hexagon::mul_mat_f32, hexagon::is_mul_mat_supported },
+    { NPU_OP_ADD, element_wise_op<float, float, vec_op_f32_f32<vadd_f32_f32>>, is_element_wise_op_supported },
+    { NPU_OP_SUB, element_wise_op<float, float, vec_op_f32_f32<vsub_f32_f32>>, is_element_wise_op_supported },
+    { NPU_OP_MUL, element_wise_op<float, float, vec_op_f32_f32<vmul_f32_f32>>, is_element_wise_op_supported },
+};
+
+static_assert(kOpCapabilities[NPU_OP_MUL_MAT].compute_func == hexagon::mul_mat_f32,
+              "kOpArray[NPU_OP_MUL_MAT] != mul_mat_f32");
+
+static_assert(std::size(kOpCapabilities) == NPU_OP_COUNT);
+static_assert(kOpCapabilities[NPU_OP_MUL_MAT].op == NPU_OP_MUL_MAT, "kOpArray[NPU_OP_MUL_MAT].op != NPU_OP_MUL_MAT");
+static_assert(kOpCapabilities[NPU_OP_MUL].op == NPU_OP_MUL, "kOpArray[NPU_OP_MUL].op != NPU_OP_MUL");
+
 }  // namespace
 
 namespace hexagon {
 
-compute_func_t get_compute_func(npu_device_tensor_op op) {
+compute_func_type get_compute_func(npu_device_tensor_op op) {
     if (op >= NPU_OP_COUNT) {
         return nullptr;
     }
 
-    return kOpArray[op];
+    return kOpCapabilities[op].compute_func;
 }
 
 bool support_op(const npu_device_ne_type src0, const npu_device_ne_type src1, const npu_device_ne_type dst,
@@ -170,13 +180,9 @@ bool support_op(const npu_device_ne_type src0, const npu_device_ne_type src1, co
         return false;
     }
 
-    if (is_element_wise_op(op)) {
-        // TODO: move this to op array?
-        if (!is_element_wise_op_supported(src0, src1, dst, op)) {
-            return false;
-        }
-    } else if (op == NPU_OP_MUL_MAT && !is_mul_mat_supported(src0, src1, dst, op)) {
-        DEVICE_LOG_DEBUG("Unsupported mul_mat\n");
+    auto is_supported_func = kOpCapabilities[op].is_supported;
+    if (!is_supported_func || !is_supported_func(src0, src1, dst, op)) {
+        DEVICE_LOG_ERROR("Unsupported op: %d\n", op);
         return false;
     }
 
