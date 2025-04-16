@@ -161,7 +161,7 @@ bool npu_device::supports_buft(ggml_backend_buffer_type_t buft) const {
     return buft && buft->device && buft->device->context == this;
 }
 
-bool npu_device::supports_op(const ggml_tensor * op) {
+bool npu_device::supports_op_impl(const ggml_tensor * op) {
     if (op->op == GGML_OP_NONE) {
         return true;
     }
