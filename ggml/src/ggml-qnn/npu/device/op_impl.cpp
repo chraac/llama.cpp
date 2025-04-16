@@ -116,14 +116,10 @@ bool element_wise_op(hexagon::tensor * out) {
     return true;
 }
 
-bool is_element_wise_op(npu_device_tensor_op op) {
-    return op == NPU_OP_ADD || op == NPU_OP_SUB || op == NPU_OP_MUL;
-}
-
 bool is_element_wise_op_supported(const npu_device_ne_type src0, const npu_device_ne_type src1,
                                   const npu_device_ne_type dst, npu_device_tensor_op op) {
     if (op != NPU_OP_ADD && op != NPU_OP_SUB && op != NPU_OP_MUL) {
-        DEVICE_LOG_DEBUG("Unsupported element wise op: %d\n", op);
+        DEVICE_LOG_DEBUG("Unsupported element wise op: %s\n", hexagon::op_get_name(op));
         return false;
     }
 
@@ -141,10 +137,9 @@ bool is_element_wise_op_supported(const npu_device_ne_type src0, const npu_devic
 }
 
 struct op_capabilities {
-    npu_device_tensor_op       op;
-    hexagon::compute_func_type compute_func;
-    bool (*is_supported)(const npu_device_ne_type src0, const npu_device_ne_type src1, const npu_device_ne_type dst,
-                         npu_device_tensor_op op);
+    npu_device_tensor_op               op;
+    hexagon::compute_func_type         compute_func;
+    hexagon::op_is_supported_func_type is_supported;
 };
 
 constexpr const op_capabilities kOpCapabilities[] = {
@@ -176,13 +171,13 @@ compute_func_type get_compute_func(npu_device_tensor_op op) {
 bool support_op(const npu_device_ne_type src0, const npu_device_ne_type src1, const npu_device_ne_type dst,
                 npu_device_tensor_op op) {
     if (get_compute_func(op) == nullptr) {
-        DEVICE_LOG_ERROR("Unsupported op: %d\n", op);
+        DEVICE_LOG_ERROR("Unsupported op: %s, get_compute_func failed\n", op_get_name(op));
         return false;
     }
 
     auto is_supported_func = kOpCapabilities[op].is_supported;
     if (!is_supported_func || !is_supported_func(src0, src1, dst, op)) {
-        DEVICE_LOG_ERROR("Unsupported op: %d\n", op);
+        DEVICE_LOG_ERROR("Unsupported op: %s, is_supported_func failed\n", op_get_name(op));
         return false;
     }
 
