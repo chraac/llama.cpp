@@ -118,38 +118,21 @@ bool is_mul_mat_supported(const npu_device_ne_type src0, const npu_device_ne_typ
         return false;
     }
 
-    if (src0[0] != src1[0]) {
-        DEVICE_LOG_DEBUG("src0[0] and src1[0] not match: %ld vs %ld\n", (long) src0[0], (long) src1[0]);
+    if (src0[0] != src1[0] || src0[1] != dst[0]) {
+        DEVICE_LOG_DEBUG("src0 and src1 cannot multiply: %ldx%ld vs %ldx%ld\n", (long) src0[0], (long) src0[1],
+                         (long) src1[0], (long) src1[1]);
         return false;
     }
 
-    if (src0[1] != dst[0]) {
-        DEVICE_LOG_DEBUG("src0[1] and dst[0] not match: %ld vs %ld\n", (long) src0[1], (long) dst[0]);
+    if (src1[1] != dst[1] || src1[2] != dst[2] || src1[3] != dst[3]) {
+        DEVICE_LOG_DEBUG("src1 and dst dimensions not match: %ldx%ld vs %ldx%ld\n", (long) src1[2], (long) src1[3],
+                         (long) dst[2], (long) dst[3]);
         return false;
     }
 
-    if (src1[1] != dst[1]) {
-        DEVICE_LOG_DEBUG("src1[1] and dst[1] not match: %ld vs %ld\n", (long) src1[1], (long) dst[1]);
-        return false;
-    }
-
-    if (src1[2] != dst[2]) {
-        DEVICE_LOG_DEBUG("src1[2] and dst[2] not match: %ld vs %ld\n", (long) src1[2], (long) dst[2]);
-        return false;
-    }
-
-    if (src1[3] != dst[3]) {
-        DEVICE_LOG_DEBUG("src1[3] and dst[3] not match: %ld vs %ld\n", (long) src1[3], (long) dst[3]);
-        return false;
-    }
-
-    if (src1[2] % src0[2]) {
-        DEVICE_LOG_DEBUG("src1[2] not divisible by src0[2]: %ld vs %ld\n", (long) src1[2], (long) src0[2]);
-        return false;
-    }
-
-    if (src1[3] % src0[3]) {
-        DEVICE_LOG_DEBUG("src1[3] not divisible by src0[3]: %ld vs %ld\n", (long) src1[3], (long) src0[3]);
+    if (src1[2] % src0[2] || src1[3] % src0[3]) {
+        DEVICE_LOG_DEBUG("src0 cannot broadcast to src1: %ldx%ld vs %ldx%ld\n", (long) src0[2], (long) src0[3],
+                         (long) src1[2], (long) src1[3]);
         return false;
     }
 
