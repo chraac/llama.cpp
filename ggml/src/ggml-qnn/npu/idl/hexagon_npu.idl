@@ -24,7 +24,12 @@ interface npu_device : remote_handle64{
         NPU_DATA_TYPE_COUNT
     };
 
-    struct tensor_info {
+    struct tensor_spec {
+        ne_type ne;
+        tensor_data_type type;
+    };
+
+    struct tensor_config {
         ne_type ne;
         uint64_t nb[DEVICE_TENSOR_MAX_DIMS];
         long buffer_fd;
@@ -39,15 +44,15 @@ interface npu_device : remote_handle64{
     );
 
     AEEResult device_support_op(
-        in ne_type src0,
-        in ne_type src1,
-        in ne_type dst,
+        in tensor_spec src0,
+        in tensor_spec src1,
+        in tensor_spec dst,
         in tensor_op op,
         rout boolean is_supported
     );
 
     AEEResult tensor_init(
-        in tensor_info info,
+        in tensor_config info,
         rout tensor_handle_t tensor_handle
     );
 

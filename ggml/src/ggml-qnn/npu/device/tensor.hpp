@@ -12,7 +12,7 @@ constexpr const size_t kMaxTensorSrc = DEVICE_TENSOR_MAX_SRC;
 
 class tensor {
   public:
-    explicit tensor(const npu_device_tensor_info & info) noexcept : _info(info) {
+    explicit tensor(const npu_device_tensor_config & info) noexcept : _info(info) {
         uint64 phy_address  = 0;
         void * mmap_address = nullptr;
         auto   ret          = HAP_mmap_get(_info.buffer_fd, &mmap_address, &phy_address);
@@ -62,7 +62,7 @@ class tensor {
         return _src[index];
     }
 
-    const npu_device_tensor_info & get_info() const { return _info; }
+    const npu_device_tensor_config & get_info() const { return _info; }
 
     const int64_t get_ne(size_t index) const { return _info.ne[index]; }
 
@@ -77,9 +77,9 @@ class tensor {
     bool is_valid() const { return _data != nullptr; }
 
   private:
-    npu_device_tensor_info _info;
-    tensor *               _src[kMaxTensorSrc] = {};
-    uint8_t *              _data               = nullptr;
+    npu_device_tensor_config _info;
+    tensor *                 _src[kMaxTensorSrc] = {};
+    uint8_t *                _data               = nullptr;
 
     tensor(const tensor &)         = delete;
     void operator=(const tensor &) = delete;

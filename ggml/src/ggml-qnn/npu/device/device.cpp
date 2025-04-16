@@ -68,14 +68,15 @@ AEEResult npu_device_device_get_alignment(remote_handle64 _h, uint32_t * alignme
     return AEE_SUCCESS;
 }
 
-AEEResult npu_device_device_support_op(remote_handle64 _h, const npu_device_ne_type src0, const npu_device_ne_type src1,
-                                       const npu_device_ne_type dst, npu_device_tensor_op op, boolean * is_supported) {
+AEEResult npu_device_device_support_op(remote_handle64 _h, const npu_device_tensor_spec * src0,
+                                       const npu_device_tensor_spec * src1, const npu_device_tensor_spec * dst,
+                                       npu_device_tensor_op op, boolean * is_supported) {
     NPU_UNUSED(_h);
-    *is_supported = hexagon::support_op(src0, src1, dst, op);
+    *is_supported = hexagon::support_op(*src0, *src1, *dst, op);
     return AEE_SUCCESS;
 }
 
-AEEResult npu_device_tensor_init(remote_handle64 _h, const npu_device_tensor_info * info,
+AEEResult npu_device_tensor_init(remote_handle64 _h, const npu_device_tensor_config * info,
                                  npu_device_tensor_handle_t * tensor_handle) {
     NPU_UNUSED(_h);
     auto * tensor = new (std::nothrow) hexagon::tensor(*info);

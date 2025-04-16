@@ -193,9 +193,27 @@ bool npu_device::supports_op_impl(const ggml_tensor * op) {
         return false;
     }
 
+    constexpr const auto get_spec = [](const ggml_tensor * tensor) -> npu_device_tensor_spec {
+        if (!tensor) {
+            return npu_device_tensor_spec{};
+        }
+
+        static_assert(DEVICE_TENSOR_MAX_DIMS == GGML_MAX_DIMS, "tensor dimensions mismatch");
+        npu_device_tensor_spec spec{};
+        spec.ne[0] = tensor->ne[0];
+        spec.ne[1] = tensor->ne[1];
+        spec.ne[2] = tensor->ne[2];
+        spec.ne[3] = tensor->ne[3];
+        spec.type  = type_to_npu_type(tensor->type);
+        return spec;
+    };
+
     boolean supported = false;
-    auto    ret =
-        npu_device_device_support_op(_device_handle, src0->ne, src1->ne, op->ne, op_to_npu_op(op->op), &supported);
+    auto    src0_spec = get_spec(src0);
+    auto    src1_spec = get_spec(src1);
+    auto    dst_spec  = get_spec(op);
+    auto    ret = npu_device_device_support_op(_device_handle, &src0_spec, &src1_spec, &dst_spec, op_to_npu_op(op->op),
+                                               &supported);
     if (ret != AEE_SUCCESS || !supported) {
         LOG_DEBUG("[%s]Unsupported op: %s, ret: 0x%x, supported: %d\n", get_name(), ggml_op_name(op->op), ret,
                   supported);

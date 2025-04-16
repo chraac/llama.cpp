@@ -111,28 +111,28 @@ bool mul_mat_f32(hexagon::tensor * out) {
     return true;
 }
 
-bool is_mul_mat_supported(const npu_device_ne_type src0, const npu_device_ne_type src1, const npu_device_ne_type dst,
-                          npu_device_tensor_op op) {
+bool is_mul_mat_supported(const npu_device_tensor_spec & src0, const npu_device_tensor_spec & src1,
+                          const npu_device_tensor_spec & dst, npu_device_tensor_op op) {
     if (op != NPU_OP_MUL_MAT) {
         DEVICE_LOG_DEBUG("op is not NPU_OP_MUL_MAT: %d\n", op);
         return false;
     }
 
-    if (src0[0] != src1[0] || src0[1] != dst[0]) {
-        DEVICE_LOG_DEBUG("src0 and src1 cannot multiply: %ldx%ld vs %ldx%ld\n", (long) src0[0], (long) src0[1],
-                         (long) src1[0], (long) src1[1]);
+    if (src0.ne[0] != src1.ne[0] || src0.ne[1] != dst.ne[0]) {
+        DEVICE_LOG_DEBUG("src0 and src1 cannot multiply: %ldx%ld vs %ldx%ld\n", (long) src0.ne[0], (long) src0.ne[1],
+                         (long) src1.ne[0], (long) src1.ne[1]);
         return false;
     }
 
-    if (src1[1] != dst[1] || src1[2] != dst[2] || src1[3] != dst[3]) {
-        DEVICE_LOG_DEBUG("src1 and dst dimensions not match: %ldx%ld vs %ldx%ld\n", (long) src1[2], (long) src1[3],
-                         (long) dst[2], (long) dst[3]);
+    if (src1.ne[1] != dst.ne[1] || src1.ne[2] != dst.ne[2] || src1.ne[3] != dst.ne[3]) {
+        DEVICE_LOG_DEBUG("src1 and dst dimensions not match: %ldx%ld vs %ldx%ld\n", (long) src1.ne[2],
+                         (long) src1.ne[3], (long) dst.ne[2], (long) dst.ne[3]);
         return false;
     }
 
-    if (src1[2] % src0[2] || src1[3] % src0[3]) {
-        DEVICE_LOG_DEBUG("src0 cannot broadcast to src1: %ldx%ld vs %ldx%ld\n", (long) src0[2], (long) src0[3],
-                         (long) src1[2], (long) src1[3]);
+    if (src1.ne[2] % src0.ne[2] || src1.ne[3] % src0.ne[3]) {
+        DEVICE_LOG_DEBUG("src0 cannot broadcast to src1: %ldx%ld vs %ldx%ld\n", (long) src0.ne[2], (long) src0.ne[3],
+                         (long) src1.ne[2], (long) src1.ne[3]);
         return false;
     }
 

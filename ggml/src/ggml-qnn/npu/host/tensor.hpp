@@ -78,7 +78,7 @@ class host_tensor {
   private:
     remote_handle64            _device_handle        = 0;
     npu_device_tensor_handle_t _device_tensor_handle = 0;
-    npu_device_tensor_info     _info                 = {};
+    npu_device_tensor_config   _info                 = {};
     ggml_tensor *              _ggml_tensor          = nullptr;
 
     DISABLE_COPY(host_tensor);

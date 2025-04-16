@@ -21,7 +21,7 @@ inline bool is_addr_aligned(void * addr) {
 }
 
 bool mul_mat_f32(tensor * out);
-bool is_mul_mat_supported(const npu_device_ne_type src0, const npu_device_ne_type src1, const npu_device_ne_type dst,
-                          npu_device_tensor_op op);
+bool is_mul_mat_supported(const npu_device_tensor_spec & src0, const npu_device_tensor_spec & src1,
+                          const npu_device_tensor_spec & dst, npu_device_tensor_op op);
 
 }  // namespace hexagon

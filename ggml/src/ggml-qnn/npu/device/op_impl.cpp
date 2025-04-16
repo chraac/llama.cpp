@@ -116,19 +116,19 @@ bool element_wise_op(hexagon::tensor * out) {
     return true;
 }
 
-bool is_element_wise_op_supported(const npu_device_ne_type src0, const npu_device_ne_type src1,
-                                  const npu_device_ne_type dst, npu_device_tensor_op op) {
+bool is_element_wise_op_supported(const npu_device_tensor_spec & src0, const npu_device_tensor_spec & src1,
+                                  const npu_device_tensor_spec & dst, npu_device_tensor_op op) {
     if (op != NPU_OP_ADD && op != NPU_OP_SUB && op != NPU_OP_MUL) {
         DEVICE_LOG_DEBUG("Unsupported element wise op: %s\n", hexagon::op_get_name(op));
         return false;
     }
 
-    if (src0[0] != src1[0]) {
-        DEVICE_LOG_DEBUG("src0[0] and src1[0] not match: %ld vs %ld\n", (long) src0[0], (long) src1[0]);
+    if (src0.ne[0] != src1.ne[0]) {
+        DEVICE_LOG_DEBUG("src0.ne[0] and src1.ne[0] not match: %ld vs %ld\n", (long) src0.ne[0], (long) src1.ne[0]);
         return false;
     }
 
-    if (strncmp((const char *) src0, (const char *) src1, sizeof(npu_device_ne_type)) != 0) {
+    if (strncmp((const char *) src0.ne, (const char *) src1.ne, sizeof(src0.ne)) != 0) {
         DEVICE_LOG_DEBUG("src0 and dst dimensions not match\n");
         return false;
     }
@@ -168,8 +168,8 @@ compute_func_type get_compute_func(npu_device_tensor_op op) {
     return kOpCapabilities[op].compute_func;
 }
 
-bool support_op(const npu_device_ne_type src0, const npu_device_ne_type src1, const npu_device_ne_type dst,
-                npu_device_tensor_op op) {
+bool support_op(const npu_device_tensor_spec & src0, const npu_device_tensor_spec & src1,
+                const npu_device_tensor_spec & dst, npu_device_tensor_op op) {
     if (get_compute_func(op) == nullptr) {
         DEVICE_LOG_ERROR("Unsupported op: %s, get_compute_func failed\n", op_get_name(op));
         return false;
