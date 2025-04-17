@@ -100,14 +100,14 @@ size_t npu_device::get_alignment() const {
     return alignment;
 }
 
-bool npu_device::is_device_valid() const {
-    if (!_rpc_mem) {
-        LOG_ERROR("[%s]rpc memory not initialized\n", get_name());
+bool npu_device::is_device_initialized() const {
+    if (!_device_handle) {
+        LOG_ERROR("[%s]NPU device not opened\n", get_name());
         return false;
     }
 
-    if (!_device_handle) {
-        LOG_ERROR("[%s]NPU device not opened\n", get_name());
+    if (!_rpc_mem) {
+        LOG_ERROR("[%s]rpc memory not initialized\n", get_name());
         return false;
     }
 
@@ -115,18 +115,8 @@ bool npu_device::is_device_valid() const {
 }
 
 bool npu_device::init_device(ggml_backend_dev_t dev, const char * params) {
-    if (!_rpc_mem) {
-        auto rpc_interface = std::make_shared<common::rpc_interface>();
-        if (!rpc_interface->is_valid()) {
-            LOG_ERROR("[%s]Failed to load rpc memory library\n", get_name());
-            return false;
-        }
-
-        auto rpc_mem   = std::make_shared<common::rpc_mem>(rpc_interface);
-        _rpc_interface = rpc_interface;
-        _rpc_mem       = rpc_mem;
-    } else {
-        LOG_DEBUG("[%s]NPU device is already initialized\n", get_name());
+    if (!init_rpc_mem()) {
+        return false;
     }
 
     if (!_device_handle) {
@@ -157,7 +147,6 @@ bool npu_device::init_device(ggml_backend_dev_t dev, const char * params) {
         LOG_DEBUG("[%s]NPU device is already opened\n", get_name());
     }
 
-    _default_buffer_type = std::make_unique<hexagon::host_buffer_type>(dev, _name + "_buffer_type", _rpc_mem);
     return true;
 }
 
@@ -228,15 +217,45 @@ bool npu_device::supports_op_impl(const ggml_tensor * op) {
     return true;
 }
 
+bool npu_device::init_rpc_mem() {
+    if (!_rpc_mem) {
+        auto rpc_interface = std::make_shared<common::rpc_interface>();
+        if (!rpc_interface->is_valid()) {
+            LOG_ERROR("[%s]Failed to load rpc memory library\n", get_name());
+            return false;
+        }
+
+        auto rpc_mem   = std::make_shared<common::rpc_mem>(rpc_interface);
+        _rpc_interface = rpc_interface;
+        _rpc_mem       = rpc_mem;
+        LOG_DEBUG("[%s]rpc memory initialized\n", get_name());
+    } else {
+        LOG_DEBUG("[%s]rpc memory already initialized\n", get_name());
+    }
+
+    return true;
+}
+
 bool npu_device::offload_op(const ggml_tensor * op) {
     // TODO: implement this
     return false;
 }
 
-ggml_backend_buffer_type_t npu_device::get_default_buffer_type() {
-    if (!_default_buffer_type) {
-        LOG_ERROR("[%s]Default buffer type not initialized\n", get_name());
+ggml_backend_buffer_type_t npu_device::get_default_buffer_type(ggml_backend_dev_t dev) {
+    // Note that this function will be called before the npu_device::init_device
+    if (!init_rpc_mem()) {
         return nullptr;
+    }
+
+    if (!_default_buffer_type) {
+        LOG_DEBUG("[%s]Creating default buffer type\n", get_name());
+        _default_buffer_type = std::make_unique<hexagon::host_buffer_type>(dev, _name + "_buffer_type", _rpc_mem);
+        if (!_default_buffer_type) {
+            LOG_ERROR("[%s]Default buffer type not initialized\n", get_name());
+            return nullptr;
+        }
+    } else {
+        LOG_DEBUG("[%s]Default buffer type already created\n", get_name());
     }
 
     return _default_buffer_type.get();

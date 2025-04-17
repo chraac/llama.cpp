@@ -28,10 +28,10 @@ class npu_device {
 
     uint32_t get_dsp_domain_id() const { return _dsp_domain_id; }
 
-    bool is_device_valid() const;
-    bool init_device(ggml_backend_dev_t dev, const char * params);
+    ggml_backend_buffer_type_t get_default_buffer_type(ggml_backend_dev_t dev);
 
-    ggml_backend_buffer_type_t get_default_buffer_type();
+    bool is_device_initialized() const;
+    bool init_device(ggml_backend_dev_t dev, const char * params);
 
     bool supports_buft(ggml_backend_buffer_type_t buft) const;
     bool offload_op(const ggml_tensor * op);
@@ -61,6 +61,7 @@ class npu_device {
 
   private:
     bool supports_op_impl(const ggml_tensor * op);
+    bool init_rpc_mem();
 
     std::string                       _name = "hexagon-npu";
     common::rpc_interface_ptr         _rpc_interface;

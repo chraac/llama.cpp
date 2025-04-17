@@ -209,7 +209,7 @@ host_buffer_type::host_buffer_type(ggml_backend_dev_t dev, const std::string & n
 }
 
 size_t host_buffer_type::get_buffer_alignment() const {
-    return _device->get_alignment();
+    return _device->is_device_initialized() ? _device->get_alignment() : 128;
 }
 
 size_t host_buffer_type::get_max_buffer_size() const {
@@ -224,6 +224,11 @@ size_t host_buffer_type::get_max_buffer_size() const {
 ggml_backend_buffer_t host_buffer_type::allocate_buffer(size_t size) {
     if (!_rpc_mem) {
         LOG_ERROR("rpc memory not initialized\n");
+        return nullptr;
+    }
+
+    if (!_device->is_device_initialized()) {
+        LOG_ERROR("device is not initialized\n");
         return nullptr;
     }
 

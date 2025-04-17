@@ -65,6 +65,14 @@ endif()
 
 add_subdirectory(shared)
 
+if(GGML_HEXAGON_NPU_ONLY)
+    message("GGML_HEXAGON_NPU_ONLY is enabled")
+    add_compile_definitions(GGML_HEXAGON_NPU_ONLY)
+    set(GGML_QNN_ENABLE_HEXAGON_PACKAGE ON)
+else()
+    message("GGML_HEXAGON_NPU_ONLY is disabled")
+endif()
+
 if(GGML_QNN_ENABLE_HEXAGON_PACKAGE)
     message("GGML_QNN_ENABLE_HEXAGON_PACKAGE is enabled")
     add_subdirectory(npu)

@@ -68,12 +68,7 @@ ggml_backend_t backend_dev_init_backend(ggml_backend_dev_t dev, const char * par
 ggml_backend_buffer_type_t backend_dev_get_buffer_type(ggml_backend_dev_t dev) {
     auto * dev_obj = get_device_object(dev);
     GGML_ASSERT(dev_obj != nullptr);
-    if (!dev_obj->is_device_valid()) {
-        LOG_ERROR("[%s]Device is not valid\n", backend_dev_get_name(dev));
-        return nullptr;
-    }
-
-    return dev_obj->get_default_buffer_type();
+    return dev_obj->get_default_buffer_type(dev);
 }
 
 ggml_backend_buffer_t backend_dev_buffer_from_host_ptr(ggml_backend_dev_t dev, void * ptr, size_t size,
