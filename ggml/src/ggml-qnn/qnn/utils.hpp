@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <string>
 
+#include "common.hpp"
 #include "ggml-qnn.h"
 #include "ggml.h"
 #include "logger.hpp"
@@ -23,8 +24,8 @@ qnn_dimension_array_t get_view_internal_dimension(const ggml_tensor * tensor, si
 
 uint32_t     get_ggml_tensor_rank(const ggml_tensor * tensor);
 const char * get_ggml_type_name(ggml_type type);
-const char * get_backend_name(QNNBackend device);
-const char * get_backend_desc(QNNBackend device);
+const char * get_backend_name(backend_index_type device);
+const char * get_backend_desc(backend_index_type device);
 const char * get_chipset_desc(uint32_t soc_model);
 const char * get_chipset_model(uint32_t soc_model);
 const char * get_htparch_desc(size_t htp_arch);
