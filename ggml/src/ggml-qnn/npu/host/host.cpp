@@ -3,9 +3,9 @@
 #include <string>
 
 #include "buffer.hpp"
-#include "device.hpp"
 #include "ggml-backend-impl.h"
 #include "ggml-impl.h"
+#include "host_device.hpp"
 
 namespace {
 
@@ -18,11 +18,19 @@ hexagon::npu_device * get_device_object(ggml_backend_t backend) {
 }
 
 const char * backend_dev_get_name(ggml_backend_dev_t dev) {
-    return get_device_object(dev)->get_name();
+    auto * dev_obj = get_device_object(dev);
+    GGML_ASSERT(dev_obj != nullptr);
+    return dev_obj->get_name();
 }
 
 const char * backend_dev_get_description(ggml_backend_dev_t dev) {
-    return get_device_object(dev)->get_description();
+    auto * dev_obj = get_device_object(dev);
+    GGML_ASSERT(dev_obj != nullptr);
+    return dev_obj->get_description();
+}
+
+bool backend_dev_is_npu_device(ggml_backend_dev_t dev) {
+    return dev->iface.get_name == backend_dev_get_name;
 }
 
 void backend_dev_get_memory(ggml_backend_dev_t dev, size_t * free, size_t * total) {
@@ -38,6 +46,7 @@ enum ggml_backend_dev_type backend_dev_get_type(ggml_backend_dev_t dev) {
 }
 
 void backend_dev_get_props(ggml_backend_dev_t dev, struct ggml_backend_dev_props * props) {
+    GGML_ASSERT(get_device_object(dev) != nullptr);
     props->name        = backend_dev_get_name(dev);
     props->description = backend_dev_get_description(dev);
     props->type        = backend_dev_get_type(dev);
@@ -46,8 +55,9 @@ void backend_dev_get_props(ggml_backend_dev_t dev, struct ggml_backend_dev_props
 }
 
 ggml_backend_t backend_dev_init_backend(ggml_backend_dev_t dev, const char * params) {
-    auto * device = get_device_object(dev);
-    if (!device->init_device(dev, params)) {
+    auto * dev_obj = get_device_object(dev);
+    GGML_ASSERT(dev_obj != nullptr);
+    if (!dev_obj->init_device(dev, params)) {
         LOG_ERROR("[%s]Failed to init device\n", backend_dev_get_name(dev));
         return nullptr;
     }
@@ -56,13 +66,14 @@ ggml_backend_t backend_dev_init_backend(ggml_backend_dev_t dev, const char * par
 }
 
 ggml_backend_buffer_type_t backend_dev_get_buffer_type(ggml_backend_dev_t dev) {
-    auto * device = get_device_object(dev);
-    if (!device->is_device_valid()) {
+    auto * dev_obj = get_device_object(dev);
+    GGML_ASSERT(dev_obj != nullptr);
+    if (!dev_obj->is_device_valid()) {
         LOG_ERROR("[%s]Device is not valid\n", backend_dev_get_name(dev));
         return nullptr;
     }
 
-    return device->get_default_buffer_type();
+    return dev_obj->get_default_buffer_type();
 }
 
 ggml_backend_buffer_t backend_dev_buffer_from_host_ptr(ggml_backend_dev_t dev, void * ptr, size_t size,
@@ -73,16 +84,14 @@ ggml_backend_buffer_t backend_dev_buffer_from_host_ptr(ggml_backend_dev_t dev, v
     return ggml_backend_cpu_buffer_from_ptr(ptr, size);
 }
 
-bool backend_dev_is_npu_device(ggml_backend_dev_t dev) {
-    return dev->iface.get_name == backend_dev_get_name;
-}
-
 bool backend_dev_supports_op(ggml_backend_dev_t dev, const struct ggml_tensor * op) {
     if (!backend_dev_is_npu_device(dev)) {
         return false;
     }
 
-    return get_device_object(dev)->supports_op(op);
+    auto * dev_obj = get_device_object(dev);
+    GGML_ASSERT(dev_obj != nullptr);
+    return dev_obj->supports_op(op);
 }
 
 bool backend_dev_supports_buft(ggml_backend_dev_t dev, ggml_backend_buffer_type_t buft) {
@@ -90,7 +99,9 @@ bool backend_dev_supports_buft(ggml_backend_dev_t dev, ggml_backend_buffer_type_
         return false;
     }
 
-    return get_device_object(dev)->supports_buft(buft);
+    auto * dev_obj = get_device_object(dev);
+    GGML_ASSERT(dev_obj != nullptr);
+    return dev_obj->supports_buft(buft);
 }
 
 bool backend_dev_offload_op(ggml_backend_dev_t dev, const struct ggml_tensor * op) {
@@ -98,7 +109,9 @@ bool backend_dev_offload_op(ggml_backend_dev_t dev, const struct ggml_tensor * o
         return false;
     }
 
-    return get_device_object(dev)->offload_op(op);
+    auto * dev_obj = get_device_object(dev);
+    GGML_ASSERT(dev_obj != nullptr);
+    return dev_obj->offload_op(op);
 }
 
 constexpr const ggml_backend_device_i npu_device_interface = {

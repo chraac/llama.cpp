@@ -2,7 +2,7 @@
 
 #include <rpcmem.h>
 
-#include "device.hpp"
+#include "host_device.hpp"
 #include "tensor.hpp"
 
 namespace {
@@ -23,12 +23,22 @@ void backend_buffer_free_buffer(ggml_backend_buffer_t buffer) {
 }
 
 void * backend_buffer_get_base(ggml_backend_buffer_t buffer) {
-    return get_buffer_object(buffer)->get_buffer();
+    auto * buffer_obj = get_buffer_object(buffer);
+    GGML_ASSERT(buffer_obj != nullptr);
+    return buffer_obj->get_buffer();
 }
 
 ggml_status backend_buffer_init_tensor(ggml_backend_buffer_t buffer, ggml_tensor * tensor) {
-    auto * device_object = get_buffer_type_object(buffer->buft)->get_device();
-    auto   tensor_object = get_buffer_object(buffer)->init_tensor(tensor, device_object->get_device_handle());
+    auto * buffer_type_obj = get_buffer_type_object(buffer->buft);
+    GGML_ASSERT(buffer_type_obj != nullptr);
+
+    auto * device_object = buffer_type_obj->get_device();
+    GGML_ASSERT(device_object != nullptr);
+
+    auto * buffer_obj = get_buffer_object(buffer);
+    GGML_ASSERT(buffer_obj != nullptr);
+
+    auto tensor_object = buffer_obj->init_tensor(tensor, device_object->get_device_handle());
     if (!tensor_object) {
         LOG_ERROR("Failed to init tensor\n");
         return GGML_STATUS_ALLOC_FAILED;
@@ -60,8 +70,9 @@ bool backend_buffer_cpy_tensor(ggml_backend_buffer_t buffer, const ggml_tensor *
 }
 
 void backend_buffer_clear(ggml_backend_buffer_t buffer, uint8_t value) {
-    auto * obj = get_buffer_object(buffer);
-    memset(obj->get_buffer(), value, obj->get_size());
+    auto * buffer_obj = get_buffer_object(buffer);
+    GGML_ASSERT(buffer_obj != nullptr);
+    memset(buffer_obj->get_buffer(), value, buffer_obj->get_size());
 }
 
 constexpr const ggml_backend_buffer_i backend_buffer_interface = {
@@ -77,19 +88,27 @@ constexpr const ggml_backend_buffer_i backend_buffer_interface = {
 };
 
 const char * backend_buffer_type_get_name(ggml_backend_buffer_type_t buft) {
-    return get_buffer_type_object(buft)->get_name();
+    auto * buffer_type_obj = get_buffer_type_object(buft);
+    GGML_ASSERT(buffer_type_obj != nullptr);
+    return buffer_type_obj->get_name();
 }
 
 ggml_backend_buffer_t backend_buffer_type_alloc_buffer(ggml_backend_buffer_type_t buft, size_t size) {
-    return get_buffer_type_object(buft)->allocate_buffer(size);
+    auto * buffer_type_obj = get_buffer_type_object(buft);
+    GGML_ASSERT(buffer_type_obj != nullptr);
+    return buffer_type_obj->allocate_buffer(size);
 }
 
 size_t backend_buffer_type_get_alignment(ggml_backend_buffer_type_t buft) {
-    return get_buffer_type_object(buft)->get_buffer_alignment();
+    auto * buffer_type_obj = get_buffer_type_object(buft);
+    GGML_ASSERT(buffer_type_obj != nullptr);
+    return buffer_type_obj->get_buffer_alignment();
 }
 
 size_t backend_buffer_type_get_max_size(ggml_backend_buffer_type_t buft) {
-    return get_buffer_type_object(buft)->get_max_buffer_size();
+    auto * buffer_type_obj = get_buffer_type_object(buft);
+    GGML_ASSERT(buffer_type_obj != nullptr);
+    return buffer_type_obj->get_max_buffer_size();
 }
 
 bool backend_buffer_is_host(ggml_backend_buffer_type_t buft) {

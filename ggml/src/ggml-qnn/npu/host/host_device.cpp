@@ -1,4 +1,4 @@
-#include "device.hpp"
+#include "host_device.hpp"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"
@@ -57,7 +57,9 @@ hexagon::npu_backend * get_backend_object(ggml_backend_t backend) {
 }
 
 const char * backend_get_name(ggml_backend_t backend) {
-    return get_backend_object(backend)->get_name();
+    auto * backend_obj = get_backend_object(backend);
+    GGML_ASSERT(backend_obj != nullptr);
+    return backend_obj->get_name();
 }
 
 void backend_free(ggml_backend_t backend) {
@@ -71,7 +73,9 @@ bool backend_cpy_tensor_async(ggml_backend_t backend_src, ggml_backend_t backend
 }
 
 ggml_status backend_graph_compute(ggml_backend_t backend, ggml_cgraph * cgraph) {
-    return get_backend_object(backend)->graph_compute(cgraph);
+    auto * backend_obj = get_backend_object(backend);
+    GGML_ASSERT(backend_obj != nullptr);
+    return backend_obj->graph_compute(cgraph);
 }
 
 }  // namespace
