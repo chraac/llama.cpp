@@ -19,6 +19,8 @@ enum hexagon_dsp_arch {
 
 hexagon_dsp_arch get_dsp_arch(common::rpc_interface_ptr rpc_interface, uint32_t domain_id);
 
+const char * get_dsp_arch_desc(hexagon_dsp_arch arch);
+
 void enable_unsigned_dsp_module(common::rpc_interface_ptr rpc_interface, uint32_t domain_id);
 
 }  // namespace hexagon

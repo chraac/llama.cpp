@@ -3,6 +3,7 @@
 #include <string>
 
 #include "buffer.hpp"
+#include "common.hpp"
 #include "ggml-backend-impl.h"
 #include "ggml-impl.h"
 #include "host_device.hpp"
@@ -34,10 +35,9 @@ bool backend_dev_is_npu_device(ggml_backend_dev_t dev) {
 }
 
 void backend_dev_get_memory(ggml_backend_dev_t dev, size_t * free, size_t * total) {
-    // TODO: get the memory from the device?
     GGML_UNUSED(dev);
-    *free  = 0;
-    *total = 0;
+    *free  = common::get_system_free_memory_in_bytes();
+    *total = common::get_system_total_memory_in_bytes();
 }
 
 enum ggml_backend_dev_type backend_dev_get_type(ggml_backend_dev_t dev) {

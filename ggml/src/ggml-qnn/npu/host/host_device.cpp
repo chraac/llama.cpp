@@ -124,7 +124,7 @@ bool npu_device::init_device(ggml_backend_dev_t dev, const char * params) {
         const auto & device_lib_info = get_device_library_info(arch);
         std::string  device_lib_uri  = device_lib_info.device_lib_uri;
         device_lib_uri += get_domain_param(_dsp_domain_id);
-        LOG_DEBUG("[%s]NPU device arch: %d, uri: %s\n", get_name(), arch, device_lib_uri.c_str());
+        LOG_DEBUG("[%s]NPU device arch: %s, uri: %s\n", get_name(), get_dsp_arch_desc(arch), device_lib_uri.c_str());
         auto err = npu_device_open(device_lib_uri.c_str(), &_device_handle);
         if (err != AEE_SUCCESS) {
             if (err == AEE_ECONNREFUSED) {
@@ -142,6 +142,8 @@ bool npu_device::init_device(ggml_backend_dev_t dev, const char * params) {
             }
         }
 
+        _description += ' ';
+        _description += get_dsp_arch_desc(arch);
         LOG_DEBUG("[%s]NPU device opened successfully\n", get_name());
     } else {
         LOG_DEBUG("[%s]NPU device is already opened\n", get_name());

@@ -22,7 +22,7 @@ class npu_device {
 
     const char * get_name() const { return _name.c_str(); }
 
-    const char * get_description() const { return "Hexagon NPU"; }
+    const char * get_description() const { return _description.c_str(); }
 
     size_t get_alignment() const;
 
@@ -63,7 +63,8 @@ class npu_device {
     bool supports_op_impl(const ggml_tensor * op);
     bool init_rpc_mem();
 
-    std::string                       _name = "hexagon-npu";
+    std::string                       _name        = "hexagon-npu";
+    std::string                       _description = "Hexagon NPU";
     common::rpc_interface_ptr         _rpc_interface;
     common::rpc_mem_ptr               _rpc_mem;
     remote_handle64                   _device_handle = 0;

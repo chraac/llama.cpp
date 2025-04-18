@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 
 #include "ggml-backend-impl.h"
@@ -28,6 +29,13 @@ using backend_device_proxy_ptr = std::shared_ptr<backend_device_proxy>;
 
 backend_device_proxy_ptr create_qnn_backend_context(backend_index_type device);
 backend_device_proxy_ptr create_hexagon_backend_context(backend_index_type device);
+
+namespace common {
+
+size_t get_system_total_memory_in_bytes();
+size_t get_system_free_memory_in_bytes();
+
+}  // namespace common
 
 #define DISABLE_COPY(class_name)                 \
     class_name(const class_name &)     = delete; \

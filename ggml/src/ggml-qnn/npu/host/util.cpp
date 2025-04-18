@@ -61,6 +61,24 @@ hexagon_dsp_arch get_dsp_arch(common::rpc_interface_ptr rpc_interface, uint32_t 
     }
 }
 
+const char * get_dsp_arch_desc(hexagon_dsp_arch arch) {
+    switch (arch) {
+        case V68:
+            return "V68";
+        case V69:
+            return "V69";
+        case V73:
+            return "V73";
+        case V75:
+            return "V75";
+        case V79:
+            return "V79";
+        case NONE:
+        default:
+            return "UnknownArch";
+    }
+}
+
 void enable_unsigned_dsp_module(common::rpc_interface_ptr rpc_interface, uint32_t domain_id) {
     if (!rpc_interface || !rpc_interface->is_valid()) {
         return;

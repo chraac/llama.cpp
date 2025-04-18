@@ -7,15 +7,22 @@
 #include "ggml-impl.h"
 #include "ggml-qnn.h"
 
+#ifdef _WIN32
+#    include <windows.h>
+#else
+#    include <sys/sysinfo.h>
+#    include <unistd.h>
+#endif
+
 namespace {
 
 struct ggml_backend_qnn_reg_impl : ggml_backend_reg {
     std::vector<backend_device_proxy_ptr> device_proxies;
     std::vector<ggml_backend_device>      devices;
 
-    explicit ggml_backend_qnn_reg_impl(ggml_backend_reg_i interface) {
+    explicit ggml_backend_qnn_reg_impl(ggml_backend_reg_i backend_iface) {
         context = this;
-        iface   = interface;
+        iface   = backend_iface;
 
         LOG_INFO("backend registry init\n");
         for (size_t i = 0; i < TOTAL_BACKEND_COUNT; i++) {
@@ -85,3 +92,55 @@ ggml_backend_reg_t ggml_backend_qnn_reg() {
     static ggml_backend_qnn_reg_impl reg{ ggml_backend_qnn_reg_interface };
     return &reg;
 }
+
+namespace common {
+
+#ifdef _WIN32
+
+size_t get_system_total_memory_in_bytes() {
+    MEMORYSTATUSEX mem = {};
+    mem.dwLength       = sizeof(mem);
+    if (GlobalMemoryStatusEx(&mem)) {
+        return mem.ullTotalPhys;
+    }
+
+    return 0;
+}
+
+size_t get_system_free_memory_in_bytes() {
+    MEMORYSTATUSEX mem = {};
+    mem.dwLength       = sizeof(mem);
+    if (GlobalMemoryStatusEx(&mem)) {
+        return mem.ullAvailPhys;
+    }
+
+    return 0;
+}
+
+#else
+
+size_t get_system_total_memory_in_bytes() {
+    struct sysinfo info = {};
+    if (sysinfo(&info) == 0) {
+        return (info.totalram + info.totalswap) * info.mem_unit;
+    }
+
+    auto pages     = (size_t) sysconf(_SC_PHYS_PAGES);
+    auto page_size = (size_t) sysconf(_SC_PAGE_SIZE);
+    return pages * page_size;
+}
+
+size_t get_system_free_memory_in_bytes() {
+    struct sysinfo info = {};
+    if (sysinfo(&info) == 0) {
+        return (info.freeram + info.freeswap) * info.mem_unit;
+    }
+
+    auto avail_pages = (size_t) sysconf(_SC_AVPHYS_PAGES);
+    auto page_size   = (size_t) sysconf(_SC_PAGE_SIZE);
+    return avail_pages * page_size;
+}
+
+#endif
+
+}  // namespace common

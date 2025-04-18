@@ -223,8 +223,8 @@ const char * ggml_backend_qnn_device_get_description(ggml_backend_dev_t dev) {
 
 void ggml_backend_qnn_device_get_memory(ggml_backend_dev_t dev, size_t * free, size_t * total) {
     GGML_UNUSED(dev);
-    *free  = qnn::get_system_free_memory_in_bytes();
-    *total = qnn::get_system_total_memory_in_bytes();
+    *free  = common::get_system_free_memory_in_bytes();
+    *total = common::get_system_total_memory_in_bytes();
     QNN_LOG_DEBUG("free memory: %ldMB, total memory: %ldMB\n", (*free / 1048576), (*total) / 1048576);
 }
 
