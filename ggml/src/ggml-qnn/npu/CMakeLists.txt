@@ -49,7 +49,7 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
     # Add compile definitions to the target
     target_compile_definitions(hexagon-npu-host PUBLIC
         VERIFY_PRINT_ERROR
-        GGML_QNN_ENABLE_HEXAGON_PACKAGE
+        GGML_QNN_ENABLE_HEXAGON_BACKEND
     )
 
     target_include_directories(hexagon-npu-host PRIVATE

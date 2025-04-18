@@ -4,7 +4,7 @@
 
 #include "common.hpp"
 #include "dyn-lib-loader.hpp"
-#ifdef GGML_QNN_ENABLE_HEXAGON_PACKAGE
+#ifdef GGML_QNN_ENABLE_HEXAGON_BACKEND
 #    include <remote.h>
 #else
 // TODO: remove this when not needed

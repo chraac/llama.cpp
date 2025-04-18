@@ -30,7 +30,7 @@ struct ggml_backend_qnn_reg_impl : ggml_backend_reg {
                 LOG_DEBUG("skip qnn device %d\n", (int) device_enum);
 #endif
             } else {
-#ifdef GGML_QNN_ENABLE_HEXAGON_PACKAGE
+#ifdef GGML_QNN_ENABLE_HEXAGON_BACKEND
                 device_proxy = create_hexagon_backend_context(device_enum);
 #else
                 LOG_DEBUG("skip hexagon device %d\n", (int) device_enum);

@@ -5,7 +5,7 @@ add_library(runtime-common STATIC
     ${common_srcs}
 )
 
-if(GGML_QNN_ENABLE_HEXAGON_PACKAGE)
+if(GGML_QNN_ENABLE_HEXAGON_BACKEND)
     if(DEFINED ENV{QNN_SDK_PATH})
         set(HEXAGON_SDK_ROOT $ENV{HEXAGON_SDK_ROOT})
         message("found HEXAGON_SDK_ROOT, setting to ${HEXAGON_SDK_ROOT}")
@@ -25,7 +25,7 @@ if(GGML_QNN_ENABLE_HEXAGON_PACKAGE)
         ${HEXAGON_SDK_ROOT}/utils/examples/
     )
     target_compile_definitions(runtime-common PRIVATE
-        GGML_QNN_ENABLE_HEXAGON_PACKAGE
+        GGML_QNN_ENABLE_HEXAGON_BACKEND
     )
 else()
     message("HEXAGON_SDK_ROOT not defined, not appending to include directories")
