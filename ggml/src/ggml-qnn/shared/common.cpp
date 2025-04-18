@@ -28,6 +28,7 @@ struct ggml_backend_qnn_reg_impl : ggml_backend_reg {
                 device_proxy = create_qnn_backend_context(device_enum);
 #else
                 LOG_DEBUG("skip qnn device %d\n", (int) device_enum);
+                continue;
 #endif
             } else {
 #ifdef GGML_QNN_ENABLE_HEXAGON_BACKEND
@@ -56,7 +57,8 @@ struct ggml_backend_qnn_reg_impl : ggml_backend_reg {
 
 const char * ggml_backend_qnn_reg_get_name(ggml_backend_reg_t reg) {
     GGML_UNUSED(reg);
-    return "qnn";
+    // TODO: should we use a different name?
+    return "qualcomm";
 }
 
 size_t ggml_backend_qnn_reg_get_device_count(ggml_backend_reg_t reg) {
