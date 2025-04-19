@@ -5,6 +5,13 @@ add_library(runtime-common STATIC
     ${common_srcs}
 )
 
+target_include_directories(runtime-common PUBLIC
+    ${CMAKE_CURRENT_LIST_DIR}/
+    ${CMAKE_CURRENT_LIST_DIR}/../
+    ${CMAKE_CURRENT_LIST_DIR}/../../
+    ${CMAKE_CURRENT_LIST_DIR}/../../../include/ # TODO: figure out how to remove this
+)
+
 if(GGML_QNN_ENABLE_HEXAGON_BACKEND)
     if(DEFINED ENV{QNN_SDK_PATH})
         set(HEXAGON_SDK_ROOT $ENV{HEXAGON_SDK_ROOT})
@@ -14,10 +21,6 @@ if(GGML_QNN_ENABLE_HEXAGON_BACKEND)
     endif()
 
     target_include_directories(runtime-common PUBLIC
-        ${CMAKE_CURRENT_LIST_DIR}/
-        ${CMAKE_CURRENT_LIST_DIR}/../
-        ${CMAKE_CURRENT_LIST_DIR}/../../
-        ${CMAKE_CURRENT_LIST_DIR}/../../../include/ # TODO: figure out how to remove this
         ${HEXAGON_SDK_ROOT}/incs/
         ${HEXAGON_SDK_ROOT}/incs/stddef/
         ${HEXAGON_SDK_ROOT}/incs/HAP/
