@@ -34,13 +34,17 @@ inline void vec_op_f32_f32(const float * src0, const float * src1, size_t count,
         // see also:
         //   https://github.com/UbiquitousLearning/mllm/blob/babf4410352ce8730824c87699c025a0d4ce3a6f/src/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/src/ops/LLaMAMul.cpp#L147
         //   or qualcomm sdk libs\qhl_hvx\src\qhblas_hvx\qhblas_hvx_aw_vector_add_ah.c
-        HVX_Vector curr0 = hexagon::is_addr_aligned(iptr0) ? prev0 : *iptr0++;
-        HVX_Vector curr1 = hexagon::is_addr_aligned(iptr1) ? prev1 : *iptr1++;
-        HVX_Vector s0    = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
-        HVX_Vector s1    = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-        *optr++          = Q6_Vsf_equals_Vqf32(_OpIntrinsic(s0, s1));
-        prev0            = curr0;
-        prev1            = curr1;
+        bool       iptr0_aligned = hexagon::is_addr_aligned(iptr0);
+        HVX_Vector curr0         = iptr0_aligned ? prev0 : *iptr0;
+        iptr0                    = iptr0_aligned ? iptr0 : iptr0 + 1;
+        bool       iptr1_aligned = hexagon::is_addr_aligned(iptr1);
+        HVX_Vector curr1         = iptr1_aligned ? prev1 : *iptr1;
+        iptr1                    = iptr1_aligned ? iptr1 : iptr1 + 1;
+        HVX_Vector s0            = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
+        HVX_Vector s1            = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
+        *optr++                  = Q6_Vsf_equals_Vqf32(_OpIntrinsic(s0, s1));
+        prev0                    = curr0;
+        prev1                    = curr1;
     }
 
     const size_t leftover       = count % hexagon::kFloatsPerVector;
