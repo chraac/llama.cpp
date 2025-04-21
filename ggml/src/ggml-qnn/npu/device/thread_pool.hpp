@@ -17,14 +17,16 @@ template <size_t _stack_size> class qurt_thread {
   public:
     typedef void (*qurt_thread_func_type)(qurt_thread * thread, void * arg);
 
-    qurt_thread(const char * thread_name, qurt_thread_func_type thread_func, void * arg, unsigned short priority) {
+    explicit qurt_thread(const std::string & thread_name, qurt_thread_func_type thread_func, void * arg,
+                         unsigned short priority) {
         qurt_thread_attr_init(&_attributes);
-        qurt_thread_attr_set_name(&_attributes, (char *) thread_name);
+        qurt_thread_attr_set_name(&_attributes, (char *) thread_name.c_str());
         qurt_thread_attr_set_stack_addr(&_attributes, _stack);
         qurt_thread_attr_set_stack_size(&_attributes, _stack_size);
         qurt_thread_attr_set_priority(&_attributes, priority);
 
-        auto ret = qurt_thread_create(&_tid, &_attributes, qurt_thread::thread_func_impl, (void *) &this);
+        auto ret = qurt_thread_create(
+            &_tid, &_attributes, reinterpret_cast<void (*)(void *)>(&qurt_thread::thread_func_impl), (void *) this);
         if (ret != QURT_EOK) {
             DEVICE_LOG_ERROR("Failed to create thread: %d", (int) ret);
             return;
@@ -32,7 +34,7 @@ template <size_t _stack_size> class qurt_thread {
 
         _func = thread_func;
         _arg  = arg;
-        DEVICE_LOG_DEBUG("qurt_thread.created: %s, id: %d", thread_name, (int) _tid);
+        DEVICE_LOG_DEBUG("qurt_thread.created: %s, id: %d", thread_name.c_str(), (int) _tid);
     }
 
     ~qurt_thread() {
@@ -76,17 +78,19 @@ using quart_thread_ptr = std::unique_ptr<qurt_thread<kDefaultStackSize>>;
 
 template <size_t _thread_count> class thread_pool {
   public:
+    typedef qurt_thread<kDefaultStackSize> thread_type;
     typedef void (*task_type)(thread_pool * pool, size_t thread_idx, size_t thread_count, void * arg);
 
     thread_pool() {
-        std::string thread_name = "thread_pool_";
+        std::string thread_name_base = "thread_pool_";
         for (size_t i = 0; i < _thread_count; ++i) {
             _thread_args[i].pool       = this;
             _thread_args[i].thread_idx = i;
             qurt_signal_init(&_thread_args[i].signal);
-
-            auto thread = std::make_unique<qurt_thread<kDefaultStackSize>>(
-                thread_name + std::to_string(i), thread_pool::thread_func_impl, this, QURT_THREAD_PRIORITY_DEFAULT);
+            auto thread = std::make_unique<thread_type>(
+                thread_name_base + std::to_string(i),
+                reinterpret_cast<thread_type::qurt_thread_func_type>(&thread_pool::thread_func_impl), this,
+                QURT_THREAD_ATTR_PRIORITY_DEFAULT);
             if (!thread->is_valid()) {
                 DEVICE_LOG_ERROR("Failed to create thread: %zu", i);
                 return;
@@ -142,7 +146,7 @@ template <size_t _thread_count> class thread_pool {
         qurt_signal_t signal;
     };
 
-    static void thread_func_impl(qurt_thread * thread, thread_pool_arg * arg) {
+    static void thread_func_impl(thread_type * thread, thread_pool_arg * arg) {
         DEVICE_LOG_DEBUG("thread_func_impl.start: %zu", arg->thread_idx);
 
         while (!arg->pool->_thread_exit) {
@@ -158,10 +162,9 @@ template <size_t _thread_count> class thread_pool {
                 break;
             }
 
-            auto task = arg->pool->_thread_args[arg->thread_idx].task;
+            auto task = arg->pool->_task;
             if (task) {
-                task(arg->pool, arg->thread_idx, arg->pool->_thread_count,
-                     arg->pool->_thread_args[arg->thread_idx].arg);
+                task(arg->pool, arg->thread_idx, _thread_count, arg->pool->_arg);
             }
 
             DEVICE_LOG_DEBUG("thread_func_impl.task_completed: %zu", arg->thread_idx);

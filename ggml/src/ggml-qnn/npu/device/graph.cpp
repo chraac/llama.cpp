@@ -8,24 +8,23 @@
 
 namespace hexagon {
 
+graph::graph() noexcept {
+    DEVICE_LOG_DEBUG("graph(%p) created\n", (void *) this);
+}
+
 graph::~graph() noexcept {
-    if (_tensors) {
-        delete[] _tensors;
-    }
+    _tensors.reset();
+    DEVICE_LOG_DEBUG("graph(%p) destroyed\n", (void *) this);
 }
 
 void graph::set_tensor(const npu_device_tensor_handle_t * tensors, int tensor_count) {
-    if (_tensor_count > 0) {
-        delete[] _tensors;
-    }
-
     if (tensor_count <= 0) {
-        _tensors      = nullptr;
+        _tensors.reset();
         _tensor_count = 0;
         return;
     }
 
-    _tensors = new (std::nothrow) tensor *[tensor_count];
+    _tensors = std::make_unique<tensor *[]>(size_t(tensor_count));
     for (int i = 0; i < tensor_count; ++i) {
         auto * tensor_obj = reinterpret_cast<tensor *>(tensors[i]);
         _tensors[i]       = tensor_obj;

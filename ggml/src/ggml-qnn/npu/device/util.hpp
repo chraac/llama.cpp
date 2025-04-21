@@ -16,6 +16,15 @@
 #    define DEVICE_LOG_DEBUG(...) (void) 0
 #endif
 
+// TODO: reuse the declaration at host
+#define DISABLE_COPY(class_name)                 \
+    class_name(const class_name &)     = delete; \
+    void operator=(const class_name &) = delete
+
+#define DISABLE_MOVE(class_name)            \
+    class_name(class_name &&)     = delete; \
+    void operator=(class_name &&) = delete
+
 namespace hexagon {
 
 constexpr const char * op_get_name(npu_device_tensor_op op) {

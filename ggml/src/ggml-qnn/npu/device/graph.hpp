@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+
 #include "hexagon_npu.h"
 #include "tensor.hpp"
 
@@ -8,7 +10,7 @@ namespace hexagon {
 class graph {
   public:
     // TODO: add execute direction here
-    explicit graph() noexcept {}
+    explicit graph() noexcept;
 
     ~graph() noexcept;
 
@@ -17,13 +19,11 @@ class graph {
     bool compute();
 
   private:
-    tensor ** _tensors      = nullptr;
-    size_t    _tensor_count = 0;
+    std::unique_ptr<tensor *[]> _tensors;
+    size_t                      _tensor_count = 0;
 
-    graph(const graph &)          = delete;
-    void operator=(const graph &) = delete;
-    graph(graph &&)               = delete;
-    void operator=(graph &&)      = delete;
+    DISABLE_COPY(graph);
+    DISABLE_MOVE(graph);
 };
 
 }  // namespace hexagon

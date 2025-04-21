@@ -3,6 +3,7 @@
 #include <HAP_compute_res.h>
 #include <hexagon_types.h>
 
+#include <memory>
 #include <new>
 
 #include "graph.hpp"
@@ -10,15 +11,34 @@
 #include "op_impl.hpp"
 #include "remote.h"
 #include "tensor.hpp"
+#include "thread_pool.hpp"
 #include "util.hpp"
 
 #define NPU_UNUSED(x) (void) (x)
 
 namespace {
 
+constexpr const size_t kThreadCount = 4;
+
 struct npu_device_context {
-    int unused = 0;
-    // TODO: should we add tensor context here?
+    std::unique_ptr<hexagon::thread_pool<kThreadCount>> thread_pool;
+
+    bool init_thread_pool() {
+        if (thread_pool) {
+            DEVICE_LOG_DEBUG("Thread pool already initialized");
+            return true;
+        }
+
+        auto pool = std::make_unique<hexagon::thread_pool<kThreadCount>>();
+        if (!pool) {
+            DEVICE_LOG_ERROR("Failed to create thread pool");
+            return false;
+        }
+
+        thread_pool = std::move(pool);
+        DEVICE_LOG_DEBUG("Thread pool initialized");
+        return true;
+    }
 };
 
 inline hexagon::tensor * tensor_from_handle(npu_device_graph_handle_t h) {
