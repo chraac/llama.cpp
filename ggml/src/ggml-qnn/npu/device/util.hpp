@@ -25,6 +25,10 @@
     class_name(class_name &&)     = delete; \
     void operator=(class_name &&) = delete
 
+#define DISABLE_COPY_AND_MOVE(class_name) \
+    DISABLE_COPY(class_name);             \
+    DISABLE_MOVE(class_name)
+
 namespace hexagon {
 
 constexpr const char * op_get_name(npu_device_tensor_op op) {

@@ -1,3 +1,5 @@
+#pragma once
+
 #include <qurt.h>
 
 #include <atomic>
@@ -9,6 +11,7 @@
 
 namespace hexagon {
 
+constexpr const size_t             kMaxThreadCount         = 4;
 constexpr const size_t             kDefaultStackSize       = 1024 * 16;  // 16KB
 constexpr const unsigned long long kThreadTaskPendingBit   = 1;
 constexpr const unsigned long long kThreadTaskCompletedBit = 2;
@@ -68,10 +71,7 @@ template <size_t _stack_size> class qurt_thread {
     qurt_thread_func_type _func = nullptr;
     void *                _arg  = nullptr;
 
-    qurt_thread(const qurt_thread &)    = delete;
-    void operator=(const qurt_thread &) = delete;
-    qurt_thread(qurt_thread &&)         = delete;
-    void operator=(qurt_thread &&)      = delete;
+    DISABLE_COPY_AND_MOVE(qurt_thread);
 };
 
 using quart_thread_ptr = std::unique_ptr<qurt_thread<kDefaultStackSize>>;
@@ -141,9 +141,9 @@ template <size_t _thread_count> class thread_pool {
 
   private:
     struct thread_pool_arg {
-        thread_pool * pool;
-        size_t        thread_idx;
-        qurt_signal_t signal;
+        thread_pool * pool       = nullptr;
+        size_t        thread_idx = 0;
+        qurt_signal_t signal     = {};
     };
 
     static void thread_func_impl(thread_type * thread, thread_pool_arg * arg) {
@@ -180,10 +180,9 @@ template <size_t _thread_count> class thread_pool {
     task_type                                   _task                       = nullptr;
     void *                                      _arg                        = nullptr;
 
-    thread_pool(const thread_pool &)    = delete;
-    void operator=(const thread_pool &) = delete;
-    thread_pool(thread_pool &&)         = delete;
-    void operator=(thread_pool &&)      = delete;
+    DISABLE_COPY_AND_MOVE(thread_pool);
 };
+
+using default_thread_pool = thread_pool<kMaxThreadCount>;
 
 }  // namespace hexagon

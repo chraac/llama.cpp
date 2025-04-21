@@ -81,8 +81,7 @@ class tensor {
     tensor *                 _src[kMaxTensorSrc] = {};
     uint8_t *                _data               = nullptr;
 
-    DISABLE_COPY(tensor);
-    DISABLE_MOVE(tensor);
+    DISABLE_COPY_AND_MOVE(tensor);
 };
 
 }  // namespace hexagon

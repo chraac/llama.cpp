@@ -4,6 +4,7 @@
 
 #include "hexagon_npu.h"
 #include "tensor.hpp"
+#include "thread_pool.hpp"
 
 namespace hexagon {
 
@@ -16,14 +17,13 @@ class graph {
 
     void set_tensor(const npu_device_tensor_handle_t * tensors, int tensor_count);
 
-    bool compute();
+    bool compute(default_thread_pool * thread_pool);
 
   private:
     std::unique_ptr<tensor *[]> _tensors;
     size_t                      _tensor_count = 0;
 
-    DISABLE_COPY(graph);
-    DISABLE_MOVE(graph);
+    DISABLE_COPY_AND_MOVE(graph);
 };
 
 }  // namespace hexagon

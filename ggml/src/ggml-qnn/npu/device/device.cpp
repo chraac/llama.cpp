@@ -57,6 +57,10 @@ inline npu_device_tensor_handle_t graph_to_handle(hexagon::graph * graph) {
     return reinterpret_cast<npu_device_tensor_handle_t>(graph);
 }
 
+inline npu_device_context * device_context_from_handle(remote_handle64 h) {
+    return reinterpret_cast<npu_device_context *>(h);
+}
+
 }  // namespace
 
 int npu_device_open(const char * uri, remote_handle64 * h) {
@@ -72,7 +76,7 @@ int npu_device_open(const char * uri, remote_handle64 * h) {
 }
 
 int npu_device_close(remote_handle64 h) {
-    auto * context = reinterpret_cast<npu_device_context *>(h);
+    auto * context = device_context_from_handle(h);
     if (!context) {
         DEVICE_LOG_ERROR("Invalid npu_device_context handle");
         return AEE_EINVHANDLE;
@@ -169,13 +173,19 @@ AEEResult npu_device_graph_set_tensor(remote_handle64 _h, npu_device_graph_handl
 }
 
 AEEResult npu_device_graph_compute(remote_handle64 _h, npu_device_graph_handle_t graph_handle) {
-    NPU_UNUSED(_h);
-    auto * graph = graph_from_handle(graph_handle);
-    if (!graph) {
+    auto dev_ctx = device_context_from_handle(_h);
+    if (!dev_ctx) {
+        DEVICE_LOG_DEBUG("Invalid npu_device_context handle");
         return AEE_EINVHANDLE;
     }
 
-    if (!graph->compute()) {
+    auto * graph = graph_from_handle(graph_handle);
+    if (!graph) {
+        DEVICE_LOG_ERROR("Invalid graph handle");
+        return AEE_EINVHANDLE;
+    }
+
+    if (!graph->compute(dev_ctx->thread_pool.get())) {
         return AEE_EFAILED;
     }
 
