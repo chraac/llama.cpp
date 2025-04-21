@@ -29,6 +29,8 @@
     DISABLE_COPY(class_name);             \
     DISABLE_MOVE(class_name)
 
+#define NPU_UNUSED(x) (void) (x)
+
 namespace hexagon {
 
 constexpr const char * op_get_name(npu_device_tensor_op op) {

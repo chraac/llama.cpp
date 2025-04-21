@@ -71,7 +71,7 @@ inline float vec_dot_product_f32_f32(const float * src0, const float * src1, siz
 
 namespace hexagon {
 
-bool mul_mat_f32(hexagon::tensor * out) {
+bool mul_mat_f32(hexagon::tensor * out, size_t tidx, size_t tcnt) {
     if (!out) {
         return false;
     }

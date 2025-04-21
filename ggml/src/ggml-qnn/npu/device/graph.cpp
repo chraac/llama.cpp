@@ -43,24 +43,38 @@ bool graph::compute(default_thread_pool * thread_pool) {
     }
 
     DEVICE_LOG_DEBUG("graph(%p) compute\n", (void *) this);
+    thread_pool->sync_execute(reinterpret_cast<default_thread_pool::task_type>(&graph::thread_pool_task), this);
+
+    for (size_t i = 0; i < _tensor_count; ++i) {
+        auto * dst = _tensors[i];
+        dst->flush();  // TODO: optimize this
+    }
+
+    return true;
+}
+
+void graph::thread_pool_task(default_thread_pool * pool, size_t thread_idx, size_t thread_count, graph * graph) {
+    NPU_UNUSED(pool);
+    graph->compute_impl(thread_idx, thread_count);
+}
+
+void graph::compute_impl(size_t thread_idx, size_t thread_count) {
     for (size_t i = 0; i < _tensor_count; ++i) {
         auto * dst  = _tensors[i];
         auto   op   = dst->get_op();
         auto * func = get_compute_func(op);
         if (!func) {
             DEVICE_LOG_ERROR("graph(%p) tensor[%zu] op %d not supported\n", (void *) this, i, op);
-            return false;
+            return;
         }
 
-        if (!func(dst)) {
+        if (!func(dst, thread_idx, thread_count)) {
             DEVICE_LOG_ERROR("graph(%p) tensor[%zu] op %d compute failed\n", (void *) this, i, op);
-            return false;
+            return;
         }
 
         dst->flush();  // TODO: optimize this
     }
-
-    return true;
 }
 
 }  // namespace hexagon

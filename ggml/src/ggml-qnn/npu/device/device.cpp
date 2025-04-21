@@ -14,8 +14,6 @@
 #include "thread_pool.hpp"
 #include "util.hpp"
 
-#define NPU_UNUSED(x) (void) (x)
-
 namespace {
 
 constexpr const size_t kThreadCount = 4;

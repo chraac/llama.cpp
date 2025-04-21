@@ -136,6 +136,8 @@ template <size_t _thread_count> class thread_pool {
             qurt_signal_clear(&_thread_args[i].signal, kThreadTaskCompletedBit);
         }
 
+        _task = nullptr;
+        _arg  = nullptr;
         return true;
     }
 
