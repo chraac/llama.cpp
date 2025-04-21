@@ -183,7 +183,8 @@ bool npu_device::supports_op_impl(const ggml_tensor * op) {
         return false;
     }
 
-    if (op_to_npu_op(op->op) == NPU_OP_COUNT) {
+    auto npu_op = op_to_npu_op(op->op);
+    if (npu_op == NPU_OP_COUNT) {
         LOG_DEBUG("[%s]Unsupported op: %s\n", get_name(), ggml_op_name(op->op));
         return false;
     }
@@ -207,8 +208,7 @@ bool npu_device::supports_op_impl(const ggml_tensor * op) {
     auto    src0_spec = get_spec(src0);
     auto    src1_spec = get_spec(src1);
     auto    dst_spec  = get_spec(op);
-    auto    ret = npu_device_device_support_op(_device_handle, &src0_spec, &src1_spec, &dst_spec, op_to_npu_op(op->op),
-                                               &supported);
+    auto    ret = npu_device_device_support_op(_device_handle, &src0_spec, &src1_spec, &dst_spec, npu_op, &supported);
     if (ret != AEE_SUCCESS || !supported) {
         LOG_DEBUG("[%s]Unsupported op: %s, ret: 0x%x, supported: %d\n", get_name(), ggml_op_name(op->op), ret,
                   supported);

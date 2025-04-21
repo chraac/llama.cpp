@@ -132,9 +132,12 @@ bool is_element_wise_op_supported(const npu_device_tensor_spec & src0, const npu
         return false;
     }
 
-    if (strncmp((const char *) src0.ne, (const char *) src1.ne, sizeof(src0.ne)) != 0) {
-        DEVICE_LOG_DEBUG("src0 and dst dimensions not match\n");
-        return false;
+    for (size_t i = 0; i < DEVICE_TENSOR_MAX_DIMS; ++i) {
+        if (src0.ne[i] != dst.ne[i]) {
+            DEVICE_LOG_DEBUG("src0.ne[%zu] and dst.ne[%zu] not match: %lld vs %lld\n", i, i, (long long) src0.ne[i],
+                             (long long) dst.ne[i]);
+            return false;
+        }
     }
 
     return true;
