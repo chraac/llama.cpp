@@ -98,9 +98,9 @@ bool element_wise_op(hexagon::tensor * out, size_t tidx, size_t tcnt) {
     const auto * src1_ptr        = reinterpret_cast<const uint8_t *>(src1->get_data());
     auto *       dst_ptr         = reinterpret_cast<uint8_t *>(out->get_data());
     auto         total_rows      = out->get_ne(3) * out->get_ne(2) * out->get_ne(1);
-    auto         rows_per_thread = (total_rows + tcnt - 1) / tcnt;
-    auto         start           = tidx * rows_per_thread;
-    auto         end             = std::min<int64_t>(start + rows_per_thread, total_rows);
+    const auto   rows_per_thread = (total_rows + tcnt - 1) / tcnt;
+    const auto   start           = tidx * rows_per_thread;
+    const auto   end             = std::min<int64_t>(start + rows_per_thread, total_rows);
     for (int64_t ir = start; ir < end; ++ir) {
         const auto i03      = ir / (out->get_ne(2) * out->get_ne(1));
         const auto i02      = (ir / out->get_ne(1)) % out->get_ne(2);  // TODO: should we use divide instead of mod?
