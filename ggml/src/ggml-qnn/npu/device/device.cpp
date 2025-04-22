@@ -69,6 +69,12 @@ int npu_device_open(const char * uri, remote_handle64 * h) {
         return AEE_ENOMEMORY;
     }
 
+    if (!context->init_thread_pool()) {
+        DEVICE_LOG_ERROR("Failed to initialize thread pool");
+        delete context;
+        return AEE_EFAILED;
+    }
+
     *h = reinterpret_cast<remote_handle64>(context);
     return AEE_SUCCESS;
 }
