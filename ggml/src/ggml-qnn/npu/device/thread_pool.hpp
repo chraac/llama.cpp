@@ -11,7 +11,7 @@
 
 namespace hexagon {
 
-constexpr const size_t             kMaxThreadCount         = 4;
+constexpr const size_t             kMaxThreadCount         = 2;
 constexpr const size_t             kDefaultStackSize       = 1024 * 16;  // 16KB
 constexpr const unsigned long long kThreadTaskPendingBit   = 1;
 constexpr const unsigned long long kThreadTaskCompletedBit = 2;

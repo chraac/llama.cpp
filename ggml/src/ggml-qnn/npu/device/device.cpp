@@ -16,10 +16,8 @@
 
 namespace {
 
-constexpr const size_t kThreadCount = 4;
-
 struct npu_device_context {
-    std::unique_ptr<hexagon::thread_pool<kThreadCount>> thread_pool;
+    std::unique_ptr<hexagon::default_thread_pool> thread_pool;
 
     bool init_thread_pool() {
         if (thread_pool) {
@@ -27,7 +25,7 @@ struct npu_device_context {
             return true;
         }
 
-        auto pool = std::make_unique<hexagon::thread_pool<kThreadCount>>();
+        auto pool = std::make_unique<hexagon::default_thread_pool>();
         if (!pool) {
             DEVICE_LOG_ERROR("Failed to create thread pool");
             return false;
