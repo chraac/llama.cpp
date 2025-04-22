@@ -90,7 +90,8 @@ template <size_t _thread_count> class thread_pool {
             auto & thread_arg     = _thread_args[i];
             thread_arg.pool       = this;
             thread_arg.thread_idx = i;
-            qurt_signal_init(&(thread_arg.signal));
+            qurt_signal_init(&(thread_arg.pending));
+            qurt_signal_init(&(thread_arg.completed));
 
             auto thread = std::make_unique<thread_type>(
                 thread_name_base + std::to_string(i),
@@ -109,13 +110,18 @@ template <size_t _thread_count> class thread_pool {
     ~thread_pool() {
         DEVICE_LOG_DEBUG("thread_pool.destroy");
         _thread_exit = true;
+        for (size_t i = 0; i < _thread_count; ++i) {
+            qurt_signal_set(&_thread_args[i].pending, kThreadTaskPendingBit);
+        }
+
         for (auto & thread : _threads) {
             thread.reset();
         }
 
         for (auto & arg : _thread_args) {
             if (arg.pool) {
-                qurt_signal_destroy(&arg.signal);
+                qurt_signal_destroy(&arg.pending);
+                qurt_signal_destroy(&arg.completed);
             }
         }
     }
@@ -129,16 +135,17 @@ template <size_t _thread_count> class thread_pool {
         _task = task;
         _arg  = arg;
         for (size_t i = 0; i < _thread_count; ++i) {
-            qurt_signal_set(&_thread_args[i].signal, kThreadTaskPendingBit);
+            qurt_signal_set(&_thread_args[i].pending, kThreadTaskPendingBit);
         }
 
+        // TODO: shall we use this thread to do the task?
         for (size_t i = 0; i < _thread_count; ++i) {
-            while (
-                !(qurt_signal_wait_all(&_thread_args[i].signal, kThreadTaskCompletedBit) & kThreadTaskCompletedBit)) {
+            while (!(qurt_signal_wait_all(&_thread_args[i].completed, kThreadTaskCompletedBit) &
+                     kThreadTaskCompletedBit)) {
                 // spurious wakeup? should we clear the signal?
                 DEVICE_LOG_DEBUG("thread_pool.sync_execute.spurious_wakeup: %zu", i);
             }
-            qurt_signal_clear(&_thread_args[i].signal, kThreadTaskCompletedBit);
+            qurt_signal_clear(&_thread_args[i].completed, kThreadTaskCompletedBit);
         }
 
         _task = nullptr;
@@ -150,7 +157,8 @@ template <size_t _thread_count> class thread_pool {
     struct thread_pool_arg {
         thread_pool * pool       = nullptr;
         size_t        thread_idx = 0;
-        qurt_signal_t signal     = {};
+        qurt_signal_t pending    = {};
+        qurt_signal_t completed  = {};
     };
 
     static void thread_func_impl(thread_type * thread, thread_pool_arg * arg) {
@@ -159,13 +167,13 @@ template <size_t _thread_count> class thread_pool {
         DEVICE_LOG_DEBUG("thread_func_impl.start: %zu", arg->thread_idx);
 
         while (!arg->pool->_thread_exit) {
-            if (!(qurt_signal_wait_all(&arg->signal, kThreadTaskPendingBit) & kThreadTaskPendingBit)) {
+            if (!(qurt_signal_wait_all(&arg->pending, kThreadTaskPendingBit) & kThreadTaskPendingBit)) {
                 // spurious wakeup? should we clear the signal?
                 DEVICE_LOG_DEBUG("thread_func_impl.spurious_wakeup: %zu", arg->thread_idx);
                 continue;
             }
 
-            qurt_signal_clear(&arg->signal, kThreadTaskPendingBit);
+            qurt_signal_clear(&arg->pending, kThreadTaskPendingBit);
             if (arg->pool->_thread_exit) {
                 DEVICE_LOG_DEBUG("thread_func_impl.exit: %zu", arg->thread_idx);
                 break;
@@ -177,7 +185,7 @@ template <size_t _thread_count> class thread_pool {
             }
 
             DEVICE_LOG_DEBUG("thread_func_impl.task_completed: %zu", arg->thread_idx);
-            qurt_signal_set(&arg->signal, kThreadTaskCompletedBit);
+            qurt_signal_set(&arg->completed, kThreadTaskCompletedBit);
         }
 
         DEVICE_LOG_DEBUG("thread_func_impl.end: %zu", arg->thread_idx);
