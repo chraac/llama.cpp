@@ -81,6 +81,7 @@ bool element_wise_op(hexagon::tensor * out, size_t tidx, size_t tcnt) {
         return false;
     }
 
+    static_assert(DEVICE_TENSOR_MAX_DIMS == 4, "element_wise_op requires max dims 4");
     auto * src0 = out->get_src(0);
     auto * src1 = out->get_src(1);
     if (!src0 || !src1) {
@@ -93,16 +94,16 @@ bool element_wise_op(hexagon::tensor * out, size_t tidx, size_t tcnt) {
         return false;
     }
 
-    static_assert(DEVICE_TENSOR_MAX_DIMS == 4, "element_wise_op requires max dims 4");
-
-    const auto * src0_ptr = reinterpret_cast<const uint8_t *>(src0->get_data());
-    const auto * src1_ptr = reinterpret_cast<const uint8_t *>(src1->get_data());
-    auto *       dst_ptr  = reinterpret_cast<uint8_t *>(out->get_data());
-    int64_t      start    = 0;
-    int64_t      end      = out->get_ne(3) * out->get_ne(2) * out->get_ne(1);
+    const auto * src0_ptr        = reinterpret_cast<const uint8_t *>(src0->get_data());
+    const auto * src1_ptr        = reinterpret_cast<const uint8_t *>(src1->get_data());
+    auto *       dst_ptr         = reinterpret_cast<uint8_t *>(out->get_data());
+    auto         total_rows      = out->get_ne(3) * out->get_ne(2) * out->get_ne(1);
+    auto         rows_per_thread = (total_rows + tcnt - 1) / tcnt;
+    auto         start           = tidx * rows_per_thread;
+    auto         end             = std::min<int64_t>(start + rows_per_thread, total_rows);
     for (int64_t ir = start; ir < end; ++ir) {
         const auto i03      = ir / (out->get_ne(2) * out->get_ne(1));
-        const auto i02      = (ir / out->get_ne(1)) % out->get_ne(2);
+        const auto i02      = (ir / out->get_ne(1)) % out->get_ne(2);  // TODO: should we use divide instead of mod?
         const auto i01      = ir % out->get_ne(1);
         const auto i13      = i03 % src1->get_ne(3);
         const auto i12      = i02 % src1->get_ne(2);

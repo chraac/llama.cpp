@@ -84,6 +84,11 @@ bool mul_mat_f32(hexagon::tensor * out, size_t tidx, size_t tcnt) {
 
     static_assert(DEVICE_TENSOR_MAX_DIMS == 4, "mul_mat_f32 requires max dims 4");
 
+    if (tidx != 0) {
+        // TODO: support multiple threads
+        return true;
+    }
+
     const auto   r02      = src1->get_ne(2) / src0->get_ne(2);
     const auto   r03      = src1->get_ne(3) / src0->get_ne(3);
     const auto * src0_ptr = reinterpret_cast<const uint8_t *>(src0->get_data());
