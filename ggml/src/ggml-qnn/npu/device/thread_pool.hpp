@@ -86,12 +86,12 @@ template <size_t _thread_count> class thread_pool {
 
     thread_pool() {
         std::string thread_name_base = "thread_pool_";
+        qurt_barrier_init(&_completed, _thread_count + 1);
         for (size_t i = 0; i < _thread_count; ++i) {
             auto & thread_arg     = _thread_args[i];
             thread_arg.pool       = this;
             thread_arg.thread_idx = i;
             qurt_signal_init(&(thread_arg.pending));
-            qurt_signal_init(&(thread_arg.completed));
 
             auto thread = std::make_unique<thread_type>(
                 thread_name_base + std::to_string(i),
@@ -121,9 +121,10 @@ template <size_t _thread_count> class thread_pool {
         for (auto & arg : _thread_args) {
             if (arg.pool) {
                 qurt_signal_destroy(&arg.pending);
-                qurt_signal_destroy(&arg.completed);
             }
         }
+
+        qurt_barrier_destroy(&_completed);
     }
 
     bool sync_execute(task_type task, void * arg) {
@@ -139,14 +140,7 @@ template <size_t _thread_count> class thread_pool {
         }
 
         // TODO: shall we use this thread to do the task?
-        for (size_t i = 0; i < _thread_count; ++i) {
-            while (!(qurt_signal_wait_all(&_thread_args[i].completed, kThreadTaskCompletedBit) &
-                     kThreadTaskCompletedBit)) {
-                // spurious wakeup? should we clear the signal?
-                DEVICE_LOG_DEBUG("thread_pool.sync_execute.spurious_wakeup: %zu", i);
-            }
-            qurt_signal_clear(&_thread_args[i].completed, kThreadTaskCompletedBit);
-        }
+        qurt_barrier_wait(&_completed);
 
         _task = nullptr;
         _arg  = nullptr;
@@ -158,7 +152,6 @@ template <size_t _thread_count> class thread_pool {
         thread_pool * pool       = nullptr;
         size_t        thread_idx = 0;
         qurt_signal_t pending    = {};
-        qurt_signal_t completed  = {};
     };
 
     static void thread_func_impl(thread_type * thread, thread_pool_arg * arg) {
@@ -185,7 +178,7 @@ template <size_t _thread_count> class thread_pool {
             }
 
             DEVICE_LOG_DEBUG("thread_func_impl.task_completed: %zu", arg->thread_idx);
-            qurt_signal_set(&arg->completed, kThreadTaskCompletedBit);
+            qurt_barrier_wait(&arg->pool->_completed);
         }
 
         DEVICE_LOG_DEBUG("thread_func_impl.end: %zu", arg->thread_idx);
@@ -194,6 +187,7 @@ template <size_t _thread_count> class thread_pool {
     std::atomic_bool                            _thread_exit = false;
     std::array<quart_thread_ptr, _thread_count> _threads;
     thread_pool_arg                             _thread_args[_thread_count] = {};
+    qurt_barrier_t                              _completed                  = {};
     task_type                                   _task                       = nullptr;
     void *                                      _arg                        = nullptr;
 
