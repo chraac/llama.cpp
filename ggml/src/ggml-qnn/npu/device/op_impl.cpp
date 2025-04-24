@@ -97,7 +97,7 @@ inline HVX_Vector vsub_f16_f16(HVX_Vector a, HVX_Vector b) {
 }
 
 inline HVX_Vector vmul_f16_f16(HVX_Vector a, HVX_Vector b) {
-    return Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(a, b));
+    return Q6_Vhf_equals_Wqf32(Q6_Wqf32_vmpy_VhfVhf(a, b));
 }
 
 template <typename _TyData, void (*_RowFunc)(const _TyData *, const _TyData *, size_t, _TyData *)>
