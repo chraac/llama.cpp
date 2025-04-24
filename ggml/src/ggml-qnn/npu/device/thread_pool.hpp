@@ -11,10 +11,9 @@
 
 namespace hexagon {
 
-constexpr const size_t             kMaxThreadCount         = 4;
-constexpr const size_t             kDefaultStackSize       = 1024 * 16;  // 16KB
-constexpr const unsigned long long kThreadTaskPendingBit   = 1;
-constexpr const unsigned long long kThreadTaskCompletedBit = 2;
+constexpr const size_t             kMaxThreadCount       = 4;
+constexpr const size_t             kDefaultStackSize     = 1024 * 16;  // 16KB
+constexpr const unsigned long long kThreadTaskPendingBit = 1;
 
 template <size_t _stack_size> class qurt_thread {
   public:
@@ -80,17 +79,20 @@ template <size_t _stack_size> class qurt_thread {
 using quart_thread_ptr = std::unique_ptr<qurt_thread<kDefaultStackSize>>;
 
 template <size_t _thread_count> class thread_pool {
+    static_assert(_thread_count > 1, "Thread count must be greater than 1");
+    constexpr const static size_t kMaxThreadCount = _thread_count - 1;
+
   public:
     typedef qurt_thread<kDefaultStackSize> thread_type;
     typedef void (*task_type)(thread_pool * pool, size_t thread_idx, size_t thread_count, void * arg);
 
     thread_pool() {
         std::string thread_name_base = "thread_pool_";
-        qurt_barrier_init(&_completed, _thread_count + 1);
-        for (size_t i = 0; i < _thread_count; ++i) {
+        qurt_barrier_init(&_completed, kMaxThreadCount + 1);
+        for (size_t i = 0; i < kMaxThreadCount; ++i) {
             auto & thread_arg     = _thread_args[i];
             thread_arg.pool       = this;
-            thread_arg.thread_idx = i;
+            thread_arg.thread_idx = i + 1;
             qurt_signal_init(&(thread_arg.pending));
 
             auto thread = std::make_unique<thread_type>(
@@ -104,13 +106,13 @@ template <size_t _thread_count> class thread_pool {
 
             _threads[i] = std::move(thread);
         }
-        DEVICE_LOG_DEBUG("thread_pool.created: %zu", _thread_count);
+        DEVICE_LOG_DEBUG("thread_pool.created: %zu", kMaxThreadCount);
     }
 
     ~thread_pool() {
         DEVICE_LOG_DEBUG("thread_pool.destroy");
         _thread_exit = true;
-        for (size_t i = 0; i < _thread_count; ++i) {
+        for (size_t i = 0; i < kMaxThreadCount; ++i) {
             qurt_signal_set(&_thread_args[i].pending, kThreadTaskPendingBit);
         }
 
@@ -135,11 +137,13 @@ template <size_t _thread_count> class thread_pool {
 
         _task = task;
         _arg  = arg;
-        for (size_t i = 0; i < _thread_count; ++i) {
+        for (size_t i = 0; i < kMaxThreadCount; ++i) {
             qurt_signal_set(&_thread_args[i].pending, kThreadTaskPendingBit);
         }
 
-        // TODO: shall we use this thread to do the task?
+        task(this, 0, kMaxThreadCount + 1, arg);
+        DEVICE_LOG_DEBUG("main_thread.task_completed: 0");
+
         qurt_barrier_wait(&_completed);
 
         _task = nullptr;
@@ -174,7 +178,7 @@ template <size_t _thread_count> class thread_pool {
 
             auto task = arg->pool->_task;
             if (task) {
-                task(arg->pool, arg->thread_idx, _thread_count, arg->pool->_arg);
+                task(arg->pool, arg->thread_idx, kMaxThreadCount + 1, arg->pool->_arg);
             }
 
             DEVICE_LOG_DEBUG("thread_func_impl.task_completed: %zu", arg->thread_idx);
@@ -184,12 +188,12 @@ template <size_t _thread_count> class thread_pool {
         DEVICE_LOG_DEBUG("thread_func_impl.end: %zu", arg->thread_idx);
     }
 
-    std::atomic_bool                            _thread_exit = false;
-    std::array<quart_thread_ptr, _thread_count> _threads;
-    thread_pool_arg                             _thread_args[_thread_count] = {};
-    qurt_barrier_t                              _completed                  = {};
-    task_type                                   _task                       = nullptr;
-    void *                                      _arg                        = nullptr;
+    std::atomic_bool                              _thread_exit = false;
+    std::array<quart_thread_ptr, kMaxThreadCount> _threads;
+    thread_pool_arg                               _thread_args[kMaxThreadCount] = {};
+    qurt_barrier_t                                _completed                    = {};
+    task_type                                     _task                         = nullptr;
+    void *                                        _arg                          = nullptr;
 
     DISABLE_COPY_AND_MOVE(thread_pool);
 };
