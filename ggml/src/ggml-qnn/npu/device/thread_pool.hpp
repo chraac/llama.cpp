@@ -153,20 +153,21 @@ template <size_t _thread_count> class thread_pool {
 
         DEVICE_LOG_DEBUG("thread_func_impl.start: %zu", arg->thread_idx);
 
+        auto & pool = *arg->pool;
         while (true) {
-            qurt_barrier_wait(&arg->pool->_pending);
-            if (arg->pool->_thread_exit) {
+            qurt_barrier_wait(&pool._pending);
+            if (pool._thread_exit) {
                 DEVICE_LOG_DEBUG("thread_func_impl.exit: %zu", arg->thread_idx);
                 break;
             }
 
-            auto task = arg->pool->_task;
+            auto task = pool._task;
             if (task) {
-                task(arg->pool, arg->thread_idx, kMaxThreadCount + 1, arg->pool->_arg);
+                task(arg->pool, arg->thread_idx, kMaxThreadCount + 1, pool._arg);
             }
 
             DEVICE_LOG_DEBUG("thread_func_impl.task_completed: %zu", arg->thread_idx);
-            qurt_barrier_wait(&arg->pool->_completed);
+            qurt_barrier_wait(&pool._completed);
         }
 
         DEVICE_LOG_DEBUG("thread_func_impl.end: %zu", arg->thread_idx);
