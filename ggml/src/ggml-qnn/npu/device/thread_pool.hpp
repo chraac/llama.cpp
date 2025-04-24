@@ -101,6 +101,7 @@ template <size_t _thread_count> class thread_pool {
                 QURT_THREAD_ATTR_PRIORITY_DEFAULT);
             if (!thread->is_valid()) {
                 DEVICE_LOG_ERROR("Failed to create thread: %zu", i);
+                // destroy all barriers and threads at destructor
                 return;
             }
 
@@ -154,7 +155,7 @@ template <size_t _thread_count> class thread_pool {
         DEVICE_LOG_DEBUG("thread_func_impl.start: %zu", arg->thread_idx);
 
         auto & pool = *arg->pool;
-        while (true) {
+        for (;;) {
             qurt_barrier_wait(&pool._pending);
             if (pool._thread_exit) {
                 DEVICE_LOG_DEBUG("thread_func_impl.exit: %zu", arg->thread_idx);
