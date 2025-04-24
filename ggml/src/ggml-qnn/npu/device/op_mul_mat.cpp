@@ -124,6 +124,16 @@ bool is_mul_mat_supported(const npu_device_tensor_spec & src0, const npu_device_
         return false;
     }
 
+    if (dst.type != src0.type || dst.type != src1.type) {
+        DEVICE_LOG_DEBUG("src0.type and dst.type not match: %d vs %d\n", src0.type, dst.type);
+        return false;
+    }
+
+    if (dst.type != NPU_DATA_TYPE_F32) {
+        DEVICE_LOG_DEBUG("Unsupported element wise op type: %d\n", dst.type);
+        return false;
+    }
+
     if (src0.ne[0] != src1.ne[0] || src0.ne[1] != dst.ne[0]) {
         DEVICE_LOG_DEBUG("src0 and src1 cannot multiply: %ldx%ld vs %ldx%ld\n", (long) src0.ne[0], (long) src0.ne[1],
                          (long) src1.ne[0], (long) src1.ne[1]);

@@ -9,10 +9,12 @@
 
 namespace {
 
-template <HVX_Vector (*_OpIntrinsic)(HVX_Vector, HVX_Vector)>
-inline void vec_op_f32_f32(const float * src0, const float * src1, size_t count, float * dst) {
+template <HVX_Vector (*_OpIntrinsic)(HVX_Vector, HVX_Vector), typename _TyData>
+inline void vec_op_impl(const _TyData * src0, const _TyData * src1, size_t count, _TyData * dst) {
+    constexpr const size_t kDataCountPerVector = hexagon::kBytesPerVector / sizeof(_TyData);
+
     HVX_Vector * iptr0     = ((HVX_Vector *) src0);
-    HVX_Vector * iptr0_end = ((HVX_Vector *) src0) + (count / hexagon::kFloatsPerVector);
+    HVX_Vector * iptr0_end = ((HVX_Vector *) src0) + (count / kDataCountPerVector);
     HVX_Vector * iptr1     = ((HVX_Vector *) src1);
     HVX_Vector * optr      = ((HVX_Vector *) dst);
     HVX_Vector   prev0     = *iptr0++;
@@ -24,7 +26,7 @@ inline void vec_op_f32_f32(const float * src0, const float * src1, size_t count,
         HVX_Vector curr1 = *iptr1++;
         HVX_Vector s0    = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
         HVX_Vector s1    = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-        *optr++          = Q6_Vsf_equals_Vqf32(_OpIntrinsic(s0, s1));
+        *optr++          = _OpIntrinsic(s0, s1);
         prev0            = curr0;
         prev1            = curr1;
     }
@@ -42,13 +44,13 @@ inline void vec_op_f32_f32(const float * src0, const float * src1, size_t count,
         iptr1                    = iptr1_aligned ? iptr1 : iptr1 + 1;
         HVX_Vector s0            = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
         HVX_Vector s1            = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-        *optr++                  = Q6_Vsf_equals_Vqf32(_OpIntrinsic(s0, s1));
+        *optr++                  = _OpIntrinsic(s0, s1);
         prev0                    = curr0;
         prev1                    = curr1;
     }
 
-    const size_t leftover       = count % hexagon::kFloatsPerVector;
-    const size_t leftover_bytes = leftover * sizeof(float);
+    const size_t leftover       = count % kDataCountPerVector;
+    const size_t leftover_bytes = leftover * sizeof(_TyData);
     if (leftover > 0) {
         // handle the leftover elements
         HVX_Vector curr0 =
@@ -59,23 +61,46 @@ inline void vec_op_f32_f32(const float * src0, const float * src1, size_t count,
             (leftover_bytes + hexagon::unaligned_bytes(iptr1) > hexagon::kBytesPerVector) ? *iptr1 : prev1;
         curr1 = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
 
-        q6op_vstu_variable_ARV(optr, leftover_bytes, Q6_Vsf_equals_Vqf32(_OpIntrinsic(curr0, curr1)));
+        q6op_vstu_variable_ARV(optr, leftover_bytes, _OpIntrinsic(curr0, curr1));
     }
 }
 
+template <HVX_Vector (*_OpIntrinsic)(HVX_Vector, HVX_Vector)>
+inline void vec_op_f32_f32(const float * src0, const float * src1, size_t count, float * dst) {
+    vec_op_impl<_OpIntrinsic, float>(src0, src1, count, dst);
+}
+
 inline HVX_Vector vadd_f32_f32(HVX_Vector a, HVX_Vector b) {
-    return Q6_Vqf32_vadd_VsfVsf(a, b);
+    return Q6_Vsf_equals_Vqf32(Q6_Vqf32_vadd_VsfVsf(a, b));
 }
 
 inline HVX_Vector vsub_f32_f32(HVX_Vector a, HVX_Vector b) {
-    return Q6_Vqf32_vsub_VsfVsf(a, b);
+    return Q6_Vsf_equals_Vqf32(Q6_Vqf32_vsub_VsfVsf(a, b));
 }
 
 inline HVX_Vector vmul_f32_f32(HVX_Vector a, HVX_Vector b) {
-    return Q6_Vqf32_vmpy_VsfVsf(a, b);
+    return Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_VsfVsf(a, b));
 }
 
-template <typename _TySrc, typename _TyDst, void (*_RowFunc)(const _TySrc *, const _TySrc *, size_t, _TyDst *)>
+template <HVX_Vector (*_OpIntrinsic)(HVX_Vector, HVX_Vector)>
+inline void vec_op_f16_f16(const npu_device_fp16_t * src0, const npu_device_fp16_t * src1, size_t count,
+                           npu_device_fp16_t * dst) {
+    vec_op_impl<_OpIntrinsic, npu_device_fp16_t>(src0, src1, count, dst);
+}
+
+inline HVX_Vector vadd_f16_f16(HVX_Vector a, HVX_Vector b) {
+    return Q6_Vhf_equals_Vqf16(Q6_Vqf16_vadd_VhfVhf(a, b));
+}
+
+inline HVX_Vector vsub_f16_f16(HVX_Vector a, HVX_Vector b) {
+    return Q6_Vhf_equals_Vqf16(Q6_Vqf16_vsub_VhfVhf(a, b));
+}
+
+inline HVX_Vector vmul_f16_f16(HVX_Vector a, HVX_Vector b) {
+    return Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(a, b));
+}
+
+template <typename _TyData, void (*_RowFunc)(const _TyData *, const _TyData *, size_t, _TyData *)>
 bool element_wise_op(hexagon::tensor * out, size_t tidx, size_t tcnt) {
     if (!out) {
         return false;
@@ -110,8 +135,8 @@ bool element_wise_op(hexagon::tensor * out, size_t tidx, size_t tcnt) {
         auto *     src0_row = src0_ptr + i03 * src0->get_nb(3) + i02 * src0->get_nb(2) + i01 * src0->get_nb(1);
         auto *     src1_row = src1_ptr + i13 * src1->get_nb(3) + i12 * src1->get_nb(2) + i11 * src1->get_nb(1);
         auto *     dst_row  = dst_ptr + i03 * out->get_nb(3) + i02 * out->get_nb(2) + i01 * out->get_nb(1);
-        _RowFunc(reinterpret_cast<const _TySrc *>(src0_row), reinterpret_cast<const _TySrc *>(src1_row),
-                 static_cast<size_t>(out->get_ne(0)), reinterpret_cast<_TyDst *>(dst_row));
+        _RowFunc(reinterpret_cast<const _TyData *>(src0_row), reinterpret_cast<const _TyData *>(src1_row),
+                 static_cast<size_t>(out->get_ne(0)), reinterpret_cast<_TyData *>(dst_row));
     }
 
     return true;
@@ -121,6 +146,16 @@ bool is_element_wise_op_supported(const npu_device_tensor_spec & src0, const npu
                                   const npu_device_tensor_spec & dst, npu_device_tensor_op op) {
     if (op != NPU_OP_ADD && op != NPU_OP_SUB && op != NPU_OP_MUL) {
         DEVICE_LOG_DEBUG("Unsupported element wise op: %s\n", hexagon::op_get_name(op));
+        return false;
+    }
+
+    if (dst.type != src0.type || dst.type != src1.type) {
+        DEVICE_LOG_DEBUG("src0.type and dst.type not match: %d vs %d\n", src0.type, dst.type);
+        return false;
+    }
+
+    if (dst.type != NPU_DATA_TYPE_F32 && dst.type != NPU_DATA_TYPE_F16) {
+        DEVICE_LOG_DEBUG("Unsupported element wise op type: %d\n", dst.type);
         return false;
     }
 
@@ -142,39 +177,60 @@ bool is_element_wise_op_supported(const npu_device_tensor_spec & src0, const npu
 
 struct op_capabilities {
     npu_device_tensor_op               op;
-    hexagon::compute_func_type         compute_func;
     hexagon::op_is_supported_func_type is_supported;
+    hexagon::compute_func_type         compute_funcs[NPU_DATA_TYPE_COUNT];
 };
 
 constexpr const op_capabilities kOpCapabilities[] = {
-    { NPU_OP_MUL_MAT, hexagon::mul_mat_f32, hexagon::is_mul_mat_supported },
-    { NPU_OP_ADD, element_wise_op<float, float, vec_op_f32_f32<vadd_f32_f32>>, is_element_wise_op_supported },
-    { NPU_OP_SUB, element_wise_op<float, float, vec_op_f32_f32<vsub_f32_f32>>, is_element_wise_op_supported },
-    { NPU_OP_MUL, element_wise_op<float, float, vec_op_f32_f32<vmul_f32_f32>>, is_element_wise_op_supported },
+    {
+     NPU_OP_MUL_MAT, hexagon::is_mul_mat_supported,
+     {
+            hexagon::mul_mat_f32,  // NPU_DATA_TYPE_F32
+            nullptr,               // NPU_DATA_TYPE_F16 not supported
+        }, },
+    { NPU_OP_ADD,
+     is_element_wise_op_supported, {
+          element_wise_op<float, vec_op_f32_f32<vadd_f32_f32>>,              // NPU_DATA_TYPE_F32
+          element_wise_op<npu_device_fp16_t, vec_op_f16_f16<vadd_f16_f16>>,  // NPU_DATA_TYPE_F16
+      } },
+    { NPU_OP_SUB,
+     is_element_wise_op_supported, {
+          element_wise_op<float, vec_op_f32_f32<vsub_f32_f32>>,              // NPU_DATA_TYPE_F32
+          element_wise_op<npu_device_fp16_t, vec_op_f16_f16<vsub_f16_f16>>,  // NPU_DATA_TYPE_F16
+      } },
+    { NPU_OP_MUL,
+     is_element_wise_op_supported, {
+          element_wise_op<float, vec_op_f32_f32<vmul_f32_f32>>,              // NPU_DATA_TYPE_F32
+          element_wise_op<npu_device_fp16_t, vec_op_f16_f16<vmul_f16_f16>>,  // NPU_DATA_TYPE_F16
+      } },
 };
 
-static_assert(kOpCapabilities[NPU_OP_MUL_MAT].compute_func == hexagon::mul_mat_f32,
+static_assert(kOpCapabilities[NPU_OP_MUL_MAT].compute_funcs[NPU_DATA_TYPE_F32] == hexagon::mul_mat_f32,
               "kOpArray[NPU_OP_MUL_MAT] != mul_mat_f32");
 
 static_assert(std::size(kOpCapabilities) == NPU_OP_COUNT);
 static_assert(kOpCapabilities[NPU_OP_MUL_MAT].op == NPU_OP_MUL_MAT, "kOpArray[NPU_OP_MUL_MAT].op != NPU_OP_MUL_MAT");
 static_assert(kOpCapabilities[NPU_OP_MUL].op == NPU_OP_MUL, "kOpArray[NPU_OP_MUL].op != NPU_OP_MUL");
 
-}  // namespace
-
-namespace hexagon {
-
-compute_func_type get_compute_func(npu_device_tensor_op op) {
+hexagon::compute_func_type get_compute_func_impl(npu_device_tensor_op op, npu_device_tensor_data_type type) {
     if (op >= NPU_OP_COUNT) {
         return nullptr;
     }
 
-    return kOpCapabilities[op].compute_func;
+    return kOpCapabilities[op].compute_funcs[type];
+}
+
+}  // namespace
+
+namespace hexagon {
+
+compute_func_type get_compute_func(tensor * dst) {
+    return get_compute_func_impl(dst->get_op(), dst->get_type());
 }
 
 bool support_op(const npu_device_tensor_spec & src0, const npu_device_tensor_spec & src1,
                 const npu_device_tensor_spec & dst, npu_device_tensor_op op) {
-    if (get_compute_func(op) == nullptr) {
+    if (!get_compute_func_impl(op, dst.type)) {
         DEVICE_LOG_ERROR("Unsupported op: %s, get_compute_func failed\n", op_get_name(op));
         return false;
     }

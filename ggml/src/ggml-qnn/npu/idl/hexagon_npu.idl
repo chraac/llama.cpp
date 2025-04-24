@@ -11,6 +11,8 @@ interface npu_device : remote_handle64{
     typedef uint64_t tensor_handle_t;
     typedef uint64_t graph_handle_t;
 
+    typedef uint16_t fp16_t;
+
     enum tensor_op {
         NPU_OP_MUL_MAT,
         NPU_OP_ADD,
@@ -21,6 +23,7 @@ interface npu_device : remote_handle64{
 
     enum tensor_data_type {
         NPU_DATA_TYPE_F32,
+        NPU_DATA_TYPE_F16,
         NPU_DATA_TYPE_COUNT
     };
 

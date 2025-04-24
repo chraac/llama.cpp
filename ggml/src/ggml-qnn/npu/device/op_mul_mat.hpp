@@ -9,8 +9,9 @@
 namespace hexagon {
 
 constexpr const size_t kBytesPerVector  = sizeof(HVX_Vector);  // 128 for v73
-constexpr const size_t kFloatsPerVector = kBytesPerVector / sizeof(float);
 constexpr const size_t kAlignMask       = kBytesPerVector - 1;
+constexpr const size_t kFloatsPerVector = kBytesPerVector / sizeof(float);
+constexpr const size_t kHalfsPerVector  = kBytesPerVector / sizeof(npu_device_fp16_t);
 
 inline size_t unaligned_bytes(const void * addr) {
     return ((size_t) addr) & kAlignMask;

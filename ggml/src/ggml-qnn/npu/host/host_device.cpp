@@ -7,6 +7,8 @@
 
 #include <remote.h>
 
+#include <type_traits>
+
 #include "graph.hpp"
 #include "util.hpp"
 
@@ -157,6 +159,9 @@ bool npu_device::supports_buft(ggml_backend_buffer_type_t buft) const {
 }
 
 bool npu_device::supports_op_impl(const ggml_tensor * op) {
+    static_assert(std::is_same<npu_device_fp16_t, ggml_fp16_t>::value,
+                  "npu_device_fp16_t should be same as ggml_fp16_t");
+
     if (op->op == GGML_OP_NONE) {
         return true;
     }

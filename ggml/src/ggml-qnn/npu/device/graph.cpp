@@ -62,7 +62,7 @@ void graph::compute_impl(size_t thread_idx, size_t thread_count) {
     for (size_t i = 0; i < _tensor_count; ++i) {
         auto * dst  = _tensors[i];
         auto   op   = dst->get_op();
-        auto * func = get_compute_func(op);
+        auto * func = get_compute_func(dst);
         if (!func) {
             DEVICE_LOG_ERROR("graph(%p) tensor[%zu] op %d not supported\n", (void *) this, i, op);
             return;
