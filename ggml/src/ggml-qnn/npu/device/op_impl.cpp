@@ -102,8 +102,14 @@ inline HVX_Vector vmul_f16_f16(HVX_Vector a, HVX_Vector b) {
     return Q6_Vhf_equals_Wqf32(Q6_Wqf32_vmpy_VhfVhf(a, b));
 }
 
-template <typename _TyData, void (*_RowFunc)(const _TyData *, const _TyData *, size_t, _TyData *)>
-bool element_wise_op(hexagon::tensor * out, size_t tidx, size_t tcnt) {
+template <typename T> struct get_data_type {};
+
+template <typename _TyData> struct get_data_type<void (*)(const _TyData *, const _TyData *, size_t, _TyData *)> {
+    using type = _TyData;
+};
+
+template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, size_t tidx, size_t tcnt) {
+    using data_type = typename get_data_type<decltype(_RowFunc)>::type;
     if (!out) {
         return false;
     }
@@ -137,8 +143,8 @@ bool element_wise_op(hexagon::tensor * out, size_t tidx, size_t tcnt) {
         auto *     src0_row = src0_ptr + i03 * src0->get_nb(3) + i02 * src0->get_nb(2) + i01 * src0->get_nb(1);
         auto *     src1_row = src1_ptr + i13 * src1->get_nb(3) + i12 * src1->get_nb(2) + i11 * src1->get_nb(1);
         auto *     dst_row  = dst_ptr + i03 * out->get_nb(3) + i02 * out->get_nb(2) + i01 * out->get_nb(1);
-        _RowFunc(reinterpret_cast<const _TyData *>(src0_row), reinterpret_cast<const _TyData *>(src1_row),
-                 static_cast<size_t>(out->get_ne(0)), reinterpret_cast<_TyData *>(dst_row));
+        _RowFunc(reinterpret_cast<const data_type *>(src0_row), reinterpret_cast<const data_type *>(src1_row),
+                 static_cast<size_t>(out->get_ne(0)), reinterpret_cast<data_type *>(dst_row));
     }
 
     return true;
@@ -198,18 +204,18 @@ constexpr const op_capabilities kOpCapabilities[] = {
         }, },
     { NPU_OP_ADD,
      is_element_wise_op_supported, {
-          element_wise_op<float, vec_op_f32_f32<vadd_f32_f32>>,              // NPU_DATA_TYPE_F32
-          element_wise_op<npu_device_fp16_t, vec_op_f16_f16<vadd_f16_f16>>,  // NPU_DATA_TYPE_F16
+          element_wise_op<vec_op_f32_f32<vadd_f32_f32>>,  // NPU_DATA_TYPE_F32
+          element_wise_op<vec_op_f16_f16<vadd_f16_f16>>,  // NPU_DATA_TYPE_F16
       } },
     { NPU_OP_SUB,
      is_element_wise_op_supported, {
-          element_wise_op<float, vec_op_f32_f32<vsub_f32_f32>>,              // NPU_DATA_TYPE_F32
-          element_wise_op<npu_device_fp16_t, vec_op_f16_f16<vsub_f16_f16>>,  // NPU_DATA_TYPE_F16
+          element_wise_op<vec_op_f32_f32<vsub_f32_f32>>,  // NPU_DATA_TYPE_F32
+          element_wise_op<vec_op_f16_f16<vsub_f16_f16>>,  // NPU_DATA_TYPE_F16
       } },
     { NPU_OP_MUL,
      is_element_wise_op_supported, {
-          element_wise_op<float, vec_op_f32_f32<vmul_f32_f32>>,              // NPU_DATA_TYPE_F32
-          element_wise_op<npu_device_fp16_t, vec_op_f16_f16<vmul_f16_f16>>,  // NPU_DATA_TYPE_F16
+          element_wise_op<vec_op_f32_f32<vmul_f32_f32>>,  // NPU_DATA_TYPE_F32
+          element_wise_op<vec_op_f16_f16<vmul_f16_f16>>,  // NPU_DATA_TYPE_F16
       } },
 };
 
