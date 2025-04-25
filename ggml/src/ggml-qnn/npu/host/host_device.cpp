@@ -166,6 +166,10 @@ bool npu_device::supports_op_impl(const ggml_tensor * op) {
         return true;
     }
 
+    if (op->op == GGML_OP_VIEW || op->op == GGML_OP_RESHAPE || op->op == GGML_OP_PERMUTE) {
+        return true;
+    }
+
     if (type_to_npu_type(op->type) == NPU_DATA_TYPE_COUNT) {
         LOG_DEBUG("[%s]Unsupported op tensor type: %s\n", get_name(), ggml_type_name(op->type));
         return false;

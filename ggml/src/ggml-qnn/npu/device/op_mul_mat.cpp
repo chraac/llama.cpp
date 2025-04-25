@@ -221,7 +221,8 @@ bool is_mul_mat_supported(const npu_device_tensor_spec & src0, const npu_device_
     }
 
     if (dst.type != src0.type || dst.type != src1.type) {
-        DEVICE_LOG_DEBUG("[%s]src0.type and dst.type mismatch: %d vs %d\n", op_get_name(op), src0.type, dst.type);
+        DEVICE_LOG_DEBUG("[%s]src0.type(%d) and src1.type(%d) and dst.type(%d) mismatch\n", op_get_name(op), src0.type,
+                         src1.type, dst.type);
         return false;
     }
 

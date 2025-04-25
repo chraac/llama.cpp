@@ -39,7 +39,8 @@ class npu_device {
 #ifndef NDEBUG
     bool supports_op(const ggml_tensor * op) {
         if (supports_op_impl(op)) {
-            if (op->op != GGML_OP_NONE) {
+            if (op->op != GGML_OP_NONE && op->op != GGML_OP_VIEW && op->op != GGML_OP_RESHAPE &&
+                op->op != GGML_OP_PERMUTE) {
                 _supported_op++;
                 LOG_DEBUG("[%s]Supported op: %s, supported/unsupported: %u/%u\n", get_name(), ggml_op_name(op->op),
                           _supported_op.load(), _unsupported_op.load());
