@@ -11,10 +11,10 @@ namespace {
 
 template <HVX_Vector (*_OpIntrinsic)(HVX_Vector, HVX_Vector), typename _TyData>
 inline void vec_op_impl(const _TyData * src0, const _TyData * src1, size_t count, _TyData * dst) {
-    constexpr const size_t kDataCountPerVector = hexagon::kBytesPerVector / sizeof(_TyData);
+    constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TyData);
 
     HVX_Vector * iptr0     = ((HVX_Vector *) src0);
-    HVX_Vector * iptr0_end = ((HVX_Vector *) src0) + (count / kDataCountPerVector);
+    HVX_Vector * iptr0_end = ((HVX_Vector *) src0) + (count / kElementsPerVector);
     HVX_Vector * iptr1     = ((HVX_Vector *) src1);
     HVX_Vector * optr      = ((HVX_Vector *) dst);
     HVX_Vector   prev0     = *iptr0++;
@@ -49,7 +49,7 @@ inline void vec_op_impl(const _TyData * src0, const _TyData * src1, size_t count
         prev1                    = curr1;
     }
 
-    const size_t leftover       = count % kDataCountPerVector;
+    const size_t leftover       = count % kElementsPerVector;
     const size_t leftover_bytes = leftover * sizeof(_TyData);
     if (leftover > 0) {
         // handle the leftover elements
