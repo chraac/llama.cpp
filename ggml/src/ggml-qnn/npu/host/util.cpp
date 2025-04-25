@@ -2,6 +2,14 @@
 
 #include <remote.h>
 
+#define GGML_COMMON_DECL_C
+#include "ggml-common.h"
+#undef GGML_COMMON_DECL_C
+
+static_assert(sizeof(npu_device_block_q4_K) == sizeof(block_q4_K), "npu_device_block_q4_K size mismatch");
+static_assert(sizeof(npu_device_block_q4_0) == sizeof(block_q4_0), "npu_device_block_q4_0 size mismatch");
+static_assert(sizeof(npu_device_block_q8_0) == sizeof(block_q8_0), "npu_device_block_q8_0 size mismatch");
+
 namespace hexagon {
 
 enum npu_device_tensor_op op_to_npu_op(ggml_op op) {
