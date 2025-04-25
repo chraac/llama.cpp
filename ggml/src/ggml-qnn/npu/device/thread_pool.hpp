@@ -46,7 +46,7 @@ template <size_t _stack_size> class qurt_thread {
         DEVICE_LOG_DEBUG("qurt_thread.destroy: %d", (int) _tid);
         int  thread_exit_code = QURT_EOK;
         auto ret              = qurt_thread_join(_tid, &thread_exit_code);
-        if (ret != QURT_EOK || ret != QURT_ENOTHREAD) {
+        if (ret != QURT_EOK && ret != QURT_ENOTHREAD) {
             DEVICE_LOG_ERROR("Failed to join thread: %d", (int) ret);
             return;
         }
