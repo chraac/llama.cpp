@@ -69,26 +69,29 @@ inline float vec_dot_product_f32_f32(const float * src0, const float * src1, siz
     return result;
 }
 
-inline npu_device_fp16_t vec_dot_product_f16_f16(const npu_device_fp16_t * src0, const npu_device_fp16_t * src1,
-                                                 size_t count) {
+inline float vec_dot_product_f16_f16(const npu_device_fp16_t * src0, const npu_device_fp16_t * src1, size_t count) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(npu_device_fp16_t);
+    constexpr const size_t kFloatsPerVector   = hexagon::kBytesPerVector / sizeof(float);
 
     HVX_Vector * iptr0     = ((HVX_Vector *) src0);
     HVX_Vector * iptr0_end = ((HVX_Vector *) src0) + (count / kElementsPerVector);
     HVX_Vector * iptr1     = ((HVX_Vector *) src1);
     HVX_Vector   prev0     = *iptr0++;
     HVX_Vector   prev1     = *iptr1++;
-    HVX_Vector   sum       = Q6_V_vzero();
+    HVX_Vector   sum_hi    = Q6_V_vzero();
+    HVX_Vector   sum_lo    = Q6_V_vzero();
 
     // TODO: prefetch or just use VTCM?
     while (iptr0 < iptr0_end) {
-        HVX_Vector curr0 = *iptr0++;
-        HVX_Vector curr1 = *iptr1++;
-        HVX_Vector s0    = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
-        HVX_Vector s1    = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-        sum              = Q6_Vqf16_vadd_Vqf16Vqf16(Q6_Vqf16_vmpy_VhfVhf(s0, s1), sum);
-        prev0            = curr0;
-        prev1            = curr1;
+        HVX_Vector     curr0  = *iptr0++;
+        HVX_Vector     curr1  = *iptr1++;
+        HVX_Vector     s0     = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
+        HVX_Vector     s1     = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
+        HVX_VectorPair result = Q6_Wqf32_vmpy_VhfVhf(s0, s1);
+        sum_hi                = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_V_hi_W(result), sum_hi);
+        sum_lo                = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_V_lo_W(result), sum_lo);
+        prev0                 = curr0;
+        prev1                 = curr1;
     }
 
     if ((iptr0_end - ((HVX_Vector *) src0)) > 0) {
@@ -102,15 +105,17 @@ inline npu_device_fp16_t vec_dot_product_f16_f16(const npu_device_fp16_t * src0,
         bool       iptr1_aligned = hexagon::is_addr_aligned(iptr1);
         HVX_Vector curr1         = iptr1_aligned ? prev1 : *iptr1;
         iptr1                    = iptr1_aligned ? iptr1 : iptr1 + 1;
-        HVX_Vector s0            = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
-        HVX_Vector s1            = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-        sum                      = Q6_Vqf16_vadd_Vqf16Vqf16(Q6_Vqf16_vmpy_VhfVhf(s0, s1), sum);
+        HVX_Vector     s0        = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
+        HVX_Vector     s1        = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
+        HVX_VectorPair result    = Q6_Wqf32_vmpy_VhfVhf(s0, s1);
+        sum_hi                   = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_V_hi_W(result), sum_hi);
+        sum_lo                   = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_V_lo_W(result), sum_lo);
         prev0                    = curr0;
         prev1                    = curr1;
     }
 
     const size_t leftover       = count % kElementsPerVector;
-    const size_t leftover_bytes = leftover * sizeof(float);
+    const size_t leftover_bytes = leftover * sizeof(npu_device_fp16_t);
     if (leftover > 0) {
         // handle the leftover elements
         HVX_Vector curr0 =
@@ -121,23 +126,34 @@ inline npu_device_fp16_t vec_dot_product_f16_f16(const npu_device_fp16_t * src0,
             (leftover_bytes + hexagon::unaligned_bytes(iptr1) > hexagon::kBytesPerVector) ? *iptr1 : prev1;
         curr1 = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
 
-        sum = Q6_Vqf16_vadd_Vqf16Vqf16(
-            Q6_V_valign_VVR(Q6_Vqf16_vmpy_VhfVhf(curr0, curr1), Q6_V_vzero(), leftover_bytes), sum);
+        HVX_VectorPair result = Q6_Wqf32_vmpy_VhfVhf(curr0, curr1);
+
+        // TODO: can we do this better?
+        if (leftover > kFloatsPerVector) {
+            sum_hi = Q6_Vqf32_vadd_Vqf32Vqf32(
+                Q6_V_valign_VVR(Q6_V_hi_W(result), Q6_V_vzero(), (leftover % kFloatsPerVector) * sizeof(float)),
+                sum_hi);
+            sum_lo = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_V_lo_W(result), sum_lo);
+        } else {
+            sum_lo = Q6_Vqf32_vadd_Vqf32Vqf32(
+                Q6_V_valign_VVR(Q6_V_lo_W(result), Q6_V_vzero(), leftover * sizeof(float)), sum_lo);
+        }
     }
 
     // TODO: do we have a better way to do the reduction?
-    for (size_t i = kElementsPerVector / 2; i > 0; i /= 2) {
-        sum = Q6_Vqf16_vadd_Vqf16Vqf16(sum, Q6_V_vror_VR(sum, i * sizeof(float)));
+    sum_lo = Q6_Vqf32_vadd_Vqf32Vqf32(sum_hi, sum_lo);
+    for (size_t i = kFloatsPerVector / 2; i > 0; i /= 2) {
+        sum_lo = Q6_Vqf32_vadd_Vqf32Vqf32(sum_lo, Q6_V_vror_VR(sum_lo, i * sizeof(float)));
     }
 
     float result;
-    q6op_vstu_variable_ARV(&result, sizeof(float), Q6_Vhf_equals_Vqf16(sum));
+    q6op_vstu_variable_ARV(&result, sizeof(float), Q6_Vsf_equals_Vqf32(sum_lo));
     return result;
 }
 
 template <typename T> struct get_data_type {};
 
-template <typename _TyData> struct get_data_type<_TyData (*)(const _TyData *, const _TyData *, size_t)> {
+template <typename _TyData> struct get_data_type<float (*)(const _TyData *, const _TyData *, size_t)> {
     using type = _TyData;
 };
 
@@ -166,7 +182,7 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
         for (int64_t i1 = start_end_row.first; i1 < start_end_row.second; i1++) {
             // TODO: prefetch row?
             auto * src1_row = src1_plane + i1 * src1->get_nb(1);
-            auto * dst_row  = reinterpret_cast<data_type *>(dst_plane + i1 * dst->get_nb(1));
+            auto * dst_row  = reinterpret_cast<float *>(dst_plane + i1 * dst->get_nb(1));
             for (int64_t i0 = 0; i0 < dst->get_ne(0); i0++) {
                 auto * src0_row = src0_plane + i0 * src0->get_nb(1);
                 // TODO: figure dst how to handle a entire row
@@ -193,24 +209,20 @@ bool mul_mat_f32(hexagon::tensor * out, size_t tidx, size_t tcnt) {
         return true;  // skip if no src
     }
 
-    mul_mat_impl<vec_dot_product_f32_f32>(src0, src1, out, tidx, tcnt);
-    return true;
-}
+    switch (src1->get_type()) {
+        case NPU_DATA_TYPE_F32:
+            mul_mat_impl<vec_dot_product_f32_f32>(src0, src1, out, tidx, tcnt);
+            return true;
 
-bool mul_mat_f16(hexagon::tensor * out, size_t tidx, size_t tcnt) {
-    if (!out) {
-        return false;
+        case NPU_DATA_TYPE_F16:
+            mul_mat_impl<vec_dot_product_f16_f16>(src0, src1, out, tidx, tcnt);
+            return true;
+        default:
+            break;
     }
 
-    static_assert(DEVICE_TENSOR_MAX_DIMS == 4, "mul_mat_f32 requires max dims 4");
-    auto * src0 = out->get_src(0);
-    auto * src1 = out->get_src(1);
-    if (!src0 || !src1) {
-        return true;  // skip if no src
-    }
-
-    mul_mat_impl<vec_dot_product_f16_f16>(src0, src1, out, tidx, tcnt);
-    return true;
+    DEVICE_LOG_ERROR("Unsupported src1 tensor type: %d\n", src1->get_type());
+    return false;
 }
 
 bool is_mul_mat_supported(const npu_device_tensor_spec & src0, const npu_device_tensor_spec & src1,
@@ -220,9 +232,14 @@ bool is_mul_mat_supported(const npu_device_tensor_spec & src0, const npu_device_
         return false;
     }
 
-    if (dst.type != src0.type || dst.type != src1.type) {
-        DEVICE_LOG_DEBUG("[%s]src0.type(%d) and src1.type(%d) and dst.type(%d) mismatch\n", op_get_name(op), src0.type,
-                         src1.type, dst.type);
+    if (dst.type != NPU_DATA_TYPE_F32) {
+        DEVICE_LOG_DEBUG("[%s]dst type is not F32: %d\n", op_get_name(op), dst.type);
+        return false;
+    }
+
+    if (src0.type != src1.type) {
+        // TODO: support mixed types
+        DEVICE_LOG_DEBUG("[%s]src0.type(%d) and src1.type(%d) mismatch\n", op_get_name(op), src0.type, src1.type);
         return false;
     }
 

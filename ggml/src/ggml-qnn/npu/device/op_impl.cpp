@@ -202,7 +202,7 @@ constexpr const op_capabilities kOpCapabilities[] = {
      NPU_OP_MUL_MAT, hexagon::is_mul_mat_supported,
      {
             hexagon::mul_mat_f32,  // NPU_DATA_TYPE_F32
-            hexagon::mul_mat_f16,  // NPU_DATA_TYPE_F16
+            nullptr,               // NPU_DATA_TYPE_F16
         }, },
     { NPU_OP_ADD,
      is_element_wise_op_supported, {
