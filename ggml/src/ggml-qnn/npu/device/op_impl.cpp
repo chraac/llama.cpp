@@ -153,35 +153,37 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, size_t tidx
 bool is_element_wise_op_supported(const npu_device_tensor_spec & src0, const npu_device_tensor_spec & src1,
                                   const npu_device_tensor_spec & dst, npu_device_tensor_op op) {
     if (op != NPU_OP_ADD && op != NPU_OP_SUB && op != NPU_OP_MUL) {
-        DEVICE_LOG_DEBUG("Unsupported element wise op: %s\n", hexagon::op_get_name(op));
+        DEVICE_LOG_DEBUG("[%s]unsupported\n", hexagon::op_get_name(op));
         return false;
     }
 
     if (dst.type != src0.type || dst.type != src1.type) {
-        DEVICE_LOG_DEBUG("src0.type and dst.type not match: %d vs %d\n", src0.type, dst.type);
+        DEVICE_LOG_DEBUG("[%s]src0.type and dst.type mismatch: %d vs %d\n", hexagon::op_get_name(op), src0.type,
+                         dst.type);
         return false;
     }
 
     if (dst.type != NPU_DATA_TYPE_F32 && dst.type != NPU_DATA_TYPE_F16) {
-        DEVICE_LOG_DEBUG("Unsupported element wise op type: %d\n", dst.type);
+        DEVICE_LOG_DEBUG("[%s]unsupported data type: %d\n", hexagon::op_get_name(op), dst.type);
         return false;
     }
 
     // TODO: fix FP16 add/sub
     if (dst.type == NPU_DATA_TYPE_F16 && op != NPU_OP_MUL) {
-        DEVICE_LOG_DEBUG("Unsupported element wise op type: %d\n", dst.type);
+        DEVICE_LOG_DEBUG("[%s]unsupported data type: %d\n", hexagon::op_get_name(op), dst.type);
         return false;
     }
 
     if (src0.ne[0] != src1.ne[0]) {
-        DEVICE_LOG_DEBUG("src0.ne[0] and src1.ne[0] not match: %ld vs %ld\n", (long) src0.ne[0], (long) src1.ne[0]);
+        DEVICE_LOG_DEBUG("[%s]src0.ne[0] and src1.ne[0] not match: %ld vs %ld\n", hexagon::op_get_name(op),
+                         (long) src0.ne[0], (long) src1.ne[0]);
         return false;
     }
 
     for (size_t i = 0; i < DEVICE_TENSOR_MAX_DIMS; ++i) {
         if (src0.ne[i] != dst.ne[i]) {
-            DEVICE_LOG_DEBUG("src0.ne[%zu] and dst.ne[%zu] not match: %lld vs %lld\n", i, i, (long long) src0.ne[i],
-                             (long long) dst.ne[i]);
+            DEVICE_LOG_DEBUG("[%s]src0.ne[%zu] and dst.ne[%zu] not match: %lld vs %lld\n", hexagon::op_get_name(op), i,
+                             i, (long long) src0.ne[i], (long long) dst.ne[i]);
             return false;
         }
     }
@@ -245,13 +247,13 @@ compute_func_type get_compute_func(tensor * dst) {
 bool support_op(const npu_device_tensor_spec & src0, const npu_device_tensor_spec & src1,
                 const npu_device_tensor_spec & dst, npu_device_tensor_op op) {
     if (!get_compute_func_impl(op, dst.type)) {
-        DEVICE_LOG_ERROR("Unsupported op: %s, get_compute_func failed\n", op_get_name(op));
+        DEVICE_LOG_ERROR("[%s]unsupported, get_compute_func failed\n", op_get_name(op));
         return false;
     }
 
     auto is_supported_func = kOpCapabilities[op].is_supported;
     if (!is_supported_func || !is_supported_func(src0, src1, dst, op)) {
-        DEVICE_LOG_ERROR("Unsupported op: %s, is_supported_func failed\n", op_get_name(op));
+        DEVICE_LOG_ERROR("[%s]unsupported, is_supported_func failed\n", op_get_name(op));
         return false;
     }
 

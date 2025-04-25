@@ -216,35 +216,35 @@ bool mul_mat_f16(hexagon::tensor * out, size_t tidx, size_t tcnt) {
 bool is_mul_mat_supported(const npu_device_tensor_spec & src0, const npu_device_tensor_spec & src1,
                           const npu_device_tensor_spec & dst, npu_device_tensor_op op) {
     if (op != NPU_OP_MUL_MAT) {
-        DEVICE_LOG_DEBUG("op is not NPU_OP_MUL_MAT: %d\n", op);
+        DEVICE_LOG_DEBUG("op is not MUL_MAT: %d\n", op);
         return false;
     }
 
     if (dst.type != src0.type || dst.type != src1.type) {
-        DEVICE_LOG_DEBUG("src0.type and dst.type not match: %d vs %d\n", src0.type, dst.type);
+        DEVICE_LOG_DEBUG("[%s]src0.type and dst.type mismatch: %d vs %d\n", op_get_name(op), src0.type, dst.type);
         return false;
     }
 
     if (dst.type != NPU_DATA_TYPE_F32 && dst.type != NPU_DATA_TYPE_F16) {
-        DEVICE_LOG_DEBUG("Unsupported element wise op type: %d\n", dst.type);
+        DEVICE_LOG_DEBUG("[%s]unsupported data type: %d\n", op_get_name(op), dst.type);
         return false;
     }
 
     if (src0.ne[0] != src1.ne[0] || src0.ne[1] != dst.ne[0]) {
-        DEVICE_LOG_DEBUG("src0 and src1 cannot multiply: %ldx%ld vs %ldx%ld\n", (long) src0.ne[0], (long) src0.ne[1],
-                         (long) src1.ne[0], (long) src1.ne[1]);
+        DEVICE_LOG_DEBUG("[%s]src0 and src1 cannot multiply: %ldx%ld vs %ldx%ld\n", op_get_name(op), (long) src0.ne[0],
+                         (long) src0.ne[1], (long) src1.ne[0], (long) src1.ne[1]);
         return false;
     }
 
     if (src1.ne[1] != dst.ne[1] || src1.ne[2] != dst.ne[2] || src1.ne[3] != dst.ne[3]) {
-        DEVICE_LOG_DEBUG("src1 and dst dimensions not match: %ldx%ld vs %ldx%ld\n", (long) src1.ne[2],
-                         (long) src1.ne[3], (long) dst.ne[2], (long) dst.ne[3]);
+        DEVICE_LOG_DEBUG("[%s]src1 and dst dimensions not match: %ldx%ld vs %ldx%ld\n", op_get_name(op),
+                         (long) src1.ne[2], (long) src1.ne[3], (long) dst.ne[2], (long) dst.ne[3]);
         return false;
     }
 
     if (src1.ne[2] % src0.ne[2] || src1.ne[3] % src0.ne[3]) {
-        DEVICE_LOG_DEBUG("src0 cannot broadcast to src1: %ldx%ld vs %ldx%ld\n", (long) src0.ne[2], (long) src0.ne[3],
-                         (long) src1.ne[2], (long) src1.ne[3]);
+        DEVICE_LOG_DEBUG("[%s]src0 cannot broadcast to src1: %ldx%ld vs %ldx%ld\n", op_get_name(op), (long) src0.ne[2],
+                         (long) src0.ne[3], (long) src1.ne[2], (long) src1.ne[3]);
         return false;
     }
 
