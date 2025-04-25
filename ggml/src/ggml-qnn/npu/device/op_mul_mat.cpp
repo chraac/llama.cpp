@@ -91,10 +91,8 @@ bool mul_mat_f32(hexagon::tensor * out, size_t tidx, size_t tcnt) {
     const auto   total_planes = out->get_ne(3) * out->get_ne(2);
 
     if (total_planes >= tcnt) {
-        const auto planes_per_thread = (total_planes + tcnt - 1) / tcnt;
-        const auto start             = tidx * planes_per_thread;
-        const auto end               = std::min<int64_t>(start + planes_per_thread, total_planes);
-        for (int64_t ip = start; ip < end; ip++) {
+        const auto start_end = get_thread_work_slice(total_planes, tidx, tcnt);
+        for (int64_t ip = start_end.first; ip < start_end.second; ip++) {
             const auto   i3         = ip / out->get_ne(2);
             const auto   i2         = ip % out->get_ne(2);
             const auto * src0_plane = src0_ptr + i3 / r03 * src0->get_nb(3) + i2 / r02 * src0->get_nb(2);
@@ -115,16 +113,14 @@ bool mul_mat_f32(hexagon::tensor * out, size_t tidx, size_t tcnt) {
         }
     } else {
         // TODO: should we handle the case that out->get_ne(1) < tcnt?
-        const auto rows_per_thread = (out->get_ne(1) + tcnt - 1) / tcnt;
-        const auto start           = tidx * rows_per_thread;
-        const auto end             = std::min<int64_t>(start + rows_per_thread, out->get_ne(1));
+        const auto start_end = get_thread_work_slice(out->get_ne(1), tidx, tcnt);
         for (int64_t ip = 0; ip < total_planes; ip++) {
             const auto   i3         = ip / out->get_ne(2);
             const auto   i2         = ip % out->get_ne(2);
             const auto * src0_plane = src0_ptr + i3 / r03 * src0->get_nb(3) + i2 / r02 * src0->get_nb(2);
             const auto * src1_plane = src1_ptr + i3 * src1->get_nb(3) + i2 * src1->get_nb(2);
             auto *       dst_plane  = dst_ptr + i3 * out->get_nb(3) + i2 * out->get_nb(2);
-            for (int64_t i1 = start; i1 < end; i1++) {
+            for (int64_t i1 = start_end.first; i1 < start_end.second; i1++) {
                 // TODO: prefetch row?
                 auto * src1_row = src1_plane + i1 * src1->get_nb(1);
                 auto * dst_row  = reinterpret_cast<float *>(dst_plane + i1 * out->get_nb(1));
