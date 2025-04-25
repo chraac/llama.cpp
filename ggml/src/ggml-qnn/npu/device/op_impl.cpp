@@ -89,10 +89,12 @@ inline void vec_op_f16_f16(const npu_device_fp16_t * src0, const npu_device_fp16
 }
 
 inline HVX_Vector vadd_f16_f16(HVX_Vector a, HVX_Vector b) {
+    // TODO: fix this since qf16 has less precision than fp16
     return Q6_Vhf_equals_Vqf16(Q6_Vqf16_vadd_VhfVhf(a, b));
 }
 
 inline HVX_Vector vsub_f16_f16(HVX_Vector a, HVX_Vector b) {
+    // TODO: fix this since qf16 has less precision than fp16
     return Q6_Vhf_equals_Vqf16(Q6_Vqf16_vsub_VhfVhf(a, b));
 }
 
@@ -155,6 +157,12 @@ bool is_element_wise_op_supported(const npu_device_tensor_spec & src0, const npu
     }
 
     if (dst.type != NPU_DATA_TYPE_F32 && dst.type != NPU_DATA_TYPE_F16) {
+        DEVICE_LOG_DEBUG("Unsupported element wise op type: %d\n", dst.type);
+        return false;
+    }
+
+    // TODO: fix FP16 add/sub
+    if (dst.type == NPU_DATA_TYPE_F16 && op != NPU_OP_MUL) {
         DEVICE_LOG_DEBUG("Unsupported element wise op type: %d\n", dst.type);
         return false;
     }
