@@ -70,40 +70,6 @@ inline void vec_op_f32_f32(const float * src0, const float * src1, size_t count,
     vec_op_impl<_OpIntrinsic, float>(src0, src1, count, dst);
 }
 
-#if __HVX_ARCH__ >= 75
-
-inline HVX_Vector vadd_f32_f32(HVX_Vector a, HVX_Vector b) {
-    return Q6_Vsf_equals_Vqf32(Q6_Vqf32_vadd_VsfVsf(a, b));
-}
-
-inline HVX_Vector vsub_f32_f32(HVX_Vector a, HVX_Vector b) {
-    return Q6_Vsf_equals_Vqf32(Q6_Vqf32_vsub_VsfVsf(a, b));
-}
-
-inline HVX_Vector vmul_f32_f32(HVX_Vector a, HVX_Vector b) {
-    return Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_VsfVsf(a, b));
-}
-
-template <HVX_Vector (*_OpIntrinsic)(HVX_Vector, HVX_Vector)>
-inline void vec_op_f16_f16(const npu_device_fp16_t * src0, const npu_device_fp16_t * src1, size_t count,
-                           npu_device_fp16_t * dst) {
-    vec_op_impl<_OpIntrinsic, npu_device_fp16_t>(src0, src1, count, dst);
-}
-
-inline HVX_Vector vadd_f16_f16(HVX_Vector a, HVX_Vector b) {
-    return Q6_Vhf_equals_Vqf16(Q6_Vqf16_vadd_VhfVhf(a, b));
-}
-
-inline HVX_Vector vsub_f16_f16(HVX_Vector a, HVX_Vector b) {
-    return Q6_Vhf_equals_Vqf16(Q6_Vqf16_vsub_VhfVhf(a, b));
-}
-
-inline HVX_Vector vmul_f16_f16(HVX_Vector a, HVX_Vector b) {
-    return Q6_Vhf_vmpy_VhfVhf(a, b);
-}
-
-#else
-
 inline HVX_Vector vadd_f32_f32(HVX_Vector a, HVX_Vector b) {
     return Q6_Vsf_equals_Vqf32(Q6_Vqf32_vadd_VsfVsf(a, b));
 }
@@ -133,8 +99,6 @@ inline HVX_Vector vsub_f16_f16(HVX_Vector a, HVX_Vector b) {
 inline HVX_Vector vmul_f16_f16(HVX_Vector a, HVX_Vector b) {
     return Q6_Vhf_equals_Wqf32(Q6_Wqf32_vmpy_VhfVhf(a, b));
 }
-
-#endif
 
 template <typename _TyData, void (*_RowFunc)(const _TyData *, const _TyData *, size_t, _TyData *)>
 bool element_wise_op(hexagon::tensor * out, size_t tidx, size_t tcnt) {
