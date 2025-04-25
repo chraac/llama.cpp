@@ -92,7 +92,6 @@ bool mul_mat_f32(hexagon::tensor * out, size_t tidx, size_t tcnt) {
 
     const auto start_end_plane = (total_planes >= tcnt) ? get_thread_work_slice(total_planes, tidx, tcnt) :
                                                           std::pair<int64_t, int64_t>{ 0, total_planes };
-    // TODO: should we handle the case that out->get_ne(1) < tcnt?
     const auto start_end_row   = (total_planes >= tcnt) ? std::pair<int64_t, int64_t>{ 0, out->get_ne(1) } :
                                                           get_thread_work_slice(out->get_ne(1), tidx, tcnt);
     for (int64_t ip = start_end_plane.first; ip < start_end_plane.second; ip++) {
