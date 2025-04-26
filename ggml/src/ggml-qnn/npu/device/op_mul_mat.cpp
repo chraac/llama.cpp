@@ -3,6 +3,7 @@
 #include <HTP/core/intrinsics.h>
 
 #include "util.hpp"
+#include "vtcm_mem.hpp"
 
 namespace {
 

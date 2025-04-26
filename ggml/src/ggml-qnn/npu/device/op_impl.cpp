@@ -7,6 +7,7 @@
 
 #include "op_mul_mat.hpp"
 #include "util.hpp"
+#include "vtcm_mem.hpp"
 
 namespace {
 
