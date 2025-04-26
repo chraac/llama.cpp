@@ -120,7 +120,9 @@ template <typename _TyData> struct get_data_type<void (*)(const _TyData *, const
 };
 
 template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, size_t tidx, size_t tcnt) {
-    using data_type = typename get_data_type<decltype(_RowFunc)>::type;
+    using data_type                           = typename get_data_type<decltype(_RowFunc)>::type;
+    constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(data_type);
+
     if (!out) {
         return false;
     }
@@ -154,6 +156,16 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, size_t tidx
         auto *     src0_row = src0_ptr + i03 * src0->get_nb(3) + i02 * src0->get_nb(2) + i01 * src0->get_nb(1);
         auto *     src1_row = src1_ptr + i13 * src1->get_nb(3) + i12 * src1->get_nb(2) + i11 * src1->get_nb(1);
         auto *     dst_row  = dst_ptr + i03 * out->get_nb(3) + i02 * out->get_nb(2) + i01 * out->get_nb(1);
+
+        if (ir + 1 < start_end.second) {
+            int32_t l2fetch_vectors = Q6_R_min_RR(src0->get_nb(1) / kElementsPerVector, hexagon::kL2FetchAheadVectors);
+            // TODO: should we use small kL2FetchAheadVectors?
+            hexagon::l2fetch(src0_row + src0->get_nb(1), hexagon::kBytesPerVector, hexagon::kBytesPerVector,
+                             l2fetch_vectors, 0);
+            hexagon::l2fetch(src1_row + src1->get_nb(1), hexagon::kBytesPerVector, hexagon::kBytesPerVector,
+                             l2fetch_vectors, 0);
+        }
+
         _RowFunc(reinterpret_cast<const data_type *>(src0_row), reinterpret_cast<const data_type *>(src1_row),
                  static_cast<size_t>(out->get_ne(0)), reinterpret_cast<data_type *>(dst_row));
     }

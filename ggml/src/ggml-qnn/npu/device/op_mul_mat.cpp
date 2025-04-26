@@ -161,7 +161,8 @@ template <typename _TyData> struct get_data_type<float (*)(const _TyData *, cons
 
 template <auto _DotFunc>
 void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tensor * dst, size_t tidx, size_t tcnt) {
-    using data_type = typename get_data_type<decltype(_DotFunc)>::type;
+    using data_type                           = typename get_data_type<decltype(_DotFunc)>::type;
+    constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(data_type);
 
     const auto   r02          = src1->get_ne(2) / src0->get_ne(2);
     const auto   r03          = src1->get_ne(3) / src0->get_ne(3);
@@ -182,14 +183,31 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
         const auto * src1_plane = src1_ptr + i3 * src1->get_nb(3) + i2 * src1->get_nb(2);
         auto *       dst_plane  = dst_ptr + i3 * dst->get_nb(3) + i2 * dst->get_nb(2);
         for (int64_t i1 = start_end_row.first; i1 < start_end_row.second; i1++) {
-            // TODO: prefetch row?
             auto * src1_row = src1_plane + i1 * src1->get_nb(1);
             auto * dst_row  = reinterpret_cast<float *>(dst_plane + i1 * dst->get_nb(1));
+
+            if (ip + 1 < start_end_plane.second) {
+                // TODO: should we use small kL2FetchAheadVectors?
+                int32_t l2fetch_vectors =
+                    Q6_R_min_RR(src1->get_ne(1) / kElementsPerVector, hexagon::kL2FetchAheadVectors);
+                hexagon::l2fetch(src1_row + src1->get_ne(1), hexagon::kBytesPerVector, hexagon::kBytesPerVector,
+                                 l2fetch_vectors, 0);
+            }
+
             for (int64_t i0 = 0; i0 < dst->get_ne(0); i0++) {
                 auto * src0_row = src0_plane + i0 * src0->get_nb(1);
+
+                if (i0 + 1 < dst->get_ne(0)) {
+                    // TODO: should we use small kL2FetchAheadVectors?
+                    int32_t l2fetch_vectors =
+                        Q6_R_min_RR(src0->get_ne(1) / kElementsPerVector, hexagon::kL2FetchAheadVectors);
+                    hexagon::l2fetch(src0_row + src0->get_ne(1), hexagon::kBytesPerVector, hexagon::kBytesPerVector,
+                                     l2fetch_vectors, 0);
+                }
+
                 // TODO: figure dst how to handle a entire row
-                *dst_row++      = _DotFunc(reinterpret_cast<const data_type *>(src0_row),
-                                           reinterpret_cast<const data_type *>(src1_row), (size_t) src0->get_ne(0));
+                *dst_row++ = _DotFunc(reinterpret_cast<const data_type *>(src0_row),
+                                      reinterpret_cast<const data_type *>(src1_row), (size_t) src0->get_ne(0));
             }
         }
     }
@@ -211,6 +229,7 @@ bool mul_mat_f32(hexagon::tensor * out, size_t tidx, size_t tcnt) {
         return true;  // skip if no src
     }
 
+    // TODO: array?
     switch (src1->get_type()) {
         case NPU_DATA_TYPE_F32:
             mul_mat_impl<vec_dot_product_f32_f32>(src0, src1, out, tidx, tcnt);
