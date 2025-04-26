@@ -6,6 +6,7 @@
 #include <HTP/core/intrinsics.h>
 
 #include "op_mul_mat.hpp"
+#include "util.hpp"
 
 namespace {
 

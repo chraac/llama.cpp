@@ -2,6 +2,8 @@
 
 #include <HTP/core/intrinsics.h>
 
+#include "util.hpp"
+
 namespace {
 
 inline float vec_dot_product_f32_f32(const float * src0, const float * src1, size_t count) {
