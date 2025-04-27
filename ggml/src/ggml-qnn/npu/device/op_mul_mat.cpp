@@ -179,7 +179,7 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
                                                           hexagon::get_thread_work_slice(dst->get_ne(1), tidx, tcnt);
     for (int64_t ip = start_end_plane.first; ip < start_end_plane.second; ip++) {
         const auto   i3         = ip / dst->get_ne(2);
-        const auto   i2         = ip % dst->get_ne(2);
+        const auto   i2         = ip - i3 * dst->get_ne(2);
         const auto * src0_plane = src0_ptr + i3 / r03 * src0->get_nb(3) + i2 / r02 * src0->get_nb(2);
         const auto * src1_plane = src1_ptr + i3 * src1->get_nb(3) + i2 * src1->get_nb(2);
         auto *       dst_plane  = dst_ptr + i3 * dst->get_nb(3) + i2 * dst->get_nb(2);
