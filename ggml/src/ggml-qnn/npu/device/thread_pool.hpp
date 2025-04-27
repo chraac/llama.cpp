@@ -76,7 +76,7 @@ template <size_t _stack_size> class qurt_thread {
     DISABLE_COPY_AND_MOVE(qurt_thread);
 };
 
-using quart_thread_ptr = std::unique_ptr<qurt_thread<kDefaultStackSize>>;
+using qurt_thread_ptr = std::unique_ptr<qurt_thread<kDefaultStackSize>>;
 
 template <size_t _thread_count> class thread_pool {
     static_assert(_thread_count > 1, "Thread count must be greater than 1");
@@ -174,13 +174,13 @@ template <size_t _thread_count> class thread_pool {
         DEVICE_LOG_DEBUG("thread_func_impl.end: %zu", arg->thread_idx);
     }
 
-    std::atomic_bool                              _thread_exit = false;
-    std::array<quart_thread_ptr, kMaxThreadCount> _threads;
-    thread_pool_arg                               _thread_args[kMaxThreadCount] = {};
-    qurt_barrier_t                                _pending                      = {};
-    qurt_barrier_t                                _completed                    = {};
-    task_type                                     _task                         = nullptr;
-    void *                                        _arg                          = nullptr;
+    std::atomic_bool                             _thread_exit = false;
+    std::array<qurt_thread_ptr, kMaxThreadCount> _threads;
+    thread_pool_arg                              _thread_args[kMaxThreadCount] = {};
+    qurt_barrier_t                               _pending                      = {};
+    qurt_barrier_t                               _completed                    = {};
+    task_type                                    _task                         = nullptr;
+    void *                                       _arg                          = nullptr;
 
     DISABLE_COPY_AND_MOVE(thread_pool);
 };
