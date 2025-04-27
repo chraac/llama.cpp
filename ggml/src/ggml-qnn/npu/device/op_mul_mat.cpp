@@ -188,8 +188,9 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
 
     if (start_end_row.second - start_end_row.first > 1) {
         // cache the src0 plane in VTCM
-        src0_plane_cache     = std::make_unique<hexagon::vtcm_mem>(src0->get_nb(2), false);
+        src0_plane_cache     = std::make_unique<hexagon::vtcm_mem>(src0->get_nb(1) * src0->get_ne(1), false);
         src0_plane_cache_ptr = src0_plane_cache->get_mem();
+        DEVICE_LOG_DEBUG("mul_mat_impl vtcm_mem allocated");
     }
 
     for (int64_t ip = start_end_plane.first; ip < start_end_plane.second; ip++) {
@@ -200,7 +201,7 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
         auto *       dst_plane  = dst_ptr + i3 * dst->get_nb(3) + i2 * dst->get_nb(2);
 
         if (src0_plane_cache_ptr) {
-            memcpy(src0_plane_cache_ptr, src0_plane, src0->get_nb(1) * src0->get_ne(1));
+            memcpy(src0_plane_cache_ptr, src0_plane, src0_plane_cache->get_size());
             src0_plane = src0_plane_cache_ptr;
         }
 

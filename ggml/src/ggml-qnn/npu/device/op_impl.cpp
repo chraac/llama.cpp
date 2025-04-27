@@ -7,6 +7,7 @@
 
 #include "op_mul_mat.hpp"
 #include "util.hpp"
+#include "vtcm_mem.hpp"
 
 namespace {
 
@@ -140,30 +141,54 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, size_t tidx
         return false;
     }
 
-    const auto * src0_ptr     = reinterpret_cast<const uint8_t *>(src0->get_data());
-    const auto * src1_ptr     = reinterpret_cast<const uint8_t *>(src1->get_data());
-    auto *       dst_ptr      = reinterpret_cast<uint8_t *>(out->get_data());
-    auto         total_rows   = out->get_ne(3) * out->get_ne(2) * out->get_ne(1);
-    const auto   rows_per_box = out->get_ne(2) * out->get_ne(1);
-    const auto   start_end    = hexagon::get_thread_work_slice(total_rows, tidx, tcnt);
-    for (int64_t ir = start_end.first; ir < start_end.second; ++ir) {
-        const auto i03      = ir / rows_per_box;
-        const auto i02      = ir / out->get_ne(1) - i03 * out->get_ne(2);
-        const auto i01      = ir % out->get_ne(1);
-        const auto i13      = i03 % src1->get_ne(3);
-        const auto i12      = i02 % src1->get_ne(2);
-        const auto i11      = i01 % src1->get_ne(1);
-        auto *     src0_row = src0_ptr + i03 * src0->get_nb(3) + i02 * src0->get_nb(2) + i01 * src0->get_nb(1);
-        auto *     src1_row = src1_ptr + i13 * src1->get_nb(3) + i12 * src1->get_nb(2) + i11 * src1->get_nb(1);
-        auto *     dst_row  = dst_ptr + i03 * out->get_nb(3) + i02 * out->get_nb(2) + i01 * out->get_nb(1);
+    const auto * src0_ptr      = reinterpret_cast<const uint8_t *>(src0->get_data());
+    const auto * src1_ptr      = reinterpret_cast<const uint8_t *>(src1->get_data());
+    auto *       dst_ptr       = reinterpret_cast<uint8_t *>(out->get_data());
+    auto         total_rows    = out->get_ne(3) * out->get_ne(2) * out->get_ne(1);
+    const auto   rows_per_cube = out->get_ne(2) * out->get_ne(1);
+    const auto   start_end     = hexagon::get_thread_work_slice(total_rows, tidx, tcnt);
 
+    if (start_end.first >= start_end.second) {
+        return true;
+    }
+
+    std::unique_ptr<hexagon::vtcm_mem> src1_plane_cache;
+    uint8_t *                          src1_plane_cache_ptr = nullptr;
+    if (src0->get_ne(1) / src1->get_ne(1) > 1) {
+        src1_plane_cache     = std::make_unique<hexagon::vtcm_mem>(src1->get_nb(1) * src1->get_ne(1), false);
+        src1_plane_cache_ptr = src1_plane_cache->get_mem();
+        DEVICE_LOG_DEBUG("element_wise_op vtcm_mem allocated");
+    }
+
+    for (int64_t ir = start_end.first; ir < start_end.second; ++ir) {
+        const auto i03 = ir / rows_per_cube;
+        const auto i02 = ir / out->get_ne(1) - i03 * out->get_ne(2);
+        const auto i01 = ir % out->get_ne(1);
+        const auto i13 = i03 % src1->get_ne(3);
+        const auto i12 = i02 % src1->get_ne(2);
+        const auto i11 = i01 % src1->get_ne(1);
+
+        auto * src1_plane = src1_ptr + i13 * src1->get_nb(3) + i12 * src1->get_nb(2);
+        if (src1_plane_cache_ptr) {
+            if (i01 == 0 || ir == start_end.first) {
+                memcpy(src1_plane_cache_ptr, src1_plane, src1_plane_cache->get_size());
+            }
+
+            src1_plane = src1_plane_cache_ptr;
+        }
+
+        auto * src0_row = src0_ptr + i03 * src0->get_nb(3) + i02 * src0->get_nb(2) + i01 * src0->get_nb(1);
+        auto * src1_row = src1_plane + i11 * src1->get_nb(1);
+        auto * dst_row  = dst_ptr + i03 * out->get_nb(3) + i02 * out->get_nb(2) + i01 * out->get_nb(1);
         if (ir + 1 < start_end.second) {
             int32_t l2fetch_vectors = Q6_R_min_RR(src0->get_nb(1) / kElementsPerVector, hexagon::kL2FetchAheadVectors);
             // TODO: should we use small kL2FetchAheadVectors?
             hexagon::l2fetch(src0_row + src0->get_nb(1), hexagon::kBytesPerVector, hexagon::kBytesPerVector,
                              l2fetch_vectors, 0);
-            hexagon::l2fetch(src1_row + src1->get_nb(1), hexagon::kBytesPerVector, hexagon::kBytesPerVector,
-                             l2fetch_vectors, 0);
+            if (!src1_plane_cache_ptr) {
+                hexagon::l2fetch(src1_row + src1->get_nb(1), hexagon::kBytesPerVector, hexagon::kBytesPerVector,
+                                 l2fetch_vectors, 0);
+            }
         }
 
         _RowFunc(reinterpret_cast<const data_type *>(src0_row), reinterpret_cast<const data_type *>(src1_row),
