@@ -2,6 +2,8 @@
 
 #include <HTP/core/intrinsics.h>
 
+#include <memory>
+
 #include "util.hpp"
 #include "vtcm_mem.hpp"
 
@@ -181,8 +183,14 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
         return;
     }
 
-    hexagon::vtcm_mem src0_plane_cache(src0->get_nb(2), false);
-    uint8_t *         src0_plane_cache_ptr = src0_plane_cache.get_mem();
+    std::unique_ptr<hexagon::vtcm_mem> src0_plane_cache;
+    uint8_t *                          src0_plane_cache_ptr = nullptr;
+
+    if (start_end_row.second - start_end_row.first > 1) {
+        // cache the src0 plane in VTCM
+        src0_plane_cache     = std::make_unique<hexagon::vtcm_mem>(src0->get_nb(2), false);
+        src0_plane_cache_ptr = src0_plane_cache->get_mem();
+    }
 
     for (int64_t ip = start_end_plane.first; ip < start_end_plane.second; ip++) {
         const auto   i3         = ip / dst->get_ne(2);
