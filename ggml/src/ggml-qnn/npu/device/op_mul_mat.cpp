@@ -191,7 +191,7 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
                 // TODO: should we use small kL2FetchAheadVectors?
                 int32_t l2fetch_vectors =
                     Q6_R_min_RR(src1->get_ne(1) / kElementsPerVector, hexagon::kL2FetchAheadVectors);
-                hexagon::l2fetch(src1_row + src1->get_ne(1), hexagon::kBytesPerVector, hexagon::kBytesPerVector,
+                hexagon::l2fetch(src1_row + src1->get_nb(1), hexagon::kBytesPerVector, hexagon::kBytesPerVector,
                                  l2fetch_vectors, 0);
             }
 
@@ -202,7 +202,7 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
                     // TODO: should we use small kL2FetchAheadVectors?
                     int32_t l2fetch_vectors =
                         Q6_R_min_RR(src0->get_ne(1) / kElementsPerVector, hexagon::kL2FetchAheadVectors);
-                    hexagon::l2fetch(src0_row + src0->get_ne(1), hexagon::kBytesPerVector, hexagon::kBytesPerVector,
+                    hexagon::l2fetch(src0_row + src0->get_nb(1), hexagon::kBytesPerVector, hexagon::kBytesPerVector,
                                      l2fetch_vectors, 0);
                 }
 
