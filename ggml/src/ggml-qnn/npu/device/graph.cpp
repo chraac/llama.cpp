@@ -72,8 +72,6 @@ void graph::compute_impl(size_t thread_idx, size_t thread_count) {
             DEVICE_LOG_ERROR("graph(%p) tensor[%zu] op %d compute failed\n", (void *) this, i, op);
             return;
         }
-
-        dst->flush();  // TODO: optimize this
     }
 }
 
