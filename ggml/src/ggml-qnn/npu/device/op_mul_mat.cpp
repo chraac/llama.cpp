@@ -96,7 +96,7 @@ bool mul_mat_f32(hexagon::tensor * out, size_t tidx, size_t tcnt) {
                                                           get_thread_work_slice(out->get_ne(1), tidx, tcnt);
     for (int64_t ip = start_end_plane.first; ip < start_end_plane.second; ip++) {
         const auto   i3         = ip / out->get_ne(2);
-        const auto   i2         = ip % out->get_ne(2);
+        const auto   i2         = ip - i3 * out->get_ne(2);
         const auto * src0_plane = src0_ptr + i3 / r03 * src0->get_nb(3) + i2 / r02 * src0->get_nb(2);
         const auto * src1_plane = src1_ptr + i3 * src1->get_nb(3) + i2 * src1->get_nb(2);
         auto *       dst_plane  = dst_ptr + i3 * out->get_nb(3) + i2 * out->get_nb(2);

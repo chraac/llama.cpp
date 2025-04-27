@@ -94,14 +94,15 @@ bool element_wise_op(hexagon::tensor * out, size_t tidx, size_t tcnt) {
         return false;
     }
 
-    const auto * src0_ptr   = reinterpret_cast<const uint8_t *>(src0->get_data());
-    const auto * src1_ptr   = reinterpret_cast<const uint8_t *>(src1->get_data());
-    auto *       dst_ptr    = reinterpret_cast<uint8_t *>(out->get_data());
-    auto         total_rows = out->get_ne(3) * out->get_ne(2) * out->get_ne(1);
-    const auto   start_end  = hexagon::get_thread_work_slice(total_rows, tidx, tcnt);
+    const auto * src0_ptr     = reinterpret_cast<const uint8_t *>(src0->get_data());
+    const auto * src1_ptr     = reinterpret_cast<const uint8_t *>(src1->get_data());
+    auto *       dst_ptr      = reinterpret_cast<uint8_t *>(out->get_data());
+    auto         total_rows   = out->get_ne(3) * out->get_ne(2) * out->get_ne(1);
+    const auto   rows_per_box = out->get_ne(2) * out->get_ne(1);
+    const auto   start_end    = hexagon::get_thread_work_slice(total_rows, tidx, tcnt);
     for (int64_t ir = start_end.first; ir < start_end.second; ++ir) {
-        const auto i03      = ir / (out->get_ne(2) * out->get_ne(1));
-        const auto i02      = (ir / out->get_ne(1)) % out->get_ne(2);  // TODO: should we use divide instead of mod?
+        const auto i03      = ir / rows_per_box;
+        const auto i02      = ir / out->get_ne(1) - i03 * out->get_ne(2);
         const auto i01      = ir % out->get_ne(1);
         const auto i13      = i03 % src1->get_ne(3);
         const auto i12      = i02 % src1->get_ne(2);
