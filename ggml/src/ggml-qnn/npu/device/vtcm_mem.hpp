@@ -9,6 +9,12 @@ namespace hexagon {
 class vtcm_mem {
   public:
     explicit vtcm_mem(size_t size, bool single_page) {
+        size_t avail_size = single_page ? get_avail_page_size() : get_avail_block_size();
+        if (size > avail_size) {
+            DEVICE_LOG_ERROR("Requested VTCM size %zu exceeds available size %zu\n", size, avail_size);
+            return;
+        }
+
         _vtcm_mem = HAP_request_VTCM((unsigned int) size, single_page ? 1 : 0);
         if (!_vtcm_mem) {
             DEVICE_LOG_ERROR("Failed to allocate VTCM memory: %zu bytes\n", size);
@@ -43,7 +49,7 @@ class vtcm_mem {
 
     bool is_valid() const { return _vtcm_mem != nullptr; }
 
-    void * get_mem() const { return _vtcm_mem; }
+    uint8_t * get_mem() const { return reinterpret_cast<uint8_t *>(_vtcm_mem); }
 
     size_t get_size() const { return _vtcm_size; }
 
