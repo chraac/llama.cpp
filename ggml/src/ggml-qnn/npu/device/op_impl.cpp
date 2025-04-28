@@ -155,6 +155,7 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, size_t tidx
     std::unique_ptr<hexagon::vtcm_mem> src1_plane_cache;
     uint8_t *                          src1_plane_cache_ptr = nullptr;
     if (src0->get_ne(1) / src1->get_ne(1) > 1) {
+        // TODO: should we cache a cube instead of a plane?
         src1_plane_cache     = std::make_unique<hexagon::vtcm_mem>(src1->get_nb(1) * src1->get_ne(1), false);
         src1_plane_cache_ptr = src1_plane_cache->get_mem();
         DEVICE_LOG_DEBUG("element_wise_op vtcm_mem allocated");
