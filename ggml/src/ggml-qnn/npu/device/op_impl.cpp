@@ -186,10 +186,10 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, size_t tidx
             // TODO: should we use small kL2FetchAheadVectors?
             hexagon::l2fetch(src0_row + src0->get_nb(1), hexagon::kBytesPerVector, hexagon::kBytesPerVector,
                              l2fetch_vectors, 0);
-            if (!src1_plane_cache_ptr) {
-                hexagon::l2fetch(src1_row + src1->get_nb(1), hexagon::kBytesPerVector, hexagon::kBytesPerVector,
-                                 l2fetch_vectors, 0);
-            }
+
+            l2fetch_vectors = Q6_R_min_RR(src1->get_nb(1) / kElementsPerVector, hexagon::kL2FetchAheadVectors);
+            hexagon::l2fetch(src1_row + src1->get_nb(1), hexagon::kBytesPerVector, hexagon::kBytesPerVector,
+                             l2fetch_vectors, 0);
         }
 
         _RowFunc(reinterpret_cast<const data_type *>(src0_row), reinterpret_cast<const data_type *>(src1_row),
