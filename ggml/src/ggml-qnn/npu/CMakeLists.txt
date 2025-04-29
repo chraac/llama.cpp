@@ -84,6 +84,18 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
 
     choose_dsprpc("3" dsprpc) # cdsprpc
     link_custom_library(hexagon-npu-host ${dsprpc})
+
+    list(APPEND NPU_RUNTIME_LIBS "${HEXAGON_SDK_ROOT}/tools/utils/sysmon/sysMonApp")
+    list(APPEND NPU_RUNTIME_LIBS "${HEXAGON_SDK_ROOT}/tools/utils/sysmon/sysMonAppLE")
+
+    foreach(RUNTIME_LIB ${NPU_RUNTIME_LIBS})
+        message("Copy: ${RUNTIME_LIB} -> ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+        add_custom_command(
+            TARGET hexagon-npu-host POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy
+            ${RUNTIME_LIB}
+            ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+    endforeach()
 else()
     # hexagon npu build
     cmake_minimum_required(VERSION 3.14.3)

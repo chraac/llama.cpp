@@ -66,8 +66,8 @@ else()
     target_link_libraries(ggml-qnn PRIVATE runtime-common)
 endif()
 
-# Copy QNN dynamic libraries
-set(QNN_DYNAMIC_LIBS "")
+# Copy dynamic libraries
+set(BACKEND_RUNTIME_LIBS "")
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Android" OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
     if(CMAKE_SYSTEM_NAME STREQUAL "Android")
@@ -81,35 +81,35 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Android" OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
         set(QNN_SDK_LIB_PATH "${GGML_QNN_SDK_PATH}/lib/aarch64-oe-linux-gcc11.2")
     endif()
 
-    list(APPEND QNN_DYNAMIC_LIBS "${QNN_SDK_LIB_PATH}/libQnnSystem.so")
-    list(APPEND QNN_DYNAMIC_LIBS "${QNN_SDK_LIB_PATH}/libQnnCpu.so")
-    list(APPEND QNN_DYNAMIC_LIBS "${QNN_SDK_LIB_PATH}/libQnnGpu.so")
-    list(APPEND QNN_DYNAMIC_LIBS "${QNN_SDK_LIB_PATH}/libQnnHtp.so")
+    list(APPEND BACKEND_RUNTIME_LIBS "${QNN_SDK_LIB_PATH}/libQnnSystem.so")
+    list(APPEND BACKEND_RUNTIME_LIBS "${QNN_SDK_LIB_PATH}/libQnnCpu.so")
+    list(APPEND BACKEND_RUNTIME_LIBS "${QNN_SDK_LIB_PATH}/libQnnGpu.so")
+    list(APPEND BACKEND_RUNTIME_LIBS "${QNN_SDK_LIB_PATH}/libQnnHtp.so")
     file(GLOB HTP_STUB_LIBS "${QNN_SDK_LIB_PATH}/libQnnHtp*.so")
-    list(APPEND QNN_DYNAMIC_LIBS ${HTP_STUB_LIBS})
+    list(APPEND BACKEND_RUNTIME_LIBS ${HTP_STUB_LIBS})
 
     if(CMAKE_SYSTEM_NAME STREQUAL "Android")
         file(GLOB HTP_SKEL_LIBS "${GGML_QNN_SDK_PATH}/lib/hexagon-*/unsigned/libQnnHtp*Skel.so")
-        list(APPEND QNN_DYNAMIC_LIBS ${HTP_SKEL_LIBS})
+        list(APPEND BACKEND_RUNTIME_LIBS ${HTP_SKEL_LIBS})
 
         if(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
             if(EXISTS "${CMAKE_ANDROID_NDK}/prebuilt/android-arm64/gdbserver/gdbserver")
-                list(APPEND QNN_DYNAMIC_LIBS "${CMAKE_ANDROID_NDK}/prebuilt/android-arm64/gdbserver/gdbserver")
+                list(APPEND BACKEND_RUNTIME_LIBS "${CMAKE_ANDROID_NDK}/prebuilt/android-arm64/gdbserver/gdbserver")
                 message("old ndk, copy gdbserver")
             else()
                 file(GLOB LLDB_SERVER "${CMAKE_ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/*/lib/linux/aarch64/lldb-server")
-                list(APPEND QNN_DYNAMIC_LIBS ${LLDB_SERVER})
+                list(APPEND BACKEND_RUNTIME_LIBS ${LLDB_SERVER})
                 message("new ndk, copy lldb-server")
             endif()
 
             file(GLOB OMP_LIBS "${CMAKE_ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/*/lib/linux/aarch64/libomp.so")
             file(GLOB ASAN_LIBS "${CMAKE_ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/*/lib/linux/libclang_rt.asan-aarch64-android.so")
-            list(APPEND QNN_DYNAMIC_LIBS ${OMP_LIBS})
-            list(APPEND QNN_DYNAMIC_LIBS ${ASAN_LIBS})
+            list(APPEND BACKEND_RUNTIME_LIBS ${OMP_LIBS})
+            list(APPEND BACKEND_RUNTIME_LIBS ${ASAN_LIBS})
         endif()
     else()
         # Linux
-        list(APPEND QNN_DYNAMIC_LIBS "${QNN_SDK_LIB_PATH}/libHtpPrepare.so")
+        list(APPEND BACKEND_RUNTIME_LIBS "${QNN_SDK_LIB_PATH}/libHtpPrepare.so")
     endif()
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
@@ -120,24 +120,24 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         set(QNN_SDK_LIB_PATH "${GGML_QNN_SDK_PATH}/lib/aarch64-windows-msvc")
     endif()
 
-    list(APPEND QNN_DYNAMIC_LIBS "${QNN_SDK_LIB_PATH}/QnnSystem.dll")
-    list(APPEND QNN_DYNAMIC_LIBS "${QNN_SDK_LIB_PATH}/QnnCpu.dll")
-    list(APPEND QNN_DYNAMIC_LIBS "${QNN_SDK_LIB_PATH}/QnnGpu.dll")
-    list(APPEND QNN_DYNAMIC_LIBS "${QNN_SDK_LIB_PATH}/QnnHtp.dll")
+    list(APPEND BACKEND_RUNTIME_LIBS "${QNN_SDK_LIB_PATH}/QnnSystem.dll")
+    list(APPEND BACKEND_RUNTIME_LIBS "${QNN_SDK_LIB_PATH}/QnnCpu.dll")
+    list(APPEND BACKEND_RUNTIME_LIBS "${QNN_SDK_LIB_PATH}/QnnGpu.dll")
+    list(APPEND BACKEND_RUNTIME_LIBS "${QNN_SDK_LIB_PATH}/QnnHtp.dll")
     file(GLOB HTP_STUB_LIBS "${QNN_SDK_LIB_PATH}/QnnHtp*.dll")
 
     if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
-        list(APPEND QNN_DYNAMIC_LIBS "${QNN_SDK_LIB_PATH}/HtpPrepare.dll")
+        list(APPEND BACKEND_RUNTIME_LIBS "${QNN_SDK_LIB_PATH}/HtpPrepare.dll")
     endif()
 
-    list(APPEND QNN_DYNAMIC_LIBS ${HTP_STUB_LIBS})
+    list(APPEND BACKEND_RUNTIME_LIBS ${HTP_STUB_LIBS})
 endif()
 
-foreach(QNN_DYNAMIC_LIB ${QNN_DYNAMIC_LIBS})
-    message("Copy: ${QNN_DYNAMIC_LIB} -> ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+foreach(RUNTIME_LIB ${BACKEND_RUNTIME_LIBS})
+    message("Copy: ${RUNTIME_LIB} -> ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
     add_custom_command(
         TARGET ggml-qnn POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy
-        ${QNN_DYNAMIC_LIB}
+        ${RUNTIME_LIB}
         ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
 endforeach()
