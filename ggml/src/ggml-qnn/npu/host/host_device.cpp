@@ -198,6 +198,11 @@ bool npu_device::supports_op_impl(const ggml_tensor * op) {
         return false;
     }
 
+    if (!_device_handle) {
+        LOG_DEBUG("[%s]NPU device not opened\n", get_name());
+        return false;
+    }
+
     constexpr const auto get_spec = [](const ggml_tensor * tensor) -> npu_device_tensor_spec {
         if (!tensor) {
             return npu_device_tensor_spec{};
