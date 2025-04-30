@@ -159,19 +159,29 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, size_t tidx
         src1_plane_cache     = std::make_unique<hexagon::vtcm_mem>(src1->get_nb(1) * src1->get_ne(1), false);
         src1_plane_cache_ptr = src1_plane_cache->get_mem();
         DEVICE_LOG_DEBUG("element_wise_op vtcm_mem allocated");
+
+        const auto i03 = start_end.first / rows_per_cube;
+        const auto i02 = start_end.first / out->get_ne(1) - i03 * out->get_ne(2);
+        const auto i13 = i03 % src1->get_ne(3);
+        const auto i12 = i02 % src1->get_ne(2);
+
+        if (src1_plane_cache_ptr) {
+            auto * src1_plane = src1_ptr + i13 * src1->get_nb(3) + i12 * src1->get_nb(2);
+            memcpy(src1_plane_cache_ptr, src1_plane, src1_plane_cache->get_size());
+        }
     }
 
     for (int64_t ir = start_end.first; ir < start_end.second; ++ir) {
         const auto i03 = ir / rows_per_cube;
         const auto i02 = ir / out->get_ne(1) - i03 * out->get_ne(2);
-        const auto i01 = ir % out->get_ne(1);
+        const auto i01 = ir % out->get_ne(1);  // TODO: should we use divide instead of mod?
         const auto i13 = i03 % src1->get_ne(3);
         const auto i12 = i02 % src1->get_ne(2);
         const auto i11 = i01 % src1->get_ne(1);
 
         auto * src1_plane = src1_ptr + i13 * src1->get_nb(3) + i12 * src1->get_nb(2);
         if (src1_plane_cache_ptr) {
-            if (i01 == 0 || ir == start_end.first) {
+            if (i01 == 0) {
                 memcpy(src1_plane_cache_ptr, src1_plane, src1_plane_cache->get_size());
             }
 
