@@ -19,7 +19,7 @@ namespace {
 
 struct npu_device_context {
     std::unique_ptr<hexagon::default_thread_pool> thread_pool;
-    std::unique_ptr<float[]>                      f16_to_f32_table;
+    std::unique_ptr<float[]>                      f16_to_f32_table;  // TODO: store vtcm?
 
     bool init() {
         if (!init_ltu()) {
@@ -219,7 +219,7 @@ AEEResult npu_device_graph_compute(remote_handle64 _h, npu_device_graph_handle_t
         return AEE_EINVHANDLE;
     }
 
-    if (!graph->compute(dev_ctx->thread_pool.get())) {
+    if (!graph->compute(dev_ctx->thread_pool.get(), dev_ctx->f16_to_f32_table.get())) {
         return AEE_EFAILED;
     }
 

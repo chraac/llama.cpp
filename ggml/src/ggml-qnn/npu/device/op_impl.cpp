@@ -120,7 +120,7 @@ template <typename _TyData> struct get_data_type<void (*)(const _TyData *, const
     using type = _TyData;
 };
 
-template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, size_t tidx, size_t tcnt) {
+template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, const hexagon::compute_params * params) {
     using data_type                           = typename get_data_type<decltype(_RowFunc)>::type;
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(data_type);
 
@@ -146,7 +146,7 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, size_t tidx
     auto *       dst_ptr       = reinterpret_cast<uint8_t *>(out->get_data());
     auto         total_rows    = out->get_ne(3) * out->get_ne(2) * out->get_ne(1);
     const auto   rows_per_cube = out->get_ne(2) * out->get_ne(1);
-    const auto   start_end     = hexagon::get_thread_work_slice(total_rows, tidx, tcnt);
+    const auto   start_end     = hexagon::get_thread_work_slice(total_rows, params->tidx, params->tcnt);
 
     if (start_end.first >= start_end.second) {
         return true;

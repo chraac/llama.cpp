@@ -36,13 +36,14 @@ void graph::set_tensor(const npu_device_tensor_handle_t * tensors, int tensor_co
     DEVICE_LOG_DEBUG("graph(%p) tensor count: %zu\n", (void *) this, _tensor_count);
 }
 
-bool graph::compute(default_thread_pool * thread_pool) {
+bool graph::compute(default_thread_pool * thread_pool, const float * f16_to_f32_table) {
     if (!_tensors || !_tensor_count) {
         DEVICE_LOG_DEBUG("graph(%p) no tensors to compute\n", (void *) this);
         return true;  // return success if no tensors to compute
     }
 
     DEVICE_LOG_DEBUG("graph(%p) compute\n", (void *) this);
+    _f16_to_f32_table = f16_to_f32_table;
     thread_pool->sync_execute(reinterpret_cast<default_thread_pool::task_type>(&graph::thread_pool_task), this);
 
     for (size_t i = 0; i < _tensor_count; ++i) {
@@ -68,7 +69,8 @@ void graph::compute_impl(size_t thread_idx, size_t thread_count) {
             return;
         }
 
-        if (!func(dst, thread_idx, thread_count)) {
+        hexagon::compute_params params = { thread_idx, thread_count, _f16_to_f32_table };
+        if (!func(dst, &params)) {
             DEVICE_LOG_ERROR("graph(%p) tensor[%zu] op %d compute failed\n", (void *) this, i, op);
             return;
         }

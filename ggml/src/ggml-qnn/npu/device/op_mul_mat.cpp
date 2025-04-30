@@ -164,7 +164,8 @@ template <typename _TyData> struct get_data_type<float (*)(const _TyData *, cons
 };
 
 template <auto _DotFunc>
-void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tensor * dst, size_t tidx, size_t tcnt) {
+void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tensor * dst,
+                  const hexagon::compute_params * params) {
     using data_type                           = typename get_data_type<decltype(_DotFunc)>::type;
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(data_type);
 
@@ -175,11 +176,13 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
     auto *       dst_ptr      = reinterpret_cast<uint8_t *>(dst->get_data());
     const auto   total_planes = dst->get_ne(3) * dst->get_ne(2);
 
-    const auto start_end_plane = (total_planes >= tcnt) ? hexagon::get_thread_work_slice(total_planes, tidx, tcnt) :
-                                                          std::pair<int64_t, int64_t>{ 0, total_planes };
+    const auto start_end_plane = (total_planes >= params->tcnt) ?
+                                     hexagon::get_thread_work_slice(total_planes, params->tidx, params->tcnt) :
+                                     std::pair<int64_t, int64_t>{ 0, total_planes };
     // TODO: should we handle the case that dst->get_ne(1) < tcnt?
-    const auto start_end_row   = (total_planes >= tcnt) ? std::pair<int64_t, int64_t>{ 0, dst->get_ne(1) } :
-                                                          hexagon::get_thread_work_slice(dst->get_ne(1), tidx, tcnt);
+    const auto start_end_row   = (total_planes >= params->tcnt) ?
+                                     std::pair<int64_t, int64_t>{ 0, dst->get_ne(1) } :
+                                     hexagon::get_thread_work_slice(dst->get_ne(1), params->tidx, params->tcnt);
     if (start_end_row.second <= start_end_row.first) {
         return;
     }
@@ -238,7 +241,7 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
 
 namespace hexagon {
 
-bool mul_mat_f32(hexagon::tensor * out, size_t tidx, size_t tcnt) {
+bool mul_mat_f32(hexagon::tensor * out, const compute_params * params) {
     if (!out) {
         return false;
     }
@@ -253,11 +256,11 @@ bool mul_mat_f32(hexagon::tensor * out, size_t tidx, size_t tcnt) {
     // TODO: array?
     switch (src1->get_type()) {
         case NPU_DATA_TYPE_F32:
-            mul_mat_impl<vec_dot_product_f32_f32>(src0, src1, out, tidx, tcnt);
+            mul_mat_impl<vec_dot_product_f32_f32>(src0, src1, out, params);
             return true;
 
         case NPU_DATA_TYPE_F16:
-            mul_mat_impl<vec_dot_product_f16_f16>(src0, src1, out, tidx, tcnt);
+            mul_mat_impl<vec_dot_product_f16_f16>(src0, src1, out, params);
             return true;
         default:
             break;
