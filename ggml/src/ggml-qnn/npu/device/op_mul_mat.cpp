@@ -74,6 +74,7 @@ inline float vec_dot_product_f32_f32(const float * src0, const float * src1, siz
     return result;
 }
 
+// TODO: merge with vec_dot_product_f32_f32?
 inline float vec_dot_product_f16_f16(const npu_device_fp16_t * src0, const npu_device_fp16_t * src1, size_t count) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(npu_device_fp16_t);
     constexpr const size_t kFloatsPerVector   = hexagon::kBytesPerVector / sizeof(float);

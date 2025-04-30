@@ -22,7 +22,7 @@ class vtcm_mem {
         }
 
         _vtcm_size = size;
-        DEVICE_LOG_DEBUG("VTCM allocated: %zu bytes at %p\n", size, _vtcm_mem);
+        DEVICE_LOG_DEBUG("VTCM allocated: %p(%zu), avail: %zu\n", _vtcm_mem, size, avail_size);
     }
 
     explicit vtcm_mem(size_t size, bool single_page, size_t timeout_us) {
@@ -33,7 +33,7 @@ class vtcm_mem {
         }
 
         _vtcm_size = size;
-        DEVICE_LOG_DEBUG("VTCM allocated: %zu bytes at %p\n", size, _vtcm_mem);
+        DEVICE_LOG_DEBUG("VTCM allocated: %p(%zu), avail: %zu\n", _vtcm_mem, size, get_avail_block_size());
     }
 
     ~vtcm_mem() {
