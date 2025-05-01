@@ -185,8 +185,9 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
         return;
     }
 
-    uint8_t * src0_plane_cache_ptr  = nullptr;
-    size_t    src0_plane_cache_size = 0;
+    uint8_t *       src0_plane_cache_ptr  = nullptr;
+    size_t          src0_plane_cache_size = 0;
+    const uint8_t * original_plane_ptr    = nullptr;
     if (start_end_row.second - start_end_row.first > 1) {
         // cache the src0 plane in VTCM
         src0_plane_cache_size =
@@ -196,6 +197,7 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
         DEVICE_LOG_DEBUG("mul_mat_impl vtcm_mem allocated, size: %zu\n", src0_plane_cache_size);
     }
 
+    const bool is_quantized = hexagon::is_quantized_type(src0->get_type());
     for (int64_t ip = start_end_plane.first; ip < start_end_plane.second; ip++) {
         const auto   i3         = ip / dst->get_ne(2);
         const auto   i2         = ip - i3 * dst->get_ne(2);
@@ -204,18 +206,22 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
         auto *       dst_plane  = dst_ptr + i3 * dst->get_nb(3) + i2 * dst->get_nb(2);
 
         if (src0_plane_cache_ptr) {
-            if (hexagon::is_quantized_type(src0->get_type())) {
-                for (int64_t ir = 0; ir < src0->get_ne(1); ir++) {
-                    auto * src0_row = src0_plane + ir * src0->get_nb(1);
-                    auto * dst_row =
-                        reinterpret_cast<float *>(src0_plane_cache_ptr + ir * hexagon::get_dequantized_row_size(src0));
-                    hexagon::dequantize_row_q4_K(reinterpret_cast<const npu_device_block_q4_K *>(src0_row),
-                                                 reinterpret_cast<float *>(dst_row), src0->get_ne(0),
-                                                 params->f16_to_f32_table);
+            if (original_plane_ptr != src0_plane) {
+                if (is_quantized) {
+                    for (int64_t ir = 0; ir < src0->get_ne(1); ir++) {
+                        auto * src0_row = src0_plane + ir * src0->get_nb(1);
+                        auto * dst_row  = reinterpret_cast<float *>(src0_plane_cache_ptr +
+                                                                    ir * hexagon::get_dequantized_row_size(src0));
+                        hexagon::dequantize_row_q4_K(reinterpret_cast<const npu_device_block_q4_K *>(src0_row),
+                                                     reinterpret_cast<float *>(dst_row), src0->get_ne(0),
+                                                     params->f16_to_f32_table);
+                    }
+                } else {
+                    memcpy(src0_plane_cache_ptr, src0_plane, src0_plane_cache_size);
                 }
-            } else {
-                memcpy(src0_plane_cache_ptr, src0_plane, src0_plane_cache_size);
+                original_plane_ptr = src0_plane;
             }
+
             src0_plane = src0_plane_cache_ptr;
         }
 
