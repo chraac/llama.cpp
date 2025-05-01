@@ -2,10 +2,8 @@
 
 #include <hexagon_types.h>
 
-#include <cstdint>
-
+#include "op_types.hpp"
 #include "tensor.hpp"
-#include "util.hpp"
 
 namespace hexagon {
 

@@ -6,7 +6,6 @@
 #include <HTP/core/intrinsics.h>
 
 #include "op_mul_mat.hpp"
-#include "util.hpp"
 #include "vtcm_mem.hpp"
 
 namespace {
@@ -158,7 +157,7 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, const hexag
         // TODO: should we cache a cube instead of a plane?
         src1_plane_cache     = std::make_unique<hexagon::vtcm_mem>(src1->get_nb(1) * src1->get_ne(1), false);
         src1_plane_cache_ptr = src1_plane_cache->get_mem();
-        DEVICE_LOG_DEBUG("element_wise_op vtcm_mem allocated");
+        DEVICE_LOG_DEBUG("element_wise_op vtcm_mem allocated, size: %zu\n", src1_plane_cache->get_size());
 
         const auto i03 = start_end.first / rows_per_cube;
         const auto i02 = start_end.first / out->get_ne(1) - i03 * out->get_ne(2);

@@ -59,11 +59,4 @@ inline constexpr std::pair<int64_t, int64_t> get_thread_work_slice(int64_t total
     return { start, end };
 }
 
-// TODO: move to a op header
-struct compute_params {
-    size_t        tidx;
-    size_t        tcnt;
-    const float * f16_to_f32_table;
-};
-
 }  // namespace hexagon

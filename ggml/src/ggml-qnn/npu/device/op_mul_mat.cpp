@@ -4,7 +4,6 @@
 
 #include <memory>
 
-#include "util.hpp"
 #include "vtcm_mem.hpp"
 
 namespace {
@@ -189,12 +188,11 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
 
     std::unique_ptr<hexagon::vtcm_mem> src0_plane_cache;
     uint8_t *                          src0_plane_cache_ptr = nullptr;
-
     if (start_end_row.second - start_end_row.first > 1) {
         // cache the src0 plane in VTCM
         src0_plane_cache     = std::make_unique<hexagon::vtcm_mem>(src0->get_nb(1) * src0->get_ne(1), false);
         src0_plane_cache_ptr = src0_plane_cache->get_mem();
-        DEVICE_LOG_DEBUG("mul_mat_impl vtcm_mem allocated");
+        DEVICE_LOG_DEBUG("mul_mat_impl vtcm_mem allocated, size: %zu\n", src0_plane_cache->get_size());
     }
 
     for (int64_t ip = start_end_plane.first; ip < start_end_plane.second; ip++) {
