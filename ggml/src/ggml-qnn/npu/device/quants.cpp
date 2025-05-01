@@ -75,6 +75,7 @@ bool init_f16_f32_table(float * table, size_t count) {
 void dequantize_row_q4_K(const npu_device_block_q4_K * src, float * dst, size_t count, const float * f16_to_f32_table) {
     const auto nb = count / QUANT_K_BLOCK_SIZE;
 
+    // TODO: refactor this to use the intrinsics
     for (size_t i = 0; i < nb; i++) {
         const uint8_t * q = src[i].qs;
 

@@ -2,8 +2,6 @@
 
 #include <HTP/core/intrinsics.h>
 
-#include <memory>
-
 #include "vtcm_mem.hpp"
 
 namespace {
@@ -164,7 +162,7 @@ template <typename _TyData> struct get_data_type<float (*)(const _TyData *, cons
 
 template <auto _DotFunc>
 void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tensor * dst,
-                  const hexagon::compute_params * params) {
+                  hexagon::compute_params * params) {
     using data_type                           = typename get_data_type<decltype(_DotFunc)>::type;
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(data_type);
 
@@ -186,13 +184,13 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
         return;
     }
 
-    std::unique_ptr<hexagon::vtcm_mem> src0_plane_cache;
-    uint8_t *                          src0_plane_cache_ptr = nullptr;
+    uint8_t * src0_plane_cache_ptr  = nullptr;
+    size_t    src0_plane_cache_size = 0;
     if (start_end_row.second - start_end_row.first > 1) {
         // cache the src0 plane in VTCM
-        src0_plane_cache     = std::make_unique<hexagon::vtcm_mem>(src0->get_nb(1) * src0->get_ne(1), false);
-        src0_plane_cache_ptr = src0_plane_cache->get_mem();
-        DEVICE_LOG_DEBUG("mul_mat_impl vtcm_mem allocated, size: %zu\n", src0_plane_cache->get_size());
+        src0_plane_cache_size = src0->get_nb(1) * src0->get_ne(1);
+        src0_plane_cache_ptr  = params->get_cache(src0_plane_cache_size);
+        DEVICE_LOG_DEBUG("mul_mat_impl vtcm_mem allocated, size: %zu\n", src0_plane_cache_size);
     }
 
     for (int64_t ip = start_end_plane.first; ip < start_end_plane.second; ip++) {
@@ -203,7 +201,7 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
         auto *       dst_plane  = dst_ptr + i3 * dst->get_nb(3) + i2 * dst->get_nb(2);
 
         if (src0_plane_cache_ptr) {
-            memcpy(src0_plane_cache_ptr, src0_plane, src0_plane_cache->get_size());
+            memcpy(src0_plane_cache_ptr, src0_plane, src0_plane_cache_size);
             src0_plane = src0_plane_cache_ptr;
         }
 
@@ -239,7 +237,7 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
 
 namespace hexagon {
 
-bool mul_mat_f32(hexagon::tensor * out, const compute_params * params) {
+bool mul_mat_f32(hexagon::tensor * out, compute_params * params) {
     if (!out) {
         return false;
     }

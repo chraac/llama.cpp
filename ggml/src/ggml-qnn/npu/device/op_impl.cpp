@@ -6,7 +6,6 @@
 #include <HTP/core/intrinsics.h>
 
 #include "op_mul_mat.hpp"
-#include "vtcm_mem.hpp"
 
 namespace {
 
@@ -119,7 +118,7 @@ template <typename _TyData> struct get_data_type<void (*)(const _TyData *, const
     using type = _TyData;
 };
 
-template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, const hexagon::compute_params * params) {
+template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::compute_params * params) {
     using data_type                           = typename get_data_type<decltype(_RowFunc)>::type;
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(data_type);
 
@@ -151,13 +150,13 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, const hexag
         return true;
     }
 
-    std::unique_ptr<hexagon::vtcm_mem> src1_plane_cache;
-    uint8_t *                          src1_plane_cache_ptr = nullptr;
+    uint8_t * src1_plane_cache_ptr  = nullptr;
+    size_t    src1_plane_cache_size = 0;
     if (src0->get_ne(1) / src1->get_ne(1) > 1) {
         // TODO: should we cache a cube instead of a plane?
-        src1_plane_cache     = std::make_unique<hexagon::vtcm_mem>(src1->get_nb(1) * src1->get_ne(1), false);
-        src1_plane_cache_ptr = src1_plane_cache->get_mem();
-        DEVICE_LOG_DEBUG("element_wise_op vtcm_mem allocated, size: %zu\n", src1_plane_cache->get_size());
+        src1_plane_cache_size = src1->get_nb(1) * src1->get_ne(1);
+        src1_plane_cache_ptr  = params->get_cache(src1_plane_cache_size);
+        DEVICE_LOG_DEBUG("element_wise_op vtcm_mem allocated, size: %zu\n", src1_plane_cache_size);
 
         const auto i03 = start_end.first / rows_per_cube;
         const auto i02 = start_end.first / out->get_ne(1) - i03 * out->get_ne(2);
@@ -166,7 +165,7 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, const hexag
 
         if (src1_plane_cache_ptr) {
             auto * src1_plane = src1_ptr + i13 * src1->get_nb(3) + i12 * src1->get_nb(2);
-            memcpy(src1_plane_cache_ptr, src1_plane, src1_plane_cache->get_size());
+            memcpy(src1_plane_cache_ptr, src1_plane, src1_plane_cache_size);
         }
     }
 
@@ -181,7 +180,7 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, const hexag
         auto * src1_plane = src1_ptr + i13 * src1->get_nb(3) + i12 * src1->get_nb(2);
         if (src1_plane_cache_ptr) {
             if (i01 == 0) {
-                memcpy(src1_plane_cache_ptr, src1_plane, src1_plane_cache->get_size());
+                memcpy(src1_plane_cache_ptr, src1_plane, src1_plane_cache_size);
             }
 
             src1_plane = src1_plane_cache_ptr;
