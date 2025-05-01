@@ -40,7 +40,7 @@ struct npu_device_context {
     bool init_ltu() {
         constexpr const size_t kLtuCount = 1U << 16;
 
-        f16_to_f32_table = std::unique_ptr<float[]>(new (std::nothrow) float[kLtuCount]);
+        f16_to_f32_table = std::make_unique<float[]>(kLtuCount);
         if (!f16_to_f32_table) {
             DEVICE_LOG_ERROR("Failed to allocate memory for f16_to_f32 table");
             return false;
