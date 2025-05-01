@@ -36,6 +36,12 @@ enum npu_device_tensor_data_type type_to_npu_type(ggml_type type) {
             return NPU_DATA_TYPE_F32;
         case GGML_TYPE_F16:
             return NPU_DATA_TYPE_F16;
+        case GGML_TYPE_Q4_K:
+            return NPU_DATA_TYPE_Q4_K;
+        case GGML_TYPE_Q4_0:
+            return NPU_DATA_TYPE_Q4_0;
+        case GGML_TYPE_Q8_0:
+            return NPU_DATA_TYPE_Q8_0;
         default:
             return NPU_DATA_TYPE_COUNT;
     }

@@ -2,6 +2,7 @@
 
 #include <HTP/core/intrinsics.h>
 
+#include "quants.hpp"
 #include "vtcm_mem.hpp"
 
 namespace {
@@ -188,8 +189,10 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
     size_t    src0_plane_cache_size = 0;
     if (start_end_row.second - start_end_row.first > 1) {
         // cache the src0 plane in VTCM
-        src0_plane_cache_size = src0->get_nb(1) * src0->get_ne(1);
-        src0_plane_cache_ptr  = params->get_cache(src0_plane_cache_size);
+        src0_plane_cache_size =
+            (hexagon::is_quantized_type(src0->get_type()) ? hexagon::get_dequantized_row_size(src0) : src0->get_nb(1)) *
+            src0->get_ne(1);
+        src0_plane_cache_ptr = params->get_cache(src0_plane_cache_size);
         DEVICE_LOG_DEBUG("mul_mat_impl vtcm_mem allocated, size: %zu\n", src0_plane_cache_size);
     }
 
@@ -201,7 +204,18 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
         auto *       dst_plane  = dst_ptr + i3 * dst->get_nb(3) + i2 * dst->get_nb(2);
 
         if (src0_plane_cache_ptr) {
-            memcpy(src0_plane_cache_ptr, src0_plane, src0_plane_cache_size);
+            if (hexagon::is_quantized_type(src0->get_type())) {
+                for (int64_t ir = 0; ir < src0->get_ne(1); ir++) {
+                    auto * src0_row = src0_plane + ir * src0->get_nb(1);
+                    auto * dst_row =
+                        reinterpret_cast<float *>(src0_plane_cache_ptr + ir * hexagon::get_dequantized_row_size(src0));
+                    hexagon::dequantize_row_q4_K(reinterpret_cast<const npu_device_block_q4_K *>(src0_row),
+                                                 reinterpret_cast<float *>(dst_row), src0->get_ne(0),
+                                                 params->f16_to_f32_table);
+                }
+            } else {
+                memcpy(src0_plane_cache_ptr, src0_plane, src0_plane_cache_size);
+            }
             src0_plane = src0_plane_cache_ptr;
         }
 
@@ -279,9 +293,14 @@ bool is_mul_mat_supported(const npu_device_tensor_spec & src0, const npu_device_
     }
 
     if (src0.type != src1.type) {
-        // TODO: support mixed types
-        DEVICE_LOG_DEBUG("[%s]src0.type(%d) and src1.type(%d) mismatch\n", op_get_name(op), src0.type, src1.type);
-        return false;
+        if (src1.type != NPU_DATA_TYPE_F32 ||
+            src0.type != NPU_DATA_TYPE_Q4_K) {  // TODO: enable for all quantized types
+            DEVICE_LOG_DEBUG("[%s]src0.type(%d) and src1.type(%d) mismatch\n", op_get_name(op), src0.type, src1.type);
+            return false;
+        }
+
+        DEVICE_LOG_DEBUG("[%s]src0.type(%d) and src1.type(%d) mismatch, but src0 is quantized\n", op_get_name(op),
+                         src0.type, src1.type);
     }
 
     if (dst.type != NPU_DATA_TYPE_F32 && dst.type != NPU_DATA_TYPE_F16) {
