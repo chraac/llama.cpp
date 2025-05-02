@@ -41,16 +41,16 @@ inline float get_fp32_from_fp16(npu_device_fp16_t h) {
     const uint32_t sign  = w & uint32_t(0x80000000);
     const uint32_t two_w = w + w;
 
-    const uint32_t exp_offset       = uint32_t(0xE0) << 23;
-    const float    exp_scale        = fp32_from_bits(uint32_t(0x80000000));
-    const float    normalized_value = fp32_from_bits((two_w >> 4) + exp_offset) * exp_scale;
+    constexpr const uint32_t exp_offset       = uint32_t(0xE0) << 23;
+    const float              exp_scale        = fp32_from_bits(uint32_t(0x80000000));
+    const float              normalized_value = fp32_from_bits((two_w >> 4) + exp_offset) * exp_scale;
 
-    const uint32_t magic_mask         = uint32_t(126) << 23;
-    const float    magic_bias         = 0.5f;
-    const float    denormalized_value = fp32_from_bits((two_w >> 17) | magic_mask) - magic_bias;
+    constexpr const uint32_t magic_mask         = uint32_t(126) << 23;
+    constexpr const float    magic_bias         = 0.5f;
+    const float              denormalized_value = fp32_from_bits((two_w >> 17) | magic_mask) - magic_bias;
 
-    const uint32_t denormalized_cutoff = uint32_t(1) << 27;
-    const uint32_t result =
+    constexpr const uint32_t denormalized_cutoff = uint32_t(1) << 27;
+    const uint32_t           result =
         sign | (two_w < denormalized_cutoff ? fp32_to_bits(denormalized_value) : fp32_to_bits(normalized_value));
     return fp32_from_bits(result);
 }
@@ -92,10 +92,9 @@ void dequantize_row_q4_K(const npu_device_block_q4_K * src, float * dst, size_t 
             const float d2 = d * sc;
             const float m2 = min * m;
             for (int l = 0; l < 32; ++l) {
-                *dst++ = d1 * (q[l] & 0xF) - m1;
-            }
-            for (int l = 0; l < 32; ++l) {
-                *dst++ = d2 * (q[l] >> 4) - m2;
+                dst[0]  = d1 * (q[l] & 0xF) - m1;
+                dst[32] = d2 * (q[l] >> 4) - m2;
+                dst += 2;
             }
             q += 32;
             is += 2;

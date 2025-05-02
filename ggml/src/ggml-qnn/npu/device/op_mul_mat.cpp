@@ -190,14 +190,13 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
     const uint8_t * original_plane_ptr    = nullptr;
     if (start_end_row.second - start_end_row.first > 1) {
         // cache the src0 plane in VTCM
-        src0_plane_cache_size =
-            (hexagon::is_quantized_type(src0->get_type()) ? hexagon::get_dequantized_row_size(src0) : src0->get_nb(1)) *
-            src0->get_ne(1);
-        src0_plane_cache_ptr = params->get_cache(src0_plane_cache_size);
+        src0_plane_cache_size = hexagon::get_dequantized_row_size(src0) * src0->get_ne(1);
+        src0_plane_cache_ptr  = params->get_cache(src0_plane_cache_size);
         DEVICE_LOG_DEBUG("mul_mat_impl vtcm_mem allocated, size: %zu\n", src0_plane_cache_size);
     }
 
-    const bool is_quantized = hexagon::is_quantized_type(src0->get_type());
+    const bool is_quantized         = hexagon::is_quantized_type(src0->get_type());
+    const auto src0_cached_row_size = hexagon::get_dequantized_row_size(src0);
     for (int64_t ip = start_end_plane.first; ip < start_end_plane.second; ip++) {
         const auto   i3         = ip / dst->get_ne(2);
         const auto   i2         = ip - i3 * dst->get_ne(2);
@@ -210,8 +209,7 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
                 if (is_quantized) {
                     for (int64_t ir = 0; ir < src0->get_ne(1); ir++) {
                         auto * src0_row = src0_plane + ir * src0->get_nb(1);
-                        auto * dst_row  = reinterpret_cast<float *>(src0_plane_cache_ptr +
-                                                                    ir * hexagon::get_dequantized_row_size(src0));
+                        auto * dst_row  = reinterpret_cast<float *>(src0_plane_cache_ptr + ir * src0_cached_row_size);
                         hexagon::dequantize_row_q4_K(reinterpret_cast<const npu_device_block_q4_K *>(src0_row),
                                                      reinterpret_cast<float *>(dst_row), src0->get_ne(0),
                                                      params->f16_to_f32_table);

@@ -40,12 +40,10 @@ class host_tensor {
 
         tensor->extra = this;
         _ggml_tensor  = tensor;
-        LOG_DEBUG(
-            "host_tensor(%p), ggml_tensor(%p[%ldx%ldx%ldx%ld], nb[%ld][%ld][%ld][%ld], %s), "
-            "device_tensor_handle(%p)\n",
-            (void *) this, (void *) tensor, (long) tensor->ne[0], (long) tensor->ne[1], (long) tensor->ne[2],
-            (long) tensor->ne[3], (long) tensor->nb[0], (long) tensor->nb[1], (long) tensor->nb[2],
-            (long) tensor->nb[3], ggml_type_name(tensor->type), (void *) _device_tensor_handle);
+        LOG_DEBUG("host_tensor(%p), ggml_tensor(%p[%ldx%ldx%ldx%ld], nb[%ld][%ld][%ld][%ld], %s), handle(%p)\n",
+                  (void *) this, (void *) tensor, (long) tensor->ne[0], (long) tensor->ne[1], (long) tensor->ne[2],
+                  (long) tensor->ne[3], (long) tensor->nb[0], (long) tensor->nb[1], (long) tensor->nb[2],
+                  (long) tensor->nb[3], ggml_type_name(tensor->type), (void *) _device_tensor_handle);
     }
 
     ~host_tensor() {

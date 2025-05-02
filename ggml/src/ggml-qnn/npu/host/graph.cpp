@@ -56,8 +56,8 @@ bool host_graph::update(ggml_cgraph * cgraph) {
         }
     }
 
-    LOG_DEBUG("host_graph::update, host_graph(%p), ggml_cgraph(%p), tensor count(%zu)\n", (void *) this,
-              (void *) cgraph, _tensor_handles.size());
+    LOG_DEBUG("host_graph::update, host_graph(%p), handle(%p), ggml_cgraph(%p), tensor count(%zu)\n", (void *) this,
+              (void *) _graph_handle, (void *) cgraph, _tensor_handles.size());
     if (!_tensor_handles.empty()) {
         npu_device_graph_set_tensor(_device_handle, _graph_handle, _tensor_handles.data(),
                                     (int) _tensor_handles.size());
