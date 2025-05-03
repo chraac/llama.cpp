@@ -16,7 +16,7 @@ class vtcm_mem {
         }
 
         _vtcm_mem = HAP_request_VTCM((unsigned int) size, single_page ? 1 : 0);
-        if (!_vtcm_mem) {
+        if (_vtcm_mem == nullptr) {
             DEVICE_LOG_ERROR("Failed to allocate VTCM memory: %zu bytes\n", size);
             return;
         }
@@ -27,7 +27,7 @@ class vtcm_mem {
 
     explicit vtcm_mem(size_t size, bool single_page, size_t timeout_us) {
         _vtcm_mem = HAP_request_async_VTCM((unsigned int) size, single_page ? 1 : 0, (unsigned int) timeout_us);
-        if (!_vtcm_mem) {
+        if (_vtcm_mem == nullptr) {
             DEVICE_LOG_ERROR("Failed to allocate VTCM memory: %zu bytes, timeout %zu us\n", size, timeout_us);
             return;
         }
@@ -37,7 +37,7 @@ class vtcm_mem {
     }
 
     ~vtcm_mem() {
-        if (_vtcm_mem) {
+        if (is_valid()) {
             auto ret = HAP_release_VTCM(_vtcm_mem);
             if (ret != AEE_SUCCESS) {
                 DEVICE_LOG_ERROR("Failed to release VTCM memory: %d\n", ret);

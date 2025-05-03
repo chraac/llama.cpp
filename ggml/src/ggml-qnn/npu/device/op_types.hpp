@@ -22,7 +22,7 @@ struct compute_params {
 
     uint8_t * get_cache(size_t size) {
         if (!vtcm_cache || vtcm_cache->get_size() < size) {
-            vtcm_cache = std::make_unique<hexagon::vtcm_mem>(size, false);
+            vtcm_cache = std::make_unique<hexagon::vtcm_mem>(size + 256, false);
         }
 
         if (vtcm_cache->is_valid()) {
@@ -31,8 +31,8 @@ struct compute_params {
 
         DEVICE_LOG_DEBUG("vtcm_mem not valid, allocate from mem_cache\n");
         if (!mem_cache || mem_cache_size < size) {
-            mem_cache      = std::make_unique<uint8_t[]>(size);
-            mem_cache_size = size;
+            mem_cache      = std::make_unique<uint8_t[]>(size + 256);
+            mem_cache_size = mem_cache ? size : 0;
         }
 
         return mem_cache.get();

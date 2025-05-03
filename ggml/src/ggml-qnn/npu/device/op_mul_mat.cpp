@@ -188,15 +188,17 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
     uint8_t *       src0_plane_cache_ptr  = nullptr;
     size_t          src0_plane_cache_size = 0;
     const uint8_t * original_plane_ptr    = nullptr;
-    if (start_end_row.second - start_end_row.first > 1) {
-        // cache the src0 plane in VTCM
-        src0_plane_cache_size = hexagon::get_dequantized_row_size(src0) * src0->get_ne(1);
-        src0_plane_cache_ptr  = params->get_cache(src0_plane_cache_size);
-        DEVICE_LOG_DEBUG("mul_mat_impl vtcm_mem allocated, size: %zu\n", src0_plane_cache_size);
-    }
 
     const bool is_quantized         = hexagon::is_quantized_type(src0->get_type());
-    const auto src0_cached_row_size = hexagon::get_dequantized_row_size(src0);
+    const auto src0_actual_row_size = hexagon::get_dequantized_row_size(src0);
+
+    // cache the src0 plane in VTCM
+    // TODO: should we skip the one plane matrix?
+    src0_plane_cache_size = src0_actual_row_size * src0->get_ne(1);
+    src0_plane_cache_ptr  = params->get_cache(src0_plane_cache_size);
+    DEVICE_LOG_DEBUG("mul_mat_impl vtcm_mem allocated, %p(%zu)\n", (void *) src0_plane_cache_ptr,
+                     src0_plane_cache_size);
+    DEVICE_LOG_DEBUG("mul_mat_impl src0_actual_row_size: %zu, is_quantized: %d\n", src0_actual_row_size, is_quantized);
     for (int64_t ip = start_end_plane.first; ip < start_end_plane.second; ip++) {
         const auto   i3         = ip / dst->get_ne(2);
         const auto   i2         = ip - i3 * dst->get_ne(2);
@@ -207,13 +209,22 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
         if (src0_plane_cache_ptr) {
             if (original_plane_ptr != src0_plane) {
                 if (is_quantized) {
+                    size_t count_of_zeros = 0;
                     for (int64_t ir = 0; ir < src0->get_ne(1); ir++) {
                         auto * src0_row = src0_plane + ir * src0->get_nb(1);
-                        auto * dst_row  = reinterpret_cast<float *>(src0_plane_cache_ptr + ir * src0_cached_row_size);
+                        auto * dst_row  = reinterpret_cast<float *>(src0_plane_cache_ptr + ir * src0_actual_row_size);
                         hexagon::dequantize_row_q4_K(reinterpret_cast<const npu_device_block_q4_K *>(src0_row),
                                                      reinterpret_cast<float *>(dst_row), src0->get_ne(0),
                                                      params->f16_to_f32_table);
+                        for (int64_t i = 0; i < src0->get_ne(0); i++) {
+                            if (dst_row[i] == 0.0f) {
+                                count_of_zeros++;
+                            }
+                        }
                     }
+                    DEVICE_LOG_DEBUG("mul_mat_impl dequantize_row_q4_K, plane[0][0,1]: %f,%f count_of_zeros: %zu\n",
+                                     reinterpret_cast<float *>(src0_plane_cache_ptr)[0],
+                                     reinterpret_cast<float *>(src0_plane_cache_ptr)[1], count_of_zeros);
                 } else {
                     memcpy(src0_plane_cache_ptr, src0_plane, src0_plane_cache_size);
                 }
@@ -227,13 +238,13 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
             auto * src1_row = src1_plane + i1 * src1->get_nb(1);
             auto * dst_row  = reinterpret_cast<float *>(dst_plane + i1 * dst->get_nb(1));
             for (int64_t i0 = 0; i0 < dst->get_ne(0); i0++) {
-                auto * src0_row = src0_plane + i0 * src0->get_nb(1);
+                auto * src0_row = src0_plane + i0 * src0_actual_row_size;
                 if (i0 + 1 < dst->get_ne(0)) {
                     if (!src0_plane_cache_ptr) {  // TODO: should we use small kL2FetchAheadVectors?
                         int32_t l2fetch_vectors =
                             Q6_R_min_RR(src0->get_ne(1) / kElementsPerVector, hexagon::kL2FetchAheadVectors);
-                        hexagon::l2fetch(src0_row + src0->get_nb(1), hexagon::kBytesPerVector, hexagon::kBytesPerVector,
-                                         l2fetch_vectors, 0);
+                        hexagon::l2fetch(src0_row + src0_actual_row_size, hexagon::kBytesPerVector,
+                                         hexagon::kBytesPerVector, l2fetch_vectors, 0);
                     }
                 } else if (ip + 1 < start_end_plane.second) {
                     // TODO: should we use small kL2FetchAheadVectors?
@@ -305,11 +316,6 @@ bool is_mul_mat_supported(const npu_device_tensor_spec & src0, const npu_device_
 
         DEVICE_LOG_DEBUG("[%s]src0.type(%d) and src1.type(%d) mismatch, but src0 is quantized\n", op_get_name(op),
                          src0.type, src1.type);
-    }
-
-    if (dst.type != NPU_DATA_TYPE_F32 && dst.type != NPU_DATA_TYPE_F16) {
-        DEVICE_LOG_DEBUG("[%s]unsupported data type: %d\n", op_get_name(op), dst.type);
-        return false;
     }
 
     if (src0.ne[0] != src1.ne[0] || src0.ne[1] != dst.ne[0]) {
