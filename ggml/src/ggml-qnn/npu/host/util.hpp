@@ -23,6 +23,4 @@ const char * get_dsp_arch_desc(hexagon_dsp_arch arch);
 
 void enable_unsigned_dsp_module(common::rpc_interface_ptr rpc_interface, uint32_t domain_id);
 
-void test_cpu_dequantize_row_q4_K();
-
 }  // namespace hexagon

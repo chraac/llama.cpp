@@ -112,36 +112,4 @@ void enable_unsigned_dsp_module(common::rpc_interface_ptr rpc_interface, uint32_
     }
 }
 
-void test_cpu_dequantize_row_q4_K() {
-    block_q4_K src       = {};
-    float      dst[QK_K] = {};
-
-    union {
-        __fp16 f16;
-        ggml_fp16_t u16;
-    } f16;
-
-    f16.f16 = 0.5f;
-
-    src.data.data.dmin = 0;
-    src.data.data.d    = f16.u16;
-    for (int i = 0; i < (QK_K / 2); ++i) {
-        src.qs[i] = 0x11;
-    }
-
-    for (int i = 0; i < K_SCALE_SIZE; ++i) {
-        src.scales[i] = 0xFF;
-    }
-
-    ggml_get_type_traits(GGML_TYPE_Q4_K)->to_float(&src, dst, QK_K);
-
-    LOG_DEBUG("dequantize_row_q4_K_cpu, {\n");
-    for (int i = 0; i < QK_K; i += 8) {
-        LOG_DEBUG("    %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f,\n", dst[i], dst[i + 1], dst[i + 2], dst[i + 3],
-                  dst[i + 4], dst[i + 5], dst[i + 6], dst[i + 7]);
-    }
-
-    LOG_DEBUG("}\n");
-}
-
 }  // namespace hexagon

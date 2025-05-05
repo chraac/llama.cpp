@@ -151,7 +151,6 @@ bool npu_device::init_device(ggml_backend_dev_t dev, const char * params) {
         LOG_DEBUG("[%s]NPU device is already opened\n", get_name());
     }
 
-    hexagon::test_cpu_dequantize_row_q4_K();
     return true;
 }
 
