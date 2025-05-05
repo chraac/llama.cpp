@@ -22,6 +22,7 @@ struct compute_params {
 
     uint8_t * get_cache(size_t size) {
         if (!vtcm_cache || vtcm_cache->get_size() < size) {
+            // TODO: fix the out of bounds access
             vtcm_cache = std::make_unique<hexagon::vtcm_mem>(size + 256, false);
         }
 
