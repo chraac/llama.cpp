@@ -47,13 +47,15 @@ void dequantize_row_q4_K(const npu_device_block_q4_K * src, float * dst, size_t 
         const float d   = f16_to_f32_table[src[i].d];
         const float min = f16_to_f32_table[src[i].dmin];
 
-        int     is = 0;
-        uint8_t sc, m;
+        int          is     = 0;
+        uint8_t      sc     = 0;
+        uint8_t      m      = 0;
+        const auto * scales = src[i].scales;
         for (int j = 0; j < QUANT_K_BLOCK_SIZE; j += 64) {
-            get_scale_min_k4(is + 0, src[i].scales, &sc, &m);
+            get_scale_min_k4(is + 0, scales, &sc, &m);
             const float d1 = d * sc;
             const float m1 = min * m;
-            get_scale_min_k4(is + 1, src[i].scales, &sc, &m);
+            get_scale_min_k4(is + 1, scales, &sc, &m);
             const float d2 = d * sc;
             const float m2 = min * m;
             for (int l = 0; l < 32; ++l) {
