@@ -6,6 +6,7 @@
 #include <HTP/core/intrinsics.h>
 
 #include "op_mul_mat.hpp"
+#include "quants.hpp"
 
 namespace {
 
@@ -215,19 +216,19 @@ bool is_element_wise_op_supported(const npu_device_tensor_spec & src0, const npu
     }
 
     if (dst.type != src0.type || dst.type != src1.type) {
-        DEVICE_LOG_DEBUG("[%s]src0.type and dst.type mismatch: %d vs %d\n", hexagon::op_get_name(op), src0.type,
-                         dst.type);
+        DEVICE_LOG_DEBUG("[%s]src0.type and dst.type mismatch: %s vs %s\n", hexagon::op_get_name(op),
+                         hexagon::get_type_name(src0.type), hexagon::get_type_name(dst.type));
         return false;
     }
 
     if (dst.type != NPU_DATA_TYPE_F32 && dst.type != NPU_DATA_TYPE_F16) {
-        DEVICE_LOG_DEBUG("[%s]unsupported data type: %d\n", hexagon::op_get_name(op), dst.type);
+        DEVICE_LOG_DEBUG("[%s]unsupported data type: %s\n", hexagon::op_get_name(op), hexagon::get_type_name(dst.type));
         return false;
     }
 
     // TODO: fix FP16 add/sub
     if (dst.type == NPU_DATA_TYPE_F16 && op != NPU_OP_MUL) {
-        DEVICE_LOG_DEBUG("[%s]unsupported data type: %d\n", hexagon::op_get_name(op), dst.type);
+        DEVICE_LOG_DEBUG("[%s]unsupported data type: %s\n", hexagon::op_get_name(op), hexagon::get_type_name(dst.type));
         return false;
     }
 

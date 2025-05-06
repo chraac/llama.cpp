@@ -33,4 +33,8 @@ inline size_t get_dequantized_row_size(tensor * tensor) {
     return row_elems_count * sizeof(float);  // currently only f32 is supported
 }
 
+inline const char * get_type_name(npu_device_tensor_data_type type) {
+    return get_type_traits(type).type_name;
+}
+
 }  // namespace hexagon

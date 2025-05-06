@@ -295,26 +295,26 @@ bool is_mul_mat_supported(const npu_device_tensor_spec & src0, const npu_device_
     }
 
     if (dst.type != NPU_DATA_TYPE_F32) {
-        DEVICE_LOG_DEBUG("[%s]dst type is not F32: %d\n", op_get_name(op), dst.type);
+        DEVICE_LOG_DEBUG("[%s]dst type is not F32: %s\n", op_get_name(op), get_type_name(dst.type));
         return false;
     }
 
     if (src0.type != src1.type) {
         if (src1.type != NPU_DATA_TYPE_F32) {
-            DEVICE_LOG_DEBUG("[%s]src0.type(%d) and src1.type(%d) mismatch and src1 is not F32\n", op_get_name(op),
-                             src0.type, src1.type);
+            DEVICE_LOG_DEBUG("[%s]src0.type(%s) and src1.type(%s) mismatch and src1 is not F32\n", op_get_name(op),
+                             get_type_name(src0.type), get_type_name(src1.type));
             return false;
         }
 
         const auto type_traits = get_type_traits(src0.type);
         if (!type_traits.is_quantized || type_traits.dequqantize_row == nullptr) {
-            DEVICE_LOG_DEBUG("[%s]src0.type(%d) and src1.type(%d) mismatch and src0 is not quantized\n",
-                             op_get_name(op), src0.type, src1.type);
+            DEVICE_LOG_DEBUG("[%s]src0.type(%s) and src1.type(%s) mismatch and src0 is not quantized\n",
+                             op_get_name(op), get_type_name(src0.type), get_type_name(src1.type));
             return false;
         }
 
-        DEVICE_LOG_DEBUG("[%s]src0.type(%d) and src1.type(%d) mismatch, but src0 is quantized\n", op_get_name(op),
-                         src0.type, src1.type);
+        DEVICE_LOG_DEBUG("[%s]src0.type(%s) and src1.type(%s) mismatch, but src0 is quantized\n", op_get_name(op),
+                         get_type_name(src0.type), get_type_name(src1.type));
     }
 
     if (src0.ne[0] != src1.ne[0] || src0.ne[1] != dst.ne[0]) {
