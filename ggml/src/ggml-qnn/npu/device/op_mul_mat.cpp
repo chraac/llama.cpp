@@ -187,6 +187,11 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
 
     const bool is_quantized         = hexagon::is_quantized_type(src0->get_type());
     const auto src0_actual_row_size = hexagon::get_dequantized_row_size(src0);
+    auto *     dequantize_row_func  = hexagon::get_type_traits(src0->get_type()).dequqantize_row;
+    if (is_quantized && dequantize_row_func == nullptr) {
+        DEVICE_LOG_ERROR("Unsupported quantized src0 type: %d, dequantize_row_func is null\n", src0->get_type());
+        return;
+    }
 
     // cache the src0 plane in VTCM
     // TODO: should we skip the one plane matrix?
@@ -208,9 +213,9 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
                     for (int64_t ir = 0; ir < src0->get_ne(1); ir++) {
                         auto * src0_row = src0_plane + ir * src0->get_nb(1);
                         auto * dst_row  = reinterpret_cast<float *>(src0_plane_cache_ptr + ir * src0_actual_row_size);
-                        hexagon::dequantize_row_q4_K(reinterpret_cast<const npu_device_block_q4_K *>(src0_row),
-                                                     reinterpret_cast<float *>(dst_row), src0->get_ne(0),
-                                                     params->f16_to_f32_table);
+                        dequantize_row_func(reinterpret_cast<const npu_device_block_q4_K *>(src0_row),
+                                            reinterpret_cast<float *>(dst_row), src0->get_ne(0),
+                                            params->f16_to_f32_table);
                     }
                 } else {
                     memcpy(src0_plane_cache_ptr, src0_plane, src0_plane_cache_size);
@@ -295,9 +300,16 @@ bool is_mul_mat_supported(const npu_device_tensor_spec & src0, const npu_device_
     }
 
     if (src0.type != src1.type) {
-        if (src1.type != NPU_DATA_TYPE_F32 ||
-            src0.type != NPU_DATA_TYPE_Q4_K) {  // TODO: enable for all quantized types
-            DEVICE_LOG_DEBUG("[%s]src0.type(%d) and src1.type(%d) mismatch\n", op_get_name(op), src0.type, src1.type);
+        if (src1.type != NPU_DATA_TYPE_F32) {
+            DEVICE_LOG_DEBUG("[%s]src0.type(%d) and src1.type(%d) mismatch and src1 is not F32\n", op_get_name(op),
+                             src0.type, src1.type);
+            return false;
+        }
+
+        const auto type_traits = get_type_traits(src0.type);
+        if (!type_traits.is_quantized || type_traits.dequqantize_row == nullptr) {
+            DEVICE_LOG_DEBUG("[%s]src0.type(%d) and src1.type(%d) mismatch and src0 is not quantized\n",
+                             op_get_name(op), src0.type, src1.type);
             return false;
         }
 

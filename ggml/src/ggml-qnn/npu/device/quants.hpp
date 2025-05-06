@@ -5,8 +5,23 @@
 
 namespace hexagon {
 
+bool init_f16_f32_table(float * table, size_t count);
+
+typedef void (*dequantize_row_type)(const npu_device_block_q4_K * src, float * dst, size_t count,
+                                    const float * f16_to_f32_table);
+
+struct device_type_traits {
+    npu_device_tensor_data_type type;
+    const char *                type_name;
+    int64_t                     blck_size;
+    bool                        is_quantized;
+    dequantize_row_type         dequqantize_row;
+};
+
+const device_type_traits & get_type_traits(npu_device_tensor_data_type type);
+
 inline bool is_quantized_type(npu_device_tensor_data_type type) {
-    return type == NPU_DATA_TYPE_Q4_K || type == NPU_DATA_TYPE_Q4_0 || type == NPU_DATA_TYPE_Q8_0;
+    return get_type_traits(type).is_quantized;
 }
 
 inline size_t get_dequantized_row_size(tensor * tensor) {
@@ -17,9 +32,5 @@ inline size_t get_dequantized_row_size(tensor * tensor) {
     auto row_elems_count = tensor->get_ne(0);
     return row_elems_count * sizeof(float);  // currently only f32 is supported
 }
-
-bool init_f16_f32_table(float * table, size_t count);
-
-void dequantize_row_q4_K(const npu_device_block_q4_K * src, float * dst, size_t count, const float * f16_to_f32_table);
 
 }  // namespace hexagon

@@ -2,6 +2,8 @@
 
 #include <hexagon_types.h>
 
+#include <array>
+
 namespace {
 
 inline void get_scale_min_k4(int j, const uint8_t * q, uint8_t * d, uint8_t * m) {
@@ -12,29 +14,6 @@ inline void get_scale_min_k4(int j, const uint8_t * q, uint8_t * d, uint8_t * m)
         *d = (q[j + 4] & 0xF) | ((q[j - 4] >> 6) << 4);
         *m = (q[j + 4] >> 4) | ((q[j - 0] >> 6) << 4);
     }
-}
-
-}  // namespace
-
-namespace hexagon {
-
-bool init_f16_f32_table(float * table, size_t count) {
-    constexpr const size_t kTableSize = (1U << 16);
-    if (count < kTableSize) {
-        return false;
-    }
-
-    union {
-        __fp16 f16;
-        npu_device_fp16_t u16;
-    } f16;
-
-    for (size_t i = 0; i < count; ++i) {
-        f16.u16  = static_cast<npu_device_fp16_t>(i);
-        table[i] = f16.f16;
-    }
-
-    return true;
 }
 
 void dequantize_row_q4_K(const npu_device_block_q4_K * src, float * dst, size_t count, const float * f16_to_f32_table) {
@@ -68,6 +47,54 @@ void dequantize_row_q4_K(const npu_device_block_q4_K * src, float * dst, size_t 
             is += 2;
         }
     }
+}
+
+constexpr const hexagon::device_type_traits kDeviceTypeTraits[] = {
+    { NPU_DATA_TYPE_F32,  "F32",  1,                  false, nullptr             },
+    { NPU_DATA_TYPE_F16,  "F16",  1,                  false, nullptr             },
+    { NPU_DATA_TYPE_Q8_0, "Q8_0", QUANT_BLOCK_SIZE,   true,  nullptr             },
+    { NPU_DATA_TYPE_Q4_0, "Q4_0", QUANT_BLOCK_SIZE,   true,  nullptr             },
+    { NPU_DATA_TYPE_Q4_K, "Q4_K", QUANT_K_BLOCK_SIZE, true,  dequantize_row_q4_K },
+};
+
+static_assert(std::size(kDeviceTypeTraits) == NPU_DATA_TYPE_COUNT,
+              "kDeviceTypeTraits size mismatch with npu_device_tensor_data_type enum");
+static_assert(kDeviceTypeTraits[NPU_DATA_TYPE_F32].type == NPU_DATA_TYPE_F32,
+              "kDeviceTypeTraits F32 type mismatch with npu_device_tensor_data_type enum");
+static_assert(kDeviceTypeTraits[NPU_DATA_TYPE_F16].type == NPU_DATA_TYPE_F16,
+              "kDeviceTypeTraits F16 type mismatch with npu_device_tensor_data_type enum");
+static_assert(kDeviceTypeTraits[NPU_DATA_TYPE_Q8_0].type == NPU_DATA_TYPE_Q8_0,
+              "kDeviceTypeTraits Q8_0 type mismatch with npu_device_tensor_data_type enum");
+static_assert(kDeviceTypeTraits[NPU_DATA_TYPE_Q4_0].type == NPU_DATA_TYPE_Q4_0,
+              "kDeviceTypeTraits Q4_0 type mismatch with npu_device_tensor_data_type enum");
+static_assert(kDeviceTypeTraits[NPU_DATA_TYPE_Q4_K].type == NPU_DATA_TYPE_Q4_K,
+              "kDeviceTypeTraits Q4_K type mismatch with npu_device_tensor_data_type enum");
+
+}  // namespace
+
+namespace hexagon {
+
+bool init_f16_f32_table(float * table, size_t count) {
+    constexpr const size_t kTableSize = (1U << 16);
+    if (count < kTableSize) {
+        return false;
+    }
+
+    union {
+        __fp16 f16;
+        npu_device_fp16_t u16;
+    } f16;
+
+    for (size_t i = 0; i < count; ++i) {
+        f16.u16  = static_cast<npu_device_fp16_t>(i);
+        table[i] = f16.f16;
+    }
+
+    return true;
+}
+
+const device_type_traits & get_type_traits(npu_device_tensor_data_type type) {
+    return kDeviceTypeTraits[type];
 }
 
 }  // namespace hexagon
