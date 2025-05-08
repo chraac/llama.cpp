@@ -26,6 +26,39 @@ set(common_incs
 
 include_directories(${common_incs})
 
+function(add_device_target target_name DSP_ARCH IS_SIMULATOR)
+    if(${CMAKE_BUILD_TYPE} MATCHES "Debug|Dbg")
+        set(HEXAGON_BUILD_CONFIG "Debug")
+        set(EXTRA_BUILD_FLAGS
+            VERBOSE=1
+            TREE=1
+        )
+    else()
+        set(HEXAGON_BUILD_CONFIG "Release")
+        set(EXTRA_BUILD_FLAGS)
+    endif()
+
+    set(BUILD_CPU_COUNT 16)
+    set(HEXAGON_TOOLS_VARIANT $ENV{DEFAULT_TOOLS_VARIANT})
+    set(BUILD_BINARY_NAME ${CMAKE_CURRENT_LIST_DIR}/hexagon_${HEXAGON_BUILD_CONFIG}_${HEXAGON_TOOLS_VARIANT}_${DSP_ARCH}/libhexagon_npu_skel_${DSP_ARCH}.so)
+
+    if(IS_SIMULATOR)
+        set(HEXAGON_TOOLCHAIN_TYPE "hexagonsim")
+        set(OUTPUT_BINARY_NAME libhexagon_npu_skel_${DSP_ARCH}_sim.so)
+    else()
+        set(HEXAGON_TOOLCHAIN_TYPE "hexagon")
+        set(OUTPUT_BINARY_NAME libhexagon_npu_skel_${DSP_ARCH}.so)
+    endif()
+
+    add_custom_target(${target_name} ALL
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_LIST_DIR}/hexagon_${HEXAGON_BUILD_CONFIG}_${HEXAGON_TOOLS_VARIANT}_${DSP_ARCH}
+        COMMAND build_cmake ${HEXAGON_TOOLCHAIN_TYPE} DSP_ARCH=${DSP_ARCH} BUILD=${CMAKE_BUILD_TYPE} ${EXTRA_BUILD_FLAGS} -j${BUILD_CPU_COUNT}
+        COMMAND ${CMAKE_COMMAND} -E copy ${BUILD_BINARY_NAME} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${OUTPUT_BINARY_NAME}
+        BYPRODUCTS ${BUILD_BINARY_NAME}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+    )
+endfunction()
+
 if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
     # host build
     file(GLOB common_srcs "${CMAKE_CURRENT_LIST_DIR}/common/*.cpp")
@@ -84,6 +117,11 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
 
     choose_dsprpc("3" dsprpc) # cdsprpc
     link_custom_library(hexagon-npu-host ${dsprpc})
+
+    add_device_target(hexagon-npu-device-v73 "v73" FALSE)
+    add_device_target(hexagon-npu-device-v75 "v75" FALSE)
+    add_dependencies(hexagon-npu-host hexagon-npu-device-v73)
+    add_dependencies(hexagon-npu-host hexagon-npu-device-v75)
 
     list(APPEND NPU_RUNTIME_LIBS "${HEXAGON_SDK_ROOT}/tools/utils/sysmon/sysMonApp")
     list(APPEND NPU_RUNTIME_LIBS "${HEXAGON_SDK_ROOT}/tools/utils/sysmon/sysMonAppLE")
