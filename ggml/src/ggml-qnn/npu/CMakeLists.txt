@@ -26,7 +26,7 @@ set(common_incs
 
 include_directories(${common_incs})
 
-function(add_device_target target_name DSP_ARCH IS_SIMULATOR)
+function(add_device_target target_name DSP_ARCH IS_SIMULATOR BUILD_CPU_COUNT)
     if(${CMAKE_BUILD_TYPE} MATCHES "Debug|Dbg")
         set(HEXAGON_BUILD_CONFIG "Debug")
         set(EXTRA_BUILD_FLAGS
@@ -38,11 +38,11 @@ function(add_device_target target_name DSP_ARCH IS_SIMULATOR)
         set(EXTRA_BUILD_FLAGS)
     endif()
 
-    set(BUILD_CPU_COUNT 16)
     set(HEXAGON_TOOLS_VARIANT $ENV{DEFAULT_TOOLS_VARIANT})
-    set(BUILD_BINARY_NAME ${CMAKE_CURRENT_LIST_DIR}/hexagon_${HEXAGON_BUILD_CONFIG}_${HEXAGON_TOOLS_VARIANT}_${DSP_ARCH}/libhexagon_npu_skel_${DSP_ARCH}.so)
+    set(BUILD_DIR ${CMAKE_CURRENT_LIST_DIR}/hexagon_${HEXAGON_BUILD_CONFIG}_${HEXAGON_TOOLS_VARIANT}_${DSP_ARCH})
+    set(BUILD_BINARY_NAME ${BUILD_DIR}/libhexagon_npu_skel_${DSP_ARCH}.so)
 
-    if(IS_SIMULATOR)
+    if(${IS_SIMULATOR})
         set(HEXAGON_TOOLCHAIN_TYPE "hexagonsim")
         set(OUTPUT_BINARY_NAME libhexagon_npu_skel_${DSP_ARCH}_sim.so)
     else()
@@ -51,12 +51,19 @@ function(add_device_target target_name DSP_ARCH IS_SIMULATOR)
     endif()
 
     add_custom_target(${target_name} ALL
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_LIST_DIR}/hexagon_${HEXAGON_BUILD_CONFIG}_${HEXAGON_TOOLS_VARIANT}_${DSP_ARCH}
-        COMMAND build_cmake ${HEXAGON_TOOLCHAIN_TYPE} DSP_ARCH=${DSP_ARCH} BUILD=${CMAKE_BUILD_TYPE} ${EXTRA_BUILD_FLAGS} -j${BUILD_CPU_COUNT}
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${BUILD_DIR}
+        COMMAND build_cmake ${HEXAGON_TOOLCHAIN_TYPE} DSP_ARCH=${DSP_ARCH} BUILD=${HEXAGON_BUILD_CONFIG} ${EXTRA_BUILD_FLAGS} -j${BUILD_CPU_COUNT}
         COMMAND ${CMAKE_COMMAND} -E copy ${BUILD_BINARY_NAME} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${OUTPUT_BINARY_NAME}
         BYPRODUCTS ${BUILD_BINARY_NAME}
         WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     )
+endfunction()
+
+function(add_dsp_targets_for_host host_target DSP_ARCH BUILD_CPU_COUNT)
+    add_device_target(hexagon-npu-device-${DSP_ARCH} ${DSP_ARCH} FALSE ${BUILD_CPU_COUNT})
+    add_device_target(hexagon-npu-device-${DSP_ARCH}-sim ${DSP_ARCH} TRUE ${BUILD_CPU_COUNT})
+    add_dependencies(hexagon-npu-device-${DSP_ARCH}-sim hexagon-npu-device-${DSP_ARCH})
+    add_dependencies(${host_target} hexagon-npu-device-${DSP_ARCH}-sim)
 endfunction()
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
@@ -118,10 +125,9 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
     choose_dsprpc("3" dsprpc) # cdsprpc
     link_custom_library(hexagon-npu-host ${dsprpc})
 
-    add_device_target(hexagon-npu-device-v73 "v73" FALSE)
-    add_device_target(hexagon-npu-device-v75 "v75" FALSE)
-    add_dependencies(hexagon-npu-host hexagon-npu-device-v73)
-    add_dependencies(hexagon-npu-host hexagon-npu-device-v75)
+    cmake_host_system_information(RESULT BUILD_CPU_COUNT QUERY NUMBER_OF_PHYSICAL_CORES)
+    add_dsp_targets_for_host(hexagon-npu-host "v73" ${BUILD_CPU_COUNT})
+    add_dsp_targets_for_host(hexagon-npu-host "v75" ${BUILD_CPU_COUNT})
 
     list(APPEND NPU_RUNTIME_LIBS "${HEXAGON_SDK_ROOT}/tools/utils/sysmon/sysMonApp")
     list(APPEND NPU_RUNTIME_LIBS "${HEXAGON_SDK_ROOT}/tools/utils/sysmon/sysMonAppLE")
@@ -135,7 +141,7 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
             ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
     endforeach()
 else()
-    # hexagon npu build
+    # hexagon npu build, this section will run inside the `build_cmake` script
     cmake_minimum_required(VERSION 3.14.3)
     project(hexagon_npu C CXX ASM)
 
