@@ -187,7 +187,7 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
 
     const bool is_quantized         = hexagon::is_quantized_type(src0->get_type());
     const auto src0_actual_row_size = hexagon::get_dequantized_row_size(src0);
-    auto *     dequantize_row_func  = hexagon::get_type_traits(src0->get_type()).dequqantize_row;
+    auto *     dequantize_row_func  = hexagon::get_type_traits(src0->get_type()).dequantize_row;
     if (is_quantized && dequantize_row_func == nullptr) {
         DEVICE_LOG_ERROR("Unsupported quantized src0 type: %d, dequantize_row_func is null\n", src0->get_type());
         return;
@@ -307,7 +307,7 @@ bool is_mul_mat_supported(const npu_device_tensor_spec & src0, const npu_device_
         }
 
         const auto type_traits = get_type_traits(src0.type);
-        if (!type_traits.is_quantized || type_traits.dequqantize_row == nullptr) {
+        if (!type_traits.is_quantized || type_traits.dequantize_row == nullptr) {
             DEVICE_LOG_DEBUG("[%s]src0.type(%s) and src1.type(%s) mismatch and src0 is not quantized\n",
                              op_get_name(op), get_type_name(src0.type), get_type_name(src1.type));
             return false;
