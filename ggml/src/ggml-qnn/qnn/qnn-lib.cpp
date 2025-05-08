@@ -342,11 +342,6 @@ bool qnn_instance::qnn_init(const QnnSaver_Config_t ** saver_config) {
         }
     }
 
-    /* TODO: not used, keep it for further usage
-             QnnContext_Config_t qnn_context_config = QNN_CONTEXT_CONFIG_INIT;
-             qnn_context_config.priority = QNN_PRIORITY_DEFAULT;
-             const QnnContext_Config_t * context_configs[] = {&qnn_context_config, nullptr};
-    */
     _qnn_interface->qnn_context_create(_qnn_backend_handle, _qnn_device_handle, nullptr, &_qnn_context_handle);
     if (!_qnn_context_handle) {
         QNN_LOG_WARN("failed to initialize qnn context\n");
