@@ -313,7 +313,13 @@ bool is_mul_mat_supported(const npu_device_tensor_spec & src0, const npu_device_
             return false;
         }
 
-        DEVICE_LOG_DEBUG("[%s]src0.type(%s) and src1.type(%s) mismatch, but src0 is quantized\n", op_get_name(op),
+        if (src0.ne[0] % type_traits.blck_size) {
+            DEVICE_LOG_DEBUG("[%s]src0.type(%s) ne[0] is not aligned: %ld\n", op_get_name(op), get_type_name(src0.type),
+                             (long) src0.ne[0]);
+            return false;
+        }
+
+        DEVICE_LOG_DEBUG("[%s]supported quantized src0.type(%s) and src1.type(%s)\n", op_get_name(op),
                          get_type_name(src0.type), get_type_name(src1.type));
     }
 

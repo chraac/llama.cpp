@@ -7,8 +7,7 @@ namespace hexagon {
 
 bool init_f16_f32_table(float * table, size_t count);
 
-typedef void (*dequantize_row_type)(const npu_device_block_q4_K * src, float * dst, size_t count,
-                                    const float * f16_to_f32_table);
+typedef void (*dequantize_row_type)(const void * src, float * dst, size_t count, const float * f16_to_f32_table);
 
 struct device_type_traits {
     npu_device_tensor_data_type type;

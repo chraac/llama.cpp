@@ -10,16 +10,6 @@
 
 namespace {
 
-static_assert(sizeof(npu_device_block_q4_K) ==
-                  2 * sizeof(npu_device_fp16_t) + QUANT_K_SCALE_SIZE + QUANT_K_BLOCK_SIZE / 2,
-              "wrong q4_K block size/padding");
-
-static_assert(sizeof(npu_device_block_q4_0) == sizeof(npu_device_fp16_t) + QUANT_BLOCK_SIZE / 2,
-              "wrong q4_0 block size/padding");
-
-static_assert(sizeof(npu_device_block_q8_0) == sizeof(npu_device_fp16_t) + QUANT_BLOCK_SIZE,
-              "wrong q8_0 block size/padding");
-
 template <HVX_Vector (*_OpIntrinsic)(HVX_Vector, HVX_Vector), typename _TyData>
 inline void vec_op_impl(const _TyData * src0, const _TyData * src1, size_t count, _TyData * dst) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TyData);
