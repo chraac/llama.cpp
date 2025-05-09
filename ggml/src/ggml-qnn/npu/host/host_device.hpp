@@ -31,7 +31,7 @@ class npu_device {
     ggml_backend_buffer_type_t get_default_buffer_type(ggml_backend_dev_t dev);
 
     bool is_device_initialized() const;
-    bool init_device(ggml_backend_dev_t dev, const char * params);
+    bool init_device();
 
     bool supports_buft(ggml_backend_buffer_type_t buft) const;
     bool offload_op(const ggml_tensor * op);
@@ -42,6 +42,7 @@ class npu_device {
   private:
     bool supports_op_impl(const ggml_tensor * op);
     bool init_rpc_mem();
+    bool init_device_lib();
 
     std::string                       _name        = "hexagon-npu";
     std::string                       _description = "Hexagon NPU";

@@ -116,39 +116,13 @@ bool npu_device::is_device_initialized() const {
     return true;
 }
 
-bool npu_device::init_device(ggml_backend_dev_t dev, const char * params) {
+bool npu_device::init_device() {
     if (!init_rpc_mem()) {
         return false;
     }
 
-    if (!_device_handle) {
-        auto         arch            = get_dsp_arch(_rpc_interface, _dsp_domain_id);
-        const auto & device_lib_info = get_device_library_info(arch);
-        std::string  device_lib_uri  = device_lib_info.device_lib_uri;
-        device_lib_uri += get_domain_param(_dsp_domain_id);
-        LOG_DEBUG("[%s]NPU device arch: %s, uri: %s\n", get_name(), get_dsp_arch_desc(arch), device_lib_uri.c_str());
-        auto err = npu_device_open(device_lib_uri.c_str(), &_device_handle);
-        if (err != AEE_SUCCESS) {
-            if (err == AEE_ECONNREFUSED) {
-                LOG_DEBUG("[%s]NPU device is not available, trying to enable unsigned DSP module and reopen\n",
-                          get_name());
-                enable_unsigned_dsp_module(_rpc_interface, _dsp_domain_id);
-                err = npu_device_open(device_lib_uri.c_str(), &_device_handle);
-            }
-
-            if (err != AEE_SUCCESS) {
-                LOG_ERROR("[%s]Unable to open NPU device, err: 0x%x, uri %s\n", get_name(), err,
-                          device_lib_uri.c_str());
-                _device_handle = 0;
-                return false;
-            }
-        }
-
-        _description += ' ';
-        _description += get_dsp_arch_desc(arch);
-        LOG_DEBUG("[%s]NPU device opened successfully\n", get_name());
-    } else {
-        LOG_DEBUG("[%s]NPU device is already opened\n", get_name());
+    if (!init_device_lib()) {
+        return false;
     }
 
     return true;
@@ -198,8 +172,8 @@ bool npu_device::supports_op_impl(const ggml_tensor * op) {
         return false;
     }
 
-    if (!_device_handle) {
-        LOG_DEBUG("[%s]NPU device not opened\n", get_name());
+    if (!init_device()) {
+        LOG_DEBUG("[%s]NPU device initialization failed\n", get_name());
         return false;
     }
 
@@ -249,6 +223,40 @@ bool npu_device::init_rpc_mem() {
         LOG_DEBUG("[%s]rpc memory initialized\n", get_name());
     } else {
         LOG_DEBUG("[%s]rpc memory already initialized\n", get_name());
+    }
+
+    return true;
+}
+
+bool npu_device::init_device_lib() {
+    if (!_device_handle) {
+        auto         arch            = get_dsp_arch(_rpc_interface, _dsp_domain_id);
+        const auto & device_lib_info = get_device_library_info(arch);
+        std::string  device_lib_uri  = device_lib_info.device_lib_uri;
+        device_lib_uri += get_domain_param(_dsp_domain_id);
+        LOG_DEBUG("[%s]NPU device arch: %s, uri: %s\n", get_name(), get_dsp_arch_desc(arch), device_lib_uri.c_str());
+        auto err = npu_device_open(device_lib_uri.c_str(), &_device_handle);
+        if (err != AEE_SUCCESS) {
+            if (err == AEE_ECONNREFUSED) {
+                LOG_DEBUG("[%s]NPU device is not available, trying to enable unsigned DSP module and reopen\n",
+                          get_name());
+                enable_unsigned_dsp_module(_rpc_interface, _dsp_domain_id);
+                err = npu_device_open(device_lib_uri.c_str(), &_device_handle);
+            }
+
+            if (err != AEE_SUCCESS) {
+                LOG_ERROR("[%s]Unable to open NPU device, err: 0x%x, uri %s\n", get_name(), err,
+                          device_lib_uri.c_str());
+                _device_handle = 0;
+                return false;
+            }
+        }
+
+        _description += ' ';
+        _description += get_dsp_arch_desc(arch);
+        LOG_DEBUG("[%s]NPU device opened successfully\n", get_name());
+    } else {
+        LOG_DEBUG("[%s]NPU device is already opened\n", get_name());
     }
 
     return true;
