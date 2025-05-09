@@ -43,7 +43,7 @@ void dequantize_row_q8_0(const void * src, float * dst, size_t count, const floa
 
     // TODO: use intrinsics
     for (int i = 0; i < nb; i++) {
-        const float d = f16_to_f32_table[src_ptr[i].d];
+        const float d = to_float(src_ptr[i].d);
 
         for (int j = 0; j < qk; ++j) {
             dst[i * qk + j] = src_ptr[i].qs[j] * d;
@@ -58,7 +58,7 @@ void dequantize_row_q4_0(const void * src, float * dst, size_t count, const floa
 
     // TODO: use intrinsics
     for (int i = 0; i < nb; i++) {
-        const float d = f16_to_f32_table[src_ptr[i].d];
+        const float d = to_float(src_ptr[i].d);
 
         for (int j = 0; j < qk / 2; ++j) {
             const int x0 = (src_ptr[i].qs[j] & 0x0F) - 8;
@@ -78,8 +78,8 @@ void dequantize_row_q4_K(const void * src, float * dst, size_t count, const floa
     for (int i = 0; i < nb; i++) {
         const uint8_t * q = src_ptr[i].qs;
 
-        const float d   = f16_to_f32_table[src_ptr[i].d];
-        const float min = f16_to_f32_table[src_ptr[i].dmin];
+        const float d   = to_float(src_ptr[i].d);
+        const float min = to_float(src_ptr[i].dmin);
 
         int          is     = 0;
         uint8_t      sc     = 0;
