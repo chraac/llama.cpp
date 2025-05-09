@@ -204,8 +204,6 @@ bool npu_device::supports_op_impl(const ggml_tensor * op) {
         return false;
     }
 
-    LOG_DEBUG("[%s][%s]supported %s(%s,%s)\n", get_name(), ggml_op_name(op->op), ggml_type_name(op->type),
-              ggml_type_name(src0->type), (src1 ? ggml_type_name(src1->type) : "null"));
     return true;
 }
 
