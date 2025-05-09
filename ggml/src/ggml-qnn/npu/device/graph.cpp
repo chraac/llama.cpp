@@ -5,6 +5,7 @@
 
 #include "op_impl.hpp"
 #include "util.hpp"
+#include "vtcm_mem.hpp"
 
 namespace hexagon {
 
@@ -43,7 +44,10 @@ bool graph::compute(default_thread_pool * thread_pool, const float * f16_to_f32_
     }
 
     DEVICE_LOG_DEBUG("graph(%p) compute\n", (void *) this);
-    _f16_to_f32_table = f16_to_f32_table;
+    constexpr const size_t kLutSize   = 1U << 16;
+    auto                   vtcm_cache = std::make_unique<hexagon::vtcm_mem>(kLutSize, false);
+    memcpy(vtcm_cache->get_mem(), f16_to_f32_table, kLutSize * sizeof(float));
+    _f16_to_f32_table = reinterpret_cast<float *>(vtcm_cache->get_mem());
     thread_pool->sync_execute(reinterpret_cast<default_thread_pool::task_type>(&graph::thread_pool_task), this);
 
     for (size_t i = 0; i < _tensor_count; ++i) {
@@ -51,6 +55,7 @@ bool graph::compute(default_thread_pool * thread_pool, const float * f16_to_f32_
         dst->flush();  // TODO: optimize this
     }
 
+    _f16_to_f32_table = nullptr;
     return true;
 }
 
