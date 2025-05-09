@@ -172,7 +172,7 @@ bool npu_device::supports_op_impl(const ggml_tensor * op) {
         return false;
     }
 
-    if (!init_device()) {
+    if (!_device_handle && !init_device()) {
         LOG_DEBUG("[%s]NPU device initialization failed\n", get_name());
         return false;
     }
