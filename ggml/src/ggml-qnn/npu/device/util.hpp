@@ -2,9 +2,7 @@
 
 #include <HAP_farf.h>
 
-#include <algorithm>
 #include <cstdint>
-#include <utility>
 
 #include "hexagon_npu.h"
 
@@ -50,13 +48,6 @@ inline constexpr const char * op_get_name(npu_device_tensor_op op) {
         default:
             return "UNKNOWN";
     }
-}
-
-inline constexpr std::pair<int64_t, int64_t> get_thread_work_slice(int64_t total, size_t tidx, size_t tcnt) {
-    const auto elements_per_thread = (total + tcnt - 1) / tcnt;
-    const auto start               = tidx * elements_per_thread;
-    const auto end                 = std::min<int64_t>(start + elements_per_thread, total);
-    return { start, end };
 }
 
 }  // namespace hexagon

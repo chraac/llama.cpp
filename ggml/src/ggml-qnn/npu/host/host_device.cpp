@@ -7,6 +7,8 @@
 
 #include <remote.h>
 
+#include <type_traits>
+
 #include "graph.hpp"
 #include "util.hpp"
 
@@ -157,7 +159,14 @@ bool npu_device::supports_buft(ggml_backend_buffer_type_t buft) const {
 }
 
 bool npu_device::supports_op_impl(const ggml_tensor * op) {
+    static_assert(std::is_same<npu_device_fp16_t, ggml_fp16_t>::value,
+                  "npu_device_fp16_t should be same as ggml_fp16_t");
+
     if (op->op == GGML_OP_NONE) {
+        return true;
+    }
+
+    if (op->op == GGML_OP_VIEW || op->op == GGML_OP_RESHAPE || op->op == GGML_OP_PERMUTE) {
         return true;
     }
 
@@ -189,6 +198,11 @@ bool npu_device::supports_op_impl(const ggml_tensor * op) {
         return false;
     }
 
+    if (!_device_handle) {
+        LOG_DEBUG("[%s]NPU device not opened\n", get_name());
+        return false;
+    }
+
     constexpr const auto get_spec = [](const ggml_tensor * tensor) -> npu_device_tensor_spec {
         if (!tensor) {
             return npu_device_tensor_spec{};
@@ -210,12 +224,14 @@ bool npu_device::supports_op_impl(const ggml_tensor * op) {
     auto    dst_spec  = get_spec(op);
     auto    ret = npu_device_device_support_op(_device_handle, &src0_spec, &src1_spec, &dst_spec, npu_op, &supported);
     if (ret != AEE_SUCCESS || !supported) {
-        LOG_DEBUG("[%s]Unsupported op: %s, ret: 0x%x, supported: %d\n", get_name(), ggml_op_name(op->op), ret,
-                  supported);
+        LOG_DEBUG("[%s][%s]unsupported %s(%s,%s), ret: 0x%x, supported: %d\n", get_name(), ggml_op_name(op->op),
+                  ggml_type_name(op->type), ggml_type_name(src0->type), (src1 ? ggml_type_name(src1->type) : "null"),
+                  ret, supported);
         return false;
     }
 
-    LOG_DEBUG("[%s]Supported op: %s\n", get_name(), ggml_op_name(op->op));
+    LOG_DEBUG("[%s][%s]supported %s(%s,%s)\n", get_name(), ggml_op_name(op->op), ggml_type_name(op->type),
+              ggml_type_name(src0->type), (src1 ? ggml_type_name(src1->type) : "null"));
     return true;
 }
 

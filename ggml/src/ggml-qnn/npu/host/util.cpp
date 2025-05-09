@@ -2,6 +2,17 @@
 
 #include <remote.h>
 
+#define GGML_COMMON_DECL_CPP
+#include "ggml-common.h"
+#undef GGML_COMMON_DECL_CPP
+
+static_assert(sizeof(npu_device_block_q4_K) == sizeof(block_q4_K), "npu_device_block_q4_K size mismatch");
+static_assert(sizeof(npu_device_block_q4_0) == sizeof(block_q4_0), "npu_device_block_q4_0 size mismatch");
+static_assert(sizeof(npu_device_block_q8_0) == sizeof(block_q8_0), "npu_device_block_q8_0 size mismatch");
+static_assert(QUANT_K_SCALE_SIZE == K_SCALE_SIZE, "QUANT_K_SCALE_SIZE size mismatch");
+static_assert(QUANT_K_BLOCK_SIZE == QK_K, "QUANT_K_BLOCK_SIZE size mismatch");
+static_assert(QUANT_BLOCK_SIZE == QK4_0, "QUANT_BLOCK_SIZE size mismatch");
+
 namespace hexagon {
 
 enum npu_device_tensor_op op_to_npu_op(ggml_op op) {
@@ -23,6 +34,14 @@ enum npu_device_tensor_data_type type_to_npu_type(ggml_type type) {
     switch (type) {
         case GGML_TYPE_F32:
             return NPU_DATA_TYPE_F32;
+        case GGML_TYPE_F16:
+            return NPU_DATA_TYPE_F16;
+        case GGML_TYPE_Q4_K:
+            return NPU_DATA_TYPE_Q4_K;
+        case GGML_TYPE_Q4_0:
+            return NPU_DATA_TYPE_Q4_0;
+        case GGML_TYPE_Q8_0:
+            return NPU_DATA_TYPE_Q8_0;
         default:
             return NPU_DATA_TYPE_COUNT;
     }
