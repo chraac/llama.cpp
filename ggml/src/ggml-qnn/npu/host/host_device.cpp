@@ -259,6 +259,33 @@ bool npu_device::offload_op(const ggml_tensor * op) {
     return false;
 }
 
+#ifndef NDEBUG
+bool npu_device::supports_op(const ggml_tensor * op) {
+    char op_desc[1024];
+    get_op_tensor_desc(op, op_desc, sizeof(op_desc));
+
+    if (supports_op_impl(op)) {
+        if (op->op != GGML_OP_NONE && op->op != GGML_OP_VIEW && op->op != GGML_OP_RESHAPE &&
+            op->op != GGML_OP_PERMUTE) {
+            _supported_op++;
+            LOG_DEBUG("[%s][%s]supported, %s, supported/unsupported: %u/%u\n", get_name(), ggml_op_name(op->op),
+                      op_desc, _supported_op.load(), _unsupported_op.load());
+        }
+
+        return true;
+    }
+
+    _unsupported_op++;
+    LOG_DEBUG("[%s][%s]unsupported, %s, supported/unsupported: %u/%u\n", get_name(), ggml_op_name(op->op), op_desc,
+              _supported_op.load(), _unsupported_op.load());
+    return false;
+}
+#else
+bool npu_device::supports_op(const ggml_tensor * op) {
+    return supports_op_impl(op);
+}
+#endif
+
 ggml_backend_buffer_type_t npu_device::get_default_buffer_type(ggml_backend_dev_t dev) {
     // Note that this function will be called before the npu_device::init_device
     if (!init_rpc_mem()) {

@@ -112,4 +112,56 @@ void enable_unsigned_dsp_module(common::rpc_interface_ptr rpc_interface, uint32_
     }
 }
 
+void get_op_tensor_desc(const ggml_tensor * dst, char * out, size_t max_len) {
+    if (dst == nullptr) {
+        snprintf(out, max_len, "null");
+        return;
+    }
+
+    constexpr const auto print_tensor = [](const ggml_tensor * tensor, char * out, size_t max_len) {
+        auto dims = ggml_n_dims(tensor);
+
+        switch (dims) {
+            default:
+            case 4:
+                snprintf(out, max_len, "%s[%ldx%ldx%ldx%ld]", ggml_type_name(tensor->type), (long) tensor->ne[0],
+                         (long) tensor->ne[1], (long) tensor->ne[2], (long) tensor->ne[3]);
+                break;
+            case 3:
+                snprintf(out, max_len, "%s[%ldx%ldx%ld]", ggml_type_name(tensor->type), (long) tensor->ne[0],
+                         (long) tensor->ne[1], (long) tensor->ne[2]);
+                break;
+            case 2:
+                snprintf(out, max_len, "%s[%ldx%ld]", ggml_type_name(tensor->type), (long) tensor->ne[0],
+                         (long) tensor->ne[1]);
+                break;
+            case 1:
+                snprintf(out, max_len, "%s[%ld]", ggml_type_name(tensor->type), (long) tensor->ne[0]);
+                break;
+        }
+    };
+
+    auto * src0 = dst->src[0];
+    if (src0 == nullptr) {
+        print_tensor(dst, out, max_len);
+        return;
+    }
+
+    char dst_desc[256];
+    print_tensor(dst, dst_desc, sizeof(dst_desc));
+
+    char src0_desc[256];
+    print_tensor(src0, src0_desc, sizeof(src0_desc));
+
+    auto * src1 = dst->src[1];
+    if (src1 == nullptr) {
+        snprintf(out, max_len, "dst: %s, src0: %s", dst_desc, src0_desc);
+        return;
+    }
+
+    char src1_desc[256];
+    print_tensor(src1, src1_desc, sizeof(src1_desc));
+    snprintf(out, max_len, "dst: %s, src0: %s, src1: %s", dst_desc, src0_desc, src1_desc);
+}
+
 }  // namespace hexagon
