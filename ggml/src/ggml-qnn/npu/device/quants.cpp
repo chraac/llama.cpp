@@ -16,6 +16,16 @@ static_assert(sizeof(npu_device_block_q8_0) == sizeof(npu_device_fp16_t) + QUANT
 
 namespace {
 
+inline float to_float(const npu_device_fp16_t src) {
+    union {
+        __fp16 f16;
+        npu_device_fp16_t u16;
+    } f16;
+
+    f16.u16 = src;
+    return f16.f16;
+}
+
 inline void get_scale_min_k4(int j, const uint8_t * q, uint8_t * d, uint8_t * m) {
     if (j < 4) {
         *d = q[j] & 63;
@@ -125,14 +135,8 @@ bool init_f16_f32_table(float * table, size_t count) {
         return false;
     }
 
-    union {
-        __fp16 f16;
-        npu_device_fp16_t u16;
-    } f16;
-
     for (size_t i = 0; i < count; ++i) {
-        f16.u16  = static_cast<npu_device_fp16_t>(i);
-        table[i] = f16.f16;
+        table[i] = to_float(i);
     }
 
     return true;
