@@ -37,7 +37,7 @@ void graph::set_tensor(const npu_device_tensor_handle_t * tensors, int tensor_co
 }
 
 bool graph::compute(default_thread_pool * thread_pool, const float * f16_to_f32_table) {
-    if (!_tensors || !_tensor_count) {
+    if (_tensors == nullptr || !_tensor_count) {
         DEVICE_LOG_DEBUG("graph(%p) no tensors to compute\n", (void *) this);
         return true;  // return success if no tensors to compute
     }
