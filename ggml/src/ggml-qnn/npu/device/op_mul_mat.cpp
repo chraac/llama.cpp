@@ -213,8 +213,7 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
                     for (int64_t ir = 0; ir < src0->get_ne(1); ir++) {
                         auto * src0_row = src0_plane + ir * src0->get_nb(1);
                         auto * dst_row  = reinterpret_cast<float *>(src0_plane_cache_ptr + ir * src0_actual_row_size);
-                        dequantize_row_func(reinterpret_cast<const npu_device_block_q4_K *>(src0_row),
-                                            reinterpret_cast<float *>(dst_row), src0->get_ne(0),
+                        dequantize_row_func(src0_row, reinterpret_cast<float *>(dst_row), src0->get_ne(0),
                                             params->f16_to_f32_table);
                     }
                 } else {
