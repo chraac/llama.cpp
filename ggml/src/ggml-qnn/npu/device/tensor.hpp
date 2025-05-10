@@ -38,6 +38,13 @@ class tensor {
 
     void flush() {
         if (_data) {
+            qurt_mem_cache_clean((qurt_addr_t) (_data + _info.offset), (qurt_size_t) _info.size, QURT_MEM_CACHE_FLUSH,
+                                 QURT_MEM_DCACHE);
+        }
+    }
+
+    void invalidate() {
+        if (_data) {
             qurt_mem_cache_clean((qurt_addr_t) (_data + _info.offset), (qurt_size_t) _info.size,
                                  QURT_MEM_CACHE_INVALIDATE, QURT_MEM_DCACHE);
         }

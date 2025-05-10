@@ -72,7 +72,7 @@ void graph::compute_impl(size_t thread_idx, size_t thread_count) {
             return;
         }
 
-        dst->flush();  // TODO: clean for each thread?
+        dst->invalidate();  // TODO: clean for each thread?
     }
 }
 
