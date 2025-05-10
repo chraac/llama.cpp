@@ -38,6 +38,8 @@ function(add_device_target target_name DSP_ARCH IS_SIMULATOR BUILD_CPU_COUNT)
         set(EXTRA_BUILD_FLAGS)
     endif()
 
+    set(EXTRA_BUILD_FLAGS ${EXTRA_BUILD_FLAGS} GGML_HEXAGON_ENABLE_QUANTIZED_TENSORS=${GGML_HEXAGON_ENABLE_QUANTIZED_TENSORS})
+
     set(HEXAGON_TOOLS_VARIANT $ENV{DEFAULT_TOOLS_VARIANT})
     set(BUILD_DIR ${CMAKE_CURRENT_LIST_DIR}/hexagon_${HEXAGON_BUILD_CONFIG}_${HEXAGON_TOOLS_VARIANT}_${DSP_ARCH})
     set(BUILD_BINARY_NAME ${BUILD_DIR}/libhexagon_npu_skel_${DSP_ARCH}.so)
@@ -91,6 +93,12 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
         VERIFY_PRINT_ERROR
         GGML_QNN_ENABLE_HEXAGON_BACKEND
     )
+
+    if(GGML_HEXAGON_ENABLE_QUANTIZED_TENSORS)
+        target_compile_definitions(hexagon-npu-host PUBLIC
+            GGML_HEXAGON_ENABLE_QUANTIZED_TENSORS
+        )
+    endif()
 
     target_include_directories(hexagon-npu-host PRIVATE
         ${HEXAGON_SDK_ROOT}/ipc/fastrpc/rpcmem/inc/
@@ -152,6 +160,8 @@ else()
 
     set(QNN_SDK_ROOT $ENV{QNN_SDK_ROOT})
     message("QNN_SDK_ROOT: ${QNN_SDK_ROOT}")
+    message("GGML_HEXAGON_ENABLE_QUANTIZED_TENSORS: ${GGML_HEXAGON_ENABLE_QUANTIZED_TENSORS}")
+
     include_directories(
         ${QNN_SDK_ROOT}/include/QNN/
     )
@@ -177,6 +187,13 @@ else()
         target_compile_definitions(hexagon_npu_skel_OBJS PUBLIC
             NDEBUG
             RELEASE_LOGGING
+        )
+    endif()
+
+    if(GGML_HEXAGON_ENABLE_QUANTIZED_TENSORS)
+        message("GGML_HEXAGON_ENABLE_QUANTIZED_TENSORS is enabled")
+        target_compile_definitions(hexagon_npu_skel_OBJS PUBLIC
+            GGML_HEXAGON_ENABLE_QUANTIZED_TENSORS
         )
     endif()
 

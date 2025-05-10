@@ -299,6 +299,7 @@ bool is_mul_mat_supported(const npu_device_tensor_spec & src0, const npu_device_
     }
 
     if (src0.type != src1.type) {
+#ifdef GGML_HEXAGON_ENABLE_QUANTIZED_TENSORS
         if (src1.type != NPU_DATA_TYPE_F32) {
             DEVICE_LOG_DEBUG("[%s]src0.type(%s) and src1.type(%s) mismatch and src1 is not F32\n", op_get_name(op),
                              get_type_name(src0.type), get_type_name(src1.type));
@@ -320,6 +321,11 @@ bool is_mul_mat_supported(const npu_device_tensor_spec & src0, const npu_device_
 
         DEVICE_LOG_DEBUG("[%s]supported quantized src0.type(%s) and src1.type(%s)\n", op_get_name(op),
                          get_type_name(src0.type), get_type_name(src1.type));
+#else
+        DEVICE_LOG_DEBUG("[%s]src0.type(%s) and src1.type(%s) mismatch and quantized tensors are not supported\n",
+                         op_get_name(op), get_type_name(src0.type), get_type_name(src1.type));
+        return false;
+#endif
     }
 
     if (src0.ne[0] != src1.ne[0] || src0.ne[1] != dst.ne[0]) {

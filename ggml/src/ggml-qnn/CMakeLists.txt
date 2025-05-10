@@ -2,6 +2,7 @@ message(STATUS "Using QNN backend")
 
 option(GGML_HEXAGON_NPU_ONLY "ggml-qnn: Only use Hexagon NPU" OFF)
 option(GGML_QNN_ENABLE_HEXAGON_BACKEND "ggml-qnn: Enable Hexagon custom package" ${GGML_HEXAGON_NPU_ONLY})
+option(GGML_HEXAGON_ENABLE_QUANTIZED_TENSORS "ggml-qnn: Enable quantized tensors support" OFF)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Android")
     find_library(LOG_LIB log)
@@ -34,6 +35,7 @@ message("GGML_QNN: ${GGML_QNN}")
 message("GGML_QNN_ENABLE_PERFORMANCE_TRACKING: ${GGML_QNN_ENABLE_PERFORMANCE_TRACKING}")
 message("GGML_QNN_ENABLE_HEXAGON_BACKEND: ${GGML_QNN_ENABLE_HEXAGON_BACKEND}")
 message("GGML_HEXAGON_NPU_ONLY: ${GGML_HEXAGON_NPU_ONLY}")
+message("GGML_HEXAGON_ENABLE_QUANTIZED_TENSORS: ${GGML_HEXAGON_ENABLE_QUANTIZED_TENSORS}")
 
 ggml_add_backend_library(ggml-qnn
     ../../include/ggml-qnn.h
