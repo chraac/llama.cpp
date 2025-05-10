@@ -197,7 +197,7 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
     // TODO: should we skip the one plane matrix?
     const uint8_t * original_plane_ptr    = nullptr;
     size_t          src0_plane_cache_size = src0_actual_row_size * src0->get_ne(1);
-    uint8_t *       src0_plane_cache_ptr  = params->get_cache(src0_plane_cache_size);
+    uint8_t *       src0_plane_cache_ptr  = params->get_cache(src0_plane_cache_size, is_quantized);
     DEVICE_LOG_DEBUG("mul_mat_impl src0_actual_row_size: %zu, is_quantized: %d, vtcm_mem: %p(%zu)\n",
                      src0_actual_row_size, is_quantized, (void *) src0_plane_cache_ptr, src0_plane_cache_size);
     for (int64_t ip = start_end_plane.first; ip < start_end_plane.second; ip++) {

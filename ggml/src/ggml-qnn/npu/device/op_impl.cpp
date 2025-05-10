@@ -146,7 +146,7 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
     if (src0->get_ne(1) / src1->get_ne(1) > 1) {
         // TODO: should we cache a cube instead of a plane?
         src1_plane_cache_size = src1->get_nb(1) * src1->get_ne(1);
-        src1_plane_cache_ptr  = params->get_cache(src1_plane_cache_size);
+        src1_plane_cache_ptr  = params->get_cache(src1_plane_cache_size, false);
         DEVICE_LOG_DEBUG("element_wise_op vtcm_mem allocated, size: %zu\n", src1_plane_cache_size);
 
         const auto i03 = start_end.first / rows_per_cube;
