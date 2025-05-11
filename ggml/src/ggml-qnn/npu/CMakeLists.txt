@@ -38,7 +38,9 @@ function(add_device_target target_name DSP_ARCH IS_SIMULATOR BUILD_CPU_COUNT)
         set(EXTRA_BUILD_FLAGS)
     endif()
 
+    set(GGML_HEXAGON_NPU_SANTIZE_ADDRESS ${GGML_SANITIZE_ADDRESS} OR ${LLAMA_SANITIZE_ADDRESS})
     set(EXTRA_BUILD_FLAGS ${EXTRA_BUILD_FLAGS} GGML_HEXAGON_ENABLE_QUANTIZED_TENSORS=${GGML_HEXAGON_ENABLE_QUANTIZED_TENSORS})
+    set(EXTRA_BUILD_FLAGS ${EXTRA_BUILD_FLAGS} GGML_HEXAGON_NPU_SANTIZE_ADDRESS=${GGML_HEXAGON_NPU_SANTIZE_ADDRESS})
 
     set(HEXAGON_TOOLS_VARIANT $ENV{DEFAULT_TOOLS_VARIANT})
     set(BUILD_DIR ${CMAKE_CURRENT_LIST_DIR}/hexagon_${HEXAGON_BUILD_CONFIG}_${HEXAGON_TOOLS_VARIANT}_${DSP_ARCH})
@@ -194,6 +196,16 @@ else()
         message("GGML_HEXAGON_ENABLE_QUANTIZED_TENSORS is enabled")
         target_compile_definitions(hexagon_npu_skel_OBJS PUBLIC
             GGML_HEXAGON_ENABLE_QUANTIZED_TENSORS
+        )
+    endif()
+
+    if(GGML_HEXAGON_NPU_SANTIZE_ADDRESS)
+        message("GGML_HEXAGON_NPU_SANTIZE_ADDRESS is enabled")
+        target_compile_options(hexagon_npu_skel_OBJS PUBLIC
+            -fsanitize=address -fno-omit-frame-pointer
+        )
+        target_link_libraries(hexagon_npu_skel_OBJS PUBLIC
+            -fsanitize=address
         )
     endif()
 
