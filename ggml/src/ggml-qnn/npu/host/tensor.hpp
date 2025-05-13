@@ -50,7 +50,7 @@ class host_tensor {
         LOG_DEBUG("host_tensor(%p) destroy, device_tensor_handle: %p\n", (void *) this, (void *) _device_tensor_handle);
         if (_device_tensor_handle) {
             npu_device_tensor_free(_device_handle, _device_tensor_handle);
-            _ggml_tensor->extra = nullptr;
+            // TODO: figure out why the _ggml_tensor is invalid here
         }
     }
 
