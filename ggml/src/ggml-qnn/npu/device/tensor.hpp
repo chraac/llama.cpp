@@ -79,7 +79,9 @@ class tensor {
 
     npu_device_tensor_data_type get_type() const { return _info.type; }
 
-    uint8_t * get_data() const { return _data + _info.offset; }
+    uint8_t * get_data_buffer() const { return _data + _info.offset; }
+
+    void release_data_buffer() { invalidate(); }
 
     bool is_valid() const { return _data != nullptr; }
 

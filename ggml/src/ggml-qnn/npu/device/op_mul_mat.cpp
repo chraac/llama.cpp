@@ -169,9 +169,9 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
 
     const auto   r02          = src1->get_ne(2) / src0->get_ne(2);
     const auto   r03          = src1->get_ne(3) / src0->get_ne(3);
-    const auto * src0_ptr     = reinterpret_cast<const uint8_t *>(src0->get_data());
-    const auto * src1_ptr     = reinterpret_cast<const uint8_t *>(src1->get_data());
-    auto *       dst_ptr      = reinterpret_cast<uint8_t *>(dst->get_data());
+    const auto * src0_ptr     = reinterpret_cast<const uint8_t *>(src0->get_data_buffer());
+    const auto * src1_ptr     = reinterpret_cast<const uint8_t *>(src1->get_data_buffer());
+    auto *       dst_ptr      = reinterpret_cast<uint8_t *>(dst->get_data_buffer());
     const auto   total_planes = dst->get_ne(3) * dst->get_ne(2);
 
     const auto start_end_plane = (total_planes >= params->tcnt) ?
@@ -251,6 +251,10 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
             }
         }
     }
+
+    src0->release_data_buffer();
+    src1->release_data_buffer();
+    dst->release_data_buffer();
 }
 
 }  // namespace

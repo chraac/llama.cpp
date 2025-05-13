@@ -130,9 +130,9 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
         return false;
     }
 
-    const auto * src0_ptr      = reinterpret_cast<const uint8_t *>(src0->get_data());
-    const auto * src1_ptr      = reinterpret_cast<const uint8_t *>(src1->get_data());
-    auto *       dst_ptr       = reinterpret_cast<uint8_t *>(out->get_data());
+    const auto * src0_ptr      = reinterpret_cast<const uint8_t *>(src0->get_data_buffer());
+    const auto * src1_ptr      = reinterpret_cast<const uint8_t *>(src1->get_data_buffer());
+    auto *       dst_ptr       = reinterpret_cast<uint8_t *>(out->get_data_buffer());
     auto         total_rows    = out->get_ne(3) * out->get_ne(2) * out->get_ne(1);
     const auto   rows_per_cube = out->get_ne(2) * out->get_ne(1);
     const auto   start_end     = hexagon::get_thread_work_slice(total_rows, params->tidx, params->tcnt);
@@ -194,6 +194,10 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
         _RowFunc(reinterpret_cast<const data_type *>(src0_row), reinterpret_cast<const data_type *>(src1_row),
                  static_cast<size_t>(out->get_ne(0)), reinterpret_cast<data_type *>(dst_row));
     }
+
+    src0->release_data_buffer();
+    src1->release_data_buffer();
+    out->release_data_buffer();
 
     return true;
 }
