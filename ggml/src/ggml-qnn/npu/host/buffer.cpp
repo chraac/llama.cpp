@@ -196,6 +196,11 @@ std::shared_ptr<host_tensor> host_buffer::init_tensor(ggml_tensor * tensor, remo
     return tensor_object;
 }
 
+void host_buffer::clear_tensors() {
+    _tensors.clear();
+    LOG_DEBUG("clear host_buffer(%p) tensors\n", (void *) _data);
+}
+
 host_buffer_type::host_buffer_type(ggml_backend_dev_t dev, const std::string & name, common::rpc_mem_ptr rpc_mem) :
     _name(name),
     _rpc_mem(rpc_mem) {
