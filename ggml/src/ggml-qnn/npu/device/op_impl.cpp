@@ -141,23 +141,14 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
         return true;
     }
 
-    uint8_t * src1_plane_cache_ptr  = nullptr;
-    size_t    src1_plane_cache_size = 0;
+    uint8_t *       src1_plane_cache_ptr  = nullptr;
+    size_t          src1_plane_cache_size = 0;
+    const uint8_t * last_cached_plane_ptr = nullptr;
     if (src0->get_ne(1) / src1->get_ne(1) > 1) {
         // TODO: should we cache a cube instead of a plane?
         src1_plane_cache_size = src1->get_nb(1) * src1->get_ne(1);
         src1_plane_cache_ptr  = params->get_cache(src1_plane_cache_size, false);
         DEVICE_LOG_DEBUG("element_wise_op vtcm_mem allocated, size: %zu\n", src1_plane_cache_size);
-
-        const auto i03 = start_end.first / rows_per_cube;
-        const auto i02 = start_end.first / out->get_ne(1) - i03 * out->get_ne(2);
-        const auto i13 = i03 % src1->get_ne(3);
-        const auto i12 = i02 % src1->get_ne(2);
-
-        if (src1_plane_cache_ptr) {
-            auto * src1_plane = src1_ptr + i13 * src1->get_nb(3) + i12 * src1->get_nb(2);
-            memcpy(src1_plane_cache_ptr, src1_plane, src1_plane_cache_size);
-        }
     }
 
     for (int64_t ir = start_end.first; ir < start_end.second; ++ir) {
@@ -170,8 +161,9 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
 
         auto * src1_plane = src1_ptr + i13 * src1->get_nb(3) + i12 * src1->get_nb(2);
         if (src1_plane_cache_ptr) {
-            if (i01 == 0) {
+            if (last_cached_plane_ptr != src1_plane) {
                 memcpy(src1_plane_cache_ptr, src1_plane, src1_plane_cache_size);
+                last_cached_plane_ptr = src1_plane;
             }
 
             src1_plane = src1_plane_cache_ptr;

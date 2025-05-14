@@ -195,7 +195,7 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
 
     // cache the src0 plane in VTCM
     // TODO: should we skip the one plane matrix?
-    const uint8_t * original_plane_ptr    = nullptr;
+    const uint8_t * last_cached_plane_ptr = nullptr;
     size_t          src0_plane_cache_size = src0_actual_row_size * src0->get_ne(1);
     uint8_t *       src0_plane_cache_ptr  = params->get_cache(src0_plane_cache_size, is_quantized);
     DEVICE_LOG_DEBUG("mul_mat_impl src0_actual_row_size: %zu, is_quantized: %d, vtcm_mem: %p(%zu)\n",
@@ -208,7 +208,7 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
         auto *       dst_plane  = dst_ptr + i3 * dst->get_nb(3) + i2 * dst->get_nb(2);
 
         if (src0_plane_cache_ptr) {
-            if (original_plane_ptr != src0_plane) {
+            if (last_cached_plane_ptr != src0_plane) {
                 if (is_quantized) {
                     for (int64_t ir = 0; ir < src0->get_ne(1); ir++) {
                         auto * src0_row = src0_plane + ir * src0->get_nb(1);
@@ -219,7 +219,7 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
                 } else {
                     memcpy(src0_plane_cache_ptr, src0_plane, src0_plane_cache_size);
                 }
-                original_plane_ptr = src0_plane;
+                last_cached_plane_ptr = src0_plane;
             }
 
             src0_plane = src0_plane_cache_ptr;
