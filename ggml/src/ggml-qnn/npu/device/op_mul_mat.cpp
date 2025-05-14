@@ -177,10 +177,14 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
     const auto start_end_plane = (total_planes >= params->tcnt) ?
                                      hexagon::get_thread_work_slice(total_planes, params->tidx, params->tcnt) :
                                      std::pair<int64_t, int64_t>{ 0, total_planes };
+    if (start_end_plane.second <= start_end_plane.first) {
+        return;
+    }
+
     // TODO: should we handle the case that dst->get_ne(1) < tcnt?
-    const auto start_end_row   = (total_planes >= params->tcnt) ?
-                                     std::pair<int64_t, int64_t>{ 0, dst->get_ne(1) } :
-                                     hexagon::get_thread_work_slice(dst->get_ne(1), params->tidx, params->tcnt);
+    const auto start_end_row = (total_planes >= params->tcnt) ?
+                                   std::pair<int64_t, int64_t>{ 0, dst->get_ne(1) } :
+                                   hexagon::get_thread_work_slice(dst->get_ne(1), params->tidx, params->tcnt);
     if (start_end_row.second <= start_end_row.first) {
         return;
     }
