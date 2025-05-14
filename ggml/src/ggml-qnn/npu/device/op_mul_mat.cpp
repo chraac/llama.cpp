@@ -167,6 +167,14 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
     using data_type                           = typename get_data_type<decltype(_DotFunc)>::type;
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(data_type);
 
+    const bool is_quantized         = hexagon::is_quantized_type(src0->get_type());
+    const auto src0_actual_row_size = hexagon::get_dequantized_row_size(src0);
+    auto *     dequantize_row_func  = hexagon::get_type_traits(src0->get_type()).dequantize_row;
+    if (is_quantized && dequantize_row_func == nullptr) {
+        DEVICE_LOG_ERROR("Unsupported quantized src0 type: %d, dequantize_row_func is null\n", src0->get_type());
+        return;
+    }
+
     const auto   r02          = src1->get_ne(2) / src0->get_ne(2);
     const auto   r03          = src1->get_ne(3) / src0->get_ne(3);
     const auto * src0_ptr     = reinterpret_cast<const uint8_t *>(src0->get_data_buffer());
@@ -174,26 +182,25 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
     auto *       dst_ptr      = reinterpret_cast<uint8_t *>(dst->get_data_buffer());
     const auto   total_planes = dst->get_ne(3) * dst->get_ne(2);
 
-    const auto start_end_plane = (total_planes >= params->tcnt) ?
-                                     hexagon::get_thread_work_slice(total_planes, params->tidx, params->tcnt) :
-                                     std::pair<int64_t, int64_t>{ 0, total_planes };
-    if (start_end_plane.second <= start_end_plane.first) {
-        return;
+    auto start_end_plane   = std::pair<int64_t, int64_t>{ 0, total_planes };
+    auto start_end_row     = std::pair<int64_t, int64_t>{ 0, dst->get_ne(1) };
+    auto start_end_element = std::pair<int64_t, int64_t>{ 0, dst->get_ne(0) };
+
+    if (total_planes >= params->tcnt) {
+        start_end_plane = hexagon::get_thread_work_slice(total_planes, params->tidx, params->tcnt);
+    } else if (dst->get_ne(1) >= params->tcnt) {
+        start_end_row = hexagon::get_thread_work_slice(dst->get_ne(1), params->tidx, params->tcnt);
+    } else {
+        start_end_element = hexagon::get_thread_work_slice(dst->get_ne(0), params->tidx, params->tcnt);
     }
 
-    // TODO: should we handle the case that dst->get_ne(1) < tcnt?
-    const auto start_end_row = (total_planes >= params->tcnt) ?
-                                   std::pair<int64_t, int64_t>{ 0, dst->get_ne(1) } :
-                                   hexagon::get_thread_work_slice(dst->get_ne(1), params->tidx, params->tcnt);
-    if (start_end_row.second <= start_end_row.first) {
-        return;
-    }
-
-    const bool is_quantized         = hexagon::is_quantized_type(src0->get_type());
-    const auto src0_actual_row_size = hexagon::get_dequantized_row_size(src0);
-    auto *     dequantize_row_func  = hexagon::get_type_traits(src0->get_type()).dequantize_row;
-    if (is_quantized && dequantize_row_func == nullptr) {
-        DEVICE_LOG_ERROR("Unsupported quantized src0 type: %d, dequantize_row_func is null\n", src0->get_type());
+    if (start_end_plane.second <= start_end_plane.first || start_end_row.second <= start_end_row.first ||
+        start_end_element.second <= start_end_element.first) {
+        DEVICE_LOG_DEBUG(
+            "mul_mat_impl: no work to do, start_end_plane: (%ld, %ld), start_end_row: (%ld, %ld), "
+            "start_end_element: (%ld, %ld)\n",
+            start_end_plane.first, start_end_plane.second, start_end_row.first, start_end_row.second,
+            start_end_element.first, start_end_element.second);
         return;
     }
 
@@ -214,7 +221,7 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
         if (src0_plane_cache_ptr) {
             if (last_cached_plane_ptr != src0_plane) {
                 if (is_quantized) {
-                    for (int64_t ir = 0; ir < src0->get_ne(1); ir++) {
+                    for (int64_t ir = start_end_element.first; ir < start_end_element.second; ir++) {
                         auto * src0_row = src0_plane + ir * src0->get_nb(1);
                         auto * dst_row  = reinterpret_cast<float *>(src0_plane_cache_ptr + ir * src0_actual_row_size);
                         dequantize_row_func(src0_row, reinterpret_cast<float *>(dst_row), src0->get_ne(0),
@@ -223,6 +230,7 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
                 } else {
                     memcpy(src0_plane_cache_ptr, src0_plane, src0_plane_cache_size);
                 }
+
                 last_cached_plane_ptr = src0_plane;
             }
 
@@ -232,7 +240,7 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
         for (int64_t i1 = start_end_row.first; i1 < start_end_row.second; i1++) {
             auto * src1_row = src1_plane + i1 * src1->get_nb(1);
             auto * dst_row  = reinterpret_cast<float *>(dst_plane + i1 * dst->get_nb(1));
-            for (int64_t i0 = 0; i0 < dst->get_ne(0); i0++) {
+            for (int64_t i0 = start_end_element.first; i0 < start_end_element.second; i0++) {
                 auto * src0_row = src0_plane + i0 * src0_actual_row_size;
                 if (i0 + 1 < dst->get_ne(0)) {
                     if (!src0_plane_cache_ptr) {  // TODO: should we use small kL2FetchAheadVectors?
@@ -250,8 +258,8 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
                 }
 
                 // TODO: figure dst how to handle a entire row
-                *dst_row++ = _DotFunc(reinterpret_cast<const data_type *>(src0_row),
-                                      reinterpret_cast<const data_type *>(src1_row), (size_t) src0->get_ne(0));
+                dst_row[i0] = _DotFunc(reinterpret_cast<const data_type *>(src0_row),
+                                       reinterpret_cast<const data_type *>(src1_row), (size_t) src0->get_ne(0));
             }
         }
     }
