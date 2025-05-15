@@ -46,6 +46,7 @@ function(add_device_target target_name DSP_ARCH IS_SIMULATOR BUILD_CPU_COUNT)
 
     set(EXTRA_BUILD_FLAGS ${EXTRA_BUILD_FLAGS} GGML_HEXAGON_ENABLE_QUANTIZED_TENSORS=${GGML_HEXAGON_ENABLE_QUANTIZED_TENSORS})
     set(EXTRA_BUILD_FLAGS ${EXTRA_BUILD_FLAGS} GGML_HEXAGON_NPU_SANTIZE_ADDRESS=${GGML_HEXAGON_NPU_SANTIZE_ADDRESS})
+    set(EXTRA_BUILD_FLAGS ${EXTRA_BUILD_FLAGS} GGML_HEXAGON_ENABLE_PERFORMANCE_TRACKING=${GGML_HEXAGON_ENABLE_PERFORMANCE_TRACKING})
 
     set(HEXAGON_TOOLS_VARIANT $ENV{DEFAULT_TOOLS_VARIANT})
     set(BUILD_DIR ${CMAKE_CURRENT_LIST_DIR}/hexagon_${HEXAGON_BUILD_CONFIG}_${HEXAGON_TOOLS_VARIANT}_${DSP_ARCH})
@@ -124,6 +125,13 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux|Windows")
 
     if(${CMAKE_SYSTEM_NAME} MATCHES "Android|Linux")
         target_link_options(hexagon-npu-host PUBLIC -pie)
+    endif()
+
+    if(GGML_HEXAGON_ENABLE_PERFORMANCE_TRACKING)
+        message("GGML_HEXAGON_ENABLE_PERFORMANCE_TRACKING is enabled")
+        target_compile_definitions(hexagon-npu-host PUBLIC GGML_HEXAGON_ENABLE_PERFORMANCE_TRACKING)
+    else()
+        message("GGML_HEXAGON_ENABLE_PERFORMANCE_TRACKING is disabled")
     endif()
 
     link_options(hexagon-npu-host)
@@ -211,6 +219,13 @@ else()
         )
         target_link_libraries(hexagon_npu_skel_OBJS PUBLIC
             -fsanitize=address
+        )
+    endif()
+
+    if(GGML_HEXAGON_ENABLE_PERFORMANCE_TRACKING)
+        message("GGML_HEXAGON_ENABLE_PERFORMANCE_TRACKING is enabled")
+        target_compile_definitions(hexagon_npu_skel_OBJS PUBLIC
+            GGML_HEXAGON_ENABLE_PERFORMANCE_TRACKING
         )
     endif()
 

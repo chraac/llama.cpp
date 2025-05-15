@@ -293,6 +293,9 @@ bool mul_mat_f32(hexagon::tensor * out, compute_params * params) {
         return true;  // skip if no src
     }
 
+    DEVICE_SCOPED_PERFORMANCE_TRACKER("[MUL_MAT]%sx%s", get_type_name(src0->get_type()),
+                                      get_type_name(src1->get_type()));
+
     // TODO: array?
     switch (src1->get_type()) {
         case NPU_DATA_TYPE_F32:
@@ -306,7 +309,7 @@ bool mul_mat_f32(hexagon::tensor * out, compute_params * params) {
             break;
     }
 
-    DEVICE_LOG_ERROR("Unsupported src1 tensor type: %d\n", src1->get_type());
+    DEVICE_LOG_ERROR("Unsupported src1 tensor type: %s\n", get_type_name(src1->get_type()));
     return false;
 }
 

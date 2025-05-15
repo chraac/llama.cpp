@@ -1,8 +1,10 @@
 #pragma once
 
 #include <HAP_farf.h>
+#include <HAP_perf.h>
 
 #include <cstdint>
+#include <cstring>
 
 #include "hexagon_npu.h"
 
@@ -50,4 +52,60 @@ inline constexpr const char * op_get_name(npu_device_tensor_op op) {
     }
 }
 
+#ifdef GGML_HEXAGON_ENABLE_PERFORMANCE_TRACKING
+
+template <size_t _buffer_count> class npu_scoped_timer {
+  public:
+    explicit npu_scoped_timer(const char * log_prefix) {
+        strncpy(_log_prefix, log_prefix, _buffer_count - 1);
+        _begin_cycles = HAP_perf_get_qtimer_count();
+    }
+
+    npu_scoped_timer(npu_scoped_timer && other) {
+        strncpy(_log_prefix, other._log_prefix, _buffer_count - 1);
+        _begin_cycles = other._begin_cycles;
+    }
+
+    ~npu_scoped_timer() { print(); }
+
+    void operator=(npu_scoped_timer && other) {
+        strncpy(_log_prefix, other._log_prefix, _buffer_count - 1);
+        _begin_cycles = other._begin_cycles;
+    }
+
+    void print() const {
+        auto total_cycles = HAP_perf_get_qtimer_count() - _begin_cycles;
+        auto duration     = HAP_perf_qtimer_count_to_us(total_cycles);
+        DEVICE_LOG_WARN("[profiler]%s, cycles: %llu, duration: %llu us\n", _log_prefix, total_cycles, duration);
+    }
+
+  private:
+    char     _log_prefix[_buffer_count] = {};
+    uint64_t _begin_cycles              = 0;
+
+    DISABLE_COPY(npu_scoped_timer);
+};
+
+inline auto make_scope_perf_timer(const char * format, ...) {
+    va_list args;
+    va_start(args, format);
+    char buffer[1024];
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+    return npu_scoped_timer<1024>(buffer);
+}
+
+#else
+
+inline void make_scope_perf_timer(const char *, ...) {}
+
+#endif
+
 }  // namespace hexagon
+
+#ifdef GGML_HEXAGON_ENABLE_PERFORMANCE_TRACKING
+#    define DEVICE_SCOPED_PERFORMANCE_TRACKER(fmt, ...) \
+        auto __npu_timer_##__LINE__ = hexagon::make_scope_perf_timer(fmt, __VA_ARGS__)
+#else
+#    define DEVICE_SCOPED_PERFORMANCE_TRACKER(fmt, ...) ((void) 0)
+#endif
