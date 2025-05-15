@@ -71,6 +71,7 @@ void graph::compute_impl(default_thread_pool * pool, size_t thread_idx, size_t t
             DEVICE_LOG_ERROR("graph(%p) tensor[%zu] op %d compute failed\n", (void *) this, i, op);
         }
 
+        // TODO: figure out which ops need to sync
         pool->sync_thread();
         dst->invalidate();
     }
