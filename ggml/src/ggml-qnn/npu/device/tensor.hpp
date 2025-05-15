@@ -36,14 +36,14 @@ class tensor {
         DEVICE_LOG_INFO("~tensor(%p) fd: %d", (void *) this, _info.buffer_fd);
     }
 
-    void flush() {
+    void flush() const {
         if (_data) {
             qurt_mem_cache_clean((qurt_addr_t) (_data + _info.offset), (qurt_size_t) _info.size, QURT_MEM_CACHE_FLUSH,
                                  QURT_MEM_DCACHE);
         }
     }
 
-    void invalidate() {
+    void invalidate() const {
         if (_data) {
             qurt_mem_cache_clean((qurt_addr_t) (_data + _info.offset), (qurt_size_t) _info.size,
                                  QURT_MEM_CACHE_INVALIDATE, QURT_MEM_DCACHE);
@@ -79,9 +79,12 @@ class tensor {
 
     npu_device_tensor_data_type get_type() const { return _info.type; }
 
-    uint8_t * get_data_buffer() const { return _data + _info.offset; }
+    const uint8_t * get_read_buffer() const {
+        invalidate();
+        return _data + _info.offset;
+    }
 
-    void release_data_buffer() { invalidate(); }
+    uint8_t * get_write_buffer() const { return _data + _info.offset; }
 
     bool is_valid() const { return _data != nullptr; }
 

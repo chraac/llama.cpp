@@ -72,6 +72,7 @@ void graph::compute_impl(default_thread_pool * pool, size_t thread_idx, size_t t
         }
 
         pool->sync_thread();
+        dst->invalidate();
     }
 }
 
