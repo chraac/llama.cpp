@@ -205,7 +205,6 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
     }
 
     // cache the src0 plane in VTCM
-    // TODO: should we skip the one plane matrix?
     const uint8_t * last_cached_plane_ptr = nullptr;
     size_t          src0_plane_cache_size = src0_actual_row_size * src0->get_ne(1);
     uint8_t *       src0_plane_cache_ptr  = params->get_cache(src0_plane_cache_size, is_quantized);

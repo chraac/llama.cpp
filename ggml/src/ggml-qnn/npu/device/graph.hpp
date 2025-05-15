@@ -21,7 +21,7 @@ class graph {
 
   private:
     static void thread_pool_task(default_thread_pool * pool, size_t thread_idx, size_t thread_count, graph * graph);
-    void        compute_impl(size_t thread_idx, size_t thread_count);
+    void        compute_impl(default_thread_pool * pool, size_t thread_idx, size_t thread_count);
 
     std::unique_ptr<tensor *[]> _tensors;
     size_t                      _tensor_count     = 0;

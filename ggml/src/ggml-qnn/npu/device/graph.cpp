@@ -53,11 +53,10 @@ bool graph::compute(default_thread_pool * thread_pool, const float * f16_to_f32_
 }
 
 void graph::thread_pool_task(default_thread_pool * pool, size_t thread_idx, size_t thread_count, graph * graph) {
-    NPU_UNUSED(pool);
-    graph->compute_impl(thread_idx, thread_count);
+    graph->compute_impl(pool, thread_idx, thread_count);
 }
 
-void graph::compute_impl(size_t thread_idx, size_t thread_count) {
+void graph::compute_impl(default_thread_pool * pool, size_t thread_idx, size_t thread_count) {
     for (size_t i = 0; i < _tensor_count; ++i) {
         auto * dst  = _tensors[i];
         auto   op   = dst->get_op();
@@ -70,8 +69,9 @@ void graph::compute_impl(size_t thread_idx, size_t thread_count) {
         hexagon::compute_params params = { thread_idx, thread_count, _f16_to_f32_table };
         if (!func(dst, &params)) {
             DEVICE_LOG_ERROR("graph(%p) tensor[%zu] op %d compute failed\n", (void *) this, i, op);
-            return;
         }
+
+        pool->sync_thread();
     }
 }
 
