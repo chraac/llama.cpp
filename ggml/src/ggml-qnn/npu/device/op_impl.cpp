@@ -21,7 +21,6 @@ inline void vec_op_impl(const _TyData * src0, const _TyData * src1, size_t count
     HVX_Vector   prev0     = *iptr0++;
     HVX_Vector   prev1     = *iptr1++;
 
-    // TODO: prefetch or just use VTCM?
     while (iptr0 < iptr0_end) {
         HVX_Vector curr0 = *iptr0++;
         HVX_Vector curr1 = *iptr1++;
