@@ -86,7 +86,7 @@ template <size_t _buffer_count> class npu_scoped_timer {
     DISABLE_COPY(npu_scoped_timer);
 };
 
-inline auto make_scope_perf_timer(const char * format, ...) {
+inline auto make_scoped_perf_timer(const char * format, ...) {
     va_list args;
     va_start(args, format);
     char buffer[1024];
@@ -95,17 +95,13 @@ inline auto make_scope_perf_timer(const char * format, ...) {
     return npu_scoped_timer<1024>(buffer);
 }
 
-#else
-
-inline void make_scope_perf_timer(const char *, ...) {}
-
 #endif
 
 }  // namespace hexagon
 
 #ifdef GGML_HEXAGON_ENABLE_PERFORMANCE_TRACKING
 #    define DEVICE_SCOPED_PERFORMANCE_TRACKER(fmt, ...) \
-        auto __npu_timer_##__LINE__ = hexagon::make_scope_perf_timer(fmt, __VA_ARGS__)
+        auto __npu_timer_##__LINE__ = hexagon::make_scoped_perf_timer(fmt, __VA_ARGS__)
 #else
 #    define DEVICE_SCOPED_PERFORMANCE_TRACKER(fmt, ...) ((void) 0)
 #endif

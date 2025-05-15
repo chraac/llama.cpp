@@ -293,8 +293,7 @@ bool mul_mat_f32(hexagon::tensor * out, compute_params * params) {
         return true;  // skip if no src
     }
 
-    DEVICE_SCOPED_PERFORMANCE_TRACKER("[MUL_MAT]%sx%s", get_type_name(src0->get_type()),
-                                      get_type_name(src1->get_type()));
+    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER(out);
 
     // TODO: array?
     switch (src1->get_type()) {

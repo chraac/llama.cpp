@@ -37,3 +37,31 @@ inline const char * get_type_name(npu_device_tensor_data_type type) {
 }
 
 }  // namespace hexagon
+
+// TODO: move this to a common header
+#ifdef GGML_HEXAGON_ENABLE_PERFORMANCE_TRACKING
+namespace hexagon {
+
+inline auto make_scoped_op_perf_timer(tensor * op) {
+    auto * src0 = op->get_src(0);
+    auto * src1 = op->get_src(1);
+    char   buffer[1024];
+    if (src1 == nullptr) {
+        snprintf(buffer, sizeof(buffer), "[%s][%lldx%lldx%lldx%lld%s]", op_get_name(op->get_op()), src0->get_ne(0),
+                 src0->get_ne(1), src0->get_ne(2), src0->get_ne(3), get_type_name(src0->get_type()));
+    } else {
+        snprintf(buffer, sizeof(buffer), "[%s][%lldx%lldx%lldx%lld%s],[%lldx%lldx%lldx%lld%s]",
+                 op_get_name(op->get_op()), src0->get_ne(0), src0->get_ne(1), src0->get_ne(2), src0->get_ne(3),
+                 get_type_name(src0->get_type()), src1->get_ne(0), src1->get_ne(1), src1->get_ne(2), src1->get_ne(3),
+                 get_type_name(src1->get_type()));
+    }
+    return npu_scoped_timer<1024>(buffer);
+}
+
+}  // namespace hexagon
+
+#    define DEVICE_SCOPED_OP_PERFORMANCE_TRACKER(op) \
+        auto __npu_timer_##__LINE__ = hexagon::make_scoped_op_perf_timer(op)
+#else
+#    define DEVICE_SCOPED_OP_PERFORMANCE_TRACKER(op) ((void) 0)
+#endif

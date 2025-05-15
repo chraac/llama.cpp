@@ -141,7 +141,7 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
         return true;
     }
 
-    DEVICE_SCOPED_PERFORMANCE_TRACKER("[%s]", hexagon::op_get_name(out->get_op()));
+    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER(out);
 
     uint8_t *       src1_plane_cache_ptr  = nullptr;
     size_t          src1_plane_cache_size = 0;
