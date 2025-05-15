@@ -67,9 +67,7 @@ inline float vec_dot_product_f32_f32(const float * src0, const float * src1, siz
         sum = Q6_Vqf32_vadd_Vqf32Vqf32(sum, Q6_V_vror_VR(sum, i * sizeof(float)));
     }
 
-    float result;
-    q6op_vstu_variable_ARV(&result, sizeof(float), Q6_Vsf_equals_Vqf32(sum));
-    return result;
+    return hexagon::get_flt0_from_fltv(Q6_Vsf_equals_Vqf32(sum));
 }
 
 // TODO: merge with vec_dot_product_f32_f32?
@@ -150,9 +148,7 @@ inline float vec_dot_product_f16_f16(const npu_device_fp16_t * src0, const npu_d
         sum_lo = Q6_Vqf32_vadd_Vqf32Vqf32(sum_lo, Q6_V_vror_VR(sum_lo, i * sizeof(float)));
     }
 
-    float result;
-    q6op_vstu_variable_ARV(&result, sizeof(float), Q6_Vsf_equals_Vqf32(sum_lo));
-    return result;
+    return hexagon::get_flt0_from_fltv(Q6_Vsf_equals_Vqf32(sum_lo));
 }
 
 template <typename T> struct get_data_type {};
