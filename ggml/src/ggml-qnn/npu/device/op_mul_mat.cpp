@@ -211,22 +211,29 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
     }
 
     // cache the src0 plane in VTCM
+    const size_t    src0_plane_row_count  = start_end_element.second - start_end_element.first;
+    size_t          src0_plane_cache_size = 0;
+    uint8_t *       src0_plane_cache_ptr  = nullptr;
     const uint8_t * last_cached_plane_ptr = nullptr;
-    size_t          src0_plane_cache_size = src0_actual_row_size * src0->get_ne(1);
-    uint8_t *       src0_plane_cache_ptr  = params->get_cache(src0_plane_cache_size, is_quantized);
+    if (is_quantized || (start_end_row.second - start_end_row.first) > 1) {
+        src0_plane_cache_size = src0_actual_row_size * src0_plane_row_count;
+        src0_plane_cache_ptr  = params->get_cache(src0_plane_cache_size, is_quantized);
+    }
+
     DEVICE_LOG_DEBUG("mul_mat_impl src0_actual_row_size: %zu, is_quantized: %d, vtcm_mem: %p(%zu)\n",
                      src0_actual_row_size, is_quantized, (void *) src0_plane_cache_ptr, src0_plane_cache_size);
     for (int64_t ip = start_end_plane.first; ip < start_end_plane.second; ip++) {
         const auto   i3         = ip / dst->get_ne(2);
         const auto   i2         = ip - i3 * dst->get_ne(2);
-        const auto * src0_plane = src0_ptr + i3 / r03 * src0->get_nb(3) + i2 / r02 * src0->get_nb(2);
+        const auto * src0_plane = src0_ptr + i3 / r03 * src0->get_nb(3) + i2 / r02 * src0->get_nb(2) +
+                                  start_end_element.first * src0->get_nb(1);
         const auto * src1_plane = src1_ptr + i3 * src1->get_nb(3) + i2 * src1->get_nb(2);
         auto *       dst_plane  = dst_ptr + i3 * dst->get_nb(3) + i2 * dst->get_nb(2);
 
         if (src0_plane_cache_ptr) {
             if (last_cached_plane_ptr != src0_plane) {
                 if (is_quantized) {
-                    for (int64_t ir = start_end_element.first; ir < start_end_element.second; ir++) {
+                    for (int64_t ir = 0; ir < (int64_t) src0_plane_row_count; ir++) {
                         auto * src0_row = src0_plane + ir * src0->get_nb(1);
                         auto * dst_row  = reinterpret_cast<float *>(src0_plane_cache_ptr + ir * src0_actual_row_size);
                         dequantize_row_func(src0_row, reinterpret_cast<float *>(dst_row), src0->get_ne(0),
@@ -244,10 +251,10 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
 
         for (int64_t i1 = start_end_row.first; i1 < start_end_row.second; i1++) {
             auto * src1_row = src1_plane + i1 * src1->get_nb(1);
-            auto * dst_row  = reinterpret_cast<float *>(dst_plane + i1 * dst->get_nb(1));
-            for (int64_t i0 = start_end_element.first; i0 < start_end_element.second; i0++) {
+            auto * dst_row  = reinterpret_cast<float *>(dst_plane + i1 * dst->get_nb(1)) + start_end_element.first;
+            for (int64_t i0 = 0; i0 < (int64_t) src0_plane_row_count; i0++) {
                 auto * src0_row = src0_plane + i0 * src0_actual_row_size;
-                if (i0 + 1 < dst->get_ne(0)) {
+                if (i0 + 1 < src0_plane_row_count) {
                     if (!src0_plane_cache_ptr) {  // TODO: should we use small kL2FetchAheadVectors?
                         int32_t l2fetch_vectors =
                             Q6_R_min_RR(src0->get_ne(1) / kElementsPerVector, hexagon::kL2FetchAheadVectors);
