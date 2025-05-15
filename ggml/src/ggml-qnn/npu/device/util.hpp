@@ -76,7 +76,7 @@ template <size_t _buffer_count> class npu_scoped_timer {
     void print() const {
         auto total_cycles = HAP_perf_get_qtimer_count() - _begin_cycles;
         auto duration     = HAP_perf_qtimer_count_to_us(total_cycles);
-        DEVICE_LOG_WARN("[profiler]%s, cycles: %llu, duration: %llu us\n", _log_prefix, total_cycles, duration);
+        DEVICE_LOG_WARN("[profiler]%s, cyc: %llu, dur: %lluus\n", _log_prefix, total_cycles, duration);
     }
 
   private:
