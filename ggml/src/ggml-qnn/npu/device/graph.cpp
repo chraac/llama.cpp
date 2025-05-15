@@ -46,7 +46,11 @@ bool graph::compute(default_thread_pool * thread_pool, const float * f16_to_f32_
 
     DEVICE_LOG_DEBUG("graph(%p) compute\n", (void *) this);
     _f16_to_f32_table = f16_to_f32_table;
-    thread_pool->sync_execute(reinterpret_cast<default_thread_pool::task_type>(&graph::thread_pool_task), this);
+    if (thread_pool) {
+        thread_pool->sync_execute(reinterpret_cast<default_thread_pool::task_type>(&graph::thread_pool_task), this);
+    } else {
+        compute_impl(nullptr, 0, 1);
+    }
 
     _f16_to_f32_table = nullptr;
     return true;
@@ -72,7 +76,9 @@ void graph::compute_impl(default_thread_pool * pool, size_t thread_idx, size_t t
         }
 
         // TODO: figure out which ops need to sync
-        pool->sync_thread();
+        if (pool) {
+            pool->sync_thread();
+        }
         dst->invalidate();
     }
 }
