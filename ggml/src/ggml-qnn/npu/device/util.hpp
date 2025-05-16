@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <utility>
 
 #include "hexagon_npu.h"
 
@@ -56,43 +57,81 @@ inline constexpr const char * op_get_name(npu_device_tensor_op op) {
 
 template <size_t _buffer_count> class npu_scoped_timer {
   public:
-    explicit npu_scoped_timer(const char * log_prefix) {
-        strncpy(_log_prefix, log_prefix, _buffer_count - 1);
+    enum { kBufferCount = _buffer_count };
+
+    explicit npu_scoped_timer(const char * log_prefix, const char * sub_proc_log_prefix) {
+        strncpy(_log_prefix, log_prefix, kBufferCount - 1);
+        if (sub_proc_log_prefix != nullptr) {
+            strncpy(_sub_proc_log_prefix, sub_proc_log_prefix, kBufferCount - 1);
+        }
+
         _begin_cycles = HAP_perf_get_qtimer_count();
     }
 
-    npu_scoped_timer(npu_scoped_timer && other) {
-        strncpy(_log_prefix, other._log_prefix, _buffer_count - 1);
-        _begin_cycles = other._begin_cycles;
-    }
+    npu_scoped_timer(npu_scoped_timer && other) { *this = std::move(other); }
 
     ~npu_scoped_timer() { print(); }
 
     void operator=(npu_scoped_timer && other) {
-        strncpy(_log_prefix, other._log_prefix, _buffer_count - 1);
-        _begin_cycles = other._begin_cycles;
+        strncpy(_log_prefix, other._log_prefix, kBufferCount - 1);
+        strncpy(_sub_proc_log_prefix, other._sub_proc_log_prefix, kBufferCount - 1);
+        _begin_cycles    = other._begin_cycles;
+        _sub_proc_cycles = other._sub_proc_cycles;
+        _sub_proc_count  = other._sub_proc_count;
+    }
+
+    void add_sub_proc_cycles(uint64_t cycles) {
+        _sub_proc_cycles += cycles;
+        _sub_proc_count++;
     }
 
     void print() const {
         auto total_cycles = HAP_perf_get_qtimer_count() - _begin_cycles;
         auto duration     = HAP_perf_qtimer_count_to_us(total_cycles);
-        DEVICE_LOG_WARN("[profiler]%s, cyc: %llu, dur: %lluus\n", _log_prefix, total_cycles, duration);
+
+        if (_sub_proc_count > 0) {
+            auto sub_proc_duration = HAP_perf_qtimer_count_to_us(_sub_proc_cycles);
+            DEVICE_LOG_WARN("[profiler]%s, cyc: %llu, dur: %lluus, [%s]cnt: %llu, dur: %lluus\n", _log_prefix,
+                            total_cycles, duration, _sub_proc_log_prefix, _sub_proc_count, sub_proc_duration);
+        } else {
+            DEVICE_LOG_WARN("[profiler]%s, cyc: %llu, dur: %lluus\n", _log_prefix, total_cycles, duration);
+        }
     }
 
   private:
-    char     _log_prefix[_buffer_count] = {};
-    uint64_t _begin_cycles              = 0;
+    char     _log_prefix[kBufferCount]          = {};
+    char     _sub_proc_log_prefix[kBufferCount] = {};
+    uint64_t _begin_cycles                      = 0;
+    uint64_t _sub_proc_cycles                   = 0;
+    uint64_t _sub_proc_count                    = 0;
 
     DISABLE_COPY(npu_scoped_timer);
+};
+
+template <size_t _buffer_count> class npu_sub_process_scoped_timer {
+  public:
+    using npu_scoped_timer = npu_scoped_timer<_buffer_count>;
+
+    explicit npu_sub_process_scoped_timer(npu_scoped_timer & timer) : _timer(timer) {
+        _begin_cycles = HAP_perf_get_qtimer_count();
+    }
+
+    ~npu_sub_process_scoped_timer() { _timer.add_sub_proc_cycles(HAP_perf_get_qtimer_count() - _begin_cycles); }
+
+  private:
+    npu_scoped_timer & _timer;
+    uint64_t           _begin_cycles = 0;
+
+    DISABLE_COPY(npu_sub_process_scoped_timer);
 };
 
 inline auto make_scoped_perf_timer(const char * format, ...) {
     va_list args;
     va_start(args, format);
-    char buffer[1024];
+    char buffer[512];
     vsnprintf(buffer, sizeof(buffer), format, args);
     va_end(args);
-    return npu_scoped_timer<1024>(buffer);
+    return npu_scoped_timer<512>(buffer, nullptr);
 }
 
 #endif

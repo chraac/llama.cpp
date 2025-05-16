@@ -208,6 +208,8 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
         return;
     }
 
+    DEVICE_SCOPED_OP_SECTION_PERFORMANCE_TRACKER(dst, params->tidx, dequant);
+
     // cache the src0 plane in VTCM
     const size_t    src0_plane_row_count  = start_end_element.second - start_end_element.first;
     size_t          src0_plane_cache_size = 0;
@@ -231,6 +233,8 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
         if (src0_plane_cache_ptr) {
             if (last_cached_plane_ptr != src0_plane) {
                 if (is_quantized) {
+                    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_SUB_PROC(dequant);
+
                     for (int64_t ir = 0; ir < (int64_t) src0_plane_row_count; ir++) {
                         auto * src0_row = src0_plane + ir * src0->get_nb(1);
                         auto * dst_row  = reinterpret_cast<float *>(src0_plane_cache_ptr + ir * src0_actual_row_size);
@@ -290,8 +294,6 @@ bool mul_mat_f32(hexagon::tensor * out, compute_params * params) {
     if (!src0 || !src1) {
         return true;  // skip if no src
     }
-
-    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER(out);
 
     // TODO: array?
     switch (src1->get_type()) {

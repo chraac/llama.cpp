@@ -140,7 +140,7 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
         return true;
     }
 
-    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER(out);
+    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER(out, params->tidx);
 
     uint8_t *       src1_plane_cache_ptr  = nullptr;
     size_t          src1_plane_cache_size = 0;
