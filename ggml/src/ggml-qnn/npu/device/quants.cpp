@@ -52,9 +52,11 @@ void dequantize_row_q8_0(const void * src, float * dst, size_t count, const floa
 }
 
 void dequantize_row_q4_0(const void * src, float * dst, size_t count, const float * f16_to_f32_table) {
-    constexpr const int qk      = QUANT_BLOCK_SIZE;
-    const int           nb      = count / qk;
-    const auto *        src_ptr = reinterpret_cast<const npu_device_block_q4_0 *>(src);
+    constexpr const int qk = QUANT_BLOCK_SIZE;
+    static_assert(qk % 2 == 0, "qk must be even");
+
+    const int    nb      = count / qk;
+    const auto * src_ptr = reinterpret_cast<const npu_device_block_q4_0 *>(src);
 
     // TODO: use intrinsics
     for (int i = 0; i < nb; i++) {
