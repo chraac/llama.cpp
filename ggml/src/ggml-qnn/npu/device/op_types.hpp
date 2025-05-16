@@ -1,5 +1,7 @@
 #pragma once
 
+#include <hexagon_types.h>
+
 #include <algorithm>
 #include <cstdint>
 #include <memory>
@@ -54,5 +56,10 @@ inline constexpr std::pair<int64_t, int64_t> get_thread_work_slice(int64_t total
     const auto end                 = std::min<int64_t>(start + elements_per_thread, total);
     return { start, end };
 }
+
+constexpr const size_t kBytesPerVector      = sizeof(HVX_Vector);  // 128 for v73
+constexpr const size_t kAlignMask           = kBytesPerVector - 1;
+constexpr const size_t kL2CacheSize         = 8 * 1024;            // // 8KB L2 cache
+constexpr const size_t kL2FetchAheadVectors = kL2CacheSize / kBytesPerVector;
 
 }  // namespace hexagon

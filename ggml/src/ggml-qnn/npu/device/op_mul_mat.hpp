@@ -7,11 +7,6 @@
 
 namespace hexagon {
 
-constexpr const size_t kBytesPerVector      = sizeof(HVX_Vector);  // 128 for v73
-constexpr const size_t kAlignMask           = kBytesPerVector - 1;
-constexpr const size_t kL2CacheSize         = 8 * 1024;            // // 8KB L2 cache
-constexpr const size_t kL2FetchAheadVectors = kL2CacheSize / kBytesPerVector;
-
 inline size_t unaligned_bytes(const void * addr) {
     return ((size_t) addr) & kAlignMask;
 }
