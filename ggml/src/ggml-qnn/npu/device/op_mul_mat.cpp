@@ -238,11 +238,7 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
                     for (int64_t ir = 0; ir < (int64_t) src0_plane_row_count; ir++) {
                         auto * src0_row = src0_plane + ir * src0->get_nb(1);
                         if (ir + 1 < src0_plane_row_count) {
-                            // TODO: should we use small kL2FetchAheadVectors?
-                            int32_t l2fetch_vectors =
-                                Q6_R_min_RR(src0->get_nb(1) / hexagon::kBytesPerVector, hexagon::kL2FetchAheadVectors);
-                            hexagon::l2fetch(src0_row + src0->get_nb(1), hexagon::kBytesPerVector,
-                                             hexagon::kBytesPerVector, l2fetch_vectors, 0);
+                            hexagon::l2fetch_row(src0_row + src0->get_nb(1), src0->get_nb(1));
                         }
 
                         auto * dst_row = reinterpret_cast<float *>(src0_plane_cache_ptr + ir * src0_actual_row_size);
@@ -265,7 +261,8 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
             for (int64_t i0 = 0; i0 < (int64_t) src0_plane_row_count; i0++) {
                 auto * src0_row = src0_plane + i0 * src0_actual_row_size;
                 if (i0 + 1 < src0_plane_row_count) {
-                    if (!src0_plane_cache_ptr) {  // TODO: should we use small kL2FetchAheadVectors?
+                    if (!src0_plane_cache_ptr) {
+                        // TODO: should we use small kL2FetchAheadVectors?
                         int32_t l2fetch_vectors =
                             Q6_R_min_RR(src0->get_ne(1) / kElementsPerVector, hexagon::kL2FetchAheadVectors);
                         hexagon::l2fetch(src0_row + src0_actual_row_size, hexagon::kBytesPerVector,

@@ -109,8 +109,7 @@ template <typename _TyData> struct get_data_type<void (*)(const _TyData *, const
 };
 
 template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::compute_params * params) {
-    using data_type                           = typename get_data_type<decltype(_RowFunc)>::type;
-    constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(data_type);
+    using data_type = typename get_data_type<decltype(_RowFunc)>::type;
 
     if (!out) {
         return false;
@@ -152,6 +151,7 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
         DEVICE_LOG_DEBUG("element_wise_op vtcm_mem allocated, size: %zu\n", src1_plane_cache_size);
     }
 
+    const size_t rows_bytes = src0->get_ne(0) * sizeof(data_type);
     for (int64_t ir = start_end.first; ir < start_end.second; ++ir) {
         const auto i03 = ir / rows_per_cube;
         const auto i02 = ir / out->get_ne(1) - i03 * out->get_ne(2);
@@ -174,14 +174,8 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
         auto * src1_row = src1_plane + i11 * src1->get_nb(1);
         auto * dst_row  = dst_ptr + i03 * out->get_nb(3) + i02 * out->get_nb(2) + i01 * out->get_nb(1);
         if (ir + 1 < start_end.second) {
-            int32_t l2fetch_vectors = Q6_R_min_RR(src0->get_nb(1) / kElementsPerVector, hexagon::kL2FetchAheadVectors);
-            // TODO: should we use small kL2FetchAheadVectors?
-            hexagon::l2fetch(src0_row + src0->get_nb(1), hexagon::kBytesPerVector, hexagon::kBytesPerVector,
-                             l2fetch_vectors, 0);
-
-            l2fetch_vectors = Q6_R_min_RR(src1->get_nb(1) / kElementsPerVector, hexagon::kL2FetchAheadVectors);
-            hexagon::l2fetch(src1_row + src1->get_nb(1), hexagon::kBytesPerVector, hexagon::kBytesPerVector,
-                             l2fetch_vectors, 0);
+            hexagon::l2fetch_row(src0_row + src0->get_nb(1), rows_bytes);
+            hexagon::l2fetch_row(src1_row + src1->get_nb(1), rows_bytes);
         }
 
         _RowFunc(reinterpret_cast<const data_type *>(src0_row), reinterpret_cast<const data_type *>(src1_row),

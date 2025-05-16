@@ -25,6 +25,12 @@ inline void l2fetch(const void * p, uint32_t stride, uint32_t width, uint32_t he
     __asm__ __volatile__(" l2fetch(%0,%1) " : : "r"(p), "r"(control));
 }
 
+inline void l2fetch_row(const uint8_t * curr_row, size_t bytes) {
+    // TODO: should we use small kL2FetchAheadVectors?
+    int32_t l2fetch_vectors = Q6_R_min_RR(bytes / kBytesPerVector, kL2FetchAheadVectors);
+    hexagon::l2fetch(curr_row, kBytesPerVector, kBytesPerVector, l2fetch_vectors, 0);
+}
+
 inline float get_flt0_from_fltv(HVX_Vector vect) {
     // See also: tools\HEXAGON_Tools\8.6.07\Examples\StandAlone_Applications\QFloat\QFloat.c
 
