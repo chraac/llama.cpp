@@ -141,16 +141,6 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
 
     DEVICE_SCOPED_OP_PERFORMANCE_TRACKER(out, params->tidx);
 
-    uint8_t *       src1_plane_cache_ptr  = nullptr;
-    size_t          src1_plane_cache_size = 0;
-    const uint8_t * last_cached_plane_ptr = nullptr;
-    if (src0->get_ne(1) / src1->get_ne(1) > 1) {
-        // TODO: should we cache a cube instead of a plane?
-        src1_plane_cache_size = src1->get_nb(1) * src1->get_ne(1);
-        src1_plane_cache_ptr  = params->get_cache(src1_plane_cache_size, false);
-        DEVICE_LOG_DEBUG("element_wise_op vtcm_mem allocated, size: %zu\n", src1_plane_cache_size);
-    }
-
     const size_t rows_bytes = src0->get_ne(0) * sizeof(data_type);
     for (int64_t ir = start_end.first; ir < start_end.second; ++ir) {
         const auto i03 = ir / rows_per_cube;
@@ -161,18 +151,9 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
         const auto i11 = i01 % src1->get_ne(1);
 
         auto * src1_plane = src1_ptr + i13 * src1->get_nb(3) + i12 * src1->get_nb(2);
-        if (src1_plane_cache_ptr) {
-            if (last_cached_plane_ptr != src1_plane) {
-                memcpy(src1_plane_cache_ptr, src1_plane, src1_plane_cache_size);
-                last_cached_plane_ptr = src1_plane;
-            }
-
-            src1_plane = src1_plane_cache_ptr;
-        }
-
-        auto * src0_row = src0_ptr + i03 * src0->get_nb(3) + i02 * src0->get_nb(2) + i01 * src0->get_nb(1);
-        auto * src1_row = src1_plane + i11 * src1->get_nb(1);
-        auto * dst_row  = dst_ptr + i03 * out->get_nb(3) + i02 * out->get_nb(2) + i01 * out->get_nb(1);
+        auto * src0_row   = src0_ptr + i03 * src0->get_nb(3) + i02 * src0->get_nb(2) + i01 * src0->get_nb(1);
+        auto * src1_row   = src1_plane + i11 * src1->get_nb(1);
+        auto * dst_row    = dst_ptr + i03 * out->get_nb(3) + i02 * out->get_nb(2) + i01 * out->get_nb(1);
         if (ir + 1 < start_end.second) {
             hexagon::l2fetch_row(src0_row + src0->get_nb(1), rows_bytes);
             hexagon::l2fetch_row(src1_row + src1->get_nb(1), rows_bytes);
