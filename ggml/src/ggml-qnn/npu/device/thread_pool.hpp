@@ -12,7 +12,7 @@
 namespace hexagon {
 
 constexpr const size_t             kMaxThreadCount       = 4;
-constexpr const size_t             kDefaultStackSize     = 1024 * 16;  // 16KB
+constexpr const size_t             kDefaultStackSize     = 1024 * 32;  // 32KB
 constexpr const unsigned long long kThreadTaskPendingBit = 1;
 
 template <size_t _stack_size> class qurt_thread {
