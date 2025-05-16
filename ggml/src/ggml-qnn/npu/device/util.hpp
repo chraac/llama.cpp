@@ -83,6 +83,7 @@ template <size_t _buffer_count> class npu_scoped_timer {
 
     void add_sub_proc_cycles(uint64_t cycles, uint64_t pcycles) {
         _sub_proc_cycles += cycles;
+        _sub_proc_pcycles += pcycles;
         _sub_proc_count++;
     }
 
@@ -93,8 +94,9 @@ template <size_t _buffer_count> class npu_scoped_timer {
 
         if (_sub_proc_count > 0) {
             auto sub_proc_duration = HAP_perf_qtimer_count_to_us(_sub_proc_cycles);
-            DEVICE_LOG_WARN("[profiler]%s, pcyc: %llu, dur: %lluus, [%s]cnt: %llu, dur: %lluus\n", _log_prefix,
-                            total_pcycles, duration, _sub_proc_log_prefix, _sub_proc_count, sub_proc_duration);
+            DEVICE_LOG_WARN("[profiler]%s, pcyc: %llu, dur: %lluus, [%s]cnt: %llu, pcyc: %llu, dur: %lluus\n",
+                            _log_prefix, total_pcycles, duration, _sub_proc_log_prefix, _sub_proc_count,
+                            _sub_proc_pcycles, sub_proc_duration);
         } else {
             DEVICE_LOG_WARN("[profiler]%s, pcyc: %llu, dur: %lluus\n", _log_prefix, total_pcycles, duration);
         }
