@@ -65,7 +65,8 @@ template <size_t _buffer_count> class npu_scoped_timer {
             strncpy(_sub_proc_log_prefix, sub_proc_log_prefix, kBufferCount - 1);
         }
 
-        _begin_cycles = HAP_perf_get_qtimer_count();
+        _begin_cycles  = HAP_perf_get_qtimer_count();
+        _begin_pcycles = HAP_perf_get_pcycles();
     }
 
     npu_scoped_timer(npu_scoped_timer && other) { *this = std::move(other); }
@@ -80,21 +81,22 @@ template <size_t _buffer_count> class npu_scoped_timer {
         _sub_proc_count  = other._sub_proc_count;
     }
 
-    void add_sub_proc_cycles(uint64_t cycles) {
+    void add_sub_proc_cycles(uint64_t cycles, uint64_t pcycles) {
         _sub_proc_cycles += cycles;
         _sub_proc_count++;
     }
 
     void print() const {
-        auto total_cycles = HAP_perf_get_qtimer_count() - _begin_cycles;
-        auto duration     = HAP_perf_qtimer_count_to_us(total_cycles);
+        auto total_cycles  = HAP_perf_get_qtimer_count() - _begin_cycles;
+        auto total_pcycles = HAP_perf_get_pcycles() - _begin_pcycles;
+        auto duration      = HAP_perf_qtimer_count_to_us(total_cycles);
 
         if (_sub_proc_count > 0) {
             auto sub_proc_duration = HAP_perf_qtimer_count_to_us(_sub_proc_cycles);
-            DEVICE_LOG_WARN("[profiler]%s, cyc: %llu, dur: %lluus, [%s]cnt: %llu, dur: %lluus\n", _log_prefix,
-                            total_cycles, duration, _sub_proc_log_prefix, _sub_proc_count, sub_proc_duration);
+            DEVICE_LOG_WARN("[profiler]%s, pcyc: %llu, dur: %lluus, [%s]cnt: %llu, dur: %lluus\n", _log_prefix,
+                            total_pcycles, duration, _sub_proc_log_prefix, _sub_proc_count, sub_proc_duration);
         } else {
-            DEVICE_LOG_WARN("[profiler]%s, cyc: %llu, dur: %lluus\n", _log_prefix, total_cycles, duration);
+            DEVICE_LOG_WARN("[profiler]%s, pcyc: %llu, dur: %lluus\n", _log_prefix, total_pcycles, duration);
         }
     }
 
@@ -102,7 +104,9 @@ template <size_t _buffer_count> class npu_scoped_timer {
     char     _log_prefix[kBufferCount]          = {};
     char     _sub_proc_log_prefix[kBufferCount] = {};
     uint64_t _begin_cycles                      = 0;
+    uint64_t _begin_pcycles                     = 0;
     uint64_t _sub_proc_cycles                   = 0;
+    uint64_t _sub_proc_pcycles                  = 0;
     uint64_t _sub_proc_count                    = 0;
 
     DISABLE_COPY(npu_scoped_timer);
@@ -113,14 +117,19 @@ template <size_t _buffer_count> class npu_sub_process_scoped_timer {
     using npu_scoped_timer = npu_scoped_timer<_buffer_count>;
 
     explicit npu_sub_process_scoped_timer(npu_scoped_timer & timer) : _timer(timer) {
-        _begin_cycles = HAP_perf_get_qtimer_count();
+        _begin_cycles  = HAP_perf_get_qtimer_count();
+        _begin_pcycles = HAP_perf_get_pcycles();
     }
 
-    ~npu_sub_process_scoped_timer() { _timer.add_sub_proc_cycles(HAP_perf_get_qtimer_count() - _begin_cycles); }
+    ~npu_sub_process_scoped_timer() {
+        _timer.add_sub_proc_cycles(HAP_perf_get_qtimer_count() - _begin_cycles,
+                                   HAP_perf_get_pcycles() - _begin_pcycles);
+    }
 
   private:
     npu_scoped_timer & _timer;
-    uint64_t           _begin_cycles = 0;
+    uint64_t           _begin_cycles  = 0;
+    uint64_t           _begin_pcycles = 0;
 
     DISABLE_COPY(npu_sub_process_scoped_timer);
 };
