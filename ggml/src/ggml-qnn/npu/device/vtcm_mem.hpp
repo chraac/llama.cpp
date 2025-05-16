@@ -54,15 +54,15 @@ class vtcm_mem {
     size_t get_size() const { return _vtcm_size; }
 
     static size_t get_total_size() {
-        unsigned int arch_page_size  = 0;
-        unsigned int arch_page_count = 0;
-        auto         ret             = HAP_query_total_VTCM(&arch_page_size, &arch_page_count);
+        unsigned int arch_page_aligned_size = 0;
+        unsigned int arch_page_count        = 0;
+        auto         ret                    = HAP_query_total_VTCM(&arch_page_aligned_size, &arch_page_count);
         if (ret != AEE_SUCCESS) {
             DEVICE_LOG_ERROR("Failed to query total VTCM: %d\n", ret);
             return 0;
         }
 
-        return arch_page_size;
+        return arch_page_aligned_size;
     }
 
     static size_t get_avail_block_size() {
