@@ -237,7 +237,15 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
 
                     for (int64_t ir = 0; ir < (int64_t) src0_plane_row_count; ir++) {
                         auto * src0_row = src0_plane + ir * src0->get_nb(1);
-                        auto * dst_row  = reinterpret_cast<float *>(src0_plane_cache_ptr + ir * src0_actual_row_size);
+                        if (ir + 1 < src0_plane_row_count) {
+                            // TODO: should we use small kL2FetchAheadVectors?
+                            int32_t l2fetch_vectors =
+                                Q6_R_min_RR(src0->get_nb(1) / hexagon::kBytesPerVector, hexagon::kL2FetchAheadVectors);
+                            hexagon::l2fetch(src0_row + src0->get_nb(1), hexagon::kBytesPerVector,
+                                             hexagon::kBytesPerVector, l2fetch_vectors, 0);
+                        }
+
+                        auto * dst_row = reinterpret_cast<float *>(src0_plane_cache_ptr + ir * src0_actual_row_size);
                         dequantize_row_func(src0_row, reinterpret_cast<float *>(dst_row), src0->get_ne(0),
                                             params->f16_to_f32_table);
                     }
