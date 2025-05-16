@@ -67,10 +67,9 @@ inline auto make_scoped_op_perf_timer(tensor * op, size_t tidx, const char * sub
 #    define DEVICE_SCOPED_OP_SECTION_PERFORMANCE_TRACKER(op, tidx, sub_prefix) \
         auto __npu_op_timer_##sub_prefix = hexagon::make_scoped_op_perf_timer(op, tidx, #sub_prefix)
 
-#    define DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_SUB_PROC(sub_prefix)                                   \
-        auto __npu_op_sub_timer##sub_prefix =                                                           \
-            hexagon::npu_sub_process_scoped_timer<decltype(__npu_op_timer_##sub_prefix)::kBufferCount>( \
-                __npu_op_timer_##sub_prefix)
+#    define DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_SUB_PROC(sub_prefix)                              \
+        hexagon::npu_sub_process_scoped_timer<decltype(__npu_op_timer_##sub_prefix)::kBufferCount> \
+            __npu_op_sub_timer##sub_prefix(__npu_op_timer_##sub_prefix)
 
 #else
 #    define DEVICE_SCOPED_OP_PERFORMANCE_TRACKER(op, tidx)                     ((void) 0)

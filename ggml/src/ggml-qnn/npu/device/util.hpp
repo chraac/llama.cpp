@@ -131,7 +131,7 @@ template <size_t _buffer_count> class npu_sub_process_scoped_timer {
     uint64_t           _begin_cycles  = 0;
     uint64_t           _begin_pcycles = 0;
 
-    DISABLE_COPY(npu_sub_process_scoped_timer);
+    DISABLE_COPY_AND_MOVE(npu_sub_process_scoped_timer);
 };
 
 inline auto make_scoped_perf_timer(const char * format, ...) {
