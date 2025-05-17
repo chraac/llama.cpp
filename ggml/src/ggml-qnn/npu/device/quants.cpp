@@ -1,6 +1,7 @@
 #include "quants.hpp"
 
 #include <hexagon_types.h>
+#include <qprintf.h>
 
 #include <array>
 
@@ -36,13 +37,29 @@ inline float to_float(const npu_device_fp16_t src) {
 inline HVX_Vector load_q4_0_block(const npu_device_block_q4_0 & src) {
     union {
         uint8_t    qs[QUANT_BLOCK_SIZE / 2];
-        HVX_Vector vector = Q6_V_vzero();
+        HVX_Vector vector;
     } cvt;
 
     static_assert(sizeof(cvt.qs) == sizeof(src.qs), "wrong q4_0 block size/padding");
 
     cvt.vector = Q6_V_vzero();
-    memcpy(cvt.qs, src.qs, sizeof(cvt.qs));
+    cvt.qs[0]  = 0xf1;
+    cvt.qs[1]  = 0xe2;
+    cvt.qs[2]  = 0xd3;
+    cvt.qs[3]  = 0xc4;
+    cvt.qs[4]  = 0xb5;
+    cvt.qs[5]  = 0xa6;
+    cvt.qs[6]  = 0x97;
+    cvt.qs[7]  = 0x88;
+    cvt.qs[8]  = 0x79;
+    cvt.qs[9]  = 0x6A;
+    cvt.qs[10] = 0x5B;
+    cvt.qs[11] = 0x4C;
+    cvt.qs[12] = 0x3D;
+    cvt.qs[13] = 0x2E;
+    cvt.qs[14] = 0x1F;
+    cvt.qs[15] = 0xb9;
+
     return cvt.vector;
 }
 
@@ -80,30 +97,52 @@ void dequantize_row_q4_0(const void * src, float * dst, size_t count, const floa
     const auto * src_ptr = reinterpret_cast<const npu_device_block_q4_0 *>(src);
 
     union {
-        npu_device_fp16_t f[2];
-        uint32_t          u;
-    } f32u32;
+        __fp16 f;
+        uint16_t u;
+    } f16u16;
 
-    HVX_Vector    mask  = Q6_V_vsplat_R(0x0F0F0F0F);
-    HVX_Vector    minus = Q6_V_vsplat_R(0x00080008);
-    HVX_UVector * out   = ((HVX_Vector *) dst);
+    HVX_Vector    mask  = Q6_Vb_vsplat_R(0x0F);
+    HVX_Vector    minus = Q6_Vh_vsplat_R(8);
+    HVX_UVector * out   = ((HVX_UVector *) dst);  // TODO: opt for aligned access
     for (int i = 0; i < nb; i++) {
         const auto & curr_blk = src_ptr[i];
-        f32u32.f[0]           = curr_blk.d;
-        f32u32.f[1]           = curr_blk.d;
-        HVX_Vector d          = Q6_V_vsplat_R(f32u32.u);
+        f16u16.f              = 1.f;
+        HVX_Vector d          = Q6_Vh_vsplat_R(f16u16.u);
 
-        HVX_Vector q_lo = load_q4_0_block(curr_blk);
-        HVX_Vector q_hi = Q6_Vub_vlsr_VubR(q_lo, 4);
-        q_lo            = Q6_V_valign_VVR(Q6_V_vand_VV(q_lo, mask), Q6_V_vzero(), sizeof(curr_blk.qs));
-        q_lo            = Q6_V_valign_VVR(q_hi, q_lo, hexagon::kBytesPerVector - sizeof(curr_blk.qs));
-
+        HVX_Vector q_lo  = load_q4_0_block(curr_blk);
+        HVX_Vector q_hi  = Q6_Vub_vlsr_VubR(q_lo, 4);
+        q_lo             = Q6_V_vand_VV(q_lo, mask);
         HVX_VectorPair q = Q6_Wuh_vunpack_Vub(q_lo);
-        q_lo             = Q6_Vh_vsub_VhVh(Q6_V_lo_W(q), minus);
-        q_lo             = Q6_Vhf_equals_Vh(q_lo);
-        q                = Q6_Wqf32_vmpy_VhfVhf(q_lo, d);
-        out[i]           = Q6_Vsf_equals_Vqf32(Q6_V_lo_W(q));
+        q                = Q6_Wh_vunpackoor_WhVb(q, q_hi);
+        q                = Q6_Wuh_vunpack_Vub(Q6_V_lo_W(q));
+
+        if (i == 0) {
+            qprintf_V("dequantize_row_q4_0.q_lo.h: %08x\n", Q6_V_lo_W(q));
+        }
+
+        q_lo = Q6_Vh_vsub_VhVh(Q6_V_lo_W(q), minus);
+        q_lo = Q6_Vhf_equals_Vh(q_lo);
+        q    = Q6_Wqf32_vmpy_VhfVhf(q_lo, d);
+
+        if (i == 0) {
+            qprintf_V("dequantize_row_q4_0.q_lo.hf: %08x\n", q_lo);
+        }
+
+        q_lo = Q6_Vsf_equals_Vqf32(Q6_V_lo_W(q));
+
+        if (i == 0) {
+            qprintf_V("dequantize_row_q4_0.q_lo.sf: %08x\n", q_lo);
+            qprintf_V("dequantize_row_q4_0.q_hi.sf: %08x\n", Q6_Vsf_equals_Vqf32(Q6_V_hi_W(q)));
+        }
+
+        out[i] = q_lo;
     }
+
+    DEVICE_LOG_DEBUG(
+        "dequantize_row_q4_0: %.2f, %.2f, %.2f, %.2f,\n %.2f, %.2f, %.2f, %.2f\n %.2f, %.2f, %.2f, %.2f\n %.2f, %.2f, "
+        "%.2f, %.2f\n %.2f, %.2f, %.2f, %.2f\n",
+        dst[0], dst[1], dst[2], dst[3], dst[4], dst[5], dst[6], dst[7], dst[8], dst[9], dst[10], dst[11], dst[12],
+        dst[13], dst[14], dst[15], dst[16], dst[17], dst[18], dst[19]);
 }
 
 void dequantize_row_q4_K(const void * src, float * dst, size_t count, const float * f16_to_f32_table) {
