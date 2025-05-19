@@ -79,7 +79,7 @@ void dequantize_row_q4_0(const void * src, float * dst, size_t count, const floa
     const int     nb      = count / qk;
     const auto *  src_ptr = reinterpret_cast<const npu_device_block_q4_0 *>(src);
     HVX_Vector    mask    = Q6_Vb_vsplat_R(0x0F);
-    HVX_Vector    minus   = Q6_Vh_vsplat_R(8);
+    HVX_Vector    minus   = Q6_Vb_vsplat_R(8);
     HVX_UVector * out     = ((HVX_UVector *) dst);  // TODO: opt for aligned access
     for (int i = 0; i < nb; i++) {
         const auto & curr_blk = src_ptr[i];
@@ -89,11 +89,11 @@ void dequantize_row_q4_0(const void * src, float * dst, size_t count, const floa
         HVX_Vector q_hi = Q6_Vub_vlsr_VubR(q_lo, 4);
         q_lo            = Q6_V_valign_VVR(Q6_V_vand_VV(q_lo, mask), Q6_V_vzero(), sizeof(curr_blk.qs));
         q_lo            = Q6_V_valign_VVR(q_hi, q_lo, hexagon::kBytesPerVector - sizeof(curr_blk.qs));
+        q_lo            = Q6_Vb_vsub_VbVb(q_lo, minus);
 
-        HVX_VectorPair q = Q6_Wuh_vunpack_Vub(q_lo);
-        q                = Q6_Wuh_vunpack_Vub(Q6_V_lo_W(q));
-        q_lo             = Q6_Vh_vsub_VhVh(Q6_V_lo_W(q), minus);
-        q_lo             = Q6_Vhf_equals_Vh(q_lo);
+        HVX_VectorPair q = Q6_Wh_vunpack_Vb(q_lo);
+        q                = Q6_Wh_vunpack_Vb(Q6_V_lo_W(q));
+        q_lo             = Q6_Vhf_equals_Vh(Q6_V_lo_W(q));
         q                = Q6_Wqf32_vmpy_VhfVhf(q_lo, d);
         q_lo             = Q6_Vsf_equals_Vqf32(Q6_V_lo_W(q));
         out[i]           = q_lo;
