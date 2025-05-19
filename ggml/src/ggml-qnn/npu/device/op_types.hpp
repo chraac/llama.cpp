@@ -22,21 +22,19 @@ struct compute_params {
     std::unique_ptr<uint8_t[]>         mem_cache;
     size_t                             mem_cache_size = 0;
 
-    uint8_t * get_cache(size_t size, bool fallback_to_mem) {
+    uint8_t * get_vtcm_cache(size_t size) {
         if (!vtcm_cache || vtcm_cache->get_size() < size) {
             vtcm_cache = std::make_unique<hexagon::vtcm_mem>(size, false);
         }
 
-        if (vtcm_cache->is_valid()) {
-            return vtcm_cache->get_mem();
-        }
-
-        if (!fallback_to_mem) {
-            DEVICE_LOG_DEBUG("vtcm_mem not valid, return nullptr\n");
+        if (!vtcm_cache->is_valid()) {
             return nullptr;
         }
 
-        DEVICE_LOG_DEBUG("vtcm_mem not valid, allocate from mem_cache\n");
+        return vtcm_cache->get_mem();
+    }
+
+    uint8_t * get_mem_cache(size_t size) {
         if (!mem_cache || mem_cache_size < size) {
             mem_cache      = std::make_unique<uint8_t[]>(size + 256);
             mem_cache_size = mem_cache ? size : 0;

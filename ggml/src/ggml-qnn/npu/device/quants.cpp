@@ -41,7 +41,6 @@ inline HVX_Vector load_q4_0_block(const npu_device_block_q4_0 & src) {
 
     static_assert(sizeof(cvt.qs) == sizeof(src.qs), "wrong q4_0 block size/padding");
 
-    cvt.vector = Q6_V_vzero();
     memcpy(cvt.qs, src.qs, sizeof(cvt.qs));
     return cvt.vector;
 }
