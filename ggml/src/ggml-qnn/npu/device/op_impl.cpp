@@ -17,7 +17,7 @@ inline void vec_op_impl(const _TyData * src0, const _TyData * src1, size_t count
     HVX_Vector * iptr0     = ((HVX_Vector *) src0);
     HVX_Vector * iptr0_end = ((HVX_Vector *) src0) + (count / kElementsPerVector);
     HVX_Vector * iptr1     = ((HVX_Vector *) src1);
-    HVX_Vector * optr      = ((HVX_Vector *) dst);
+    HVX_Vector * optr      = ((HVX_Vector *) dst);  // framework will ensure the dst is aligned
     HVX_Vector   prev0     = *iptr0++;
     HVX_Vector   prev1     = *iptr1++;
 
