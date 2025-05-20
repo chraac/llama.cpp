@@ -28,8 +28,8 @@ class scoped_timer {
     }
 
     void print() const {
-        auto duration = (ggml_time_us() - _begin_us) / 1000.0;
-        GGML_LOG_INFO("[profiler]%s, duration: %.4f ms\n", _log_prefix.c_str(), duration);
+        auto duration = ggml_time_us() - _begin_us;
+        GGML_LOG_INFO("[profiler]%s, dur: %lld us\n", _log_prefix.c_str(), (long long) duration);
     }
 
 
