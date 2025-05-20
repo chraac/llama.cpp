@@ -49,15 +49,16 @@ bool host_graph::update(ggml_cgraph * cgraph) {
 
         tensor_obj->set_op(node->op);
         _tensor_handles.push_back(tensor_obj->get_device_tensor_handle());
-        LOG_DEBUG("node[%d]%s(%s), addr: %p, type: %s, tensor_handle: %p\n", i, ggml_get_name(node), ggml_op_desc(node),
-                  (void *) node, ggml_type_name(node->type), (void *) tensor_obj->get_device_tensor_handle());
+        LOG_DEBUG("[%p]node[%d]%s(%s), addr: %p, type: %s, tensor_handle: %p\n", (void *) this, i, ggml_get_name(node),
+                  ggml_op_desc(node), (void *) node, ggml_type_name(node->type),
+                  (void *) tensor_obj->get_device_tensor_handle());
         for (size_t j = 0; j < GGML_MAX_SRC && node->src[j]; ++j) {
             auto * src = host_tensor::from_ggml_tensor(node->src[j]);
             tensor_obj->set_src(j, src);
         }
     }
 
-    LOG_DEBUG("host_graph::update, host_graph(%p), handle(%p), ggml_cgraph(%p), tensor count(%zu)\n", (void *) this,
+    LOG_DEBUG("[%p]host_graph::update, handle(%p), ggml_cgraph(%p), tensor count(%zu)\n", (void *) this,
               (void *) _graph_handle, (void *) cgraph, _tensor_handles.size());
     if (!_tensor_handles.empty()) {
         npu_device_graph_set_tensor(_device_handle, _graph_handle, _tensor_handles.data(),

@@ -46,6 +46,8 @@ bool graph::compute(default_thread_pool * thread_pool, const float * f16_to_f32_
     }
 
     DEVICE_LOG_DEBUG("graph(%p) compute\n", (void *) this);
+
+    DEVICE_SCOPED_PERFORMANCE_TRACKER("[%p]compute", (void *) this);
     _f16_to_f32_table = f16_to_f32_table;
     if (thread_pool) {
         thread_pool->sync_execute(reinterpret_cast<default_thread_pool::task_type>(&graph::thread_pool_task), this);
@@ -76,6 +78,7 @@ void graph::compute_impl(default_thread_pool * pool, size_t thread_idx, size_t t
             DEVICE_LOG_ERROR("graph(%p) tensor[%zu] op %d compute failed\n", (void *) this, i, op);
         }
 
+        DEVICE_SCOPED_PERFORMANCE_TRACKER("[%p]sync_thread", (void *) this);
         // TODO: figure out which ops need to sync
         if (pool) {
             pool->sync_thread();
