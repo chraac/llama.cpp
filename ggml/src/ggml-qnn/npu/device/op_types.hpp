@@ -17,6 +17,7 @@ namespace hexagon {
 struct compute_params {
     const size_t                       tidx;
     const size_t                       tcnt;
+    const size_t                       vtcm_quota_size;
     const float *                      f16_to_f32_table;
     std::unique_ptr<hexagon::vtcm_mem> vtcm_cache;
     std::unique_ptr<uint8_t[]>         mem_cache;
