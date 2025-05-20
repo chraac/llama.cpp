@@ -1,5 +1,6 @@
 #include "graph.hpp"
 
+#include "profiler.hpp"
 #include "tensor.hpp"
 
 namespace hexagon {
@@ -71,6 +72,7 @@ bool host_graph::compute() {
         return false;
     }
 
+    SCOPED_PERFORMANCE_TRACKER("[hexagon-npu][%p]compute, handle(%p)", (void *) this, (void *) _graph_handle);
     auto status = npu_device_graph_compute(_device_handle, _graph_handle);
     if (status != AEE_SUCCESS) {
         LOG_ERROR("Failed to compute host_graph: 0x%x\n", (int) status);
