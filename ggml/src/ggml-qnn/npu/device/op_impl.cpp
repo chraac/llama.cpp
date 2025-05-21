@@ -211,7 +211,7 @@ struct op_capabilities {
     npu_device_tensor_op               op;
     hexagon::op_is_supported_func_type is_supported;
     hexagon::compute_func_type         compute_funcs[NPU_DATA_TYPE_COUNT];
-    bool                               should_sync = false;
+    bool                               requires_thread_barrier = false;
 };
 
 constexpr const op_capabilities kOpCapabilities[] = {
@@ -268,12 +268,12 @@ compute_func_type get_compute_func(tensor * dst) {
     return get_compute_func_impl(dst->get_op(), dst->get_type());
 }
 
-bool should_sync_op(npu_device_tensor_op op) {
+bool requires_thread_barrier(npu_device_tensor_op op) {
     if (op >= NPU_OP_COUNT) {
         return false;
     }
 
-    return kOpCapabilities[op].should_sync;
+    return kOpCapabilities[op].requires_thread_barrier;
 }
 
 bool support_op(const npu_device_tensor_spec & src0, const npu_device_tensor_spec & src1,

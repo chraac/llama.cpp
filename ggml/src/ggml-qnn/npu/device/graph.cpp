@@ -80,7 +80,7 @@ void graph::compute_impl(default_thread_pool * pool, size_t thread_idx, size_t t
 
         DEVICE_SCOPED_PERFORMANCE_TRACKER("[%p]sync_thread, tidx: %zu", (void *) this, thread_idx);
 
-        const bool should_sync = should_sync_op(op);
+        const bool should_sync = requires_thread_barrier(op);
         if (pool && should_sync && i < _tensor_count - 1) {
             pool->sync_thread();
         }

@@ -50,10 +50,26 @@ typedef bool (*op_is_supported_func_type)(const npu_device_tensor_spec & src0, c
                                           const npu_device_tensor_spec & dst, npu_device_tensor_op op);
 
 inline constexpr std::pair<int64_t, int64_t> get_thread_work_slice(int64_t total, size_t tidx, size_t tcnt) {
-    const auto elements_per_thread = (total + tcnt - 1) / tcnt;
-    const auto start               = tidx * elements_per_thread;
-    const auto end                 = std::min<int64_t>(start + elements_per_thread, total);
-    return { start, end };
+    if (total <= 0 || tidx >= tcnt) {
+        return { 0, 0 };  // No work for this thread
+    }
+
+    const auto elements_per_thread = total / tcnt;
+    const auto remainder           = total % tcnt;
+
+    int64_t start = 0;
+    int64_t end   = 0;
+    if (tidx < remainder) {
+        // First 'remainder' threads get one extra item
+        start = tidx * (elements_per_thread + 1);
+        end   = start + elements_per_thread + 1;
+    } else {
+        // Remaining threads get the base number of elements
+        start = remainder * (elements_per_thread + 1) + (tidx - remainder) * elements_per_thread;
+        end   = start + elements_per_thread;
+    }
+
+    return { start, std::min(end, total) };
 }
 
 constexpr const size_t kBytesPerVector      = sizeof(HVX_Vector);  // 128 for v73
