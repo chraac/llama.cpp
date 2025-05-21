@@ -98,7 +98,7 @@ template <size_t _thread_count> class thread_pool {
             auto thread = std::make_unique<thread_type>(
                 thread_name_base + std::to_string(i),
                 reinterpret_cast<thread_type::qurt_thread_func_type>(&thread_pool::thread_func_impl), &thread_arg,
-                QURT_THREAD_ATTR_PRIORITY_DEFAULT);
+                QURT_THREAD_ATTR_PRIORITY_DEFAULT / 2);
             if (!thread->is_valid()) {
                 DEVICE_LOG_ERROR("Failed to create thread: %zu", i);
                 // destroy all barriers and threads at destructor
