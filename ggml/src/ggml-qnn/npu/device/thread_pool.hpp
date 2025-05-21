@@ -90,6 +90,7 @@ template <size_t _thread_count> class thread_pool {
         std::string thread_name_base = "thread_pool_";
         qurt_barrier_init(&_pending, kMaxSubThreadCount + 1);
         qurt_barrier_init(&_completed, kMaxSubThreadCount + 1);
+        const auto priority = qurt_thread_get_priority(qurt_thread_get_id());
         for (size_t i = 0; i < kMaxSubThreadCount; ++i) {
             auto & thread_arg     = _thread_args[i];
             thread_arg.pool       = this;
@@ -98,7 +99,7 @@ template <size_t _thread_count> class thread_pool {
             auto thread = std::make_unique<thread_type>(
                 thread_name_base + std::to_string(i),
                 reinterpret_cast<thread_type::qurt_thread_func_type>(&thread_pool::thread_func_impl), &thread_arg,
-                QURT_THREAD_ATTR_PRIORITY_DEFAULT / 2);
+                priority);
             if (!thread->is_valid()) {
                 DEVICE_LOG_ERROR("Failed to create thread: %zu", i);
                 // destroy all barriers and threads at destructor
