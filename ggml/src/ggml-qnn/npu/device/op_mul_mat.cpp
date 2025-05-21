@@ -3,6 +3,7 @@
 #include <HTP/core/intrinsics.h>
 
 #include "quants.hpp"
+#include "thread_pool.hpp"  // TODO: remove this dependency
 #include "vtcm_mem.hpp"
 
 namespace {
@@ -208,21 +209,21 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
     }
 
     // cache the src0 plane in VTCM
-    const size_t    src0_plane_row_count       = start_end_element.second - start_end_element.first;
-    size_t          src0_plane_slice_row_count = src0_plane_row_count;
+    size_t          src0_plane_slice_row_count = start_end_element.second - start_end_element.first;
     size_t          src0_plane_cache_size      = 0;
     uint8_t *       src0_plane_cache_ptr       = nullptr;
     const uint8_t * last_cached_plane_ptr      = nullptr;
     bool            is_mem_cache               = false;
     if (is_quantized) {
-        src0_plane_slice_row_count = std::min(params->vtcm_quota_size / src0_actual_row_size, src0_plane_row_count);
-        src0_plane_cache_size      = src0_actual_row_size * src0_plane_slice_row_count;
-        src0_plane_cache_ptr       = params->get_vtcm_cache(src0_plane_cache_size);
+        src0_plane_slice_row_count =
+            std::min(params->vtcm_quota_size / src0_actual_row_size, src0_plane_slice_row_count);
+        src0_plane_cache_size = src0_actual_row_size * src0_plane_slice_row_count;
+        src0_plane_cache_ptr  = params->get_vtcm_cache(src0_plane_cache_size);
         if (src0_plane_cache_ptr == nullptr) {
             DEVICE_LOG_DEBUG(
-                "mul_mat_impl: failed to get VTCM cache for src0, size: %zu, src0_plane_row_count: %zu, "
+                "mul_mat_impl: failed to get VTCM cache for src0, size: %zu, src0_plane_slice_row_count: %zu, "
                 "src0_actual_row_size: %zu, will fallback to mem cache\n",
-                src0_plane_cache_size, src0_plane_row_count, src0_actual_row_size);
+                src0_plane_cache_size, src0_plane_slice_row_count, src0_actual_row_size);
             src0_plane_cache_ptr = params->get_mem_cache(src0_plane_cache_size);
             is_mem_cache         = true;
         }
@@ -288,6 +289,38 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
     }
 }
 
+bool is_quantized_mul_mat_supported(const npu_device_tensor_spec & src0, const npu_device_tensor_spec & src1) {
+    if (src1.type != NPU_DATA_TYPE_F32) {
+        DEVICE_LOG_DEBUG("[MUL_MAT]src0.type(%s) and src1.type(%s) mismatch and src1 is not F32\n",
+                         hexagon::get_type_name(src0.type), hexagon::get_type_name(src1.type));
+        return false;
+    }
+
+    const auto type_traits = hexagon::get_type_traits(src0.type);
+    if (!type_traits.is_quantized || type_traits.dequantize_row == nullptr) {
+        DEVICE_LOG_DEBUG("[MUL_MAT]src0.type(%s) and src1.type(%s) mismatch and src0 is not quantized\n",
+                         hexagon::get_type_name(src0.type), hexagon::get_type_name(src1.type));
+        return false;
+    }
+
+    if (src0.ne[0] % type_traits.blck_size) {
+        DEVICE_LOG_DEBUG("[MUL_MAT]src0.type(%s) ne[0] is not aligned: %ld\n", hexagon::get_type_name(src0.type),
+                         (long) src0.ne[0]);
+        return false;
+    }
+
+    const auto vtcm_thread_quota_size = hexagon::vtcm_mem::get_total_size() / hexagon::kMaxThreadCount;
+    if (src0.ne[0] * sizeof(hexagon::dequantized_element_type) > vtcm_thread_quota_size) {
+        DEVICE_LOG_DEBUG("[MUL_MAT]src0.type(%s) ne[0] is too large: %ld, vtcm_thread_quota_size: %zu\n",
+                         hexagon::get_type_name(src0.type), (long) src0.ne[0], vtcm_thread_quota_size);
+        return false;
+    }
+
+    DEVICE_LOG_DEBUG("[MUL_MAT]supported quantized src0.type(%s) and src1.type(%s)\n",
+                     hexagon::get_type_name(src0.type), hexagon::get_type_name(src1.type));
+    return true;
+}
+
 }  // namespace
 
 namespace hexagon {
@@ -335,27 +368,9 @@ bool is_mul_mat_supported(const npu_device_tensor_spec & src0, const npu_device_
 
     if (src0.type != src1.type) {
 #ifdef GGML_HEXAGON_ENABLE_QUANTIZED_TENSORS
-        if (src1.type != NPU_DATA_TYPE_F32) {
-            DEVICE_LOG_DEBUG("[%s]src0.type(%s) and src1.type(%s) mismatch and src1 is not F32\n", op_get_name(op),
-                             get_type_name(src0.type), get_type_name(src1.type));
+        if (!is_quantized_mul_mat_supported(src0, src1)) {
             return false;
         }
-
-        const auto type_traits = get_type_traits(src0.type);
-        if (!type_traits.is_quantized || type_traits.dequantize_row == nullptr) {
-            DEVICE_LOG_DEBUG("[%s]src0.type(%s) and src1.type(%s) mismatch and src0 is not quantized\n",
-                             op_get_name(op), get_type_name(src0.type), get_type_name(src1.type));
-            return false;
-        }
-
-        if (src0.ne[0] % type_traits.blck_size) {
-            DEVICE_LOG_DEBUG("[%s]src0.type(%s) ne[0] is not aligned: %ld\n", op_get_name(op), get_type_name(src0.type),
-                             (long) src0.ne[0]);
-            return false;
-        }
-
-        DEVICE_LOG_DEBUG("[%s]supported quantized src0.type(%s) and src1.type(%s)\n", op_get_name(op),
-                         get_type_name(src0.type), get_type_name(src1.type));
 #else
         DEVICE_LOG_DEBUG("[%s]src0.type(%s) and src1.type(%s) mismatch and quantized tensors are not supported\n",
                          op_get_name(op), get_type_name(src0.type), get_type_name(src1.type));
