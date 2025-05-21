@@ -79,8 +79,9 @@ void graph::compute_impl(default_thread_pool * pool, size_t thread_idx, size_t t
         }
 
         DEVICE_SCOPED_PERFORMANCE_TRACKER("[%p]sync_thread", (void *) this);
-        // TODO: figure out which ops need to sync
-        if (pool) {
+
+        const bool should_sync = should_sync_op(op);
+        if (pool && should_sync && i < _tensor_count - 1) {
             pool->sync_thread();
         }
         dst->invalidate();

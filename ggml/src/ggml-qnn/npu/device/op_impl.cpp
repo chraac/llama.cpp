@@ -211,6 +211,7 @@ struct op_capabilities {
     npu_device_tensor_op               op;
     hexagon::op_is_supported_func_type is_supported;
     hexagon::compute_func_type         compute_funcs[NPU_DATA_TYPE_COUNT];
+    bool                               should_sync = false;
 };
 
 constexpr const op_capabilities kOpCapabilities[] = {
@@ -219,22 +220,29 @@ constexpr const op_capabilities kOpCapabilities[] = {
      {
             hexagon::mul_mat_f32,  // NPU_DATA_TYPE_F32
             nullptr,               // NPU_DATA_TYPE_F16
-        }, },
-    { NPU_OP_ADD,
-     is_element_wise_op_supported, {
-          element_wise_op<vec_op_f32_f32<vadd_f32_f32>>,  // NPU_DATA_TYPE_F32
-          element_wise_op<vec_op_f16_f16<vadd_f16_f16>>,  // NPU_DATA_TYPE_F16
-      } },
-    { NPU_OP_SUB,
-     is_element_wise_op_supported, {
-          element_wise_op<vec_op_f32_f32<vsub_f32_f32>>,  // NPU_DATA_TYPE_F32
-          element_wise_op<vec_op_f16_f16<vsub_f16_f16>>,  // NPU_DATA_TYPE_F16
-      } },
-    { NPU_OP_MUL,
-     is_element_wise_op_supported, {
-          element_wise_op<vec_op_f32_f32<vmul_f32_f32>>,  // NPU_DATA_TYPE_F32
-          element_wise_op<vec_op_f16_f16<vmul_f16_f16>>,  // NPU_DATA_TYPE_F16
-      } },
+        },       true,
+     },
+    {
+     NPU_OP_ADD,              is_element_wise_op_supported,
+     {
+            element_wise_op<vec_op_f32_f32<vadd_f32_f32>>,  // NPU_DATA_TYPE_F32
+            element_wise_op<vec_op_f16_f16<vadd_f16_f16>>,  // NPU_DATA_TYPE_F16
+        }, false,
+     },
+    {
+     NPU_OP_SUB,           is_element_wise_op_supported,
+     {
+            element_wise_op<vec_op_f32_f32<vsub_f32_f32>>,  // NPU_DATA_TYPE_F32
+            element_wise_op<vec_op_f16_f16<vsub_f16_f16>>,  // NPU_DATA_TYPE_F16
+        },          false,
+     },
+    {
+     NPU_OP_MUL,     is_element_wise_op_supported,
+     {
+            element_wise_op<vec_op_f32_f32<vmul_f32_f32>>,  // NPU_DATA_TYPE_F32
+            element_wise_op<vec_op_f16_f16<vmul_f16_f16>>,  // NPU_DATA_TYPE_F16
+        },       false,
+     },
 };
 
 static_assert(kOpCapabilities[NPU_OP_MUL_MAT].compute_funcs[NPU_DATA_TYPE_F32] == hexagon::mul_mat_f32,
@@ -258,6 +266,14 @@ namespace hexagon {
 
 compute_func_type get_compute_func(tensor * dst) {
     return get_compute_func_impl(dst->get_op(), dst->get_type());
+}
+
+bool should_sync_op(npu_device_tensor_op op) {
+    if (op >= NPU_OP_COUNT) {
+        return false;
+    }
+
+    return kOpCapabilities[op].should_sync;
 }
 
 bool support_op(const npu_device_tensor_spec & src0, const npu_device_tensor_spec & src1,
