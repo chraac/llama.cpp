@@ -8,7 +8,8 @@
 
 namespace hexagon {
 
-constexpr const size_t kMaxTensorSrc = DEVICE_TENSOR_MAX_SRC;
+constexpr const size_t kMaxTensorSrc   = DEVICE_TENSOR_MAX_SRC;
+constexpr const size_t kMaxParamsCount = 4;
 
 class tensor {
   public:
@@ -77,6 +78,16 @@ class tensor {
 
     npu_device_tensor_op get_op() const { return _info.op; }
 
+    template <typename _TyParam> const _TyParam get_op_param(size_t index) const {
+        if (sizeof(_TyParam) * (index + 1) >= sizeof(_op_params)) {
+            return 0;
+        }
+
+        return reinterpret_cast<const _TyParam *>(_op_params)[index];
+    }
+
+    const int32_t * get_op_params() const { return _op_params; }
+
     npu_device_tensor_data_type get_type() const { return _info.type; }
 
     const uint8_t * get_read_buffer() const {
@@ -89,9 +100,10 @@ class tensor {
     bool is_valid() const { return _data != nullptr; }
 
   private:
-    npu_device_tensor_config _info;
-    tensor *                 _src[kMaxTensorSrc] = {};
-    uint8_t *                _data               = nullptr;
+    npu_device_tensor_config _info                       = {};
+    int32_t                  _op_params[kMaxParamsCount] = {};
+    tensor *                 _src[kMaxTensorSrc]         = {};
+    uint8_t *                _data                       = nullptr;
 
     DISABLE_COPY_AND_MOVE(tensor);
 };

@@ -50,6 +50,8 @@ inline constexpr const char * op_get_name(npu_device_tensor_op op) {
             return "SUB";
         case NPU_OP_MUL:
             return "MUL";
+        case NPU_OP_RMS_NORM:
+            return "RMS_NORM";
         default:
             return "UNKNOWN";
     }

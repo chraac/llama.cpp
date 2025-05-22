@@ -108,6 +108,10 @@ template <typename _TyData> struct get_data_type<void (*)(const _TyData *, const
     using type = _TyData;
 };
 
+template <typename _TyData> struct get_data_type<void (*)(const _TyData *, float, size_t, _TyData *)> {
+    using type = _TyData;
+};
+
 template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::compute_params * params) {
     using data_type = typename get_data_type<decltype(_RowFunc)>::type;
 
@@ -207,6 +211,68 @@ bool is_element_wise_op_supported(const npu_device_tensor_spec & src0, const npu
     return true;
 }
 
+void rms_norm_vec_f32(const float * src, float eps, size_t count, float * dst) {
+    double sum = 0.0;
+    for (size_t i = 0; i < count; ++i) {
+        sum += static_cast<double>(src[i]) * src[i];
+    }
+
+    const float mean  = sum / count;
+    const float scale = 1.0f / sqrtf(mean + eps);
+    for (size_t i = 0; i < count; ++i) {
+        dst[i] = src[i] * scale;
+    }
+}
+
+// TODO: merge with element_wise_op?
+template <auto _RowFunc> bool unary_op(hexagon::tensor * out, hexagon::compute_params * params) {
+    using data_type = typename get_data_type<decltype(_RowFunc)>::type;
+
+    if (!out) {
+        return false;
+    }
+
+    static_assert(DEVICE_TENSOR_MAX_DIMS == 4, "element_wise_op requires max dims 4");
+    auto * src0 = out->get_src(0);
+    if (!src0) {
+        return true;  // skip if no src
+    }
+
+    const auto * src0_ptr      = reinterpret_cast<const uint8_t *>(src0->get_read_buffer());
+    auto *       dst_ptr       = reinterpret_cast<uint8_t *>(out->get_write_buffer());
+    auto         total_rows    = out->get_ne(3) * out->get_ne(2) * out->get_ne(1);
+    const auto   rows_per_cube = out->get_ne(2) * out->get_ne(1);
+    const auto   start_end     = hexagon::get_thread_work_slice(total_rows, params->tidx, params->tcnt);
+    if (start_end.first >= start_end.second) {
+        return true;
+    }
+
+    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER(out, params->tidx);
+
+    const size_t valid_row_bytes = src0->get_ne(0) * sizeof(data_type);
+    for (int64_t ir = start_end.first; ir < start_end.second; ++ir) {
+        const auto i03 = ir / rows_per_cube;
+        const auto i02 = ir / out->get_ne(1) - i03 * out->get_ne(2);
+        const auto i01 = ir % out->get_ne(1);  // TODO: should we use divide instead of mod?
+
+        auto * src0_row = src0_ptr + i03 * src0->get_nb(3) + i02 * src0->get_nb(2) + i01 * src0->get_nb(1);
+        auto * dst_row  = dst_ptr + i03 * out->get_nb(3) + i02 * out->get_nb(2) + i01 * out->get_nb(1);
+        if (ir + 1 < start_end.second) {
+            hexagon::l2fetch_row(src0_row + src0->get_nb(1), valid_row_bytes);
+        }
+
+        _RowFunc(reinterpret_cast<const data_type *>(src0_row), out->get_op_param<float>(0),
+                 static_cast<size_t>(out->get_ne(0)), reinterpret_cast<data_type *>(dst_row));
+    }
+
+    return true;
+}
+
+bool is_unary_op_supported(const npu_device_tensor_spec & src0, const npu_device_tensor_spec & src1,
+                           const npu_device_tensor_spec & dst, npu_device_tensor_op op) {
+    return false;
+}
+
 struct op_capabilities {
     npu_device_tensor_op               op;
     hexagon::op_is_supported_func_type is_supported;
@@ -243,6 +309,13 @@ constexpr const op_capabilities kOpCapabilities[] = {
             element_wise_op<vec_op_f16_f16<vmul_f16_f16>>,  // NPU_DATA_TYPE_F16
         },       false,
      },
+    {
+     NPU_OP_RMS_NORM,              is_element_wise_op_supported,
+     {
+            unary_op<rms_norm_vec_f32>,  // NPU_DATA_TYPE_F32
+            nullptr,                     // NPU_DATA_TYPE_F16
+        }, false,
+     },
 };
 
 static_assert(kOpCapabilities[NPU_OP_MUL_MAT].compute_funcs[NPU_DATA_TYPE_F32] == hexagon::mul_mat_f32,
@@ -251,6 +324,8 @@ static_assert(kOpCapabilities[NPU_OP_MUL_MAT].compute_funcs[NPU_DATA_TYPE_F32] =
 static_assert(std::size(kOpCapabilities) == NPU_OP_COUNT);
 static_assert(kOpCapabilities[NPU_OP_MUL_MAT].op == NPU_OP_MUL_MAT, "kOpArray[NPU_OP_MUL_MAT].op != NPU_OP_MUL_MAT");
 static_assert(kOpCapabilities[NPU_OP_MUL].op == NPU_OP_MUL, "kOpArray[NPU_OP_MUL].op != NPU_OP_MUL");
+static_assert(kOpCapabilities[NPU_OP_RMS_NORM].op == NPU_OP_RMS_NORM,
+              "kOpArray[NPU_OP_RMS_NORM].op != NPU_OP_RMS_NORM");
 
 hexagon::compute_func_type get_compute_func_impl(npu_device_tensor_op op, npu_device_tensor_data_type type) {
     if (op >= NPU_OP_COUNT) {

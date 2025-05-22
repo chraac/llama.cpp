@@ -38,6 +38,7 @@ interface npu_device : remote_handle64{
         NPU_OP_ADD,
         NPU_OP_SUB,
         NPU_OP_MUL,
+        NPU_OP_RMS_NORM,
         NPU_OP_COUNT
     };
 

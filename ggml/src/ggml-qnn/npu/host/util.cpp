@@ -25,6 +25,8 @@ enum npu_device_tensor_op op_to_npu_op(ggml_op op) {
             return NPU_OP_SUB;
         case GGML_OP_MUL:
             return NPU_OP_MUL;
+        case GGML_OP_RMS_NORM:
+            return NPU_OP_RMS_NORM;
         default:
             return NPU_OP_COUNT;
     }

@@ -130,6 +130,12 @@ AEEResult npu_device_device_support_op(remote_handle64 _h, const npu_device_tens
                                        const npu_device_tensor_spec * src1, const npu_device_tensor_spec * dst,
                                        npu_device_tensor_op op, boolean * is_supported) {
     NPU_UNUSED(_h);
+
+    if (!src0 || !src1 || !dst || !is_supported) {
+        DEVICE_LOG_ERROR("npu_device_device_support_op: Invalid arguments");
+        return AEE_EINVARGS;
+    }
+
     *is_supported = hexagon::support_op(*src0, *src1, *dst, op);
     return AEE_SUCCESS;
 }
