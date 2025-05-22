@@ -106,23 +106,20 @@ void dequantize_row_q4_0(const void * src, float * dst, size_t count, const floa
         HVX_Vector d2 = Q6_Vh_vsplat_R(src2.d);
         d1            = Q6_V_valign_VVR(d1, Q6_V_vzero(), hexagon::kBytesPerVector / 2);
         d1            = Q6_V_valign_VVR(d2, d1, hexagon::kBytesPerVector / 2);
-        HVX_Vector d  = Q6_Vb_vshuff_Vb(d1);
+        HVX_Vector d  = Q6_Vh_vshuff_Vh(d1);
 
         HVX_Vector     q_lo = load_q4_0_dual_block(src1, src2);
         HVX_Vector     q_hi = Q6_Vub_vlsr_VubR(q_lo, 4);
-        HVX_VectorPair q    = Q6_W_vshuff_VVR(Q6_V_vand_VV(q_lo, mask), q_hi, kSizeOfQs);
+        HVX_VectorPair q    = Q6_W_vshuff_VVR(q_hi, Q6_V_vand_VV(q_lo, mask), kSizeOfQs);
         q_lo                = Q6_V_valign_VVR(Q6_V_lo_W(q), Q6_V_vzero(), hexagon::kBytesPerVector / 2);
         q_lo                = Q6_V_valign_VVR(Q6_V_hi_W(q), q_lo, hexagon::kBytesPerVector / 2);
         q_lo                = Q6_Vb_vshuff_Vb(q_lo);
         q_lo                = Q6_Vb_vsub_VbVb(q_lo, minus);
-
-        q          = Q6_Wh_vunpack_Vb(q_lo);
-        q_lo       = Q6_V_valign_VVR(Q6_V_lo_W(q), Q6_V_vzero(), hexagon::kBytesPerVector / 2);
-        q_lo       = Q6_V_valign_VVR(Q6_V_hi_W(q), q_lo, hexagon::kBytesPerVector / 2);
-        q_lo       = Q6_Vhf_equals_Vh(q_lo);
-        q          = Q6_Wqf32_vmpy_VhfVhf(q_lo, d);
-        out[i]     = Q6_Vsf_equals_Vqf32(Q6_V_lo_W(q));
-        out[i + 1] = Q6_Vsf_equals_Vqf32(Q6_V_hi_W(q));
+        q                   = Q6_Wh_vunpack_Vb(q_lo);
+        q_lo                = Q6_Vhf_equals_Vh(Q6_V_lo_W(q));
+        q                   = Q6_Wqf32_vmpy_VhfVhf(q_lo, d);
+        out[i]              = Q6_Vsf_equals_Vqf32(Q6_V_lo_W(q));
+        out[i + 1]          = Q6_Vsf_equals_Vqf32(Q6_V_hi_W(q));
     }
 
     if (nb % 2) {
