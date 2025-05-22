@@ -34,14 +34,31 @@ inline float to_float(const npu_device_fp16_t src) {
 }
 
 inline HVX_Vector load_q4_0_block(const npu_device_block_q4_0 & src) {
+    // TODO: use intrinsics?
     union {
-        uint8_t    qs[QUANT_BLOCK_SIZE / 2];
+        uint8_t    ub[hexagon::kBytesPerVector];
         HVX_Vector vector;
     } cvt;
 
-    static_assert(sizeof(cvt.qs) == sizeof(src.qs), "wrong q4_0 block size/padding");
+    static_assert(sizeof(cvt.ub) == sizeof(HVX_Vector), "wrong cvt size/padding");
+    static_assert(sizeof(cvt.ub) >= sizeof(src.qs), "wrong q4_0 block size/padding");
 
-    memcpy(cvt.qs, src.qs, sizeof(cvt.qs));
+    memcpy(&cvt.ub[0], src.qs, sizeof(src.qs));
+    return cvt.vector;
+}
+
+inline HVX_Vector load_q4_0_dual_block(const npu_device_block_q4_0 & src1, const npu_device_block_q4_0 & src2) {
+    // TODO: use intrinsics?
+    union {
+        uint8_t    ub[hexagon::kBytesPerVector];
+        HVX_Vector vector;
+    } cvt;
+
+    static_assert(sizeof(cvt.ub) == sizeof(HVX_Vector), "wrong cvt size/padding");
+    static_assert(sizeof(cvt.ub) >= sizeof(src1.qs) * 2, "wrong q4_0 block size/padding");
+
+    memcpy(&cvt.ub[0], src1.qs, sizeof(src1.qs));
+    memcpy(&cvt.ub[sizeof(src1.qs)], src2.qs, sizeof(src2.qs));
     return cvt.vector;
 }
 
@@ -74,14 +91,42 @@ void dequantize_row_q4_0(const void * src, float * dst, size_t count, const floa
     constexpr const int qk = QUANT_BLOCK_SIZE;
     static_assert(qk % 2 == 0, "qk must be even");
     static_assert(QUANT_BLOCK_SIZE == hexagon::kBytesPerVector / sizeof(float));
+    constexpr const uint32_t kSizeOfQs = sizeof(npu_device_block_q4_0::qs);
 
     const int     nb      = count / qk;
     const auto *  src_ptr = reinterpret_cast<const npu_device_block_q4_0 *>(src);
     HVX_Vector    mask    = Q6_Vb_vsplat_R(0x0F);
     HVX_Vector    minus   = Q6_Vb_vsplat_R(8);
     HVX_UVector * out     = ((HVX_UVector *) dst);  // TODO: opt for aligned access
-    for (int i = 0; i < nb; i++) {
-        const auto & curr_blk = src_ptr[i];
+    for (int i = 0; i < nb; i += 2) {
+        const auto & src1 = src_ptr[i];
+        const auto & src2 = src_ptr[i + 1];
+
+        HVX_Vector d1 = Q6_Vh_vsplat_R(src1.d);
+        HVX_Vector d2 = Q6_Vh_vsplat_R(src2.d);
+        d1            = Q6_V_valign_VVR(d1, Q6_V_vzero(), hexagon::kBytesPerVector / 2);
+        d1            = Q6_V_valign_VVR(d2, d1, hexagon::kBytesPerVector / 2);
+        HVX_Vector d  = Q6_Vb_vshuff_Vb(d1);
+
+        HVX_Vector     q_lo = load_q4_0_dual_block(src1, src2);
+        HVX_Vector     q_hi = Q6_Vub_vlsr_VubR(q_lo, 4);
+        HVX_VectorPair q    = Q6_W_vshuff_VVR(Q6_V_vand_VV(q_lo, mask), q_hi, kSizeOfQs);
+        q_lo                = Q6_V_valign_VVR(Q6_V_lo_W(q), Q6_V_vzero(), hexagon::kBytesPerVector / 2);
+        q_lo                = Q6_V_valign_VVR(Q6_V_hi_W(q), q_lo, hexagon::kBytesPerVector / 2);
+        q_lo                = Q6_Vb_vshuff_Vb(q_lo);
+        q_lo                = Q6_Vb_vsub_VbVb(q_lo, minus);
+
+        q          = Q6_Wh_vunpack_Vb(q_lo);
+        q_lo       = Q6_V_valign_VVR(Q6_V_lo_W(q), Q6_V_vzero(), hexagon::kBytesPerVector / 2);
+        q_lo       = Q6_V_valign_VVR(Q6_V_hi_W(q), q_lo, hexagon::kBytesPerVector / 2);
+        q_lo       = Q6_Vhf_equals_Vh(q_lo);
+        q          = Q6_Wqf32_vmpy_VhfVhf(q_lo, d);
+        out[i]     = Q6_Vsf_equals_Vqf32(Q6_V_lo_W(q));
+        out[i + 1] = Q6_Vsf_equals_Vqf32(Q6_V_hi_W(q));
+    }
+
+    if (nb % 2) {
+        const auto & curr_blk = src_ptr[nb - 1];
         HVX_Vector   d        = Q6_Vh_vsplat_R(curr_blk.d);
 
         HVX_Vector q_lo = load_q4_0_block(curr_blk);
@@ -94,8 +139,7 @@ void dequantize_row_q4_0(const void * src, float * dst, size_t count, const floa
         q                = Q6_Wh_vunpack_Vb(Q6_V_lo_W(q));
         q_lo             = Q6_Vhf_equals_Vh(Q6_V_lo_W(q));
         q                = Q6_Wqf32_vmpy_VhfVhf(q_lo, d);
-        q_lo             = Q6_Vsf_equals_Vqf32(Q6_V_lo_W(q));
-        out[i]           = q_lo;
+        out[nb - 1]      = Q6_Vsf_equals_Vqf32(Q6_V_lo_W(q));
     }
 }
 
