@@ -73,6 +73,14 @@ class host_tensor {
         npu_device_tensor_set_op(_device_handle, _device_tensor_handle, _info.op);
     }
 
+    void update_params() {
+        static_assert(DEVICE_TENSOR_MAX_OP_PARAMS <= GGML_MAX_OP_PARAMS, "device tensor params size mismatch");
+        if (_ggml_tensor) {
+            npu_device_tensor_set_params(_device_handle, _device_tensor_handle, _ggml_tensor->op_params,
+                                         DEVICE_TENSOR_MAX_OP_PARAMS);
+        }
+    }
+
     bool is_valid() const { return _device_tensor_handle != 0; }
 
   private:

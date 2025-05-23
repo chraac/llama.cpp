@@ -4,7 +4,7 @@
 
 const uint32_t DEVICE_TENSOR_MAX_DIMS = 4;
 const uint32_t DEVICE_TENSOR_MAX_SRC = 2;
-const uint32_t DEVICE_TENSOR_MAX_PARAMS = 4;
+const uint32_t DEVICE_TENSOR_MAX_OP_PARAMS = 4;
 const uint32_t QUANT_BLOCK_SIZE = 32;
 const uint32_t QUANT_K_BLOCK_SIZE = 256;
 const uint32_t QUANT_K_SCALE_SIZE = 12;
@@ -93,6 +93,11 @@ interface npu_device : remote_handle64{
     AEEResult tensor_set_op(
         in tensor_handle_t tensor_handle,
         in tensor_op op
+    );
+
+    AEEResult tensor_set_params(
+        in tensor_handle_t tensor_handle,
+        in sequence<int32_t> params
     );
 
     AEEResult tensor_free(

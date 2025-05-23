@@ -41,6 +41,7 @@ bool host_graph::update(ggml_cgraph * cgraph) {
             continue;
         }
 
+        // TODO: move to tensor?
         auto * tensor_obj = host_tensor::from_ggml_tensor(node);
         if (!tensor_obj) {
             LOG_DEBUG("Unable to get host tensor from ggml tensor: %p\n", (void *) node);
@@ -48,6 +49,7 @@ bool host_graph::update(ggml_cgraph * cgraph) {
         }
 
         tensor_obj->set_op(node->op);
+        tensor_obj->update_params();
         _tensor_handles.push_back(tensor_obj->get_device_tensor_handle());
         LOG_DEBUG("[%p]node[%d]%s(%s), addr: %p, type: %s, tensor_handle: %p\n", (void *) this, i, ggml_get_name(node),
                   ggml_op_desc(node), (void *) node, ggml_type_name(node->type),

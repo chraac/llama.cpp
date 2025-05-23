@@ -9,7 +9,7 @@
 namespace hexagon {
 
 constexpr const size_t kMaxTensorSrc   = DEVICE_TENSOR_MAX_SRC;
-constexpr const size_t kMaxParamsCount = DEVICE_TENSOR_MAX_PARAMS;
+constexpr const size_t kMaxParamsCount = DEVICE_TENSOR_MAX_OP_PARAMS;
 
 class tensor {
   public:

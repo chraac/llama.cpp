@@ -180,6 +180,18 @@ AEEResult npu_device_tensor_set_op(remote_handle64 _h, npu_device_tensor_handle_
     return AEE_SUCCESS;
 }
 
+AEEResult npu_device_tensor_set_params(remote_handle64 _h, npu_device_tensor_handle_t tensor_handle,
+                                       const int32_t * params, int paramsLen) {
+    NPU_UNUSED(_h);
+    auto * tensor = tensor_from_handle(tensor_handle);
+    if (!tensor || !params || paramsLen <= 0) {
+        return AEE_EINVHANDLE;
+    }
+
+    tensor->set_params(params, paramsLen);
+    return AEE_SUCCESS;
+}
+
 AEEResult npu_device_tensor_free(remote_handle64 _h, npu_device_tensor_handle_t tensor_handle) {
     NPU_UNUSED(_h);
     auto * tensor = tensor_from_handle(tensor_handle);
