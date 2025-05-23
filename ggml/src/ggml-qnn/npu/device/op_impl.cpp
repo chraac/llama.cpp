@@ -223,16 +223,70 @@ bool is_element_wise_op_supported(const npu_device_tensor_spec & src0, const npu
 }
 
 void rms_norm_vec_f32(const float * src, size_t count, float eps, float * dst) {
-    // TODO: implement this using hexagon intrinsics
-    float sum = 0.f;
-    for (size_t i = 0; i < count; ++i) {
-        sum += src[i] * src[i];
+    constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(float);
+
+    HVX_Vector * src_vec_ptr = ((HVX_Vector *) src);
+    HVX_Vector * src_vec_end = ((HVX_Vector *) src) + (count / kElementsPerVector);
+    HVX_Vector   prev        = *src_vec_ptr++;
+    HVX_Vector   sum         = Q6_V_vzero();
+    while (src_vec_ptr < src_vec_end) {
+        HVX_Vector curr = *src_vec_ptr++;
+        HVX_Vector s0   = Q6_V_valign_VVR(curr, prev, (size_t) src);
+        sum             = Q6_Vqf32_vadd_Vqf32Vqf32(sum, Q6_Vqf32_vmpy_VsfVsf(s0, s0));
+        prev            = curr;
     }
 
-    const float mean  = sum / count;
-    const float scale = 1.0f / sqrtf(mean + eps);
-    for (size_t i = 0; i < count; ++i) {
-        dst[i] = src[i] * scale;
+    if ((src_vec_end - ((HVX_Vector *) src)) > 0) {
+        // handle the last vector
+        bool       src_ptr_aligned = hexagon::is_addr_aligned(src_vec_ptr);
+        HVX_Vector curr            = src_ptr_aligned ? prev : *src_vec_ptr;
+        src_vec_ptr                = src_ptr_aligned ? src_vec_ptr : src_vec_ptr + 1;
+        HVX_Vector s0              = Q6_V_valign_VVR(curr, prev, (size_t) src);
+        sum                        = Q6_Vqf32_vadd_Vqf32Vqf32(sum, Q6_Vqf32_vmpy_VsfVsf(s0, s0));
+        prev                       = curr;
+    }
+
+    const size_t leftover       = count % kElementsPerVector;
+    const size_t leftover_bytes = leftover * sizeof(float);
+    if (leftover > 0) {
+        // handle the leftover elements
+        HVX_Vector curr =
+            (leftover_bytes + hexagon::unaligned_bytes(src_vec_ptr) > hexagon::kBytesPerVector) ? *src_vec_ptr : prev;
+        curr = Q6_V_valign_VVR(curr, prev, (size_t) src);
+        sum  = Q6_Vqf32_vadd_Vqf32Vqf32(sum,
+                                        Q6_V_valign_VVR(Q6_Vqf32_vmpy_VsfVsf(curr, curr), Q6_V_vzero(), leftover_bytes));
+    }
+
+    const float mean  = hexagon::vec_reduction_f32(sum) / count;  // TODO: figure out how to do division in vector
+    const float scale = 1.0f / sqrtf(mean + eps);                 // TODO: use buildin blas sqrtf?
+
+    HVX_Vector scale_vec     = Q6_V_vsplat_R(reinterpret_cast<const uint32_t &>(scale));
+    src_vec_ptr              = ((HVX_Vector *) src);
+    prev                     = *src_vec_ptr++;
+    HVX_Vector * dst_vec_ptr = ((HVX_Vector *) dst);  // framework will ensure the dst is aligned
+    while (src_vec_ptr < src_vec_end) {
+        HVX_Vector curr = *src_vec_ptr++;
+        HVX_Vector s0   = Q6_V_valign_VVR(curr, prev, (size_t) src);
+        *dst_vec_ptr++  = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_VsfVsf(s0, scale_vec));
+        prev            = curr;
+    }
+
+    if ((src_vec_end - ((HVX_Vector *) src)) > 0) {
+        // handle the last vector
+        bool       src_ptr_aligned = hexagon::is_addr_aligned(src_vec_ptr);
+        HVX_Vector curr            = src_ptr_aligned ? prev : *src_vec_ptr;
+        src_vec_ptr                = src_ptr_aligned ? src_vec_ptr : src_vec_ptr + 1;
+        HVX_Vector s0              = Q6_V_valign_VVR(curr, prev, (size_t) src);
+        *dst_vec_ptr++             = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_VsfVsf(s0, scale_vec));
+        prev                       = curr;
+    }
+
+    if (leftover > 0) {
+        // handle the leftover elements
+        HVX_Vector curr =
+            (leftover_bytes + hexagon::unaligned_bytes(src_vec_ptr) > hexagon::kBytesPerVector) ? *src_vec_ptr : prev;
+        curr = Q6_V_valign_VVR(curr, prev, (size_t) src);
+        q6op_vstu_variable_ARV(dst_vec_ptr, leftover_bytes, Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_VsfVsf(curr, scale_vec)));
     }
 }
 

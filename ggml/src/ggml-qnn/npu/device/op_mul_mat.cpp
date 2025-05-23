@@ -8,27 +8,6 @@
 
 namespace {
 
-inline float vec_reduction_f32(HVX_Vector sums) {
-    constexpr const size_t kFloatsPerVector = hexagon::kBytesPerVector / sizeof(float);
-    static_assert(kFloatsPerVector == 32 || kFloatsPerVector == 16, "kFloatsPerVector should be 16 or 32");
-
-    // TODO: do we have a better way to do the reduction?
-    switch (kFloatsPerVector) {
-        default:
-        case 32:
-            sums = Q6_Vqf32_vadd_Vqf32Vqf32(sums, Q6_V_vror_VR(sums, 16 * sizeof(float)));
-            // fallthrough
-        case 16:
-            sums = Q6_Vqf32_vadd_Vqf32Vqf32(sums, Q6_V_vror_VR(sums, 8 * sizeof(float)));
-            sums = Q6_Vqf32_vadd_Vqf32Vqf32(sums, Q6_V_vror_VR(sums, 4 * sizeof(float)));
-            sums = Q6_Vqf32_vadd_Vqf32Vqf32(sums, Q6_V_vror_VR(sums, 2 * sizeof(float)));
-            sums = Q6_Vqf32_vadd_Vqf32Vqf32(sums, Q6_V_vror_VR(sums, sizeof(float)));
-            break;
-    }
-
-    return hexagon::get_flt0_from_fltv(Q6_Vsf_equals_Vqf32(sums));
-}
-
 inline float vec_dot_product_f32_f32(const float * src0, const float * src1, size_t count) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(float);
 
@@ -83,7 +62,7 @@ inline float vec_dot_product_f32_f32(const float * src0, const float * src1, siz
             Q6_V_valign_VVR(Q6_Vqf32_vmpy_VsfVsf(curr0, curr1), Q6_V_vzero(), leftover_bytes), sum);
     }
 
-    return vec_reduction_f32(sum);
+    return hexagon::vec_reduction_f32(sum);
 }
 
 // TODO: merge with vec_dot_product_f32_f32?
@@ -157,7 +136,7 @@ inline float vec_dot_product_f16_f16(const npu_device_fp16_t * src0, const npu_d
         }
     }
 
-    return vec_reduction_f32(Q6_Vqf32_vadd_Vqf32Vqf32(sum_hi, sum_lo));
+    return hexagon::vec_reduction_f32(Q6_Vqf32_vadd_Vqf32Vqf32(sum_hi, sum_lo));
 }
 
 template <typename T> struct get_data_type {};

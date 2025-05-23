@@ -38,6 +38,31 @@ inline float get_flt0_from_fltv(HVX_Vector vect) {
     return cvt.f;
 }
 
+inline HVX_Vector vec_reduction_qf32(HVX_Vector sums) {
+    constexpr const size_t kFloatsPerVector = hexagon::kBytesPerVector / sizeof(float);
+    static_assert(kFloatsPerVector == 32 || kFloatsPerVector == 16, "kFloatsPerVector should be 16 or 32");
+
+    // TODO: do we have a better way to do the reduction?
+    switch (kFloatsPerVector) {
+        default:
+        case 32:
+            sums = Q6_Vqf32_vadd_Vqf32Vqf32(sums, Q6_V_vror_VR(sums, 16 * sizeof(float)));
+            // fallthrough
+        case 16:
+            sums = Q6_Vqf32_vadd_Vqf32Vqf32(sums, Q6_V_vror_VR(sums, 8 * sizeof(float)));
+            sums = Q6_Vqf32_vadd_Vqf32Vqf32(sums, Q6_V_vror_VR(sums, 4 * sizeof(float)));
+            sums = Q6_Vqf32_vadd_Vqf32Vqf32(sums, Q6_V_vror_VR(sums, 2 * sizeof(float)));
+            sums = Q6_Vqf32_vadd_Vqf32Vqf32(sums, Q6_V_vror_VR(sums, sizeof(float)));
+            break;
+    }
+
+    return sums;
+}
+
+inline float vec_reduction_f32(HVX_Vector sums) {
+    return hexagon::get_flt0_from_fltv(Q6_Vsf_equals_Vqf32(vec_reduction_qf32(sums)));
+}
+
 bool mul_mat_f32(tensor * out, compute_params * params);
 bool is_mul_mat_supported(const npu_device_tensor_spec & src0, const npu_device_tensor_spec & src1,
                           const npu_device_tensor_spec & dst, npu_device_tensor_op op);
