@@ -11,14 +11,35 @@ namespace {
 inline float vec_dot_product_f32_f32(const float * src0, const float * src1, size_t count) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(float);
 
+    const size_t vec_count = count / kElementsPerVector;
+
     HVX_Vector * iptr0     = ((HVX_Vector *) src0);
-    HVX_Vector * iptr0_end = ((HVX_Vector *) src0) + (count / kElementsPerVector);
+    HVX_Vector * iptr0_end = ((HVX_Vector *) src0) + vec_count;
     HVX_Vector * iptr1     = ((HVX_Vector *) src1);
     HVX_Vector   prev0     = *iptr0++;
     HVX_Vector   prev1     = *iptr1++;
     HVX_Vector   sum       = Q6_V_vzero();
 
-    while (iptr0 < iptr0_end) {
+    while (iptr0_end - iptr0 > 1) {
+        HVX_Vector curr0_lo = iptr0[0];
+        HVX_Vector curr0_hi = iptr0[1];
+        HVX_Vector curr1_lo = iptr1[0];
+        HVX_Vector curr1_hi = iptr1[1];
+
+        HVX_Vector s0 = Q6_V_valign_VVR(curr0_lo, prev0, (size_t) src0);
+        HVX_Vector s1 = Q6_V_valign_VVR(curr1_lo, prev1, (size_t) src1);
+        sum           = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_VsfVsf(s0, s1), sum);
+        s0            = Q6_V_valign_VVR(curr0_hi, curr0_lo, (size_t) src0);
+        s1            = Q6_V_valign_VVR(curr1_hi, curr1_lo, (size_t) src1);
+        sum           = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_VsfVsf(s0, s1), sum);
+
+        prev0 = curr0_hi;
+        prev1 = curr1_hi;
+        iptr0 += 2;
+        iptr1 += 2;
+    }
+
+    if (iptr0_end - iptr0 > 0) {
         HVX_Vector curr0 = *iptr0++;
         HVX_Vector curr1 = *iptr1++;
         HVX_Vector s0    = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
