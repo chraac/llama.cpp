@@ -19,6 +19,8 @@ class host_tensor {
 
     explicit host_tensor(ggml_tensor * tensor, int buffer_fd, uint64_t offset, remote_handle64 device_handle) :
         _device_handle(device_handle) {
+        static_assert(sizeof(npu_device_tensor_config) < 100, "npu_device_tensor_config size too large");
+
         _info.buffer_fd = buffer_fd;
         _info.offset    = offset;
         _info.type      = type_to_npu_type(tensor->type);

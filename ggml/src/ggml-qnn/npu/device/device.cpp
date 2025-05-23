@@ -106,6 +106,7 @@ int npu_device_open(const char * uri, remote_handle64 * h) {
     }
 
     *h = reinterpret_cast<remote_handle64>(context);
+    DEVICE_LOG_INFO("NPU device context created: %p", (void *) *h);
     return AEE_SUCCESS;
 }
 
@@ -117,6 +118,7 @@ int npu_device_close(remote_handle64 h) {
     }
 
     delete context;
+    DEVICE_LOG_INFO("NPU device context destroyed: %p", (void *) h);
     return AEE_SUCCESS;
 }
 
