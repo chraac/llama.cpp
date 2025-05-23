@@ -62,6 +62,14 @@ class tensor {
 
     void set_op(npu_device_tensor_op op) { _info.op = op; }
 
+    void set_params(const int32_t * params, size_t count) {
+        if (count > kMaxParamsCount) {
+            return;
+        }
+
+        memcpy(_op_params, params, sizeof(int32_t) * count);
+    }
+
     tensor * get_src(size_t index) const {
         if (index >= kMaxTensorSrc) {
             return nullptr;
@@ -87,6 +95,8 @@ class tensor {
     }
 
     const int32_t * get_op_params() const { return _op_params; }
+
+    const size_t get_op_param_count() const { return kMaxParamsCount; }
 
     npu_device_tensor_data_type get_type() const { return _info.type; }
 

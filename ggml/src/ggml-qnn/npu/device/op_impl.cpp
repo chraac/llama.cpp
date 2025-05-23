@@ -170,6 +170,16 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
     return true;
 }
 
+bool is_same_shape(const npu_device_tensor_spec & src, const npu_device_tensor_spec & dst) {
+    for (size_t i = 0; i < DEVICE_TENSOR_MAX_DIMS; ++i) {
+        if (src.ne[i] != dst.ne[i]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool is_element_wise_op_supported(const npu_device_tensor_spec & src0, const npu_device_tensor_spec & src1,
                                   const npu_device_tensor_spec & dst, npu_device_tensor_op op) {
     if (op != NPU_OP_ADD && op != NPU_OP_SUB && op != NPU_OP_MUL) {
@@ -200,12 +210,9 @@ bool is_element_wise_op_supported(const npu_device_tensor_spec & src0, const npu
         return false;
     }
 
-    for (size_t i = 0; i < DEVICE_TENSOR_MAX_DIMS; ++i) {
-        if (src0.ne[i] != dst.ne[i]) {
-            DEVICE_LOG_DEBUG("[%s]src0.ne[%zu] and dst.ne[%zu] not match: %lld vs %lld\n", hexagon::op_get_name(op), i,
-                             i, (long long) src0.ne[i], (long long) dst.ne[i]);
-            return false;
-        }
+    if (!is_same_shape(src0, dst)) {
+        DEVICE_LOG_DEBUG("[%s]src0 and dst have different shape\n", hexagon::op_get_name(op));
+        return false;
     }
 
     return true;
@@ -270,7 +277,28 @@ template <auto _RowFunc> bool unary_op(hexagon::tensor * out, hexagon::compute_p
 
 bool is_unary_op_supported(const npu_device_tensor_spec & src0, const npu_device_tensor_spec & src1,
                            const npu_device_tensor_spec & dst, npu_device_tensor_op op) {
-    return false;
+    if (op != NPU_OP_RMS_NORM) {
+        DEVICE_LOG_DEBUG("[%s]unsupported\n", hexagon::op_get_name(op));
+        return false;
+    }
+
+    if (dst.type != src0.type) {
+        DEVICE_LOG_DEBUG("[%s]src0.type and dst.type mismatch: %s vs %s\n", hexagon::op_get_name(op),
+                         hexagon::get_type_name(src0.type), hexagon::get_type_name(dst.type));
+        return false;
+    }
+
+    if (dst.type != NPU_DATA_TYPE_F32) {
+        DEVICE_LOG_DEBUG("[%s]unsupported data type: %s\n", hexagon::op_get_name(op), hexagon::get_type_name(dst.type));
+        return false;
+    }
+
+    if (!is_same_shape(src0, dst)) {
+        DEVICE_LOG_DEBUG("[%s]src0 and dst have different shape\n", hexagon::op_get_name(op));
+        return false;
+    }
+
+    return true;
 }
 
 struct op_capabilities {
@@ -310,7 +338,7 @@ constexpr const op_capabilities kOpCapabilities[] = {
         },       false,
      },
     {
-     NPU_OP_RMS_NORM,              is_element_wise_op_supported,
+     NPU_OP_RMS_NORM,              is_unary_op_supported,
      {
             unary_op<rms_norm_vec_f32>,  // NPU_DATA_TYPE_F32
             nullptr,                     // NPU_DATA_TYPE_F16
