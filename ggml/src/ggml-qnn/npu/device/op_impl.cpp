@@ -224,9 +224,9 @@ bool is_element_wise_op_supported(const npu_device_tensor_spec & src0, const npu
 
 void rms_norm_vec_f32(const float * src, size_t count, float eps, float * dst) {
     // TODO: implement this using hexagon intrinsics
-    double sum = 0.0;
+    float sum = 0.f;
     for (size_t i = 0; i < count; ++i) {
-        sum += static_cast<double>(src[i]) * src[i];
+        sum += src[i] * src[i];
     }
 
     const float mean  = sum / count;
