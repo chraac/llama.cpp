@@ -1,5 +1,7 @@
 #pragma once
 
+#include <type_traits>
+
 #include "common.hpp"
 #include "ggml-impl.h"
 #include "hexagon_npu.h"
@@ -59,7 +61,7 @@ class host_tensor {
     npu_device_tensor_handle_t get_device_tensor_handle() const { return _device_tensor_handle; }
 
     void update_params(ggml_tensor * ggml_tensor) {
-        static_assert(DEVICE_TENSOR_MAX_OP_PARAMS <= GGML_MAX_OP_PARAMS, "device tensor params size mismatch");
+        static_assert(sizeof(_op_params) <= sizeof(_ggml_tensor->op_params), "device tensor params size mismatch");
         static_assert(DEVICE_TENSOR_MAX_SRC <= GGML_MAX_SRC, "device tensor src size mismatch");
 
         GGML_ASSERT(ggml_tensor == _ggml_tensor);
@@ -68,7 +70,15 @@ class host_tensor {
             return;
         }
 
-        _info.op = op_to_npu_op(_ggml_tensor->op);
+        bool params_changed = false;
+        auto new_op         = op_to_npu_op(_ggml_tensor->op);
+        params_changed |= new_op != _info.op;
+        _info.op = new_op;
+
+        if (memcmp(_ggml_tensor->op_params, _op_params, sizeof(_op_params)) != 0) {
+            params_changed = true;
+            memcpy(_op_params, _ggml_tensor->op_params, sizeof(_op_params));
+        }
 
         npu_device_tensor_handle_t src_tensor_handles[DEVICE_TENSOR_MAX_SRC] = {};
         int                        src_count                                 = 0;
@@ -79,17 +89,33 @@ class host_tensor {
             LOG_DEBUG("host_tensor(%p) set_src[%zu]: %p\n", (void *) this, j, (void *) src);
         }
 
-        npu_device_tensor_update_params(_device_handle, _device_tensor_handle, _info.op, _ggml_tensor->op_params,
-                                        DEVICE_TENSOR_MAX_OP_PARAMS, src_tensor_handles, src_count);
+        static_assert(std::is_same<decltype(_src_handles), decltype(src_tensor_handles)>::value,
+                      "src tensor handles type mismatch");
+        if (src_count != _src_count || memcmp(_src_handles, src_tensor_handles, sizeof(_src_handles)) != 0) {
+            params_changed = true;
+            memcpy(_src_handles, src_tensor_handles, sizeof(_src_handles));
+            _src_count = src_count;
+        }
+
+        if (params_changed) {
+            npu_device_tensor_update_params(_device_handle, _device_tensor_handle, _info.op, _op_params,
+                                            DEVICE_TENSOR_MAX_OP_PARAMS, _src_handles, _src_count);
+            LOG_DEBUG("host_tensor(%p) update_params, op: %s, params: [%x, %x, %x, %x], src_count: %d\n", (void *) this,
+                      ggml_op_desc(_ggml_tensor), (int) _op_params[0], (int) _op_params[1], (int) _op_params[2],
+                      (int) _op_params[3], _src_count);
+        }
     }
 
     bool is_valid() const { return _device_tensor_handle != 0; }
 
   private:
-    remote_handle64            _device_handle        = 0;
-    npu_device_tensor_handle_t _device_tensor_handle = 0;
-    npu_device_tensor_config   _info                 = {};
-    ggml_tensor *              _ggml_tensor          = nullptr;
+    remote_handle64            _device_handle                          = 0;
+    npu_device_tensor_handle_t _device_tensor_handle                   = 0;
+    npu_device_tensor_config   _info                                   = {};
+    int32_t                    _op_params[DEVICE_TENSOR_MAX_OP_PARAMS] = {};
+    npu_device_tensor_handle_t _src_handles[DEVICE_TENSOR_MAX_SRC]     = {};
+    int                        _src_count                              = 0;
+    ggml_tensor *              _ggml_tensor                            = nullptr;
 
     DISABLE_COPY(host_tensor);
     DISABLE_MOVE(host_tensor);
