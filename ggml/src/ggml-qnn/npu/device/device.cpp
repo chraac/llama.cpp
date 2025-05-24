@@ -156,19 +156,18 @@ AEEResult npu_device_tensor_init(remote_handle64 _h, const npu_device_tensor_con
 }
 
 AEEResult npu_device_tensor_update_params(remote_handle64 _h, npu_device_tensor_handle_t tensor_handle,
-                                          npu_device_tensor_op op, const int32_t * params, int paramsLen,
-                                          const npu_device_tensor_handle_t * src_handles, int src_handlesLen) {
+                                          const npu_device_tensor_update_config * config) {
     NPU_UNUSED(_h);
     auto * tensor = tensor_from_handle(tensor_handle);
-    if (!tensor || !params || paramsLen <= 0) {
+    if (!tensor || !config) {
         return AEE_EINVHANDLE;
     }
 
-    tensor->set_op(op);
-    tensor->set_params(params, paramsLen);
-    auto count = std::min<size_t>(src_handlesLen, hexagon::kMaxTensorSrc);
-    for (size_t i = 0; i < count; ++i) {
-        tensor->set_src(i, tensor_from_handle(src_handles[i]));
+    tensor->set_op(config->op);
+    tensor->set_params(config->params, DEVICE_TENSOR_MAX_OP_PARAMS);
+    for (size_t i = 0; i < DEVICE_TENSOR_MAX_SRC; ++i) {
+        auto src_handle = config->src_handles[i];
+        tensor->set_src(i, src_handle ? tensor_from_handle(src_handle) : nullptr);
     }
 
     return AEE_SUCCESS;

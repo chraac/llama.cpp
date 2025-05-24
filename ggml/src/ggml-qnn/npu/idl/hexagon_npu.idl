@@ -57,6 +57,12 @@ interface npu_device : remote_handle64{
         tensor_data_type type;
     };
 
+    struct tensor_update_config {
+        tensor_op op;
+        int32_t params[DEVICE_TENSOR_MAX_OP_PARAMS];
+        tensor_handle_t src_handles[DEVICE_TENSOR_MAX_SRC];
+    };
+
     struct tensor_config {
         ne_type ne;
         uint64_t nb[DEVICE_TENSOR_MAX_DIMS];
@@ -86,9 +92,7 @@ interface npu_device : remote_handle64{
 
     AEEResult tensor_update_params(
         in tensor_handle_t tensor_handle,
-        in tensor_op op,
-        in sequence<int32_t> params,
-        in sequence<tensor_handle_t> src_handles
+        in tensor_update_config config
     );
 
     AEEResult tensor_free(
