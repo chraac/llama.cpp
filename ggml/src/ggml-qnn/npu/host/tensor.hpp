@@ -70,14 +70,20 @@ class host_tensor {
             return;
         }
 
-        bool params_changed = false;
         auto new_op         = op_to_npu_op(_ggml_tensor->op);
-        params_changed |= new_op != _info.op;
+        bool params_changed = new_op != _info.op;
+        if (params_changed) {
+            LOG_DEBUG("host_tensor(%p) op changed: %s -> %s\n", (void *) this, get_npu_op_desc(_info.op),
+                      get_npu_op_desc(new_op));
+        }
+
         _info.op = new_op;
 
         if (memcmp(_ggml_tensor->op_params, _op_params, sizeof(_op_params)) != 0) {
             params_changed = true;
             memcpy(_op_params, _ggml_tensor->op_params, sizeof(_op_params));
+            LOG_DEBUG("host_tensor(%p) op_params changed: [%x, %x, %x, %x]\n", (void *) this, (int) _op_params[0],
+                      (int) _op_params[1], (int) _op_params[2], (int) _op_params[3]);
         }
 
         npu_device_tensor_handle_t src_tensor_handles[DEVICE_TENSOR_MAX_SRC] = {};
@@ -95,6 +101,8 @@ class host_tensor {
             params_changed = true;
             memcpy(_src_handles, src_tensor_handles, sizeof(_src_handles));
             _src_count = src_count;
+            LOG_DEBUG("host_tensor(%p) src changed, count: %d, handles: [%p, %p]\n", (void *) this, _src_count,
+                      (void *) _src_handles[0], (void *) _src_handles[1]);
         }
 
         if (params_changed) {

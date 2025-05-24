@@ -32,6 +32,23 @@ enum npu_device_tensor_op op_to_npu_op(ggml_op op) {
     }
 }
 
+const char * get_npu_op_desc(enum npu_device_tensor_op op) {
+    switch (op) {
+        case NPU_OP_MUL_MAT:
+            return ggml_op_name(GGML_OP_MUL_MAT);
+        case NPU_OP_ADD:
+            return ggml_op_name(GGML_OP_ADD);
+        case NPU_OP_SUB:
+            return ggml_op_name(GGML_OP_SUB);
+        case NPU_OP_MUL:
+            return ggml_op_name(GGML_OP_MUL);
+        case NPU_OP_RMS_NORM:
+            return ggml_op_name(GGML_OP_RMS_NORM);
+        default:
+            return "UNKNOWN";
+    }
+}
+
 enum npu_device_tensor_data_type type_to_npu_type(ggml_type type) {
     switch (type) {
         case GGML_TYPE_F32:
