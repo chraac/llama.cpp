@@ -84,20 +84,11 @@ interface npu_device : remote_handle64{
         rout tensor_handle_t tensor_handle
     );
 
-    AEEResult tensor_set_src(
+    AEEResult tensor_update_params(
         in tensor_handle_t tensor_handle,
-        in uint64_t index,
-        in tensor_handle_t src
-    );
-
-    AEEResult tensor_set_op(
-        in tensor_handle_t tensor_handle,
-        in tensor_op op
-    );
-
-    AEEResult tensor_set_params(
-        in tensor_handle_t tensor_handle,
-        in sequence<int32_t> params
+        in tensor_op op,
+        in sequence<int32_t> params,
+        in sequence<tensor_handle_t> src_handles
     );
 
     AEEResult tensor_free(

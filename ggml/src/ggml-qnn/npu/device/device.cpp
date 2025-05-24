@@ -155,40 +155,22 @@ AEEResult npu_device_tensor_init(remote_handle64 _h, const npu_device_tensor_con
     return AEE_SUCCESS;
 }
 
-AEEResult npu_device_tensor_set_src(remote_handle64 _h, npu_device_tensor_handle_t tensor_handle, uint64_t index,
-                                    npu_device_tensor_handle_t src) {
-    NPU_UNUSED(_h);
-    auto * tensor = tensor_from_handle(tensor_handle);
-    if (!tensor) {
-        return AEE_EINVHANDLE;
-    }
-
-    auto * src_tensor = tensor_from_handle(src);
-    tensor->set_src(index, src_tensor);
-    return AEE_SUCCESS;
-}
-
-AEEResult npu_device_tensor_set_op(remote_handle64 _h, npu_device_tensor_handle_t tensor_handle,
-                                   npu_device_tensor_op op) {
-    NPU_UNUSED(_h);
-    auto * tensor = tensor_from_handle(tensor_handle);
-    if (!tensor) {
-        return AEE_EINVHANDLE;
-    }
-
-    tensor->set_op(op);
-    return AEE_SUCCESS;
-}
-
-AEEResult npu_device_tensor_set_params(remote_handle64 _h, npu_device_tensor_handle_t tensor_handle,
-                                       const int32_t * params, int paramsLen) {
+AEEResult npu_device_tensor_update_params(remote_handle64 _h, npu_device_tensor_handle_t tensor_handle,
+                                          npu_device_tensor_op op, const int32_t * params, int paramsLen,
+                                          const npu_device_tensor_handle_t * src_handles, int src_handlesLen) {
     NPU_UNUSED(_h);
     auto * tensor = tensor_from_handle(tensor_handle);
     if (!tensor || !params || paramsLen <= 0) {
         return AEE_EINVHANDLE;
     }
 
+    tensor->set_op(op);
     tensor->set_params(params, paramsLen);
+    auto count = std::min<size_t>(src_handlesLen, hexagon::kMaxTensorSrc);
+    for (size_t i = 0; i < count; ++i) {
+        tensor->set_src(i, tensor_from_handle(src_handles[i]));
+    }
+
     return AEE_SUCCESS;
 }
 

@@ -50,16 +50,11 @@ bool host_graph::update(ggml_cgraph * cgraph) {
             continue;
         }
 
-        tensor_obj->set_op(node->op);
-        tensor_obj->update_params();
         _tensor_handles.push_back(tensor_obj->get_device_tensor_handle());
+        tensor_obj->update_params(node);
         LOG_DEBUG("[%p]node[%d]%s(%s), addr: %p, type: %s, tensor_handle: %p\n", (void *) this, i, ggml_get_name(node),
                   ggml_op_desc(node), (void *) node, ggml_type_name(node->type),
                   (void *) tensor_obj->get_device_tensor_handle());
-        for (size_t j = 0; j < GGML_MAX_SRC && node->src[j]; ++j) {
-            auto * src = host_tensor::from_ggml_tensor(node->src[j]);
-            tensor_obj->set_src(j, src);
-        }
     }
 
     constexpr const npu_device_tensor_handle_t kEmptyTensorHandle = 0;

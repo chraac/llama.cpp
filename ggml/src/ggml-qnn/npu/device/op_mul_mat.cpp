@@ -11,10 +11,8 @@ namespace {
 inline float vec_dot_product_f32_f32(const float * src0, const float * src1, size_t count) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(float);
 
-    const size_t vec_count = count / kElementsPerVector;
-
     HVX_Vector * src0_vec_ptr     = ((HVX_Vector *) src0);
-    HVX_Vector * src0_vec_ptr_end = ((HVX_Vector *) src0) + vec_count;
+    HVX_Vector * src0_vec_ptr_end = ((HVX_Vector *) src0) + count / kElementsPerVector;
     HVX_Vector * src1_vec_ptr     = ((HVX_Vector *) src1);
     HVX_Vector   prev0            = *src0_vec_ptr++;
     HVX_Vector   prev1            = *src1_vec_ptr++;

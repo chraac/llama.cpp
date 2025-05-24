@@ -58,27 +58,29 @@ class host_tensor {
 
     npu_device_tensor_handle_t get_device_tensor_handle() const { return _device_tensor_handle; }
 
-    void set_src(size_t index, host_tensor * src) {
-        if (index >= DEVICE_TENSOR_MAX_SRC) {
-            LOG_ERROR("host_tensor(%p) set_src[%zu] out of range\n", (void *) this, index);
+    void update_params(ggml_tensor * ggml_tensor) {
+        static_assert(DEVICE_TENSOR_MAX_OP_PARAMS <= GGML_MAX_OP_PARAMS, "device tensor params size mismatch");
+        static_assert(DEVICE_TENSOR_MAX_SRC <= GGML_MAX_SRC, "device tensor src size mismatch");
+
+        GGML_ASSERT(ggml_tensor == _ggml_tensor);
+        if (!_ggml_tensor) {
+            LOG_DEBUG("host_tensor(%p) _ggml_tensor is null\n", (void *) this);
             return;
         }
 
-        LOG_DEBUG("host_tensor(%p) set_src[%zu]: %p\n", (void *) this, index, (void *) src);
-        npu_device_tensor_set_src(_device_handle, _device_tensor_handle, index, src->get_device_tensor_handle());
-    }
+        _info.op = op_to_npu_op(_ggml_tensor->op);
 
-    void set_op(ggml_op op) {
-        _info.op = op_to_npu_op(op);
-        npu_device_tensor_set_op(_device_handle, _device_tensor_handle, _info.op);
-    }
-
-    void update_params() {
-        static_assert(DEVICE_TENSOR_MAX_OP_PARAMS <= GGML_MAX_OP_PARAMS, "device tensor params size mismatch");
-        if (_ggml_tensor) {
-            npu_device_tensor_set_params(_device_handle, _device_tensor_handle, _ggml_tensor->op_params,
-                                         DEVICE_TENSOR_MAX_OP_PARAMS);
+        npu_device_tensor_handle_t src_tensor_handles[DEVICE_TENSOR_MAX_SRC] = {};
+        int                        src_count                                 = 0;
+        for (size_t j = 0; j < DEVICE_TENSOR_MAX_SRC && _ggml_tensor->src[j]; ++j) {
+            auto * src            = host_tensor::from_ggml_tensor(_ggml_tensor->src[j]);
+            src_tensor_handles[j] = src->get_device_tensor_handle();
+            src_count++;
+            LOG_DEBUG("host_tensor(%p) set_src[%zu]: %p\n", (void *) this, j, (void *) src);
         }
+
+        npu_device_tensor_update_params(_device_handle, _device_tensor_handle, _info.op, _ggml_tensor->op_params,
+                                        DEVICE_TENSOR_MAX_OP_PARAMS, src_tensor_handles, src_count);
     }
 
     bool is_valid() const { return _device_tensor_handle != 0; }
