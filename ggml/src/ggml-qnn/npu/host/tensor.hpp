@@ -103,6 +103,10 @@ class host_tensor {
             LOG_DEBUG("host_tensor(%p) update_params, op: %s, params: [%x, %x, %x, %x], src_count: %d\n", (void *) this,
                       ggml_op_desc(_ggml_tensor), (int) _op_params[0], (int) _op_params[1], (int) _op_params[2],
                       (int) _op_params[3], _src_count);
+        } else {
+            LOG_DEBUG("host_tensor(%p) update_params, no changes, op: %s, params: [%x, %x, %x, %x], src_count: %d\n",
+                      (void *) this, ggml_op_desc(_ggml_tensor), (int) _op_params[0], (int) _op_params[1],
+                      (int) _op_params[2], (int) _op_params[3], _src_count);
         }
     }
 
