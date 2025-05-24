@@ -108,6 +108,12 @@ interface npu_device : remote_handle64{
         in sequence<tensor_handle_t> tensor_handles
     );
 
+    AEEResult graph_set_tensor_with_param(
+        in graph_handle_t graph_handle,
+        in sequence<tensor_handle_t> tensor_handles,
+        in sequence<tensor_update_config> tensor_params
+    );
+
     AEEResult graph_compute(
         in graph_handle_t graph_handle
     );

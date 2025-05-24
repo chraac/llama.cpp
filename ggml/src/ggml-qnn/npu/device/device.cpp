@@ -163,13 +163,7 @@ AEEResult npu_device_tensor_update_params(remote_handle64 _h, npu_device_tensor_
         return AEE_EINVHANDLE;
     }
 
-    tensor->set_op(config->op);
-    tensor->set_params(config->params, DEVICE_TENSOR_MAX_OP_PARAMS);
-    for (size_t i = 0; i < DEVICE_TENSOR_MAX_SRC; ++i) {
-        auto src_handle = config->src_handles[i];
-        tensor->set_src(i, src_handle ? tensor_from_handle(src_handle) : nullptr);
-    }
-
+    tensor->update_config(*config);
     return AEE_SUCCESS;
 }
 
@@ -204,6 +198,29 @@ AEEResult npu_device_graph_set_tensor(remote_handle64 _h, npu_device_graph_handl
     }
 
     graph->set_tensor(tensor_handles, tensor_handlesLen);
+    return AEE_SUCCESS;
+}
+
+AEEResult npu_device_graph_set_tensor_with_param(remote_handle64 _h, npu_device_graph_handle_t graph_handle,
+                                                 const npu_device_tensor_handle_t *      tensor_handles,
+                                                 int                                     tensor_handlesLen,
+                                                 const npu_device_tensor_update_config * tensor_params,
+                                                 int                                     tensor_paramsLen) {
+    NPU_UNUSED(_h);
+    auto * graph = graph_from_handle(graph_handle);
+    if (!graph || !tensor_handles || tensor_handlesLen <= 0 || !tensor_params ||
+        tensor_handlesLen != tensor_paramsLen) {
+        return AEE_EINVHANDLE;
+    }
+
+    graph->set_tensor(tensor_handles, tensor_handlesLen);
+    for (int i = 0; i < tensor_handlesLen; ++i) {
+        auto * tensor = tensor_from_handle(tensor_handles[i]);
+        if (tensor) {
+            tensor->update_config(tensor_params[i]);
+        }
+    }
+
     return AEE_SUCCESS;
 }
 

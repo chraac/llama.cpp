@@ -51,23 +51,15 @@ class tensor {
         }
     }
 
-    bool set_src(size_t index, tensor * src) {
-        if (index >= kMaxTensorSrc) {
-            return false;
+    void update_config(const npu_device_tensor_update_config & config) {
+        static_assert(sizeof(_op_params) == sizeof(config.params), "op params size mismatch");
+
+        _info.op = config.op;
+        memcpy(_op_params, config.params, sizeof(_op_params));
+        for (size_t i = 0; i < DEVICE_TENSOR_MAX_SRC; ++i) {
+            auto src_handle = config.src_handles[i];
+            _src[i]         = (src_handle ? reinterpret_cast<tensor *>(src_handle) : nullptr);
         }
-
-        _src[index] = src;
-        return true;
-    }
-
-    void set_op(npu_device_tensor_op op) { _info.op = op; }
-
-    void set_params(const int32_t * params, size_t count) {
-        if (count > kMaxParamsCount) {
-            return;
-        }
-
-        memcpy(_op_params, params, sizeof(int32_t) * count);
     }
 
     tensor * get_src(size_t index) const {
