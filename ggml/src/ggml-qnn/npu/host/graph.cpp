@@ -61,10 +61,11 @@ bool host_graph::update(ggml_cgraph * cgraph) {
             tensor_obj->set_src(j, src);
         }
     }
-    if (!_tensor_handles.empty()) {
-        npu_device_graph_set_tensor(_device_handle, _graph_handle, _tensor_handles.data(),
-                                    (int) _tensor_handles.size());
-    }
+
+    constexpr const npu_device_tensor_handle_t kEmptyTensorHandle = 0;
+    npu_device_graph_set_tensor(_device_handle, _graph_handle,
+                                _tensor_handles.size() ? _tensor_handles.data() : &kEmptyTensorHandle,
+                                (int) _tensor_handles.size());
 
     LOG_DEBUG("[%p]host_graph::update, handle(%p), ggml_cgraph(%p), tensor count(%zu)\n", (void *) this,
               (void *) _graph_handle, (void *) cgraph, _tensor_handles.size());
