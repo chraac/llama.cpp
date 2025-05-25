@@ -24,12 +24,12 @@ inline float vec_dot_product_f32_f32(const float * src0, const float * src1, siz
         HVX_Vector curr1_lo = src1_vec_ptr[0];
         HVX_Vector curr1_hi = src1_vec_ptr[1];
 
-        HVX_Vector s0 = Q6_V_valign_VVR(curr0_lo, prev0, (size_t) src0);
-        HVX_Vector s1 = Q6_V_valign_VVR(curr1_lo, prev1, (size_t) src1);
-        sum           = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_VsfVsf(s0, s1), sum);
-        s0            = Q6_V_valign_VVR(curr0_hi, curr0_lo, (size_t) src0);
-        s1            = Q6_V_valign_VVR(curr1_hi, curr1_lo, (size_t) src1);
-        sum           = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_VsfVsf(s0, s1), sum);
+        HVX_Vector l0 = Q6_V_valign_VVR(curr0_lo, prev0, (size_t) src0);
+        HVX_Vector l1 = Q6_V_valign_VVR(curr1_lo, prev1, (size_t) src1);
+        HVX_Vector h0 = Q6_V_valign_VVR(curr0_hi, curr0_lo, (size_t) src0);
+        HVX_Vector h1 = Q6_V_valign_VVR(curr1_hi, curr1_lo, (size_t) src1);
+        sum           = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_VsfVsf(l0, l1), sum);
+        sum           = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_VsfVsf(h0, h1), sum);
 
         prev0 = curr0_hi;
         prev1 = curr1_hi;
