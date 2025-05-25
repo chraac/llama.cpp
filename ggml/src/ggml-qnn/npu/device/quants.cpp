@@ -27,7 +27,7 @@ inline float to_float(const npu_device_fp16_t src) {
     return reinterpret_cast<const __fp16 &>(src);
 }
 
-inline HVX_Vector load_q4_0_block(const npu_device_block_q4_0 & src) {
+template <typename _TBlock> inline HVX_Vector load_block_generic(const _TBlock & src) {
     // TODO: use intrinsics?
     union {
         uint8_t    ub[hexagon::kBytesPerVector];
@@ -41,7 +41,7 @@ inline HVX_Vector load_q4_0_block(const npu_device_block_q4_0 & src) {
     return cvt.vector;
 }
 
-inline HVX_Vector load_q4_0_dual_block(const npu_device_block_q4_0 & src1, const npu_device_block_q4_0 & src2) {
+template <typename _TBlock> inline HVX_Vector load_dual_block_generic(const _TBlock & src1, const _TBlock & src2) {
     // TODO: use intrinsics?
     union {
         uint8_t    ub[hexagon::kBytesPerVector];
@@ -104,7 +104,7 @@ void dequantize_row_q4_0(const void * src, float * dst, size_t count, const floa
         d1            = Q6_V_valign_VVR(d2, d1, hexagon::kBytesPerVector / 2);
         HVX_Vector d  = Q6_Vh_vshuff_Vh(d1);
 
-        HVX_Vector     q_lo = load_q4_0_dual_block(src1, src2);
+        HVX_Vector     q_lo = load_dual_block_generic(src1, src2);
         HVX_Vector     q_hi = Q6_Vub_vlsr_VubR(q_lo, 4);
         HVX_VectorPair q    = Q6_W_vshuff_VVR(q_hi, Q6_V_vand_VV(q_lo, mask), kSizeOfQs);
         q_lo                = Q6_V_valign_VVR(Q6_V_lo_W(q), Q6_V_vzero(), hexagon::kBytesPerVector / 2);
@@ -122,7 +122,7 @@ void dequantize_row_q4_0(const void * src, float * dst, size_t count, const floa
         const auto & curr_blk = src_ptr[nb - 1];
         HVX_Vector   d        = Q6_Vh_vsplat_R(curr_blk.d);
 
-        HVX_Vector q_lo = load_q4_0_block(curr_blk);
+        HVX_Vector q_lo = load_block_generic(curr_blk);
         HVX_Vector q_hi = Q6_Vub_vlsr_VubR(q_lo, 4);
         q_lo            = Q6_V_valign_VVR(Q6_V_vand_VV(q_lo, mask), Q6_V_vzero(), sizeof(curr_blk.qs));
         q_lo            = Q6_V_valign_VVR(q_hi, q_lo, hexagon::kBytesPerVector - sizeof(curr_blk.qs));
