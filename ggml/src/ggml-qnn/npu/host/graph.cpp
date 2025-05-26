@@ -63,11 +63,17 @@ bool host_graph::update(ggml_cgraph * cgraph) {
 
     constexpr const npu_device_tensor_handle_t      kEmptyTensorHandle = 0;
     constexpr const npu_device_tensor_update_config kEmptyUpdateConfig = {};
-    npu_device_graph_set_tensor_with_param(
+
+    auto ret = npu_device_graph_set_tensor_with_param(
         _device_handle, _graph_handle, _tensor_handles.size() ? _tensor_handles.data() : &kEmptyTensorHandle,
         (int) _tensor_handles.size(),
         _tensor_update_configs.size() ? _tensor_update_configs.data() : &kEmptyUpdateConfig,
         (int) _tensor_update_configs.size());
+
+    if (ret != AEE_SUCCESS) {
+        LOG_ERROR("Failed to set tensors in host_graph: 0x%x\n", (int) ret);
+        return false;
+    }
 
     LOG_DEBUG("[%p]host_graph::update, handle(%p), ggml_cgraph(%p), tensor count(%zu)\n", (void *) this,
               (void *) _graph_handle, (void *) cgraph, _tensor_handles.size());
