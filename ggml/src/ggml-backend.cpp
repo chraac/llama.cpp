@@ -1833,9 +1833,13 @@ bool ggml_backend_compare_graph_backend(ggml_backend_t backend1, ggml_backend_t 
 
     if (test_node != nullptr) {
         // Compute the whole graph and only test the output for a specific tensor
+        const auto start_time_us = ggml_time_us();
         ggml_backend_graph_compute(backend1, g1);
+
+        const auto backend1_time_us = ggml_time_us();
         ggml_backend_graph_compute(backend2, g2);
 
+        const auto backend2_time_us = ggml_time_us();
         int test_node_idx = -1;
         for (int i = 0; i < g1->n_nodes; i++) {
             struct ggml_tensor * t1 = g1->nodes[i];
@@ -1845,6 +1849,10 @@ bool ggml_backend_compare_graph_backend(ggml_backend_t backend1, ggml_backend_t 
             }
         }
         GGML_ASSERT(test_node_idx != -1);
+
+        GGML_LOG_INFO("[profiler][%s]compute.test_node, [%s]: %lld us, [%s]: %lld us\n", ggml_op_desc(g1->nodes[test_node_idx]),
+                      ggml_backend_name(backend1), (long long) (backend1_time_us - start_time_us),
+                      ggml_backend_name(backend2), (long long) (backend2_time_us - backend1_time_us));
 
         callback(test_node_idx, g1->nodes[test_node_idx], g2->nodes[test_node_idx], user_data);
     } else {
@@ -1857,8 +1865,15 @@ bool ggml_backend_compare_graph_backend(ggml_backend_t backend1, ggml_backend_t 
             struct ggml_cgraph g1v = ggml_graph_view(g1, i, i + 1);
             struct ggml_cgraph g2v = ggml_graph_view(g2, i, i + 1);
 
+            const auto start_time_us = ggml_time_us();
             ggml_backend_graph_compute(backend1, &g1v);
+            const auto backend1_time_us = ggml_time_us();
             ggml_backend_graph_compute(backend2, &g2v);
+            const auto backend2_time_us = ggml_time_us();
+
+            GGML_LOG_INFO("[profiler][%s]compute, [%s]: %lld us, [%s]: %lld us\n", ggml_op_desc(t1),
+                            ggml_backend_name(backend1), (long long) (backend1_time_us - start_time_us),
+                            ggml_backend_name(backend2), (long long) (backend2_time_us - backend1_time_us));
 
             if (ggml_is_view_op(t1->op)) {
                 continue;
