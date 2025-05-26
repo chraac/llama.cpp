@@ -4164,6 +4164,8 @@ static std::vector<std::unique_ptr<test_case>> make_test_cases_eval() {
         for (bool v : {false, true}) {
             test_cases.emplace_back(new test_norm    (GGML_TYPE_F32, {64, 5, 4, 3}, v, eps));
             test_cases.emplace_back(new test_rms_norm(GGML_TYPE_F32, {64, 5, 4, 3}, v, eps));
+            test_cases.emplace_back(new test_rms_norm(GGML_TYPE_F32, {2048, 512, 1, 1}, v, eps));
+            test_cases.emplace_back(new test_rms_norm(GGML_TYPE_F32, {8192, 2048, 1, 1}, v, eps));
         }
         test_cases.emplace_back(new test_rms_norm_back(GGML_TYPE_F32, {64, 5, 4, 3}, eps));
         test_cases.emplace_back(new test_l2_norm      (GGML_TYPE_F32, {64, 5, 4, 3}, eps));
