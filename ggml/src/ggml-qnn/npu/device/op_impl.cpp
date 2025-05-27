@@ -405,6 +405,13 @@ constexpr const op_capabilities kOpCapabilities[] = {
             nullptr,                     // NPU_DATA_TYPE_F16
         }, false,
      },
+    {
+     NPU_OP_FLASH_ATTN,           nullptr,
+     {
+            nullptr,  // NPU_DATA_TYPE_F32
+            nullptr,  // NPU_DATA_TYPE_F16
+        },          false,
+     },
 };
 
 static_assert(kOpCapabilities[NPU_OP_MUL_MAT].compute_funcs[NPU_DATA_TYPE_F32] == hexagon::mul_mat_f32,
@@ -415,6 +422,8 @@ static_assert(kOpCapabilities[NPU_OP_MUL_MAT].op == NPU_OP_MUL_MAT, "kOpArray[NP
 static_assert(kOpCapabilities[NPU_OP_MUL].op == NPU_OP_MUL, "kOpArray[NPU_OP_MUL].op != NPU_OP_MUL");
 static_assert(kOpCapabilities[NPU_OP_RMS_NORM].op == NPU_OP_RMS_NORM,
               "kOpArray[NPU_OP_RMS_NORM].op != NPU_OP_RMS_NORM");
+static_assert(kOpCapabilities[NPU_OP_FLASH_ATTN].op == NPU_OP_FLASH_ATTN,
+              "kOpArray[NPU_OP_FLASH_ATTN].op != NPU_OP_FLASH_ATTN");
 
 hexagon::compute_func_type get_compute_func_impl(npu_device_tensor_op op, npu_device_tensor_data_type type) {
     if (op >= NPU_OP_COUNT) {
