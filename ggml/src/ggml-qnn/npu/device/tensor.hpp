@@ -79,6 +79,8 @@ class tensor {
     npu_device_tensor_op get_op() const { return _info.op; }
 
     template <typename _TyParam> const _TyParam get_op_param(size_t index) const {
+        static_assert(sizeof(_TyParam) <= sizeof(_op_params), "_op_param type size exceeds op params size");
+
         if (sizeof(_TyParam) * (index + 1) >= sizeof(_op_params)) {
             return 0;
         }
