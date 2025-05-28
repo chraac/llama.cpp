@@ -7,6 +7,7 @@ namespace hexagon {
 
 bool init_f16_f32_table(float * table, size_t count);
 
+typedef void (*quantize_row_type)(const float * src, void * dst, size_t count, const float * f16_to_f32_table);
 typedef void (*dequantize_row_type)(const void * src, float * dst, size_t count, const float * f16_to_f32_table);
 
 struct device_type_traits {
@@ -15,6 +16,7 @@ struct device_type_traits {
     int64_t                     blck_size;
     bool                        is_quantized;
     dequantize_row_type         dequantize_row;
+    quantize_row_type           quantize_row;
 };
 
 const device_type_traits & get_type_traits(npu_device_tensor_data_type type);
