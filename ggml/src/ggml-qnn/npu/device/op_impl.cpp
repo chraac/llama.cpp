@@ -7,6 +7,7 @@
 
 #include <type_traits>
 
+#include "op_flash_attn.hpp"
 #include "op_mul_mat.hpp"
 #include "quants.hpp"
 
@@ -422,10 +423,10 @@ constexpr const op_capabilities kOpCapabilities[] = {
         }, false,
      },
     {
-     NPU_OP_FLASH_ATTN,           nullptr,
+     NPU_OP_FLASH_ATTN,           hexagon::is_flash_attn_supported,
      {
-            nullptr,  // NPU_DATA_TYPE_F32
-            nullptr,  // NPU_DATA_TYPE_F16
+            hexagon::flash_attn_f32,  // NPU_DATA_TYPE_F32
+            nullptr,                  // NPU_DATA_TYPE_F16
         },          false,
      },
 };
