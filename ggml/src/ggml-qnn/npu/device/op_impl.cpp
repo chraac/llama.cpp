@@ -10,6 +10,7 @@
 #include "op_flash_attn.hpp"
 #include "op_mul_mat.hpp"
 #include "quants.hpp"
+#include "vec_dot.hpp"
 
 namespace {
 

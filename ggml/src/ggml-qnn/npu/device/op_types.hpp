@@ -10,6 +10,7 @@
 #include "hexagon_npu.h"
 #include "tensor.hpp"
 #include "util.hpp"
+#include "vec_dot.hpp"
 #include "vtcm_mem.hpp"
 
 namespace hexagon {
@@ -72,9 +73,7 @@ inline constexpr std::pair<int64_t, int64_t> get_thread_work_slice(int64_t total
     return { start, std::min(end, total) };
 }
 
-constexpr const size_t kBytesPerVector      = sizeof(HVX_Vector);  // 128 for v73
-constexpr const size_t kAlignMask           = kBytesPerVector - 1;
-constexpr const size_t kL2CacheSize         = 8 * 1024;            // // 8KB L2 cache
+constexpr const size_t kL2CacheSize         = 8 * 1024;  // // 8KB L2 cache
 constexpr const size_t kL2FetchAheadVectors = kL2CacheSize / kBytesPerVector;
 
 }  // namespace hexagon
