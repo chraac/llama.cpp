@@ -149,35 +149,15 @@ bool npu_device::supports_op_impl(const ggml_tensor * op) {
         return false;
     }
 
-    auto * src0 = op->src[0];
-    if (!src0) {
-        LOG_DEBUG("[%s]Unsupported inplace op: %s\n", get_name(), ggml_op_desc(op));
-        return false;
-    }
-
-    if (type_to_npu_type(src0->type) == NPU_DATA_TYPE_COUNT) {
-        LOG_DEBUG("[%s]Unsupported src0 tensor type: %s\n", get_name(), ggml_type_name(src0->type));
-        return false;
-    }
-
-    auto * src1 = op->src[1];
-    if (src1 && type_to_npu_type(src1->type) == NPU_DATA_TYPE_COUNT) {
-        LOG_DEBUG("[%s]Unsupported src1 tensor type: %s\n", get_name(), ggml_type_name(src1->type));
-        return false;
-    }
-
     auto npu_op = op_to_npu_op(op->op);
     if (npu_op == NPU_OP_COUNT) {
         LOG_DEBUG("[%s]Unsupported op: %s\n", get_name(), ggml_op_desc(op));
         return false;
     }
 
-    if (!_device_handle && !init_device()) {
-        LOG_DEBUG("[%s]NPU device initialization failed\n", get_name());
-        return false;
-    }
-
-    constexpr const auto get_spec = [](const ggml_tensor * tensor) -> npu_device_tensor_spec {
+    int                    i                           = 0;
+    npu_device_tensor_spec srcs[DEVICE_TENSOR_MAX_SRC] = {};
+    constexpr const auto   get_spec                    = [](const ggml_tensor * tensor) -> npu_device_tensor_spec {
         if (!tensor) {
             return npu_device_tensor_spec{ {}, NPU_DATA_TYPE_COUNT };
         }
@@ -192,15 +172,29 @@ bool npu_device::supports_op_impl(const ggml_tensor * op) {
         return spec;
     };
 
+    for (; i < (int) DEVICE_TENSOR_MAX_SRC && op->src[i]; ++i) {
+        auto * src = op->src[i];
+        if (type_to_npu_type(src->type) == NPU_DATA_TYPE_COUNT) {
+            LOG_DEBUG("[%s]Unsupported src%d tensor type: %s\n", get_name(), i, ggml_type_name(src->type));
+            return false;
+        }
+
+        srcs[i] = get_spec(src);
+    }
+
+    if (!_device_handle && !init_device()) {
+        LOG_DEBUG("[%s]NPU device initialization failed\n", get_name());
+        return false;
+    }
+
     boolean supported = false;
-    auto    src0_spec = get_spec(src0);
-    auto    src1_spec = get_spec(src1);
     auto    dst_spec  = get_spec(op);
-    auto    ret = npu_device_device_support_op(_device_handle, &src0_spec, &src1_spec, &dst_spec, npu_op, &supported);
+    auto    ret       = npu_device_device_support_op(_device_handle, npu_op, &dst_spec, srcs, i, &supported);
     if (ret != AEE_SUCCESS || !supported) {
+        auto * src0_type = ggml_type_name(op->src[0]->type);
+        auto * src1_type = (i > 1) ? ggml_type_name(op->src[1]->type) : "null";
         LOG_DEBUG("[%s][%s]unsupported %s(%s,%s), ret: 0x%x, supported: %d\n", get_name(), ggml_op_name(op->op),
-                  ggml_type_name(op->type), ggml_type_name(src0->type), (src1 ? ggml_type_name(src1->type) : "null"),
-                  ret, supported);
+                  ggml_type_name(op->type), src0_type, src1_type, ret, supported);
         return false;
     }
 

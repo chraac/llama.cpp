@@ -79,10 +79,9 @@ interface npu_device : remote_handle64{
     );
 
     AEEResult device_support_op(
-        in tensor_spec src0,
-        in tensor_spec src1,
-        in tensor_spec dst,
         in tensor_op op,
+        in tensor_spec dst,
+        in sequence<tensor_spec> srcs,
         rout boolean is_supported
     );
 

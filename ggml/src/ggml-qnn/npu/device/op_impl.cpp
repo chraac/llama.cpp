@@ -184,27 +184,36 @@ bool is_same_shape(const npu_device_tensor_spec & src, const npu_device_tensor_s
     return true;
 }
 
-bool is_element_wise_op_supported(const npu_device_tensor_spec & src0, const npu_device_tensor_spec & src1,
-                                  const npu_device_tensor_spec & dst, npu_device_tensor_op op) {
+bool is_element_wise_op_supported(npu_device_tensor_op op, const npu_device_tensor_spec * dst,
+                                  const npu_device_tensor_spec * srcs, size_t src_len) {
     if (op != NPU_OP_ADD && op != NPU_OP_SUB && op != NPU_OP_MUL) {
         DEVICE_LOG_DEBUG("[%s]unsupported\n", hexagon::op_get_name(op));
         return false;
     }
 
-    if (dst.type != src0.type || dst.type != src1.type) {
-        DEVICE_LOG_DEBUG("[%s]src0.type and dst.type mismatch: %s vs %s\n", hexagon::op_get_name(op),
-                         hexagon::get_type_name(src0.type), hexagon::get_type_name(dst.type));
+    if (!dst || !srcs || src_len < 2) {
+        DEVICE_LOG_DEBUG("[%s]invalid dst or srcs\n", hexagon::op_get_name(op));
         return false;
     }
 
-    if (dst.type != NPU_DATA_TYPE_F32 && dst.type != NPU_DATA_TYPE_F16) {
-        DEVICE_LOG_DEBUG("[%s]unsupported data type: %s\n", hexagon::op_get_name(op), hexagon::get_type_name(dst.type));
+    const auto & src0 = srcs[0];
+    const auto & src1 = srcs[1];
+    if (dst->type != src0.type || dst->type != src1.type) {
+        DEVICE_LOG_DEBUG("[%s]src0.type and dst.type mismatch: %s vs %s\n", hexagon::op_get_name(op),
+                         hexagon::get_type_name(src0.type), hexagon::get_type_name(dst->type));
+        return false;
+    }
+
+    if (dst->type != NPU_DATA_TYPE_F32 && dst->type != NPU_DATA_TYPE_F16) {
+        DEVICE_LOG_DEBUG("[%s]unsupported data type: %s\n", hexagon::op_get_name(op),
+                         hexagon::get_type_name(dst->type));
         return false;
     }
 
     // TODO: fix FP16 add/sub
-    if (dst.type == NPU_DATA_TYPE_F16 && op != NPU_OP_MUL) {
-        DEVICE_LOG_DEBUG("[%s]unsupported data type: %s\n", hexagon::op_get_name(op), hexagon::get_type_name(dst.type));
+    if (dst->type == NPU_DATA_TYPE_F16 && op != NPU_OP_MUL) {
+        DEVICE_LOG_DEBUG("[%s]unsupported data type: %s\n", hexagon::op_get_name(op),
+                         hexagon::get_type_name(dst->type));
         return false;
     }
 
@@ -214,7 +223,7 @@ bool is_element_wise_op_supported(const npu_device_tensor_spec & src0, const npu
         return false;
     }
 
-    if (!is_same_shape(src0, dst)) {
+    if (!is_same_shape(src0, *dst)) {
         DEVICE_LOG_DEBUG("[%s]src0 and dst have different shape\n", hexagon::op_get_name(op));
         return false;
     }
@@ -336,25 +345,32 @@ template <auto _RowFunc> bool unary_op(hexagon::tensor * out, hexagon::compute_p
     return true;
 }
 
-bool is_unary_op_supported(const npu_device_tensor_spec & src0, const npu_device_tensor_spec & src1,
-                           const npu_device_tensor_spec & dst, npu_device_tensor_op op) {
+bool is_unary_op_supported(npu_device_tensor_op op, const npu_device_tensor_spec * dst,
+                           const npu_device_tensor_spec * srcs, size_t src_len) {
     if (op != NPU_OP_RMS_NORM) {
         DEVICE_LOG_DEBUG("[%s]unsupported\n", hexagon::op_get_name(op));
         return false;
     }
 
-    if (dst.type != src0.type) {
+    if (!dst || !srcs || src_len < 1) {
+        DEVICE_LOG_DEBUG("[%s]invalid dst or srcs\n", hexagon::op_get_name(op));
+        return false;
+    }
+
+    const auto & src0 = srcs[0];
+    if (dst->type != src0.type) {
         DEVICE_LOG_DEBUG("[%s]src0.type and dst.type mismatch: %s vs %s\n", hexagon::op_get_name(op),
-                         hexagon::get_type_name(src0.type), hexagon::get_type_name(dst.type));
+                         hexagon::get_type_name(src0.type), hexagon::get_type_name(dst->type));
         return false;
     }
 
-    if (dst.type != NPU_DATA_TYPE_F32) {
-        DEVICE_LOG_DEBUG("[%s]unsupported data type: %s\n", hexagon::op_get_name(op), hexagon::get_type_name(dst.type));
+    if (dst->type != NPU_DATA_TYPE_F32) {
+        DEVICE_LOG_DEBUG("[%s]unsupported data type: %s\n", hexagon::op_get_name(op),
+                         hexagon::get_type_name(dst->type));
         return false;
     }
 
-    if (!is_same_shape(src0, dst)) {
+    if (!is_same_shape(src0, *dst)) {
         DEVICE_LOG_DEBUG("[%s]src0 and dst have different shape\n", hexagon::op_get_name(op));
         return false;
     }
@@ -449,15 +465,15 @@ bool requires_thread_barrier(npu_device_tensor_op op) {
     return kOpCapabilities[op].requires_thread_barrier;
 }
 
-bool support_op(const npu_device_tensor_spec & src0, const npu_device_tensor_spec & src1,
-                const npu_device_tensor_spec & dst, npu_device_tensor_op op) {
-    if (get_compute_func_impl(op, dst.type) == nullptr) {
+bool support_op(npu_device_tensor_op op, const npu_device_tensor_spec * dst, const npu_device_tensor_spec * srcs,
+                size_t src_len) {
+    if (get_compute_func_impl(op, dst->type) == nullptr) {
         DEVICE_LOG_ERROR("[%s]unsupported, get_compute_func failed\n", op_get_name(op));
         return false;
     }
 
     auto is_supported_func = kOpCapabilities[op].is_supported;
-    if (!is_supported_func || !is_supported_func(src0, src1, dst, op)) {
+    if (!is_supported_func || !is_supported_func(op, dst, srcs, src_len)) {
         DEVICE_LOG_DEBUG("[%s]unsupported, is_supported_func failed\n", op_get_name(op));
         return false;
     }

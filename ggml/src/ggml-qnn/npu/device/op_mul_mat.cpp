@@ -356,18 +356,25 @@ bool mul_mat_f32(hexagon::tensor * out, compute_params * params) {
     return false;
 }
 
-bool is_mul_mat_supported(const npu_device_tensor_spec & src0, const npu_device_tensor_spec & src1,
-                          const npu_device_tensor_spec & dst, npu_device_tensor_op op) {
+bool is_mul_mat_supported(npu_device_tensor_op op, const npu_device_tensor_spec * dst,
+                          const npu_device_tensor_spec * srcs, size_t src_len) {
     if (op != NPU_OP_MUL_MAT) {
         DEVICE_LOG_DEBUG("op is not MUL_MAT: %d\n", op);
         return false;
     }
 
-    if (dst.type != NPU_DATA_TYPE_F32) {
-        DEVICE_LOG_DEBUG("[%s]dst type is not F32: %s\n", op_get_name(op), get_type_name(dst.type));
+    if (!dst || !srcs || src_len < 2) {
+        DEVICE_LOG_DEBUG("[%s]invalid dst or srcs\n", hexagon::op_get_name(op));
         return false;
     }
 
+    if (dst->type != NPU_DATA_TYPE_F32) {
+        DEVICE_LOG_DEBUG("[%s]dst type is not F32: %s\n", op_get_name(op), get_type_name(dst->type));
+        return false;
+    }
+
+    const auto & src0 = srcs[0];
+    const auto & src1 = srcs[1];
     if (src0.type != src1.type) {
 #ifdef GGML_HEXAGON_ENABLE_QUANTIZED_TENSORS
         if (!is_quantized_mul_mat_supported(src0, src1)) {
@@ -380,15 +387,15 @@ bool is_mul_mat_supported(const npu_device_tensor_spec & src0, const npu_device_
 #endif
     }
 
-    if (src0.ne[0] != src1.ne[0] || src0.ne[1] != dst.ne[0]) {
+    if (src0.ne[0] != src1.ne[0] || src0.ne[1] != dst->ne[0]) {
         DEVICE_LOG_DEBUG("[%s]src0 and src1 cannot multiply: %ldx%ld vs %ldx%ld\n", op_get_name(op), (long) src0.ne[0],
                          (long) src0.ne[1], (long) src1.ne[0], (long) src1.ne[1]);
         return false;
     }
 
-    if (src1.ne[1] != dst.ne[1] || src1.ne[2] != dst.ne[2] || src1.ne[3] != dst.ne[3]) {
+    if (src1.ne[1] != dst->ne[1] || src1.ne[2] != dst->ne[2] || src1.ne[3] != dst->ne[3]) {
         DEVICE_LOG_DEBUG("[%s]src1 and dst dimensions not match: %ldx%ld vs %ldx%ld\n", op_get_name(op),
-                         (long) src1.ne[2], (long) src1.ne[3], (long) dst.ne[2], (long) dst.ne[3]);
+                         (long) src1.ne[2], (long) src1.ne[3], (long) dst->ne[2], (long) dst->ne[3]);
         return false;
     }
 

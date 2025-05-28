@@ -128,17 +128,16 @@ AEEResult npu_device_device_get_alignment(remote_handle64 _h, uint32_t * alignme
     return AEE_SUCCESS;
 }
 
-AEEResult npu_device_device_support_op(remote_handle64 _h, const npu_device_tensor_spec * src0,
-                                       const npu_device_tensor_spec * src1, const npu_device_tensor_spec * dst,
-                                       npu_device_tensor_op op, boolean * is_supported) {
+AEEResult npu_device_device_support_op(remote_handle64 _h, npu_device_tensor_op op, const npu_device_tensor_spec * dst,
+                                       const npu_device_tensor_spec * srcs, int srcsLen, boolean * is_supported) {
     NPU_UNUSED(_h);
 
-    if (!src0 || !src1 || !dst || !is_supported) {
+    if (!srcs || !srcsLen || !dst || !is_supported) {
         DEVICE_LOG_ERROR("npu_device_device_support_op: Invalid arguments");
         return AEE_EINVARGS;
     }
 
-    *is_supported = hexagon::support_op(*src0, *src1, *dst, op);
+    *is_supported = hexagon::support_op(op, dst, srcs, srcsLen);
     return AEE_SUCCESS;
 }
 

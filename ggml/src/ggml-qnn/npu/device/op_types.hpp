@@ -46,8 +46,8 @@ struct compute_params {
 };
 
 typedef bool (*compute_func_type)(tensor * dst, compute_params * params);
-typedef bool (*op_is_supported_func_type)(const npu_device_tensor_spec & src0, const npu_device_tensor_spec & src1,
-                                          const npu_device_tensor_spec & dst, npu_device_tensor_op op);
+typedef bool (*op_is_supported_func_type)(npu_device_tensor_op op, const npu_device_tensor_spec * dst,
+                                          const npu_device_tensor_spec * srcs, size_t src_len);
 
 inline constexpr std::pair<int64_t, int64_t> get_thread_work_slice(int64_t total, size_t tidx, size_t tcnt) {
     if (total <= 0 || tidx >= tcnt) {
