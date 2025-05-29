@@ -152,6 +152,14 @@ float make_qkx2_quants(int n, int nmax, const float * x, const float * weights, 
     return scale;
 }
 
+void quantize_row_fp16(const float * src, void * dst, size_t count, const float * f16_to_f32_table) {
+    auto * out = reinterpret_cast<npu_device_fp16_t *>(dst);
+    // TODO: use hvx intrinsics for better performance
+    for (size_t i = 0; i < count; i++) {
+        out[i] = to_fp16(src[i]);
+    }
+}
+
 void quantize_row_q8_0(const float * src, void * dst, size_t count, const float * f16_to_f32_table) {
     const int nb  = count / QUANT_BLOCK_SIZE;
     auto *    out = reinterpret_cast<npu_device_block_q8_0 *>(dst);
@@ -406,7 +414,7 @@ void dequantize_row_q4_K(const void * src, float * dst, size_t count, const floa
 
 constexpr const hexagon::device_type_traits kDeviceTypeTraits[] = {
     { NPU_DATA_TYPE_F32, "F32", 1, false, nullptr },
-    { NPU_DATA_TYPE_F16, "F16", 1, false, nullptr },
+    { NPU_DATA_TYPE_F16, "F16", 1, false, nullptr, quantize_row_fp16 },
     { NPU_DATA_TYPE_Q8_0, "Q8_0", QUANT_BLOCK_SIZE, true, dequantize_row_q8_0, quantize_row_q8_0 },
     { NPU_DATA_TYPE_Q4_0, "Q4_0", QUANT_BLOCK_SIZE, true, dequantize_row_q4_0, quantize_row_q4_0 },
     { NPU_DATA_TYPE_Q4_K, "Q4_K", QUANT_K_BLOCK_SIZE, true, dequantize_row_q4_K, quantize_row_q4_K },
