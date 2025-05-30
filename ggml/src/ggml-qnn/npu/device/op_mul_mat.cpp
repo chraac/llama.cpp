@@ -1,7 +1,7 @@
 #include "op_mul_mat.hpp"
 
-#include "quants.hpp"
 #include "thread_pool.hpp"  // TODO: remove this dependency
+#include "type_traits.hpp"
 #include "vec_dot.hpp"
 #include "vtcm_mem.hpp"
 
@@ -20,7 +20,7 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
 
     const bool is_quantized         = hexagon::is_quantized_type(src0->get_type());
     const auto src0_actual_row_size = hexagon::get_dequantized_row_size(src0);
-    auto *     dequantize_row_func  = hexagon::get_type_traits(src0->get_type()).dequantize_row;
+    auto *     dequantize_row_func  = hexagon::get_type_traits(src0->get_type()).to_float;
     if (is_quantized && dequantize_row_func == nullptr) {
         DEVICE_LOG_ERROR("Unsupported quantized src0 type: %d, dequantize_row_func is null\n", src0->get_type());
         return;
@@ -144,7 +144,7 @@ bool is_quantized_mul_mat_supported(const npu_device_tensor_spec & src0, const n
     }
 
     const auto type_traits = hexagon::get_type_traits(src0.type);
-    if (!type_traits.is_quantized || type_traits.dequantize_row == nullptr) {
+    if (!type_traits.is_quantized || type_traits.to_float == nullptr) {
         DEVICE_LOG_DEBUG("[MUL_MAT]src0.type(%s) and src1.type(%s) mismatch and src0 is not quantized\n",
                          hexagon::get_type_name(src0.type), hexagon::get_type_name(src1.type));
         return false;

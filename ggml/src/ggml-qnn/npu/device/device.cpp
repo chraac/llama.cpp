@@ -9,10 +9,10 @@
 #include "graph.hpp"
 #include "hexagon_npu.h"
 #include "op_impl.hpp"
-#include "quants.hpp"
 #include "remote.h"
 #include "tensor.hpp"
 #include "thread_pool.hpp"
+#include "type_traits.hpp"
 #include "util.hpp"
 
 namespace {

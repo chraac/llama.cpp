@@ -1,7 +1,7 @@
 
 #include "op_flash_attn.hpp"
 
-#include "quants.hpp"
+#include "type_traits.hpp"
 #include "util.hpp"
 
 namespace hexagon {

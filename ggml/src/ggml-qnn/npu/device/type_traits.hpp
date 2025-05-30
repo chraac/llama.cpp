@@ -9,14 +9,17 @@ bool init_f16_f32_table(float * table, size_t count);
 
 typedef void (*quantize_row_type)(const float * src, void * dst, size_t count, const float * f16_to_f32_table);
 typedef void (*dequantize_row_type)(const void * src, float * dst, size_t count, const float * f16_to_f32_table);
+typedef float (*vec_dot_type)(const void * src0, const void * src1, size_t count);
 
 struct device_type_traits {
     npu_device_tensor_data_type type;
     const char *                type_name;
     int64_t                     blck_size;
     bool                        is_quantized;
-    dequantize_row_type         dequantize_row;
-    quantize_row_type           quantize_row;
+
+    dequantize_row_type to_float;
+    quantize_row_type   from_float;
+    vec_dot_type        vec_dot;
 };
 
 const device_type_traits & get_type_traits(npu_device_tensor_data_type type);

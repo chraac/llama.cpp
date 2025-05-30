@@ -1,10 +1,11 @@
-#include "quants.hpp"
+#include "type_traits.hpp"
 
 #include <hexagon_types.h>
 
 #include <array>
 
 #include "op_types.hpp"  // TODO: remove this include
+#include "vec_dot.hpp"
 
 static_assert(sizeof(npu_device_block_q4_K) ==
                   2 * sizeof(npu_device_fp16_t) + QUANT_K_SCALE_SIZE + QUANT_K_BLOCK_SIZE / 2,
@@ -412,9 +413,20 @@ void dequantize_row_q4_K(const void * src, float * dst, size_t count, const floa
     }
 }
 
+template <typename _TFunc> struct dot_func_traits {};
+
+template <typename _TData> struct dot_func_traits<float (*)(_TData, _TData, size_t)> {
+    using param_type = std::remove_const_t<std::remove_pointer_t<_TData>>;
+};
+
+template <auto _Func> float wrap_dot_func(const void * src0, const void * src1, size_t count) {
+    using param_type = typename dot_func_traits<decltype(_Func)>::param_type;
+    return _Func(reinterpret_cast<const param_type *>(src0), reinterpret_cast<const param_type *>(src1), count);
+}
+
 constexpr const hexagon::device_type_traits kDeviceTypeTraits[] = {
-    { NPU_DATA_TYPE_F32, "F32", 1, false, nullptr },
-    { NPU_DATA_TYPE_F16, "F16", 1, false, nullptr, quantize_row_fp16 },
+    { NPU_DATA_TYPE_F32, "F32", 1, false, nullptr, nullptr, wrap_dot_func<hexagon::vec_dot_product_f32_f32> },
+    { NPU_DATA_TYPE_F16, "F16", 1, false, nullptr, quantize_row_fp16, wrap_dot_func<hexagon::vec_dot_product_f16_f16> },
     { NPU_DATA_TYPE_Q8_0, "Q8_0", QUANT_BLOCK_SIZE, true, dequantize_row_q8_0, quantize_row_q8_0 },
     { NPU_DATA_TYPE_Q4_0, "Q4_0", QUANT_BLOCK_SIZE, true, dequantize_row_q4_0, quantize_row_q4_0 },
     { NPU_DATA_TYPE_Q4_K, "Q4_K", QUANT_K_BLOCK_SIZE, true, dequantize_row_q4_K, quantize_row_q4_K },
