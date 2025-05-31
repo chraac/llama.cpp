@@ -34,119 +34,6 @@ inline HVX_Vector Q6_V_vmem_R(const void * aligned_ptr) {
     return *reinterpret_cast<const HVX_Vector *>(aligned_ptr);
 }
 
-inline HVX_Vector vec_reduction_qf32(HVX_Vector sums) {
-    constexpr const size_t kFloatsPerVector = hexagon::kBytesPerVector / sizeof(float);
-    static_assert(kFloatsPerVector == 32 || kFloatsPerVector == 16, "kFloatsPerVector should be 16 or 32");
-
-    // TODO: do we have a better way to do the reduction?
-    switch (kFloatsPerVector) {
-        default:
-        case 32:
-            sums = Q6_Vqf32_vadd_Vqf32Vqf32(sums, Q6_V_vror_VR(sums, 16 * sizeof(float)));
-            // fallthrough
-        case 16:
-            sums = Q6_Vqf32_vadd_Vqf32Vqf32(sums, Q6_V_vror_VR(sums, 8 * sizeof(float)));
-            sums = Q6_Vqf32_vadd_Vqf32Vqf32(sums, Q6_V_vror_VR(sums, 4 * sizeof(float)));
-            sums = Q6_Vqf32_vadd_Vqf32Vqf32(sums, Q6_V_vror_VR(sums, 2 * sizeof(float)));
-            sums = Q6_Vqf32_vadd_Vqf32Vqf32(sums, Q6_V_vror_VR(sums, sizeof(float)));
-            break;
-    }
-
-    return sums;
-}
-
-inline float vec_reduction_f32(HVX_Vector sums) {
-    return get_flt0_from_fltv(Q6_Vsf_equals_Vqf32(vec_reduction_qf32(sums)));
-}
-
-inline void vec_scale_f32(const float * src, float scale, float * dst, size_t count) {
-    constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(float);
-
-    HVX_Vector * src_vec_ptr    = ((HVX_Vector *) src);
-    HVX_Vector * src_vec_end    = ((HVX_Vector *) src) + (count / kElementsPerVector);
-    HVX_Vector * dst_vec_ptr    = ((HVX_Vector *) dst);  // framework will ensure the dst is aligned
-    HVX_Vector   prev           = *src_vec_ptr++;
-    const size_t leftover       = count % kElementsPerVector;
-    const size_t leftover_bytes = leftover * sizeof(float);
-
-    HVX_Vector scale_vec = Q6_V_vsplat_R(reinterpret_cast<const uint32_t &>(scale));
-
-    while (src_vec_ptr < src_vec_end) {
-        HVX_Vector curr = *src_vec_ptr++;
-        HVX_Vector s0   = Q6_V_valign_VVR(curr, prev, (size_t) src);
-        dst_vec_ptr[0]  = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_VsfVsf(s0, scale_vec));
-        dst_vec_ptr++;
-        prev = curr;
-    }
-
-    if ((src_vec_end - ((HVX_Vector *) src)) > 0) {
-        // handle the last vector
-        bool       src_ptr_aligned = hexagon::is_addr_aligned(src_vec_ptr);
-        HVX_Vector curr            = src_ptr_aligned ? prev : *src_vec_ptr;
-        src_vec_ptr                = src_ptr_aligned ? src_vec_ptr : src_vec_ptr + 1;
-        HVX_Vector s0              = Q6_V_valign_VVR(curr, prev, (size_t) src);
-        dst_vec_ptr[0]             = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_VsfVsf(s0, scale_vec));
-        dst_vec_ptr++;
-        prev = curr;
-    }
-
-    if (leftover > 0) {
-        // handle the leftover elements
-        HVX_Vector curr =
-            (leftover_bytes + hexagon::unaligned_bytes(src_vec_ptr) > hexagon::kBytesPerVector) ? *src_vec_ptr : prev;
-        curr = Q6_V_valign_VVR(curr, prev, (size_t) src);
-        q6op_vstu_variable_ARV(dst_vec_ptr, leftover_bytes, Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_VsfVsf(curr, scale_vec)));
-    }
-}
-
-inline void vec_mad_f32(const float * src, float scale, float * dst, size_t count) {
-    constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(float);
-
-    HVX_Vector *  src_vec_ptr    = ((HVX_Vector *) src);
-    HVX_Vector *  src_vec_end    = ((HVX_Vector *) src) + (count / kElementsPerVector);
-    HVX_UVector * dst_vec_ptr    = ((HVX_UVector *) dst);  // TODO: opt the unaligned case?
-    HVX_Vector    prev           = *src_vec_ptr++;
-    const size_t  leftover       = count % kElementsPerVector;
-    const size_t  leftover_bytes = leftover * sizeof(float);
-
-    HVX_Vector scale_vec = Q6_V_vsplat_R(reinterpret_cast<const uint32_t &>(scale));
-    while (src_vec_ptr < src_vec_end) {
-        HVX_Vector curr = *src_vec_ptr++;
-        HVX_Vector d0   = dst_vec_ptr[0];  // TODO: opt the unaligned case?
-        HVX_Vector s0   = Q6_V_valign_VVR(curr, prev, (size_t) src);
-        s0              = Q6_Vqf32_vmpy_VsfVsf(s0, scale_vec);
-        s0              = Q6_Vqf32_vadd_Vqf32Vsf(s0, d0);
-        dst_vec_ptr[0]  = Q6_Vsf_equals_Vqf32(s0);
-        dst_vec_ptr++;
-        prev = curr;
-    }
-
-    if ((src_vec_end - ((HVX_Vector *) src)) > 0) {
-        // handle the last vector
-        bool       src_ptr_aligned = hexagon::is_addr_aligned(src_vec_ptr);
-        HVX_Vector curr            = src_ptr_aligned ? prev : *src_vec_ptr;
-        src_vec_ptr                = src_ptr_aligned ? src_vec_ptr : src_vec_ptr + 1;
-        HVX_Vector d0              = dst_vec_ptr[0];
-        HVX_Vector s0              = Q6_V_valign_VVR(curr, prev, (size_t) src);
-        s0                         = Q6_Vqf32_vmpy_VsfVsf(s0, scale_vec);
-        s0                         = Q6_Vqf32_vadd_Vqf32Vsf(s0, d0);
-        dst_vec_ptr[0]             = Q6_Vsf_equals_Vqf32(s0);
-        dst_vec_ptr++;
-        prev = curr;
-    }
-
-    if (leftover > 0) {
-        // handle the leftover elements
-        HVX_Vector d0 = dst_vec_ptr[0];  // TODO: opt the unaligned case?
-        HVX_Vector curr =
-            (leftover_bytes + hexagon::unaligned_bytes(src_vec_ptr) > hexagon::kBytesPerVector) ? *src_vec_ptr : prev;
-        curr = Q6_V_valign_VVR(curr, prev, (size_t) src);
-        curr = Q6_Vqf32_vmpy_VsfVsf(curr, scale_vec);
-        curr = Q6_Vqf32_vadd_Vqf32Vsf(curr, d0);
-        q6op_vstu_variable_ARV(dst_vec_ptr, leftover_bytes, Q6_Vsf_equals_Vqf32(curr));
-    }
-}
-
 /*
  * This function converts a vector of IEEE float elements to a vector of qf32 elements
  * See also: libs\qfe\inc\qhmath_hvx_convert.h
@@ -208,7 +95,135 @@ inline HVX_VectorPair qhmath_hvx_vqf32_convert_vqf16(HVX_Vector vxl) {
     return Q6_W_vcombine_VV(vxh_w, vxl_w);
 }
 
-inline HVX_Vector hvx_vec_scale_f16_qf32(HVX_Vector src, HVX_UVector * dst_ptr, HVX_Vector scale_vec) {
+inline HVX_Vector vec_reduction_qf32(HVX_Vector sums) {
+    constexpr const size_t kFloatsPerVector = hexagon::kBytesPerVector / sizeof(float);
+    static_assert(kFloatsPerVector == 32 || kFloatsPerVector == 16, "kFloatsPerVector should be 16 or 32");
+
+    // TODO: do we have a better way to do the reduction?
+    switch (kFloatsPerVector) {
+        default:
+        case 32:
+            sums = Q6_Vqf32_vadd_Vqf32Vqf32(sums, Q6_V_vror_VR(sums, 16 * sizeof(float)));
+            // fallthrough
+        case 16:
+            sums = Q6_Vqf32_vadd_Vqf32Vqf32(sums, Q6_V_vror_VR(sums, 8 * sizeof(float)));
+            sums = Q6_Vqf32_vadd_Vqf32Vqf32(sums, Q6_V_vror_VR(sums, 4 * sizeof(float)));
+            sums = Q6_Vqf32_vadd_Vqf32Vqf32(sums, Q6_V_vror_VR(sums, 2 * sizeof(float)));
+            sums = Q6_Vqf32_vadd_Vqf32Vqf32(sums, Q6_V_vror_VR(sums, sizeof(float)));
+            break;
+    }
+
+    return sums;
+}
+
+inline float vec_reduction_f32(HVX_Vector sums) {
+    return get_flt0_from_fltv(Q6_Vsf_equals_Vqf32(vec_reduction_qf32(sums)));
+}
+
+inline HVX_Vector hvx_nop(HVX_Vector src) {
+    // This is a no-op function that can be used as a placeholder for vector operations
+    return src;
+}
+
+template <auto _Func, auto _FuncScaleConvert, typename _TParam>
+inline void vec_scale_impl(const _TParam * src, float scale, _TParam * dst, size_t count) {
+    constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TParam);
+
+    HVX_Vector *  src_vec_ptr    = ((HVX_Vector *) src);
+    HVX_Vector *  src_vec_end    = ((HVX_Vector *) src) + (count / kElementsPerVector);
+    HVX_UVector * dst_vec_ptr    = ((HVX_UVector *) dst);  // TODO: opt the unaligned case?
+    HVX_Vector    prev           = *src_vec_ptr++;
+    const size_t  leftover       = count % kElementsPerVector;
+    const size_t  leftover_bytes = leftover * sizeof(_TParam);
+
+    HVX_Vector scale_vec = Q6_V_vsplat_R(reinterpret_cast<const uint32_t &>(scale));
+    scale_vec            = _FuncScaleConvert(scale_vec);
+
+    while (src_vec_ptr < src_vec_end) {
+        HVX_Vector curr = *src_vec_ptr++;
+        HVX_Vector s0   = Q6_V_valign_VVR(curr, prev, (size_t) src);
+        dst_vec_ptr[0]  = _Func(s0, dst_vec_ptr, scale_vec);
+        dst_vec_ptr++;
+        prev = curr;
+    }
+
+    if ((src_vec_end - ((HVX_Vector *) src)) > 0) {
+        // handle the last vector
+        bool       src_ptr_aligned = hexagon::is_addr_aligned(src_vec_ptr);
+        HVX_Vector curr            = src_ptr_aligned ? prev : *src_vec_ptr;
+        src_vec_ptr                = src_ptr_aligned ? src_vec_ptr : src_vec_ptr + 1;
+        HVX_Vector s0              = Q6_V_valign_VVR(curr, prev, (size_t) src);
+        dst_vec_ptr[0]             = _Func(s0, dst_vec_ptr, scale_vec);
+        dst_vec_ptr++;
+        prev = curr;
+    }
+
+    if (leftover > 0) {
+        // handle the leftover elements
+        HVX_Vector curr =
+            (leftover_bytes + hexagon::unaligned_bytes(src_vec_ptr) > hexagon::kBytesPerVector) ? *src_vec_ptr : prev;
+        curr = Q6_V_valign_VVR(curr, prev, (size_t) src);
+        q6op_vstu_variable_ARV(dst_vec_ptr, leftover_bytes, _Func(curr, dst_vec_ptr, scale_vec));
+    }
+}
+
+inline HVX_Vector hvx_vec_scale_f32_f32(HVX_Vector src, HVX_UVector *, HVX_Vector scale_vec) {
+    return Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_VsfVsf(src, scale_vec));
+}
+
+inline void vec_scale_f32(const float * src, float scale, float * dst, size_t count) {
+    vec_scale_impl<hvx_vec_scale_f32_f32, hvx_nop, float>(src, scale, dst, count);
+}
+
+inline void vec_mad_f32(const float * src, float scale, float * dst, size_t count) {
+    constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(float);
+
+    HVX_Vector *  src_vec_ptr    = ((HVX_Vector *) src);
+    HVX_Vector *  src_vec_end    = ((HVX_Vector *) src) + (count / kElementsPerVector);
+    HVX_UVector * dst_vec_ptr    = ((HVX_UVector *) dst);  // TODO: opt the unaligned case?
+    HVX_Vector    prev           = *src_vec_ptr++;
+    const size_t  leftover       = count % kElementsPerVector;
+    const size_t  leftover_bytes = leftover * sizeof(float);
+
+    HVX_Vector scale_vec = Q6_V_vsplat_R(reinterpret_cast<const uint32_t &>(scale));
+    while (src_vec_ptr < src_vec_end) {
+        HVX_Vector curr = *src_vec_ptr++;
+        HVX_Vector d0   = dst_vec_ptr[0];  // TODO: opt the unaligned case?
+        HVX_Vector s0   = Q6_V_valign_VVR(curr, prev, (size_t) src);
+        s0              = Q6_Vqf32_vmpy_VsfVsf(s0, scale_vec);
+        s0              = Q6_Vqf32_vadd_Vqf32Vsf(s0, d0);
+        dst_vec_ptr[0]  = Q6_Vsf_equals_Vqf32(s0);
+        dst_vec_ptr++;
+        prev = curr;
+    }
+
+    if ((src_vec_end - ((HVX_Vector *) src)) > 0) {
+        // handle the last vector
+        bool       src_ptr_aligned = hexagon::is_addr_aligned(src_vec_ptr);
+        HVX_Vector curr            = src_ptr_aligned ? prev : *src_vec_ptr;
+        src_vec_ptr                = src_ptr_aligned ? src_vec_ptr : src_vec_ptr + 1;
+        HVX_Vector d0              = dst_vec_ptr[0];
+        HVX_Vector s0              = Q6_V_valign_VVR(curr, prev, (size_t) src);
+        s0                         = Q6_Vqf32_vmpy_VsfVsf(s0, scale_vec);
+        s0                         = Q6_Vqf32_vadd_Vqf32Vsf(s0, d0);
+        dst_vec_ptr[0]             = Q6_Vsf_equals_Vqf32(s0);
+        dst_vec_ptr++;
+        prev = curr;
+    }
+
+    if (leftover > 0) {
+        // handle the leftover elements
+        HVX_Vector d0 = dst_vec_ptr[0];  // TODO: opt the unaligned case?
+        HVX_Vector curr =
+            (leftover_bytes + hexagon::unaligned_bytes(src_vec_ptr) > hexagon::kBytesPerVector) ? *src_vec_ptr : prev;
+        curr = Q6_V_valign_VVR(curr, prev, (size_t) src);
+        curr = Q6_Vqf32_vmpy_VsfVsf(curr, scale_vec);
+        curr = Q6_Vqf32_vadd_Vqf32Vsf(curr, d0);
+        q6op_vstu_variable_ARV(dst_vec_ptr, leftover_bytes, Q6_Vsf_equals_Vqf32(curr));
+    }
+}
+
+inline HVX_Vector hvx_vec_scale_f16_qf32(HVX_Vector src, HVX_UVector *, HVX_Vector scale_vec) {
     HVX_VectorPair src_pair = qhmath_hvx_vqf32_convert_vqf16(qhmath_hvx_vqf16_convert_vhf(src));
     HVX_Vector     lo       = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(src_pair), scale_vec);
     HVX_Vector     hi       = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(src_pair), scale_vec);
