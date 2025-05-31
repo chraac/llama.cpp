@@ -10,7 +10,7 @@
 #include "hexagon_npu.h"
 #include "tensor.hpp"
 #include "util.hpp"
-#include "vec_dot.hpp"
+#include "vec_ops.hpp"
 #include "vtcm_mem.hpp"
 
 namespace hexagon {

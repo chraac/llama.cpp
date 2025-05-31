@@ -5,7 +5,7 @@
 #include <array>
 
 #include "op_types.hpp"  // TODO: remove this include
-#include "vec_dot.hpp"
+#include "vec_ops.hpp"
 
 static_assert(sizeof(npu_device_block_q4_K) ==
                   2 * sizeof(npu_device_fp16_t) + QUANT_K_SCALE_SIZE + QUANT_K_BLOCK_SIZE / 2,

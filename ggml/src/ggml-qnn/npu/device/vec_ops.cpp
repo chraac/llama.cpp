@@ -1,4 +1,4 @@
-#include "vec_dot.hpp"
+#include "vec_ops.hpp"
 
 #include <HTP/core/intrinsics.h>
 
