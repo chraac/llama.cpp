@@ -3,6 +3,7 @@
 
 #include "type_traits.hpp"
 #include "util.hpp"
+#include "vec_ops.hpp"
 
 namespace {
 
@@ -45,7 +46,6 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
 
     const auto DK = k->get_ne(0);
     const auto DV = v->get_ne(0);
-    const auto N  = q->get_ne(1);
 
     size_t total_cache_size = sizeof(float) * (DK + 2 * DV) + 16;  // CACHE_LINE_SIZE_F32 == 16
     auto * cache_ptr        = params->get_vtcm_cache(total_cache_size);
@@ -134,14 +134,14 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
                     ms = expf(Mold - M);
 
                     // V = V*expf(Mold - M)
-                    ggml_vec_scale_f16(DV, VKQ16, ms);
+                    hexagon::vec_scale_f16(VKQ16, ms, VKQ16, DV);
                 } else {
                     // no new maximum, ms == 1.0f, vs != 1.0f
                     vs = expf(s - M);
                 }
 
                 // V += v*expf(s - M)
-                ggml_vec_mad_f16(DV, VKQ16, (const ggml_fp16_t *) v_data, vs);
+                hexagon::vec_mad_f16(reinterpret_cast<const npu_device_fp16_t *>(v_data), vs, VKQ16, DV);
             } else {
                 if (s > M) {
                     // s is new maximum, ms < 1.0f, vs == expf(s - s) == 1.0f
@@ -149,7 +149,7 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
                     ms = expf(Mold - M);
 
                     // V = V*expf(Mold - M)
-                    ggml_vec_scale_f32(DV, VKQ32, ms);
+                    hexagon::vec_scale_f32(VKQ32, ms, VKQ32, DV);
                 } else {
                     // no new maximum, ms == 1.0f, vs != 1.0f
                     vs = expf(s - M);
@@ -158,10 +158,10 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
                 // V += v*expf(s - M)
                 if (v_to_float) {
                     v_to_float(v_data, V32, DV, params->f16_to_f32_table);
-                    ggml_vec_mad_f32(DV, VKQ32, V32, vs);
+                    hexagon::vec_mad_f32(V32, vs, VKQ32, DV);
                 } else {
                     // V is F32
-                    ggml_vec_mad_f32(DV, VKQ32, (const float *) v_data, vs);
+                    hexagon::vec_mad_f32(reinterpret_cast<const float *>(v_data), vs, VKQ32, DV);
                 }
             }
 
@@ -177,7 +177,7 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
 
         // V /= S
         const float S_inv = 1.0f / S;
-        ggml_vec_scale_f32(DV, VKQ32, S_inv);
+        hexagon::vec_scale_f32(VKQ32, S_inv, VKQ32, DV);
 
         // dst indices
         const int i1 = iq1;
