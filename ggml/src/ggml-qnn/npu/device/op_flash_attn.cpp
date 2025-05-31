@@ -230,7 +230,32 @@ bool is_flash_attn_supported(npu_device_tensor_op op, const npu_device_tensor_sp
         return false;
     }
 
-    return false;  // TODO: implement flash attention support check
+    const auto * q = &srcs[0];
+    if (q->type != NPU_DATA_TYPE_F32) {
+        DEVICE_LOG_DEBUG("[%s]q type is not F32: %s\n", op_get_name(op), get_type_name(q->type));
+        return false;
+    }
+
+    const auto * k = &srcs[1];
+    if (k->type != NPU_DATA_TYPE_F16) {  // TODO: support more k types
+        DEVICE_LOG_DEBUG("[%s]k type is not F16: %s\n", op_get_name(op), get_type_name(k->type));
+        return false;
+    }
+
+    const auto * v = &srcs[2];
+    if (v->type != NPU_DATA_TYPE_F16) {  // TODO: support more v types
+        DEVICE_LOG_DEBUG("[%s]v type is not F16: %s\n", op_get_name(op), get_type_name(v->type));
+        return false;
+    }
+
+    const auto * mask = &srcs[3];
+    if (mask->type != NPU_DATA_TYPE_F16) {
+        DEVICE_LOG_DEBUG("[%s]mask type is not F16: %s\n", op_get_name(op), get_type_name(mask->type));
+        return false;
+    }
+
+    // TODO: check tensor shapes
+    return true;
 }
 
 }  // namespace hexagon
