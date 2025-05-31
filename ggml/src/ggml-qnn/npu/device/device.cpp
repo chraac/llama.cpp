@@ -207,8 +207,7 @@ AEEResult npu_device_graph_set_tensor_with_param(remote_handle64 _h, npu_device_
                                                  int                                     tensor_paramsLen) {
     NPU_UNUSED(_h);
     auto * graph = graph_from_handle(graph_handle);
-    if (!graph || !tensor_handles || tensor_handlesLen <= 0 || !tensor_params ||
-        tensor_handlesLen != tensor_paramsLen) {
+    if (!graph || tensor_handlesLen != tensor_paramsLen || tensor_handlesLen < 0) {
         return AEE_EINVHANDLE;
     }
 

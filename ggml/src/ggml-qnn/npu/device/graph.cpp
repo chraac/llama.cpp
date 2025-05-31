@@ -23,6 +23,7 @@ void graph::set_tensor(const npu_device_tensor_handle_t * tensors, int tensor_co
     if (tensor_count <= 0) {
         _tensors.reset();
         _tensor_count = 0;
+        DEVICE_LOG_DEBUG("graph(%p) set_tensor: no tensors to set\n", (void *) this);
         return;
     }
 
