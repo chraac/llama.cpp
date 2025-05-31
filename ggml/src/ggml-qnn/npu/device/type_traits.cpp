@@ -19,11 +19,6 @@ static_assert(sizeof(npu_device_block_q8_0) == sizeof(npu_device_fp16_t) + QUANT
 
 namespace {
 
-inline HVX_Vector vmemu(const void * unaligned_ptr) {
-    HVX_Vector ret = *reinterpret_cast<const HVX_UVector *>(unaligned_ptr);
-    return ret;
-}
-
 inline float to_float(const npu_device_fp16_t src) {
     return reinterpret_cast<const __fp16 &>(src);
 }

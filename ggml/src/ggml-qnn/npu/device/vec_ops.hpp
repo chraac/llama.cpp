@@ -26,6 +26,14 @@ inline float get_flt0_from_fltv(HVX_Vector vect) {
     return reinterpret_cast<float &>(i);
 }
 
+inline HVX_UVector Q6_V_vmemu_R(const void * unaligned_ptr) {
+    return *reinterpret_cast<const HVX_UVector *>(unaligned_ptr);
+}
+
+inline HVX_Vector Q6_V_vmem_R(const void * aligned_ptr) {
+    return *reinterpret_cast<const HVX_Vector *>(aligned_ptr);
+}
+
 inline HVX_Vector vec_reduction_qf32(HVX_Vector sums) {
     constexpr const size_t kFloatsPerVector = hexagon::kBytesPerVector / sizeof(float);
     static_assert(kFloatsPerVector == 32 || kFloatsPerVector == 16, "kFloatsPerVector should be 16 or 32");
@@ -57,10 +65,11 @@ inline void vec_scale_f32(const float * src, float scale, float * dst, size_t co
     HVX_Vector * src_vec_ptr    = ((HVX_Vector *) src);
     HVX_Vector * src_vec_end    = ((HVX_Vector *) src) + (count / kElementsPerVector);
     HVX_Vector * dst_vec_ptr    = ((HVX_Vector *) dst);  // framework will ensure the dst is aligned
-    HVX_Vector   scale_vec      = Q6_V_vsplat_R(reinterpret_cast<const uint32_t &>(scale));
     HVX_Vector   prev           = *src_vec_ptr++;
     const size_t leftover       = count % kElementsPerVector;
     const size_t leftover_bytes = leftover * sizeof(float);
+
+    HVX_Vector scale_vec = Q6_V_vsplat_R(reinterpret_cast<const uint32_t &>(scale));
 
     while (src_vec_ptr < src_vec_end) {
         HVX_Vector curr = *src_vec_ptr++;
@@ -85,6 +94,120 @@ inline void vec_scale_f32(const float * src, float scale, float * dst, size_t co
             (leftover_bytes + hexagon::unaligned_bytes(src_vec_ptr) > hexagon::kBytesPerVector) ? *src_vec_ptr : prev;
         curr = Q6_V_valign_VVR(curr, prev, (size_t) src);
         q6op_vstu_variable_ARV(dst_vec_ptr, leftover_bytes, Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_VsfVsf(curr, scale_vec)));
+    }
+}
+
+/*
+ * This function converts a vector of IEEE float elements to a vector of qf32 elements
+ * See also: libs\qfe\inc\qhmath_hvx_convert.h
+ */
+inline HVX_Vector qhmath_hvx_vqf32_convert_vsf(HVX_Vector vin) {
+    return Q6_Vqf32_vadd_VsfVsf(vin, Q6_V_vzero());
+}
+
+/*
+ * This function converts a vector of IEEE half float elements to a vector of qf16 elements
+ * See also: libs\qfe\inc\qhmath_hvx_convert.h
+ */
+inline HVX_Vector qhmath_hvx_vqf16_convert_vhf(HVX_Vector vin) {
+    return Q6_Vqf16_vadd_VhfVhf(vin, Q6_V_vzero());
+}
+
+/*
+ * This function converts a pair of vectors of qf32 elements to a vector of IEEE half float elements
+ * See also: libs\qfe\inc\qhmath_hvx_convert.h
+ */
+inline HVX_Vector qhmath_hvx_vhf_convert_vqf32(HVX_VectorPair vin_vp) {
+    return Q6_Vh_vdeal_Vh(Q6_Vhf_equals_Wqf32(vin_vp));
+}
+
+/*
+ * This function converts a vector of qf16 elements to a pair of vectors of qf32 elements
+ * See also: libs\qfe\inc\qhmath_hvx_convert.h
+ */
+inline HVX_VectorPair qhmath_hvx_vqf32_convert_vqf16(HVX_Vector vxl) {
+    HVX_VectorPair vxw_vp, exponent_vp;
+    HVX_Vector     mantissa_mask = Q6_Vh_vsplat_R(0xffe0);
+    HVX_Vector     exp_mask      = Q6_Vh_vsplat_R(0x1f);
+    HVX_Vector     exp_offset    = Q6_Vh_vsplat_R(0x70);
+    HVX_Vector     mant32_shift  = Q6_Vh_vsplat_R(0x10);
+    HVX_Vector     reql, reqh, vxl_w, vxh_w, mantissa;
+    HVX_Vector     el_exponent, eh_exponent;
+
+    el_exponent = Q6_V_vand_VV(exp_mask, vxl);
+    // Obtain the mantissa part: bits (5-15)
+    mantissa    = Q6_V_vand_VV(mantissa_mask, vxl);
+    // Convert qf16 biassed exponent to qf32 biased exponent
+    // new exp = exp + ( 127 (qf32 bias) -15(qf16 biass) ) = 112
+    el_exponent = Q6_Vh_vadd_VhVh(exp_offset, el_exponent);
+
+    vxw_vp = Q6_Ww_vunpack_Vh(mantissa);
+    vxl_w  = Q6_V_lo_W(vxw_vp);
+    vxh_w  = Q6_V_hi_W(vxw_vp);
+
+    exponent_vp = Q6_Ww_vunpack_Vh(el_exponent);
+    el_exponent = Q6_V_lo_W(exponent_vp);
+    eh_exponent = Q6_V_hi_W(exponent_vp);
+    // Convert q16 mantiss to q32 mantissa
+    reql        = Q6_Vw_vasl_VwVw(vxl_w, mant32_shift);
+    reqh        = Q6_Vw_vasl_VwVw(vxh_w, mant32_shift);
+    // Add the exponent
+    vxl_w       = Q6_Vw_vadd_VwVw(reql, el_exponent);
+    vxh_w       = Q6_Vw_vadd_VwVw(reqh, eh_exponent);
+
+    return Q6_W_vcombine_VV(vxh_w, vxl_w);
+}
+
+inline void vec_scale_f16(const npu_device_fp16_t * src, float scale, npu_device_fp16_t * dst, size_t count) {
+    constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(npu_device_fp16_t);
+
+    HVX_Vector * src_vec_ptr    = ((HVX_Vector *) src);
+    HVX_Vector * src_vec_end    = ((HVX_Vector *) src) + (count / kElementsPerVector);
+    HVX_Vector * dst_vec_ptr    = ((HVX_Vector *) dst);  // framework will ensure the dst is aligned
+    HVX_Vector   prev           = *src_vec_ptr++;
+    const size_t leftover       = count % kElementsPerVector;
+    const size_t leftover_bytes = leftover * sizeof(float);
+
+    HVX_Vector scale_vec = Q6_V_vsplat_R(reinterpret_cast<const uint32_t &>(scale));
+    scale_vec            = qhmath_hvx_vqf32_convert_vsf(scale_vec);
+
+    while (src_vec_ptr < src_vec_end) {
+        HVX_Vector     curr = *src_vec_ptr++;
+        HVX_Vector     s0   = Q6_V_valign_VVR(curr, prev, (size_t) src);
+        HVX_VectorPair sp0  = qhmath_hvx_vqf32_convert_vqf16(qhmath_hvx_vqf16_convert_vhf(s0));
+        HVX_Vector     lo   = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(sp0), scale_vec);
+        HVX_Vector     hi   = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(sp0), scale_vec);
+        sp0                 = Q6_W_vcombine_VV(Q6_Vsf_equals_Vqf32(lo), Q6_Vsf_equals_Vqf32(hi));
+        dst_vec_ptr[0]      = qhmath_hvx_vhf_convert_vqf32(sp0);  // TODO: can we avoid the vdeal?
+        dst_vec_ptr++;
+        prev = curr;
+    }
+
+    if ((src_vec_end - ((HVX_Vector *) src)) > 0) {
+        // handle the last vector
+        bool       src_ptr_aligned = hexagon::is_addr_aligned(src_vec_ptr);
+        HVX_Vector curr            = src_ptr_aligned ? prev : *src_vec_ptr;
+        src_vec_ptr                = src_ptr_aligned ? src_vec_ptr : src_vec_ptr + 1;
+        HVX_Vector     s0          = Q6_V_valign_VVR(curr, prev, (size_t) src);
+        HVX_VectorPair sp0         = qhmath_hvx_vqf32_convert_vqf16(qhmath_hvx_vqf16_convert_vhf(s0));
+        HVX_Vector     lo          = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(sp0), scale_vec);
+        HVX_Vector     hi          = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(sp0), scale_vec);
+        sp0                        = Q6_W_vcombine_VV(Q6_Vsf_equals_Vqf32(lo), Q6_Vsf_equals_Vqf32(hi));
+        dst_vec_ptr[0]             = qhmath_hvx_vhf_convert_vqf32(sp0);  // TODO: can we avoid the vdeal?
+        dst_vec_ptr++;
+        prev = curr;
+    }
+
+    if (leftover > 0) {
+        // handle the leftover elements
+        HVX_Vector curr =
+            (leftover_bytes + hexagon::unaligned_bytes(src_vec_ptr) > hexagon::kBytesPerVector) ? *src_vec_ptr : prev;
+        curr               = Q6_V_valign_VVR(curr, prev, (size_t) src);
+        HVX_VectorPair sp0 = qhmath_hvx_vqf32_convert_vqf16(qhmath_hvx_vqf16_convert_vhf(curr));
+        HVX_Vector     lo  = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(sp0), scale_vec);
+        HVX_Vector     hi  = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(sp0), scale_vec);
+        sp0                = Q6_W_vcombine_VV(Q6_Vsf_equals_Vqf32(lo), Q6_Vsf_equals_Vqf32(hi));
+        q6op_vstu_variable_ARV(dst_vec_ptr, leftover_bytes, qhmath_hvx_vhf_convert_vqf32(sp0));
     }
 }
 
