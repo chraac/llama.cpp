@@ -57,7 +57,9 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
     // loop over n_batch and n_head
     const auto rows_per_batch     = q->get_ne(2) * q->get_ne(1);
     const auto out_rows_per_batch = out->get_ne(2) * out->get_ne(1);
-    auto *     dst                = reinterpret_cast<uint8_t *>(out->get_write_buffer());
+    const bool is_v_f16 =
+        v->get_type() == NPU_DATA_TYPE_F16;  // check if V is in FP16 format, otherwise it is in FP32 format
+    auto * dst = reinterpret_cast<uint8_t *>(out->get_write_buffer());
 
     DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_WITH_SUB_PROC(out, params->tidx, qk_sum);
     for (auto ir = start_end_row.first; ir < start_end_row.second; ++ir) {
@@ -79,7 +81,7 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
         auto *  Q_q   = reinterpret_cast<npu_device_fp16_t *>(
             VKQ32 + 2 * DV);  // (temporary) buffer for Q converted to quantized/FP16
 
-        if (v->get_type() == NPU_DATA_TYPE_F16) {
+        if (is_v_f16) {
             memset(VKQ16, 0, DV * sizeof(npu_device_fp16_t));
         } else {
             memset(VKQ32, 0, DV * sizeof(float));
@@ -127,7 +129,7 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
             float vs = 1.0f;  // post-softmax KQ value, expf(s - M)
 
             const auto * v_data = v->get_read_buffer() + (ic * v->get_nb(1) + iv2 * v->get_nb(2) + iv3 * v->get_nb(3));
-            if (v->get_type() == NPU_DATA_TYPE_F16) {
+            if (is_v_f16) {
                 if (s > M) {
                     // s is new maximum, ms < 1.0f, vs == expf(s - s) == 1.0f
                     M  = s;
@@ -168,7 +170,7 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
             S = S * ms + vs;  // scale and increment sum with partial sum
         }
 
-        if (v->get_type() == NPU_DATA_TYPE_F16) {
+        if (is_v_f16) {
             // TODO: use a more efficient conversion
             for (int64_t d = 0; d < DV; ++d) {
                 VKQ32[d] = f16_to_f32(VKQ16[d]);
