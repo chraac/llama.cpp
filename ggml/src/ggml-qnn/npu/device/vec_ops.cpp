@@ -26,13 +26,13 @@ float vec_dot_product_f32_f32(const float * src0, const float * src1, size_t cou
         HVX_Vector l1 = Q6_V_valign_VVR(curr1_lo, prev1, (size_t) src1);
         HVX_Vector h0 = Q6_V_valign_VVR(curr0_hi, curr0_lo, (size_t) src0);
         HVX_Vector h1 = Q6_V_valign_VVR(curr1_hi, curr1_lo, (size_t) src1);
-        sum           = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_VsfVsf(l0, l1), sum);
-        sum           = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_VsfVsf(h0, h1), sum);
-
-        prev0 = curr0_hi;
-        prev1 = curr1_hi;
+        prev0         = curr0_hi;
+        prev1         = curr1_hi;
         src0_vec_ptr += 2;
         src1_vec_ptr += 2;
+
+        sum = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_VsfVsf(l0, l1), sum);
+        sum = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_VsfVsf(h0, h1), sum);
     }
 
     if (src0_vec_ptr_end - src0_vec_ptr > 0) {
@@ -40,9 +40,10 @@ float vec_dot_product_f32_f32(const float * src0, const float * src1, size_t cou
         HVX_Vector curr1 = *src1_vec_ptr++;
         HVX_Vector s0    = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
         HVX_Vector s1    = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-        sum              = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_VsfVsf(s0, s1), sum);
         prev0            = curr0;
         prev1            = curr1;
+
+        sum = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_VsfVsf(s0, s1), sum);
     }
 
     if ((src0_vec_ptr_end - ((HVX_Vector *) src0)) > 0) {
@@ -58,9 +59,10 @@ float vec_dot_product_f32_f32(const float * src0, const float * src1, size_t cou
         src1_vec_ptr             = iptr1_aligned ? src1_vec_ptr : src1_vec_ptr + 1;
         HVX_Vector s0            = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
         HVX_Vector s1            = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-        sum                      = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_VsfVsf(s0, s1), sum);
         prev0                    = curr0;
         prev1                    = curr1;
+
+        sum = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_VsfVsf(s0, s1), sum);
     }
 
     const size_t leftover       = count % kElementsPerVector;
@@ -98,15 +100,16 @@ float vec_dot_product_f16_f16(const npu_device_fp16_t * src0, const npu_device_f
     HVX_Vector   sum_lo           = Q6_V_vzero();
 
     while (src0_vec_ptr < src0_vec_ptr_end) {
-        HVX_Vector     curr0  = *src0_vec_ptr++;
-        HVX_Vector     curr1  = *src1_vec_ptr++;
-        HVX_Vector     s0     = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
-        HVX_Vector     s1     = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
+        HVX_Vector curr0 = *src0_vec_ptr++;
+        HVX_Vector curr1 = *src1_vec_ptr++;
+        HVX_Vector s0    = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
+        HVX_Vector s1    = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
+        prev0            = curr0;
+        prev1            = curr1;
+
         HVX_VectorPair result = Q6_Wqf32_vmpy_VhfVhf(s0, s1);
         sum_hi                = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_V_hi_W(result), sum_hi);
         sum_lo                = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_V_lo_W(result), sum_lo);
-        prev0                 = curr0;
-        prev1                 = curr1;
     }
 
     if ((src0_vec_ptr_end - ((HVX_Vector *) src0)) > 0) {
@@ -120,13 +123,14 @@ float vec_dot_product_f16_f16(const npu_device_fp16_t * src0, const npu_device_f
         bool       iptr1_aligned = hexagon::is_addr_aligned(src1_vec_ptr);
         HVX_Vector curr1         = iptr1_aligned ? prev1 : *src1_vec_ptr;
         src1_vec_ptr             = iptr1_aligned ? src1_vec_ptr : src1_vec_ptr + 1;
-        HVX_Vector     s0        = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
-        HVX_Vector     s1        = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-        HVX_VectorPair result    = Q6_Wqf32_vmpy_VhfVhf(s0, s1);
-        sum_hi                   = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_V_hi_W(result), sum_hi);
-        sum_lo                   = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_V_lo_W(result), sum_lo);
+        HVX_Vector s0            = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
+        HVX_Vector s1            = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
         prev0                    = curr0;
         prev1                    = curr1;
+
+        HVX_VectorPair result = Q6_Wqf32_vmpy_VhfVhf(s0, s1);
+        sum_hi                = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_V_hi_W(result), sum_hi);
+        sum_lo                = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_V_lo_W(result), sum_lo);
     }
 
     const size_t leftover       = count % kElementsPerVector;
@@ -136,12 +140,12 @@ float vec_dot_product_f16_f16(const npu_device_fp16_t * src0, const npu_device_f
         HVX_Vector curr0 = (leftover_bytes + hexagon::unaligned_bytes(src0_vec_ptr) > hexagon::kBytesPerVector) ?
                                *src0_vec_ptr :
                                prev0;
-        curr0            = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
-
         HVX_Vector curr1 = (leftover_bytes + hexagon::unaligned_bytes(src1_vec_ptr) > hexagon::kBytesPerVector) ?
                                *src1_vec_ptr :
                                prev1;
-        curr1            = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
+
+        curr0 = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
+        curr1 = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
 
         HVX_VectorPair result = Q6_Wqf32_vmpy_VhfVhf(curr0, curr1);
 
