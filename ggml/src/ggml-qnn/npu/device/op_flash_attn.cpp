@@ -58,6 +58,8 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
     const auto rows_per_batch     = q->get_ne(2) * q->get_ne(1);
     const auto out_rows_per_batch = out->get_ne(2) * out->get_ne(1);
     auto *     dst                = reinterpret_cast<uint8_t *>(out->get_write_buffer());
+
+    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_WITH_SUB_PROC(out, params->tidx, qk_sum);
     for (auto ir = start_end_row.first; ir < start_end_row.second; ++ir) {
         // q indices
         const auto iq3 = ir / rows_per_batch;
@@ -108,12 +110,10 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
                 continue;
             }
 
-            float s;  // KQ value
-
+            DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_SUB_PROC(qk_sum);
             const auto * k_data = k->get_read_buffer() + (ic * k->get_nb(1) + ik2 * k->get_nb(2) + ik3 * k->get_nb(3));
-            s                   = kq_vec_dot(k_data, Q_q, DK);
-
-            s = s * scale;  // scale KQ value
+            float        s      = kq_vec_dot(k_data, Q_q, DK);  // KQ value
+            s                   = s * scale;                    // scale KQ value
 
             if (logit_softcap != 0.0f) {
                 s = logit_softcap * tanhf(s);

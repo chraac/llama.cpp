@@ -191,7 +191,6 @@ void get_op_tensor_desc(const ggml_tensor * dst, char * out, size_t max_len) {
                          src1_desc, src2_desc, src3_desc);
                 return;
             }
-            break;
         case 3:
             {
                 char src0_desc[256];
