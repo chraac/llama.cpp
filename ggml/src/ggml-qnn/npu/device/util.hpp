@@ -317,10 +317,10 @@ template <size_t _buffer_count, size_t _sub_idx> class npu_sub_process_scoped_ti
 inline auto make_scoped_perf_timer(const char * format, ...) {
     va_list args;
     va_start(args, format);
-    char buffer[512];
+    char buffer[1024];
     vsnprintf(buffer, sizeof(buffer), format, args);
     va_end(args);
-    return npu_scoped_timer<512>(buffer);
+    return npu_scoped_timer<1024>(buffer);
 }
 
 #endif

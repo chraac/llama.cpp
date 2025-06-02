@@ -52,7 +52,7 @@ namespace hexagon {
 inline auto make_scoped_op_perf_timer(tensor * op, size_t tidx) {
     auto * src0 = op->get_src(0);
     auto * src1 = op->get_src(1);
-    char   buffer[512];
+    char   buffer[1024];
     if (src1 == nullptr) {
         snprintf(buffer, sizeof(buffer), "[%s][%lldx%lldx%lldx%lld%s], tidx: %zu", op_get_name(op->get_op()),
                  src0->get_ne(0), src0->get_ne(1), src0->get_ne(2), src0->get_ne(3), get_type_name(src0->get_type()),
@@ -63,7 +63,7 @@ inline auto make_scoped_op_perf_timer(tensor * op, size_t tidx) {
                  get_type_name(src0->get_type()), src1->get_ne(0), src1->get_ne(1), src1->get_ne(2), src1->get_ne(3),
                  get_type_name(src1->get_type()), tidx);
     }
-    return npu_scoped_timer<512>(buffer);
+    return npu_scoped_timer<1024>(buffer);
 }
 
 }  // namespace hexagon
