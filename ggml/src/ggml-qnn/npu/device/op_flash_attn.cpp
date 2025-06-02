@@ -108,7 +108,7 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
         // loop over n_kv and n_head_kv
         // ref: https://arxiv.org/pdf/2112.05682.pdf
         for (int64_t ic = 0; ic < k->get_ne(1); ++ic) {
-            DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(flash_attn, 0, inner_loop);
+            DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(flash_attn, 0, loop);
             float mv = 0.0f;
             if (mp) {
                 mv = slope * f16_to_f32(mp[ic]);
@@ -120,7 +120,7 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
 
             float s = 0.f;
             {
-                DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(flash_attn, 1, kq_vec_dot);
+                DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(flash_attn, 1, kq_dot);
                 const auto * k_data =
                     k->get_read_buffer() + (ic * k->get_nb(1) + ik2 * k->get_nb(2) + ik3 * k->get_nb(3));
                 if (ic < k->get_ne(1) - 1) {
@@ -141,6 +141,7 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
             float ms = 1.0f;  // upon new higher max val, scale VKQ and KQ sum with this value
             float vs = 1.0f;  // post-softmax KQ value, expf(s - M)
 
+            DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(flash_attn, 2, mad);
             const auto * v_data = v->get_read_buffer() + (ic * v->get_nb(1) + iv2 * v->get_nb(2) + iv3 * v->get_nb(3));
             if (is_v_f16) {
                 if (s > M) {
@@ -148,16 +149,12 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
                     M  = s;
                     ms = expf(Mold - M);
 
-                    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(flash_attn, 2, vec_scale_f16);
-
                     // V = V*expf(Mold - M)
                     hexagon::vec_scale_f16(VKQ16, ms, VKQ16, DV);
                 } else {
                     // no new maximum, ms == 1.0f, vs != 1.0f
                     vs = expf(s - M);
                 }
-
-                DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(flash_attn, 3, vec_mad_f16);
 
                 // V += v*expf(s - M)
                 hexagon::vec_mad_f16(reinterpret_cast<const npu_device_fp16_t *>(v_data), vs, VKQ16, DV);
@@ -167,16 +164,12 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
                     M  = s;
                     ms = expf(Mold - M);
 
-                    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(flash_attn, 2, vec_scale_f32);
-
                     // V = V*expf(Mold - M)
                     hexagon::vec_scale_f32(VKQ32, ms, VKQ32, DV);
                 } else {
                     // no new maximum, ms == 1.0f, vs != 1.0f
                     vs = expf(s - M);
                 }
-
-                DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(flash_attn, 3, vec_mad_f32);
 
                 // V += v*expf(s - M)
                 if (v_to_float) {
