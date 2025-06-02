@@ -15,6 +15,7 @@ struct device_type_traits {
     npu_device_tensor_data_type type;
     const char *                type_name;
     int64_t                     blck_size;
+    size_t                      type_size;
     bool                        is_quantized;
 
     dequantize_row_type to_float;

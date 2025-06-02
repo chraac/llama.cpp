@@ -7,7 +7,7 @@
 #include "op_types.hpp"  // TODO: remove this include
 #include "vec_ops.hpp"
 
-static_assert(sizeof(npu_device_block_q4_K) ==
+static_assert(sizeof(npu_device_block_q4_k) ==
                   2 * sizeof(npu_device_fp16_t) + QUANT_K_SCALE_SIZE + QUANT_K_BLOCK_SIZE / 2,
               "wrong q4_K block size/padding");
 
@@ -219,7 +219,7 @@ void quantize_row_q4_0(const float * src, void * dst, size_t count, const float 
 
 void quantize_row_q4_K(const float * src, void * dst, size_t count, const float * f16_to_f32_table) {
     const int nb  = count / QUANT_K_BLOCK_SIZE;
-    auto *    out = reinterpret_cast<npu_device_block_q4_K *>(dst);
+    auto *    out = reinterpret_cast<npu_device_block_q4_k *>(dst);
 
     uint8_t L[QUANT_K_BLOCK_SIZE];
     uint8_t Laux[32];
@@ -376,7 +376,7 @@ void dequantize_row_q4_0(const void * src, float * dst, size_t count, const floa
 
 void dequantize_row_q4_K(const void * src, float * dst, size_t count, const float * f16_to_f32_table) {
     const int    nb      = count / QUANT_K_BLOCK_SIZE;
-    const auto * src_ptr = reinterpret_cast<const npu_device_block_q4_K *>(src);
+    const auto * src_ptr = reinterpret_cast<const npu_device_block_q4_k *>(src);
 
     // TODO: use intrinsics
     for (int i = 0; i < nb; i++) {
@@ -420,11 +420,16 @@ template <auto _Func> float wrap_dot_func(const void * src0, const void * src1, 
 }
 
 constexpr const hexagon::device_type_traits kDeviceTypeTraits[] = {
-    { NPU_DATA_TYPE_F32, "F32", 1, false, nullptr, nullptr, wrap_dot_func<hexagon::vec_dot_product_f32_f32> },
-    { NPU_DATA_TYPE_F16, "F16", 1, false, nullptr, quantize_row_fp16, wrap_dot_func<hexagon::vec_dot_product_f16_f16> },
-    { NPU_DATA_TYPE_Q8_0, "Q8_0", QUANT_BLOCK_SIZE, true, dequantize_row_q8_0, quantize_row_q8_0 },
-    { NPU_DATA_TYPE_Q4_0, "Q4_0", QUANT_BLOCK_SIZE, true, dequantize_row_q4_0, quantize_row_q4_0 },
-    { NPU_DATA_TYPE_Q4_K, "Q4_K", QUANT_K_BLOCK_SIZE, true, dequantize_row_q4_K, quantize_row_q4_K },
+    { NPU_DATA_TYPE_F32, "F32", 1, sizeof(float), false, nullptr, nullptr,
+     wrap_dot_func<hexagon::vec_dot_product_f32_f32> },
+    { NPU_DATA_TYPE_F16, "F16", 1, sizeof(npu_device_fp16_t), false, nullptr, quantize_row_fp16,
+     wrap_dot_func<hexagon::vec_dot_product_f16_f16> },
+    { NPU_DATA_TYPE_Q8_0, "Q8_0", QUANT_BLOCK_SIZE, sizeof(npu_device_block_q8_0), true, dequantize_row_q8_0,
+     quantize_row_q8_0 },
+    { NPU_DATA_TYPE_Q4_0, "Q4_0", QUANT_BLOCK_SIZE, sizeof(npu_device_block_q4_0), true, dequantize_row_q4_0,
+     quantize_row_q4_0 },
+    { NPU_DATA_TYPE_Q4_K, "Q4_K", QUANT_K_BLOCK_SIZE, sizeof(npu_device_block_q4_k), true, dequantize_row_q4_K,
+     quantize_row_q4_K },
 };
 
 static_assert(std::size(kDeviceTypeTraits) == NPU_DATA_TYPE_COUNT,

@@ -44,8 +44,9 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
     const auto    start_end_row =
         hexagon::get_thread_work_slice(total_rows, params->tidx, params->tcnt);  // work slice for this thread
 
-    const auto DK = k->get_ne(0);
-    const auto DV = v->get_ne(0);
+    const auto DK          = k->get_ne(0);
+    const auto DV          = v->get_ne(0);
+    const auto row_bytes_k = DK * hexagon::get_type_traits(k->get_type()).type_size;
 
     size_t total_cache_size = sizeof(float) * (DK + 2 * DV) + 16;  // CACHE_LINE_SIZE_F32 == 16
     auto * cache_ptr        = params->get_vtcm_cache(total_cache_size);
@@ -107,9 +108,9 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
         // loop over n_kv and n_head_kv
         // ref: https://arxiv.org/pdf/2112.05682.pdf
         for (int64_t ic = 0; ic < k->get_ne(1); ++ic) {
+            DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(flash_attn, 0, inner_loop);
             float mv = 0.0f;
             if (mp) {
-                DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(flash_attn, 0, f16_to_f32);
                 mv = slope * f16_to_f32(mp[ic]);
             }
 
@@ -122,9 +123,12 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
                 DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(flash_attn, 1, kq_vec_dot);
                 const auto * k_data =
                     k->get_read_buffer() + (ic * k->get_nb(1) + ik2 * k->get_nb(2) + ik3 * k->get_nb(3));
+                if (ic < k->get_ne(1) - 1) {
+                    hexagon::l2fetch_row(k_data + k->get_nb(1), row_bytes_k);
+                }
+
                 s = kq_vec_dot(k_data, Q_q, DK);  // KQ value
                 s = s * scale;                    // scale KQ value
-
                 if (logit_softcap != 0.0f) {
                     s = logit_softcap * tanhf(s);
                 }

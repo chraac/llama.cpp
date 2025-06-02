@@ -22,7 +22,7 @@ interface npu_device : remote_handle64{
         uint8_t qs[QUANT_BLOCK_SIZE / 2];
     };
 
-    struct block_q4_K {
+    struct block_q4_k {
         fp16_t d;
         fp16_t dmin;
         uint8_t scales[QUANT_K_SCALE_SIZE];

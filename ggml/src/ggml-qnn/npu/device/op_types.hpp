@@ -73,7 +73,4 @@ inline constexpr std::pair<int64_t, int64_t> get_thread_work_slice(int64_t total
     return { start, std::min(end, total) };
 }
 
-constexpr const size_t kL2CacheSize         = 8 * 1024;  // // 8KB L2 cache
-constexpr const size_t kL2FetchAheadVectors = kL2CacheSize / kBytesPerVector;
-
 }  // namespace hexagon

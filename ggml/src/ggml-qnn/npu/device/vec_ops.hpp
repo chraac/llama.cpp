@@ -34,6 +34,20 @@ inline HVX_Vector Q6_V_vmem_R(const void * aligned_ptr) {
     return *reinterpret_cast<const HVX_Vector *>(aligned_ptr);
 }
 
+constexpr const size_t kL2CacheSize         = 8 * 1024;  // // 8KB L2 cache
+constexpr const size_t kL2FetchAheadVectors = kL2CacheSize / kBytesPerVector;
+
+inline void l2fetch(const void * p, uint32_t stride, uint32_t width, uint32_t height, uint32_t dir) {
+    uint64_t control = HEXAGON_V64_CREATE_H(dir, stride, width, height);
+    __asm__ __volatile__(" l2fetch(%0,%1) " : : "r"(p), "r"(control));
+}
+
+inline void l2fetch_row(const uint8_t * row_ptr, size_t bytes) {
+    // TODO: should we use small kL2FetchAheadVectors?
+    int32_t l2fetch_vectors = Q6_R_min_RR(bytes / kBytesPerVector, kL2FetchAheadVectors);
+    hexagon::l2fetch(row_ptr, kBytesPerVector, kBytesPerVector, l2fetch_vectors, 0);
+}
+
 /*
  * This function converts a vector of IEEE float elements to a vector of qf32 elements
  * See also: libs\qfe\inc\qhmath_hvx_convert.h
