@@ -228,46 +228,41 @@ template <size_t _buffer_count> class npu_scoped_timer {
         switch (sub_proc_count) {
             case 4:
                 DEVICE_LOG_WARN(
-                    "[profiler]%s, pcyc: %llu, dur: %lluus, [%s]cnt: %llu, pcyc: %llu, dur: %lluus, "
-                    "[%s]cnt: %llu, pcyc: %llu, dur: %lluus, [%s]cnt: %llu, pcyc: %llu, dur: %lluus, "
-                    "[%s]cnt: %llu, pcyc: %llu, dur: %lluus\n",
+                    "[profiler]%s, pcyc: %llu, dur: %lluus, [%s]cnt: %llu, dur: %lluus, "
+                    "[%s]cnt: %llu, dur: %lluus, [%s]cnt: %llu, dur: %lluus, "
+                    "[%s]cnt: %llu, dur: %lluus\n",
                     _log_prefix, (unsigned long long) total_pcycles, (unsigned long long) duration,
                     _sub_proc_data[0].log_prefix, (unsigned long long) _sub_proc_data[0].proc_count,
-                    (unsigned long long) _sub_proc_data[0].proc_pcycles, (unsigned long long) sub_proc0_duration,
-                    _sub_proc_data[1].log_prefix, (unsigned long long) _sub_proc_data[1].proc_count,
-                    (unsigned long long) _sub_proc_data[1].proc_pcycles, (unsigned long long) sub_proc1_duration,
+                    (unsigned long long) sub_proc0_duration, _sub_proc_data[1].log_prefix,
+                    (unsigned long long) _sub_proc_data[1].proc_count, (unsigned long long) sub_proc1_duration,
                     _sub_proc_data[2].log_prefix, (unsigned long long) _sub_proc_data[2].proc_count,
-                    (unsigned long long) _sub_proc_data[2].proc_pcycles, (unsigned long long) sub_proc2_duration,
-                    _sub_proc_data[3].log_prefix, (unsigned long long) _sub_proc_data[3].proc_count,
-                    (unsigned long long) _sub_proc_data[3].proc_pcycles, (unsigned long long) sub_proc3_duration);
+                    (unsigned long long) sub_proc2_duration, _sub_proc_data[3].log_prefix,
+                    (unsigned long long) _sub_proc_data[3].proc_count, (unsigned long long) sub_proc3_duration);
                 break;
             case 3:
                 DEVICE_LOG_WARN(
-                    "[profiler]%s, pcyc: %llu, dur: %lluus, [%s]cnt: %llu, pcyc: %llu, dur: %lluus, "
-                    "[%s]cnt: %llu, pcyc: %llu, dur: %lluus, [%s]cnt: %llu, pcyc: %llu, dur: %lluus\n",
+                    "[profiler]%s, pcyc: %llu, dur: %lluus, [%s]cnt: %llu, dur: %lluus, "
+                    "[%s]cnt: %llu, dur: %lluus, [%s]cnt: %llu, dur: %lluus\n",
                     _log_prefix, (unsigned long long) total_pcycles, (unsigned long long) duration,
                     _sub_proc_data[0].log_prefix, (unsigned long long) _sub_proc_data[0].proc_count,
-                    (unsigned long long) _sub_proc_data[0].proc_pcycles, (unsigned long long) sub_proc0_duration,
-                    _sub_proc_data[1].log_prefix, (unsigned long long) _sub_proc_data[1].proc_count,
-                    (unsigned long long) _sub_proc_data[1].proc_pcycles, (unsigned long long) sub_proc1_duration,
+                    (unsigned long long) sub_proc0_duration, _sub_proc_data[1].log_prefix,
+                    (unsigned long long) _sub_proc_data[1].proc_count, (unsigned long long) sub_proc1_duration,
                     _sub_proc_data[2].log_prefix, (unsigned long long) _sub_proc_data[2].proc_count,
-                    (unsigned long long) _sub_proc_data[2].proc_pcycles, (unsigned long long) sub_proc2_duration);
+                    (unsigned long long) sub_proc2_duration);
                 break;
             case 2:
                 DEVICE_LOG_WARN(
-                    "[profiler]%s, pcyc: %llu, dur: %lluus, [%s]cnt: %llu, pcyc: %llu, dur: %lluus, "
-                    "[%s]cnt: %llu, pcyc: %llu, dur: %lluus\n",
+                    "[profiler]%s, pcyc: %llu, dur: %lluus, [%s]cnt: %llu, dur: %lluus, "
+                    "[%s]cnt: %llu, dur: %lluus\n",
                     _log_prefix, (unsigned long long) total_pcycles, (unsigned long long) duration,
                     _sub_proc_data[0].log_prefix, (unsigned long long) _sub_proc_data[0].proc_count,
-                    (unsigned long long) _sub_proc_data[0].proc_pcycles, (unsigned long long) sub_proc0_duration,
-                    _sub_proc_data[1].log_prefix, (unsigned long long) _sub_proc_data[1].proc_count,
-                    (unsigned long long) _sub_proc_data[1].proc_pcycles, (unsigned long long) sub_proc1_duration);
+                    (unsigned long long) sub_proc0_duration, _sub_proc_data[1].log_prefix,
+                    (unsigned long long) _sub_proc_data[1].proc_count, (unsigned long long) sub_proc1_duration);
                 break;
             case 1:
-                DEVICE_LOG_WARN("[profiler]%s, pcyc: %llu, dur: %lluus, [%s]cnt: %llu, pcyc: %llu, dur: %lluus\n",
-                                _log_prefix, (unsigned long long) total_pcycles, (unsigned long long) duration,
+                DEVICE_LOG_WARN("[profiler]%s, pcyc: %llu, dur: %lluus, [%s]cnt: %llu, dur: %lluus\n", _log_prefix,
+                                (unsigned long long) total_pcycles, (unsigned long long) duration,
                                 _sub_proc_data[0].log_prefix, (unsigned long long) _sub_proc_data[0].proc_count,
-                                (unsigned long long) _sub_proc_data[0].proc_pcycles,
                                 (unsigned long long) sub_proc0_duration);
                 break;
             default:
