@@ -134,6 +134,34 @@ inline float vec_reduction_f32(HVX_Vector sums) {
     return get_flt0_from_fltv(Q6_Vsf_equals_Vqf32(vec_reduction_qf32(sums)));
 }
 
+inline HVX_Vector vec_reduction_qf16(HVX_Vector sums) {
+    constexpr const size_t kFloatsPerVector = hexagon::kBytesPerVector / sizeof(npu_device_fp16_t);
+    static_assert(kFloatsPerVector == 64 || kFloatsPerVector == 32, "kFloatsPerVector should be 32 or 64");
+
+    // TODO: do we have a better way to do the reduction?
+    switch (kFloatsPerVector) {
+        default:
+        case 64:
+            sums = Q6_Vqf16_vadd_Vqf16Vqf16(sums, Q6_V_vror_VR(sums, 32 * sizeof(npu_device_fp16_t)));
+            // fallthrough
+        case 32:
+            sums = Q6_Vqf16_vadd_Vqf16Vqf16(sums, Q6_V_vror_VR(sums, 16 * sizeof(npu_device_fp16_t)));
+            sums = Q6_Vqf16_vadd_Vqf16Vqf16(sums, Q6_V_vror_VR(sums, 8 * sizeof(npu_device_fp16_t)));
+            sums = Q6_Vqf16_vadd_Vqf16Vqf16(sums, Q6_V_vror_VR(sums, 4 * sizeof(npu_device_fp16_t)));
+            sums = Q6_Vqf16_vadd_Vqf16Vqf16(sums, Q6_V_vror_VR(sums, 2 * sizeof(npu_device_fp16_t)));
+            sums = Q6_Vqf16_vadd_Vqf16Vqf16(sums, Q6_V_vror_VR(sums, sizeof(npu_device_fp16_t)));
+            break;
+    }
+
+    return sums;
+}
+
+inline npu_device_fp16_t vec_reduction_f16(HVX_Vector sums) {
+    HVX_Vector vect = Q6_Vhf_equals_Vqf16(vec_reduction_qf16(sums));
+    uint16_t   i    = (vect[0] & 0xffff);
+    return reinterpret_cast<npu_device_fp16_t &>(i);
+}
+
 inline HVX_Vector hvx_nop(HVX_Vector src) {
     // This is a no-op function that can be used as a placeholder for vector operations
     return src;

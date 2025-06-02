@@ -89,15 +89,13 @@ float vec_dot_product_f32_f32(const float * src0, const float * src1, size_t cou
 // TODO: merge with vec_dot_product_f32_f32?
 float vec_dot_product_f16_f16(const npu_device_fp16_t * src0, const npu_device_fp16_t * src1, size_t count) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(npu_device_fp16_t);
-    constexpr const size_t kFloatsPerVector   = hexagon::kBytesPerVector / sizeof(float);
 
     HVX_Vector * src0_vec_ptr     = ((HVX_Vector *) src0);
     HVX_Vector * src0_vec_ptr_end = ((HVX_Vector *) src0) + (count / kElementsPerVector);
     HVX_Vector * src1_vec_ptr     = ((HVX_Vector *) src1);
     HVX_Vector   prev0            = *src0_vec_ptr++;
     HVX_Vector   prev1            = *src1_vec_ptr++;
-    HVX_Vector   sum_hi           = Q6_V_vzero();
-    HVX_Vector   sum_lo           = Q6_V_vzero();
+    HVX_Vector   sum              = Q6_V_vzero();
 
     while (src0_vec_ptr < src0_vec_ptr_end) {
         HVX_Vector curr0 = *src0_vec_ptr++;
@@ -107,9 +105,9 @@ float vec_dot_product_f16_f16(const npu_device_fp16_t * src0, const npu_device_f
         prev0            = curr0;
         prev1            = curr1;
 
-        HVX_VectorPair result = Q6_Wqf32_vmpy_VhfVhf(s0, s1);
-        sum_hi                = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_V_hi_W(result), sum_hi);
-        sum_lo                = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_V_lo_W(result), sum_lo);
+        HVX_VectorPair result_pair = Q6_Wqf32_vmpy_VhfVhf(s0, s1);
+        HVX_Vector     result      = Q6_Vhf_equals_Wqf32(result_pair);
+        sum                        = Q6_Vqf16_vadd_Vqf16Vhf(sum, result);
     }
 
     if ((src0_vec_ptr_end - ((HVX_Vector *) src0)) > 0) {
@@ -128,9 +126,9 @@ float vec_dot_product_f16_f16(const npu_device_fp16_t * src0, const npu_device_f
         prev0                    = curr0;
         prev1                    = curr1;
 
-        HVX_VectorPair result = Q6_Wqf32_vmpy_VhfVhf(s0, s1);
-        sum_hi                = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_V_hi_W(result), sum_hi);
-        sum_lo                = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_V_lo_W(result), sum_lo);
+        HVX_VectorPair result_pair = Q6_Wqf32_vmpy_VhfVhf(s0, s1);
+        HVX_Vector     result      = Q6_Vhf_equals_Wqf32(result_pair);
+        sum                        = Q6_Vqf16_vadd_Vqf16Vhf(sum, result);
     }
 
     const size_t leftover       = count % kElementsPerVector;
@@ -147,21 +145,14 @@ float vec_dot_product_f16_f16(const npu_device_fp16_t * src0, const npu_device_f
         curr0 = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
         curr1 = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
 
-        HVX_VectorPair result = Q6_Wqf32_vmpy_VhfVhf(curr0, curr1);
-
-        // TODO: can we do this better?
-        if (leftover > kFloatsPerVector) {
-            sum_hi = Q6_Vqf32_vadd_Vqf32Vqf32(
-                Q6_V_valign_VVR(Q6_V_hi_W(result), Q6_V_vzero(), (leftover % kFloatsPerVector) * sizeof(float)),
-                sum_hi);
-            sum_lo = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_V_lo_W(result), sum_lo);
-        } else {
-            sum_lo = Q6_Vqf32_vadd_Vqf32Vqf32(
-                Q6_V_valign_VVR(Q6_V_lo_W(result), Q6_V_vzero(), leftover * sizeof(float)), sum_lo);
-        }
+        HVX_VectorPair result_pair = Q6_Wqf32_vmpy_VhfVhf(curr0, curr1);
+        HVX_Vector     result      = Q6_Vhf_equals_Wqf32(result_pair);
+        result                     = Q6_V_valign_VVR(result, Q6_V_vzero(), leftover_bytes);
+        sum                        = Q6_Vqf16_vadd_Vqf16Vhf(sum, result);
     }
 
-    return hexagon::vec_reduction_f32(Q6_Vqf32_vadd_Vqf32Vqf32(sum_hi, sum_lo));
+    auto sum_f16 = hexagon::vec_reduction_f16(sum);
+    return reinterpret_cast<const __fp16 &>(sum_f16);
 }
 
 }  // namespace hexagon
