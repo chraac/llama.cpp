@@ -168,6 +168,39 @@ bool is_quantized_mul_mat_supported(const npu_device_tensor_spec & src0, const n
     return true;
 }
 
+bool is_mulmat_tensors_aligned(hexagon::tensor * out) {
+    static_assert(DEVICE_TENSOR_MAX_DIMS == 4, "mul_mat_f32 requires max dims 4");
+    auto * src0 = out->get_src(0);
+    auto * src1 = out->get_src(1);
+
+    if (!hexagon::is_addr_aligned(src0->get_read_buffer()) || src0->get_nb(1) % hexagon::kBytesPerVector ||
+        !hexagon::is_addr_aligned(src1->get_read_buffer()) || src1->get_nb(1) % hexagon::kBytesPerVector) {
+        DEVICE_LOG_DEBUG(
+            "mul_mat_tensors_aligned: src0: %p, src1: %p, src0.nb[1]: %ld, src1.nb[1]: %ld "
+            "not aligned to %zu\n",
+            src0->get_read_buffer(), src1->get_read_buffer(), (long) src0->get_nb(1), (long) src1->get_nb(1),
+            hexagon::kBytesPerVector);
+        return false;
+    }
+
+    const auto src1_type_size = hexagon::get_type_traits(src1->get_type()).type_size;
+    if ((src1->get_ne(0) * src1_type_size) % hexagon::kBytesPerVector) {
+        DEVICE_LOG_DEBUG("mul_mat_tensors_aligned: src1.ne[0]: %ld, src1.type_size: %zu not aligned to %zu\n",
+                         (long) src1->get_ne(0), src1_type_size, hexagon::kBytesPerVector);
+        return false;
+    }
+
+    const auto & src0_traits    = hexagon::get_type_traits(src1->get_type());
+    const auto   src0_type_size = src0_traits.is_quantized ? sizeof(float) : src0_traits.type_size;
+    if ((src0->get_ne(0) * src0_type_size) % hexagon::kBytesPerVector) {
+        DEVICE_LOG_DEBUG("mul_mat_tensors_aligned: src0.ne[0]: %ld, src0.type_size: %zu not aligned to %zu\n",
+                         (long) src0->get_ne(0), src0_type_size, hexagon::kBytesPerVector);
+        return false;
+    }
+
+    return true;
+}
+
 }  // namespace
 
 namespace hexagon {
@@ -184,17 +217,34 @@ bool mul_mat_f32(hexagon::tensor * out, compute_params * params) {
         return true;  // skip if no src
     }
 
-    // TODO: array?
-    switch (src1->get_type()) {
-        case NPU_DATA_TYPE_F32:
-            mul_mat_impl<hexagon::vec_dot_product_f32_f32>(src0, src1, out, params);
-            return true;
+    if (is_mulmat_tensors_aligned(out)) {
+        DEVICE_LOG_DEBUG("mul_mat_f32: src0 and src1 aligned\n");
 
-        case NPU_DATA_TYPE_F16:
-            mul_mat_impl<hexagon::vec_dot_product_f16_f16>(src0, src1, out, params);
-            return true;
-        default:
-            break;
+        switch (src1->get_type()) {
+            case NPU_DATA_TYPE_F32:
+                mul_mat_impl<hexagon::vec_dot_product_aligned_f32_f32>(src0, src1, out, params);
+                return true;
+
+            case NPU_DATA_TYPE_F16:
+                mul_mat_impl<hexagon::vec_dot_product_aligned_f16_f16>(src0, src1, out, params);
+                return true;
+            default:
+                break;
+        }
+    } else {
+        DEVICE_LOG_DEBUG("mul_mat_f32: src0 or src1 not aligned\n");
+
+        switch (src1->get_type()) {
+            case NPU_DATA_TYPE_F32:
+                mul_mat_impl<hexagon::vec_dot_product_f32_f32>(src0, src1, out, params);
+                return true;
+
+            case NPU_DATA_TYPE_F16:
+                mul_mat_impl<hexagon::vec_dot_product_f16_f16>(src0, src1, out, params);
+                return true;
+            default:
+                break;
+        }
     }
 
     DEVICE_LOG_ERROR("Unsupported src1 tensor type: %s\n", get_type_name(src1->get_type()));
