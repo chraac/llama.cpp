@@ -130,7 +130,7 @@ inline HVX_Vector vec_reduction_qf32(HVX_Vector sums) {
     return sums;
 }
 
-inline float vec_reduction_f32(HVX_Vector sums) {
+inline float vec_reduction_qf32_f32(HVX_Vector sums) {
     return get_flt0_from_fltv(Q6_Vsf_equals_Vqf32(vec_reduction_qf32(sums)));
 }
 
@@ -156,10 +156,10 @@ inline HVX_Vector vec_reduction_qf16(HVX_Vector sums) {
     return sums;
 }
 
-inline npu_device_fp16_t vec_reduction_f16(HVX_Vector sums) {
+inline float vec_reduction_qf16_f32(HVX_Vector sums) {
     HVX_Vector vect = Q6_Vhf_equals_Vqf16(vec_reduction_qf16(sums));
     uint16_t   i    = (vect[0] & 0xffff);
-    return reinterpret_cast<npu_device_fp16_t &>(i);
+    return reinterpret_cast<__fp16 &>(i);
 }
 
 inline HVX_Vector hvx_nop(HVX_Vector src) {
