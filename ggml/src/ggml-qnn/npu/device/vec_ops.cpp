@@ -12,82 +12,6 @@ inline float vec_dot_product_impl(const _TElem * src0, const _TElem * src1, size
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TElem);
 
     HVX_Vector * src0_vec_ptr     = ((HVX_Vector *) src0);
-    HVX_Vector * src0_vec_ptr_end = ((HVX_Vector *) src0) + (count / kElementsPerVector);
-    HVX_Vector * src1_vec_ptr     = ((HVX_Vector *) src1);
-    HVX_Vector   prev0            = *src0_vec_ptr++;
-    HVX_Vector   prev1            = *src1_vec_ptr++;
-    HVX_Vector   sum              = Q6_V_vzero();
-
-    while (src0_vec_ptr < src0_vec_ptr_end) {
-        HVX_Vector curr0 = *src0_vec_ptr++;
-        HVX_Vector curr1 = *src1_vec_ptr++;
-        HVX_Vector s0    = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
-        HVX_Vector s1    = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-        prev0            = curr0;
-        prev1            = curr1;
-
-        HVX_Vector result = _MpyFunc(s0, s1);
-        sum               = _AddFunc(sum, result);
-    }
-
-    if ((src0_vec_ptr_end - ((HVX_Vector *) src0)) > 0) {
-        // handle the last vector
-        // see also:
-        //   https://github.com/UbiquitousLearning/mllm/blob/babf4410352ce8730824c87699c025a0d4ce3a6f/src/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/src/ops/LLaMAMul.cpp#L147
-        //   or qualcomm sdk libs\qhl_hvx\src\qhblas_hvx\qhblas_hvx_aw_vector_add_ah.c
-        bool       iptr0_aligned = hexagon::is_addr_aligned(src0_vec_ptr);
-        HVX_Vector curr0         = iptr0_aligned ? prev0 : *src0_vec_ptr;
-        src0_vec_ptr             = iptr0_aligned ? src0_vec_ptr : src0_vec_ptr + 1;
-        bool       iptr1_aligned = hexagon::is_addr_aligned(src1_vec_ptr);
-        HVX_Vector curr1         = iptr1_aligned ? prev1 : *src1_vec_ptr;
-        src1_vec_ptr             = iptr1_aligned ? src1_vec_ptr : src1_vec_ptr + 1;
-        HVX_Vector s0            = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
-        HVX_Vector s1            = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-        prev0                    = curr0;
-        prev1                    = curr1;
-
-        HVX_Vector result = _MpyFunc(s0, s1);
-        sum               = _AddFunc(sum, result);
-    }
-
-    const size_t leftover       = count % kElementsPerVector;
-    const size_t leftover_bytes = leftover * sizeof(_TElem);
-    if (leftover > 0) {
-        // handle the leftover elements
-        HVX_Vector curr0 = (leftover_bytes + hexagon::unaligned_bytes(src0_vec_ptr) > hexagon::kBytesPerVector) ?
-                               *src0_vec_ptr :
-                               prev0;
-        HVX_Vector curr1 = (leftover_bytes + hexagon::unaligned_bytes(src1_vec_ptr) > hexagon::kBytesPerVector) ?
-                               *src1_vec_ptr :
-                               prev1;
-
-        curr0 = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
-        curr1 = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-
-        HVX_Vector result = _MpyFunc(curr0, curr1);
-        result            = Q6_V_valign_VVR(result, Q6_V_vzero(), leftover_bytes);
-        sum               = _AddFunc(sum, result);
-    }
-
-    return _ReduceFunc(sum);
-}
-
-inline HVX_Vector vec_mpy_qf16(HVX_Vector src0, HVX_Vector src1) {
-    return Q6_Vqf16_vmpy_VhfVhf(src0, src1);
-}
-
-inline HVX_Vector vec_add_qf16(HVX_Vector sum, HVX_Vector result) {
-    return Q6_Vqf16_vadd_Vqf16Vqf16(sum, result);
-}
-
-}  // namespace
-
-namespace hexagon {
-
-float vec_dot_product_f32_f32(const float * src0, const float * src1, size_t count) {
-    constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(float);
-
-    HVX_Vector * src0_vec_ptr     = ((HVX_Vector *) src0);
     HVX_Vector * src0_vec_ptr_end = ((HVX_Vector *) src0) + count / kElementsPerVector;
     HVX_Vector * src1_vec_ptr     = ((HVX_Vector *) src1);
     HVX_Vector   prev0            = *src0_vec_ptr++;
@@ -109,8 +33,8 @@ float vec_dot_product_f32_f32(const float * src0, const float * src1, size_t cou
         src0_vec_ptr += 2;
         src1_vec_ptr += 2;
 
-        sum = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_VsfVsf(l0, l1), sum);
-        sum = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_VsfVsf(h0, h1), sum);
+        sum = _AddFunc(_MpyFunc(l0, l1), sum);
+        sum = _AddFunc(_MpyFunc(h0, h1), sum);
     }
 
     if (src0_vec_ptr_end - src0_vec_ptr > 0) {
@@ -121,7 +45,7 @@ float vec_dot_product_f32_f32(const float * src0, const float * src1, size_t cou
         prev0            = curr0;
         prev1            = curr1;
 
-        sum = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_VsfVsf(s0, s1), sum);
+        sum = _AddFunc(_MpyFunc(s0, s1), sum);
     }
 
     if ((src0_vec_ptr_end - ((HVX_Vector *) src0)) > 0) {
@@ -140,11 +64,11 @@ float vec_dot_product_f32_f32(const float * src0, const float * src1, size_t cou
         prev0                    = curr0;
         prev1                    = curr1;
 
-        sum = Q6_Vqf32_vadd_Vqf32Vqf32(Q6_Vqf32_vmpy_VsfVsf(s0, s1), sum);
+        sum = _AddFunc(_MpyFunc(s0, s1), sum);
     }
 
     const size_t leftover       = count % kElementsPerVector;
-    const size_t leftover_bytes = leftover * sizeof(float);
+    const size_t leftover_bytes = leftover * sizeof(_TElem);
     if (leftover > 0) {
         // handle the leftover elements
         HVX_Vector curr0 = (leftover_bytes + hexagon::unaligned_bytes(src0_vec_ptr) > hexagon::kBytesPerVector) ?
@@ -157,11 +81,34 @@ float vec_dot_product_f32_f32(const float * src0, const float * src1, size_t cou
                                prev1;
         curr1            = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
 
-        sum = Q6_Vqf32_vadd_Vqf32Vqf32(
-            Q6_V_valign_VVR(Q6_Vqf32_vmpy_VsfVsf(curr0, curr1), Q6_V_vzero(), leftover_bytes), sum);
+        sum = _AddFunc(Q6_V_valign_VVR(_MpyFunc(curr0, curr1), Q6_V_vzero(), leftover_bytes), sum);
     }
 
-    return hexagon::vec_reduction_qf32_f32(sum);
+    return _ReduceFunc(sum);
+}
+
+inline HVX_Vector vec_mpy_qf32(HVX_Vector src0, HVX_Vector src1) {
+    return Q6_Vqf32_vmpy_VsfVsf(src0, src1);
+}
+
+inline HVX_Vector vec_add_qf32(HVX_Vector sum, HVX_Vector result) {
+    return Q6_Vqf32_vadd_Vqf32Vqf32(sum, result);
+}
+
+inline HVX_Vector vec_mpy_qf16(HVX_Vector src0, HVX_Vector src1) {
+    return Q6_Vqf16_vmpy_VhfVhf(src0, src1);
+}
+
+inline HVX_Vector vec_add_qf16(HVX_Vector sum, HVX_Vector result) {
+    return Q6_Vqf16_vadd_Vqf16Vqf16(sum, result);
+}
+
+}  // namespace
+
+namespace hexagon {
+
+float vec_dot_product_f32_f32(const float * src0, const float * src1, size_t count) {
+    return vec_dot_product_impl<float, vec_mpy_qf32, vec_add_qf32, hexagon::vec_reduction_qf32_f32>(src0, src1, count);
 }
 
 // TODO: merge with vec_dot_product_f32_f32?
