@@ -130,6 +130,10 @@ template <size_t _thread_count> class thread_pool {
             return false;
         }
 
+#ifdef GGML_HEXAGON_ENABLE_PERFORMANCE_TRACKING
+        _task_begin_cycles = HAP_perf_get_qtimer_count();
+#endif
+
         _task = task;
         _arg  = arg;
         qurt_barrier_wait(&_pending);
@@ -141,6 +145,11 @@ template <size_t _thread_count> class thread_pool {
 
         _task = nullptr;
         _arg  = nullptr;
+
+#ifdef GGML_HEXAGON_ENABLE_PERFORMANCE_TRACKING
+        _task_begin_cycles = 0;
+#endif
+
         return true;
     }
 
@@ -165,6 +174,12 @@ template <size_t _thread_count> class thread_pool {
                 break;
             }
 
+#ifdef GGML_HEXAGON_ENABLE_PERFORMANCE_TRACKING
+            DEVICE_LOG_WARN("[profiler]worker_thread, tidx: %zu, prepare: %llu", arg->thread_idx,
+                            static_cast<unsigned long long>(HAP_perf_qtimer_count_to_us(
+                                HAP_perf_get_qtimer_count() - pool._task_begin_cycles.load())));
+#endif
+
             auto task = pool._task;
             if (task) {
                 task(arg->pool, arg->thread_idx, kMaxSubThreadCount + 1, pool._arg);
@@ -184,6 +199,10 @@ template <size_t _thread_count> class thread_pool {
     qurt_barrier_t                                  _completed                       = {};
     task_type                                       _task                            = nullptr;
     void *                                          _arg                             = nullptr;
+
+#ifdef GGML_HEXAGON_ENABLE_PERFORMANCE_TRACKING
+    std::atomic<uint64_t> _task_begin_cycles = 0;
+#endif
 
     DISABLE_COPY_AND_MOVE(thread_pool);
 };
