@@ -17,6 +17,8 @@ inline float vec_dot_product_impl(const _TElem * src0, const _TElem * src1, size
     HVX_Vector   prev0            = *src0_vec_ptr++;
     HVX_Vector   prev1            = *src1_vec_ptr++;
     HVX_Vector   sum              = Q6_V_vzero();
+    HVX_Vector   sum0             = Q6_V_vzero();
+    HVX_Vector   sum1             = Q6_V_vzero();
 
     while (src0_vec_ptr_end - src0_vec_ptr > 1) {
         HVX_Vector curr0_lo = src0_vec_ptr[0];
@@ -33,10 +35,11 @@ inline float vec_dot_product_impl(const _TElem * src0, const _TElem * src1, size
         src0_vec_ptr += 2;
         src1_vec_ptr += 2;
 
-        sum = _AddFunc(_MpyFunc(l0, l1), sum);
-        sum = _AddFunc(_MpyFunc(h0, h1), sum);
+        sum0 = _AddFunc(_MpyFunc(l0, l1), sum0);
+        sum1 = _AddFunc(_MpyFunc(h0, h1), sum1);
     }
 
+    sum = _AddFunc(sum0, sum1);
     if (src0_vec_ptr_end - src0_vec_ptr > 0) {
         HVX_Vector curr0 = *src0_vec_ptr++;
         HVX_Vector curr1 = *src1_vec_ptr++;
