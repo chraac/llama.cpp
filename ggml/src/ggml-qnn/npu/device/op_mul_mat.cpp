@@ -26,12 +26,9 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
         return;
     }
 
-    const auto   r02          = src1->get_ne(2) / src0->get_ne(2);
-    const auto   r03          = src1->get_ne(3) / src0->get_ne(3);
-    const auto * src0_ptr     = reinterpret_cast<const uint8_t *>(src0->get_read_buffer());
-    const auto * src1_ptr     = reinterpret_cast<const uint8_t *>(src1->get_read_buffer());
-    auto *       dst_ptr      = reinterpret_cast<uint8_t *>(dst->get_write_buffer());
-    const auto   total_planes = dst->get_ne(3) * dst->get_ne(2);
+    const auto r02          = src1->get_ne(2) / src0->get_ne(2);
+    const auto r03          = src1->get_ne(3) / src0->get_ne(3);
+    const auto total_planes = dst->get_ne(3) * dst->get_ne(2);
 
     auto start_end_plane   = std::pair<int64_t, int64_t>{ 0, total_planes };
     auto start_end_row     = std::pair<int64_t, int64_t>{ 0, dst->get_ne(1) };
@@ -84,6 +81,11 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
 
     const size_t valid_row_bytes = src1->get_ne(0) * sizeof(data_type);
     DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_WITH_SUB_PROC(dst, params->tidx, dequant);
+
+    const auto * src0_ptr = reinterpret_cast<const uint8_t *>(src0->get_read_buffer());
+    const auto * src1_ptr = reinterpret_cast<const uint8_t *>(src1->get_read_buffer());
+    auto *       dst_ptr  = reinterpret_cast<uint8_t *>(dst->get_write_buffer());
+
     for (int64_t ip = start_end_plane.first; ip < start_end_plane.second; ip++) {
         const auto   i3         = ip / dst->get_ne(2);
         const auto   i2         = ip - i3 * dst->get_ne(2);
