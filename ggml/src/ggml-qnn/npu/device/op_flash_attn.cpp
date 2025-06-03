@@ -61,6 +61,11 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
     const bool is_v_f16 =
         v->get_type() == NPU_DATA_TYPE_F16;  // check if V is in FP16 format, otherwise it is in FP32 format
     auto * dst = reinterpret_cast<uint8_t *>(out->get_write_buffer());
+    if (!dst) {
+        DEVICE_LOG_ERROR("flash_attn_impl: dst_ptr is not writable, tensor: %p, type: %s\n", (void *) out,
+                         hexagon::get_type_name(out->get_type()));
+        return;
+    }
 
     DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_WITH_MULTI_SUB_PROC(out, params->tidx, flash_attn);
     for (auto ir = start_end_row.first; ir < start_end_row.second; ++ir) {

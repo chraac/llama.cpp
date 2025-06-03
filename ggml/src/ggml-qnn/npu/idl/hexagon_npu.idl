@@ -71,7 +71,7 @@ interface npu_device : remote_handle64{
         uint64_t offset;
         uint64_t size;
         tensor_data_type type;
-        tensor_op op;
+        boolean is_constant;
     };
 
     AEEResult device_get_alignment(

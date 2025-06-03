@@ -87,7 +87,9 @@ inline auto make_scoped_op_perf_timer(tensor * op, size_t tidx) {
             __npu_op_sub_timer##sub_prefix(__npu_op_timer_##tracker_name, #sub_prefix)
 
 #else
-#    define DEVICE_SCOPED_OP_PERFORMANCE_TRACKER(op, tidx)                           ((void) 0)
-#    define DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_WITH_SUB_PROC(op, tidx, sub_prefix) ((void) 0)
-#    define DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_SUB_PROC(sub_prefix)            ((void) 0)
+#    define DEVICE_SCOPED_OP_PERFORMANCE_TRACKER(op, tidx)                                       ((void) 0)
+#    define DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_WITH_SUB_PROC(op, tidx, sub_prefix)             ((void) 0)
+#    define DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_SUB_PROC(sub_prefix)                        ((void) 0)
+#    define DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_WITH_MULTI_SUB_PROC(op, tidx, tracker_name)     ((void) 0)
+#    define DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(tracker_name, idx, sub_prefix) ((void) 0)
 #endif

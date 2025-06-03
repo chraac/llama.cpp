@@ -135,13 +135,18 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
         return false;
     }
 
-    const auto * src0_ptr      = reinterpret_cast<const uint8_t *>(src0->get_read_buffer());
-    const auto * src1_ptr      = reinterpret_cast<const uint8_t *>(src1->get_read_buffer());
-    auto *       dst_ptr       = reinterpret_cast<uint8_t *>(out->get_write_buffer());
-    auto         total_rows    = out->get_ne(3) * out->get_ne(2) * out->get_ne(1);
-    const auto   rows_per_cube = out->get_ne(2) * out->get_ne(1);
-    const auto   start_end     = hexagon::get_thread_work_slice(total_rows, params->tidx, params->tcnt);
+    const auto * src0_ptr = reinterpret_cast<const uint8_t *>(src0->get_read_buffer());
+    const auto * src1_ptr = reinterpret_cast<const uint8_t *>(src1->get_read_buffer());
+    auto *       dst_ptr  = reinterpret_cast<uint8_t *>(out->get_write_buffer());
+    if (!dst_ptr) {
+        DEVICE_LOG_ERROR("element_wise_op: dst_ptr is not writable, tensor: %p, type: %s\n", (void *) out,
+                         hexagon::get_type_name(out->get_type()));
+        return false;
+    }
 
+    auto       total_rows    = out->get_ne(3) * out->get_ne(2) * out->get_ne(1);
+    const auto rows_per_cube = out->get_ne(2) * out->get_ne(1);
+    const auto start_end     = hexagon::get_thread_work_slice(total_rows, params->tidx, params->tcnt);
     if (start_end.first >= start_end.second) {
         return true;
     }
@@ -285,11 +290,17 @@ template <auto _RowFunc> bool unary_op(hexagon::tensor * out, hexagon::compute_p
         return true;  // skip if no src
     }
 
-    const auto * src0_ptr      = reinterpret_cast<const uint8_t *>(src0->get_read_buffer());
-    auto *       dst_ptr       = reinterpret_cast<uint8_t *>(out->get_write_buffer());
-    auto         total_rows    = out->get_ne(3) * out->get_ne(2) * out->get_ne(1);
-    const auto   rows_per_cube = out->get_ne(2) * out->get_ne(1);
-    const auto   start_end     = hexagon::get_thread_work_slice(total_rows, params->tidx, params->tcnt);
+    const auto * src0_ptr = reinterpret_cast<const uint8_t *>(src0->get_read_buffer());
+    auto *       dst_ptr  = reinterpret_cast<uint8_t *>(out->get_write_buffer());
+    if (!dst_ptr) {
+        DEVICE_LOG_ERROR("unary_op: dst_ptr is not writable, tensor: %p, type: %s\n", (void *) out,
+                         hexagon::get_type_name(out->get_type()));
+        return false;
+    }
+
+    auto       total_rows    = out->get_ne(3) * out->get_ne(2) * out->get_ne(1);
+    const auto rows_per_cube = out->get_ne(2) * out->get_ne(1);
+    const auto start_end     = hexagon::get_thread_work_slice(total_rows, params->tidx, params->tcnt);
     if (start_end.first >= start_end.second) {
         return true;
     }

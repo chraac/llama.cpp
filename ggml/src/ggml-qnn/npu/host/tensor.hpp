@@ -21,7 +21,6 @@ class host_tensor {
 
     explicit host_tensor(ggml_tensor * tensor, int buffer_fd, uint64_t offset, remote_handle64 device_handle) :
         _device_handle(device_handle) {
-
         // TODO: figure out why the npu_device_tensor_config can't be larger than 100 bytes
         static_assert(sizeof(npu_device_tensor_config) < 100, "npu_device_tensor_config size too large");
 
@@ -30,6 +29,7 @@ class host_tensor {
         _info.type      = type_to_npu_type(tensor->type);
         _info.size      = ggml_nbytes(tensor);
         // _info.op will be updated in update_params()
+        _info_update.op = NPU_OP_COUNT;
 
         static_assert(DEVICE_TENSOR_MAX_DIMS == GGML_MAX_DIMS, "tensor dimensions mismatch");
         static_assert(sizeof(_info.ne) == sizeof(tensor->ne), "tensor ne size mismatch");
@@ -76,11 +76,9 @@ class host_tensor {
         auto new_op         = op_to_npu_op(_ggml_tensor->op);
         bool params_changed = new_op != _info_update.op;
         if (params_changed) {
-            LOG_DEBUG("host_tensor(%p) op changed: %s -> %s\n", (void *) this, get_npu_op_desc(_info.op),
-                      get_npu_op_desc(new_op));
+            LOG_DEBUG("host_tensor(%p) op changed: %s\n", (void *) this, get_npu_op_desc(new_op));
         }
 
-        _info.op        = new_op;
         _info_update.op = new_op;
 
         if (memcmp(_info_update.params, _ggml_tensor->op_params, sizeof(_info_update.params)) != 0) {
@@ -128,7 +126,6 @@ class host_tensor {
         GGML_ASSERT(ggml_tensor == _ggml_tensor);
 
         auto new_op     = op_to_npu_op(_ggml_tensor->op);
-        _info.op        = new_op;
         _info_update.op = new_op;
         memcpy(_info_update.params, _ggml_tensor->op_params, sizeof(_info_update.params));
 

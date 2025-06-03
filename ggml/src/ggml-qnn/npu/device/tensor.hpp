@@ -54,7 +54,7 @@ class tensor {
     void update_config(const npu_device_tensor_update_config & config) {
         static_assert(sizeof(_op_params) == sizeof(config.params), "op params size mismatch");
 
-        _info.op = config.op;
+        _op_type = config.op;
         memcpy(_op_params, config.params, sizeof(_op_params));
         for (size_t i = 0; i < DEVICE_TENSOR_MAX_SRC; ++i) {
             auto src_handle = config.src_handles[i];
@@ -76,7 +76,7 @@ class tensor {
 
     const size_t get_nb(size_t index) const { return _info.nb[index]; }
 
-    npu_device_tensor_op get_op() const { return _info.op; }
+    npu_device_tensor_op get_op() const { return _op_type; }
 
     template <typename _TyParam> const _TyParam get_op_param(size_t index) const {
         static_assert(sizeof(_TyParam) <= sizeof(_op_params), "_op_param type size exceeds op params size");
@@ -99,12 +99,20 @@ class tensor {
         return _data + _info.offset;
     }
 
-    uint8_t * get_write_buffer() const { return _data + _info.offset; }
+    uint8_t * get_write_buffer() const {
+        if (_info.is_constant) {
+            DEVICE_LOG_ERROR("Attempt to write to a constant tensor: %p", (void *) this);
+            return nullptr;  // Do not allow writing to constant tensors
+        }
+
+        return _data + _info.offset;
+    }
 
     bool is_valid() const { return _data != nullptr; }
 
   private:
     npu_device_tensor_config _info                       = {};
+    npu_device_tensor_op     _op_type                    = NPU_OP_COUNT;
     int32_t                  _op_params[kMaxParamsCount] = {};
     tensor *                 _src[kMaxTensorSrc]         = {};
     uint8_t *                _data                       = nullptr;
