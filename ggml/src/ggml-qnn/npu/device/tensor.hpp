@@ -47,7 +47,7 @@ class tensor {
     void invalidate() const {
         if (_data) {
             qurt_mem_cache_clean((qurt_addr_t) (_data + _info.offset), (qurt_size_t) _info.size,
-                                 QURT_MEM_CACHE_INVALIDATE, QURT_MEM_DCACHE);
+                                 QURT_MEM_CACHE_FLUSH_INVALIDATE_ALL, QURT_MEM_DCACHE);
         }
     }
 
