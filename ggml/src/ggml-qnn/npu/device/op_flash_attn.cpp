@@ -60,8 +60,8 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
     const auto out_rows_per_batch = out->get_ne(2) * out->get_ne(1);
     const bool is_v_f16 =
         v->get_type() == NPU_DATA_TYPE_F16;  // check if V is in FP16 format, otherwise it is in FP32 format
-    auto * dst = reinterpret_cast<uint8_t *>(out->get_write_buffer());
-    if (!dst) {
+    auto * dst_ptr = reinterpret_cast<uint8_t *>(out->get_write_buffer());
+    if (!dst_ptr) {
         DEVICE_LOG_ERROR("flash_attn_impl: dst_ptr is not writable, tensor: %p, type: %s\n", (void *) out,
                          hexagon::get_type_name(out->get_type()));
         return;
@@ -209,7 +209,7 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
         const int i3 = iq3;
 
         // permute(0, 2, 1, 3)
-        memcpy(dst + (i3 * out_rows_per_batch + i2 + i1 * out->get_ne(1)) * out->get_nb(1), VKQ32, out->get_nb(1));
+        memcpy(dst_ptr + (i3 * out_rows_per_batch + i2 + i1 * out->get_ne(1)) * out->get_nb(1), VKQ32, out->get_nb(1));
     }
 }
 

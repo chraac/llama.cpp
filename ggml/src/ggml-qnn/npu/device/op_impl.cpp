@@ -135,18 +135,18 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
         return false;
     }
 
-    const auto * src0_ptr = reinterpret_cast<const uint8_t *>(src0->get_read_buffer());
-    const auto * src1_ptr = reinterpret_cast<const uint8_t *>(src1->get_read_buffer());
-    auto *       dst_ptr  = reinterpret_cast<uint8_t *>(out->get_write_buffer());
+    auto * dst_ptr = reinterpret_cast<uint8_t *>(out->get_write_buffer());
     if (!dst_ptr) {
         DEVICE_LOG_ERROR("element_wise_op: dst_ptr is not writable, tensor: %p, type: %s\n", (void *) out,
                          hexagon::get_type_name(out->get_type()));
         return false;
     }
 
-    auto       total_rows    = out->get_ne(3) * out->get_ne(2) * out->get_ne(1);
-    const auto rows_per_cube = out->get_ne(2) * out->get_ne(1);
-    const auto start_end     = hexagon::get_thread_work_slice(total_rows, params->tidx, params->tcnt);
+    const auto * src0_ptr      = reinterpret_cast<const uint8_t *>(src0->get_read_buffer());
+    const auto * src1_ptr      = reinterpret_cast<const uint8_t *>(src1->get_read_buffer());
+    auto         total_rows    = out->get_ne(3) * out->get_ne(2) * out->get_ne(1);
+    const auto   rows_per_cube = out->get_ne(2) * out->get_ne(1);
+    const auto   start_end     = hexagon::get_thread_work_slice(total_rows, params->tidx, params->tcnt);
     if (start_end.first >= start_end.second) {
         return true;
     }
@@ -290,17 +290,17 @@ template <auto _RowFunc> bool unary_op(hexagon::tensor * out, hexagon::compute_p
         return true;  // skip if no src
     }
 
-    const auto * src0_ptr = reinterpret_cast<const uint8_t *>(src0->get_read_buffer());
-    auto *       dst_ptr  = reinterpret_cast<uint8_t *>(out->get_write_buffer());
+    auto * dst_ptr = reinterpret_cast<uint8_t *>(out->get_write_buffer());
     if (!dst_ptr) {
         DEVICE_LOG_ERROR("unary_op: dst_ptr is not writable, tensor: %p, type: %s\n", (void *) out,
                          hexagon::get_type_name(out->get_type()));
         return false;
     }
 
-    auto       total_rows    = out->get_ne(3) * out->get_ne(2) * out->get_ne(1);
-    const auto rows_per_cube = out->get_ne(2) * out->get_ne(1);
-    const auto start_end     = hexagon::get_thread_work_slice(total_rows, params->tidx, params->tcnt);
+    const auto * src0_ptr      = reinterpret_cast<const uint8_t *>(src0->get_read_buffer());
+    auto         total_rows    = out->get_ne(3) * out->get_ne(2) * out->get_ne(1);
+    const auto   rows_per_cube = out->get_ne(2) * out->get_ne(1);
+    const auto   start_end     = hexagon::get_thread_work_slice(total_rows, params->tidx, params->tcnt);
     if (start_end.first >= start_end.second) {
         return true;
     }
@@ -369,47 +369,47 @@ struct op_capabilities {
 
 constexpr const op_capabilities kOpCapabilities[] = {
     {
-     NPU_OP_MUL_MAT, hexagon::is_mul_mat_supported,
+     NPU_OP_MUL_MAT,                                                           hexagon::is_mul_mat_supported,
      {
             hexagon::mul_mat_f32,  // NPU_DATA_TYPE_F32
             nullptr,               // NPU_DATA_TYPE_F16
-        },       true,
-     },
+        },                                                                                                             true, // requires_thread_barrier
+    },
     {
-     NPU_OP_ADD,              is_element_wise_op_supported,
+     NPU_OP_ADD,                                                                         is_element_wise_op_supported,
      {
             element_wise_op<vec_op_f32_f32<vadd_f32_f32>>,  // NPU_DATA_TYPE_F32
             element_wise_op<vec_op_f16_f16<vadd_f16_f16>>,  // NPU_DATA_TYPE_F16
-        }, false,
-     },
+        },                                                                                                                   false,                                                                               // requires_thread_barrier
+    },
     {
-     NPU_OP_SUB,           is_element_wise_op_supported,
+     NPU_OP_SUB, is_element_wise_op_supported,
      {
             element_wise_op<vec_op_f32_f32<vsub_f32_f32>>,  // NPU_DATA_TYPE_F32
             element_wise_op<vec_op_f16_f16<vsub_f16_f16>>,  // NPU_DATA_TYPE_F16
-        },          false,
-     },
+        },                                                                                                             false,                                                                                                                       // requires_thread_barrier
+    },
     {
-     NPU_OP_MUL,     is_element_wise_op_supported,
+     NPU_OP_MUL,                                                                   is_element_wise_op_supported,
      {
             element_wise_op<vec_op_f32_f32<vmul_f32_f32>>,  // NPU_DATA_TYPE_F32
             element_wise_op<vec_op_f16_f16<vmul_f16_f16>>,  // NPU_DATA_TYPE_F16
-        },       false,
-     },
+        },                                                      false,                                              // requires_thread_barrier
+    },
     {
-     NPU_OP_RMS_NORM,              is_unary_op_supported,
+     NPU_OP_RMS_NORM,                                                                     is_unary_op_supported,
      {
             unary_op<rms_norm_vec_f32>,  // NPU_DATA_TYPE_F32
             nullptr,                     // NPU_DATA_TYPE_F16
-        }, false,
-     },
+        }, false,                           // requires_thread_barrier
+    },
     {
-     NPU_OP_FLASH_ATTN,           hexagon::is_flash_attn_supported,
+     NPU_OP_FLASH_ATTN,hexagon::is_flash_attn_supported,
      {
             hexagon::flash_attn_f32,  // NPU_DATA_TYPE_F32
             nullptr,                  // NPU_DATA_TYPE_F16
-        },          false,
-     },
+        }, true,                         // requires_thread_barrier
+    },
 };
 
 static_assert(kOpCapabilities[NPU_OP_MUL_MAT].compute_funcs[NPU_DATA_TYPE_F32] == hexagon::mul_mat_f32,
