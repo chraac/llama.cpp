@@ -95,7 +95,10 @@ class tensor {
     npu_device_tensor_data_type get_type() const { return _info.type; }
 
     const uint8_t * get_read_buffer() const {
-        invalidate();
+        if (!_info.is_constant) {
+            invalidate();
+        }
+
         return _data + _info.offset;
     }
 

@@ -98,7 +98,7 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
         }
 
         const npu_device_fp16_t * mp =
-            mask ? reinterpret_cast<const npu_device_fp16_t *>(mask_ptr + iq1 * mask->get_nb(1)) : nullptr;
+            mask_ptr ? reinterpret_cast<const npu_device_fp16_t *>(mask_ptr + iq1 * mask->get_nb(1)) : nullptr;
 
         // k indices
         const int ik3 = iq3 / rk3;
