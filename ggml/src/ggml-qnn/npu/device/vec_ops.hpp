@@ -171,9 +171,9 @@ template <auto _Func, auto _FuncScaleConvert, typename _TParam>
 inline void vec_scale_aligned_impl(const _TParam * src, float scale, _TParam * dst, size_t count) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TParam);
 
-    HVX_Vector * src_vec_ptr = ((HVX_Vector *) src);
-    HVX_Vector * src_vec_end = ((HVX_Vector *) src) + (count / kElementsPerVector);
-    HVX_Vector * dst_vec_ptr = ((HVX_Vector *) dst);  // TODO: opt the unaligned case?
+    HVX_Vector *       src_vec_ptr = ((HVX_Vector *) src);
+    HVX_Vector * const src_vec_end = ((HVX_Vector *) src) + (count / kElementsPerVector);
+    HVX_Vector *       dst_vec_ptr = ((HVX_Vector *) dst);
 
     HVX_Vector scale_vec = Q6_V_vsplat_R(reinterpret_cast<const uint32_t &>(scale));
     scale_vec            = _FuncScaleConvert(scale_vec);
@@ -190,12 +190,12 @@ template <auto _Func, auto _FuncScaleConvert, typename _TParam>
 inline void vec_scale_impl(const _TParam * src, float scale, _TParam * dst, size_t count) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TParam);
 
-    HVX_Vector *  src_vec_ptr    = ((HVX_Vector *) src);
-    HVX_Vector *  src_vec_end    = ((HVX_Vector *) src) + (count / kElementsPerVector);
-    HVX_UVector * dst_vec_ptr    = ((HVX_UVector *) dst);  // TODO: opt the unaligned case?
-    HVX_Vector    prev           = *src_vec_ptr++;
-    const size_t  leftover       = count % kElementsPerVector;
-    const size_t  leftover_bytes = leftover * sizeof(_TParam);
+    HVX_Vector *       src_vec_ptr    = ((HVX_Vector *) src);
+    HVX_Vector * const src_vec_end    = ((HVX_Vector *) src) + (count / kElementsPerVector);
+    HVX_UVector *      dst_vec_ptr    = ((HVX_UVector *) dst);  // TODO: opt the unaligned case?
+    HVX_Vector         prev           = *src_vec_ptr++;
+    const size_t       leftover       = count % kElementsPerVector;
+    const size_t       leftover_bytes = leftover * sizeof(_TParam);
 
     HVX_Vector scale_vec = Q6_V_vsplat_R(reinterpret_cast<const uint32_t &>(scale));
     scale_vec            = _FuncScaleConvert(scale_vec);

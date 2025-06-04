@@ -15,12 +15,12 @@ template <HVX_Vector (*_OpIntrinsic)(HVX_Vector, HVX_Vector), typename _TyData>
 inline void vec_op_impl(const _TyData * src0, const _TyData * src1, size_t count, _TyData * dst) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TyData);
 
-    HVX_Vector * iptr0     = ((HVX_Vector *) src0);
-    HVX_Vector * iptr0_end = ((HVX_Vector *) src0) + (count / kElementsPerVector);
-    HVX_Vector * iptr1     = ((HVX_Vector *) src1);
-    HVX_Vector * optr      = ((HVX_Vector *) dst);  // framework will ensure the dst is aligned
-    HVX_Vector   prev0     = *iptr0++;
-    HVX_Vector   prev1     = *iptr1++;
+    HVX_Vector *       iptr0     = ((HVX_Vector *) src0);
+    HVX_Vector * const iptr0_end = ((HVX_Vector *) src0) + (count / kElementsPerVector);
+    HVX_Vector *       iptr1     = ((HVX_Vector *) src1);
+    HVX_Vector *       optr      = ((HVX_Vector *) dst);  // framework will ensure the dst is aligned
+    HVX_Vector         prev0     = *iptr0++;
+    HVX_Vector         prev1     = *iptr1++;
 
     while (iptr0 < iptr0_end) {
         HVX_Vector curr0 = *iptr0++;
@@ -238,10 +238,10 @@ bool is_element_wise_op_supported(npu_device_tensor_op op, const npu_device_tens
 void rms_norm_vec_f32(const float * src, size_t count, float eps, float * dst) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(float);
 
-    HVX_Vector * src_vec_ptr = ((HVX_Vector *) src);
-    HVX_Vector * src_vec_end = ((HVX_Vector *) src) + (count / kElementsPerVector);
-    HVX_Vector   prev        = *src_vec_ptr++;
-    HVX_Vector   sum         = Q6_V_vzero();
+    HVX_Vector *       src_vec_ptr = ((HVX_Vector *) src);
+    HVX_Vector * const src_vec_end = ((HVX_Vector *) src) + (count / kElementsPerVector);
+    HVX_Vector         prev        = *src_vec_ptr++;
+    HVX_Vector         sum         = Q6_V_vzero();
     while (src_vec_ptr < src_vec_end) {
         HVX_Vector curr = *src_vec_ptr++;
         HVX_Vector s0   = Q6_V_valign_VVR(curr, prev, (size_t) src);

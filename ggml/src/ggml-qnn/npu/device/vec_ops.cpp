@@ -11,14 +11,14 @@ template <typename _TElem, HVX_Vector (*_MpyFunc)(HVX_Vector, HVX_Vector),
 inline float vec_dot_product_impl(const _TElem * src0, const _TElem * src1, size_t count) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TElem);
 
-    HVX_Vector * src0_vec_ptr     = ((HVX_Vector *) src0);
-    HVX_Vector * src0_vec_ptr_end = ((HVX_Vector *) src0) + count / kElementsPerVector;
-    HVX_Vector * src1_vec_ptr     = ((HVX_Vector *) src1);
-    HVX_Vector   prev0            = *src0_vec_ptr++;
-    HVX_Vector   prev1            = *src1_vec_ptr++;
-    HVX_Vector   sum              = Q6_V_vzero();
-    HVX_Vector   sum0             = Q6_V_vzero();
-    HVX_Vector   sum1             = Q6_V_vzero();
+    HVX_Vector *       src0_vec_ptr     = ((HVX_Vector *) src0);
+    HVX_Vector * const src0_vec_ptr_end = ((HVX_Vector *) src0) + count / kElementsPerVector;
+    HVX_Vector *       src1_vec_ptr     = ((HVX_Vector *) src1);
+    HVX_Vector         prev0            = *src0_vec_ptr++;
+    HVX_Vector         prev1            = *src1_vec_ptr++;
+    HVX_Vector         sum              = Q6_V_vzero();
+    HVX_Vector         sum0             = Q6_V_vzero();
+    HVX_Vector         sum1             = Q6_V_vzero();
 
     while (src0_vec_ptr_end - src0_vec_ptr > 1) {
         HVX_Vector curr0_lo = src0_vec_ptr[0];
@@ -95,11 +95,11 @@ template <typename _TElem, HVX_Vector (*_MpyFunc)(HVX_Vector, HVX_Vector),
 inline float vec_dot_product_aligned_impl(const _TElem * src0, const _TElem * src1, size_t count) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TElem);
 
-    HVX_Vector * src0_vec_ptr     = ((HVX_Vector *) src0);
-    HVX_Vector * src0_vec_ptr_end = ((HVX_Vector *) src0) + count / kElementsPerVector;
-    HVX_Vector * src1_vec_ptr     = ((HVX_Vector *) src1);
-    HVX_Vector   sum0             = Q6_V_vzero();
-    HVX_Vector   sum1             = Q6_V_vzero();
+    HVX_Vector *       src0_vec_ptr     = ((HVX_Vector *) src0);
+    HVX_Vector * const src0_vec_ptr_end = ((HVX_Vector *) src0) + count / kElementsPerVector;
+    HVX_Vector *       src1_vec_ptr     = ((HVX_Vector *) src1);
+    HVX_Vector         sum0             = Q6_V_vzero();
+    HVX_Vector         sum1             = Q6_V_vzero();
 
     while (src0_vec_ptr_end - src0_vec_ptr > 1) {
         HVX_Vector curr0_lo = src0_vec_ptr[0];
