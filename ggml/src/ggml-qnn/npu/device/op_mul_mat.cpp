@@ -82,15 +82,15 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
     const size_t valid_row_bytes = src1->get_ne(0) * sizeof(data_type);
     DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_WITH_SUB_PROC(dst, params->tidx, dequant);
 
-    auto * dst_ptr = reinterpret_cast<uint8_t *>(dst->get_write_buffer());
+    uint8_t * dst_ptr = dst->get_write_buffer();
     if (!dst_ptr) {
         DEVICE_LOG_ERROR("mul_mat_impl: dst_ptr is not writable, tensor: %p, type: %s\n", (void *) dst,
                          hexagon::get_type_name(dst->get_type()));
         return;
     }
 
-    const auto * src0_ptr = reinterpret_cast<const uint8_t *>(src0->get_read_buffer());
-    const auto * src1_ptr = reinterpret_cast<const uint8_t *>(src1->get_read_buffer());
+    const uint8_t * src0_ptr = src0->get_read_buffer();
+    const uint8_t * src1_ptr = src1->get_read_buffer();
     for (int64_t ip = start_end_plane.first; ip < start_end_plane.second; ip++) {
         const auto   i3         = ip / dst->get_ne(2);
         const auto   i2         = ip - i3 * dst->get_ne(2);
