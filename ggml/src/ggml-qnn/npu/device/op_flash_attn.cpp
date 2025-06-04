@@ -47,6 +47,7 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
     const auto DK          = k->get_ne(0);
     const auto DV          = v->get_ne(0);
     const auto row_bytes_k = DK * hexagon::get_type_traits(k->get_type()).type_size;
+    const auto row_bytes_v = DK * hexagon::get_type_traits(v->get_type()).type_size;
 
     size_t total_cache_size = sizeof(float) * (DK + 2 * DV) + 16;  // CACHE_LINE_SIZE_F32 == 16
     auto * cache_ptr        = params->get_vtcm_cache(total_cache_size);
@@ -149,6 +150,10 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
             float vs = 1.0f;  // post-softmax KQ value, expf(s - M)
 
             const auto * v_data = v_ptr + (ic * v->get_nb(1) + iv2 * v->get_nb(2) + iv3 * v->get_nb(3));
+            if (ic < k->get_ne(1) - 1) {
+                hexagon::l2fetch_row(v_data + v->get_nb(1), row_bytes_v);
+            }
+
             if (is_v_f16) {
                 if (s > M) {
                     // s is new maximum, ms < 1.0f, vs == expf(s - s) == 1.0f
