@@ -53,7 +53,7 @@ inline constexpr const char * op_get_name(npu_device_tensor_op op) {
         case NPU_OP_RMS_NORM:
             return "RMS_NORM";
         case NPU_OP_FLASH_ATTN:
-            return "FLASH_ATTN";
+            return "FLASH_ATTN_EXT";
         default:
             return "UNKNOWN";
     }
