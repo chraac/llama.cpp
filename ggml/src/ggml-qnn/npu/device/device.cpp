@@ -211,7 +211,6 @@ AEEResult npu_device_graph_set_tensor_with_param(remote_handle64 _h, npu_device_
         return AEE_EINVHANDLE;
     }
 
-    graph->set_tensor(tensor_handles, tensor_handlesLen);
     for (int i = 0; i < tensor_handlesLen; ++i) {
         auto * tensor = tensor_from_handle(tensor_handles[i]);
         if (tensor) {
@@ -219,6 +218,7 @@ AEEResult npu_device_graph_set_tensor_with_param(remote_handle64 _h, npu_device_
         }
     }
 
+    graph->set_tensor(tensor_handles, tensor_handlesLen);
     return AEE_SUCCESS;
 }
 

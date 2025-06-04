@@ -24,12 +24,13 @@ class host_tensor {
         // TODO: figure out why the npu_device_tensor_config can't be larger than 100 bytes
         static_assert(sizeof(npu_device_tensor_config) < 100, "npu_device_tensor_config size too large");
 
-        _info.buffer_fd = buffer_fd;
-        _info.offset    = offset;
-        _info.type      = type_to_npu_type(tensor->type);
-        _info.size      = ggml_nbytes(tensor);
+        _info.buffer_fd   = buffer_fd;
+        _info.offset      = offset;
+        _info.type        = type_to_npu_type(tensor->type);
+        _info.size        = ggml_nbytes(tensor);
+        _info.is_constant = false;  // TODO: support constant tensors in the future
         // _info.op will be updated in update_params()
-        _info_update.op = NPU_OP_COUNT;
+        _info_update.op   = NPU_OP_COUNT;
 
         static_assert(DEVICE_TENSOR_MAX_DIMS == GGML_MAX_DIMS, "tensor dimensions mismatch");
         static_assert(sizeof(_info.ne) == sizeof(tensor->ne), "tensor ne size mismatch");

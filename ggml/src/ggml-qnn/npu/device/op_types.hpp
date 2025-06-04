@@ -26,6 +26,7 @@ struct compute_params {
 
     uint8_t * get_vtcm_cache(size_t size) {
         if (!vtcm_cache || vtcm_cache->get_size() < size) {
+            vtcm_cache.reset();  // reset the cache to create a new one
             vtcm_cache = std::make_unique<hexagon::vtcm_mem>(size, false);
         }
 
@@ -38,6 +39,7 @@ struct compute_params {
 
     uint8_t * get_mem_cache(size_t size) {
         if (!mem_cache || mem_cache_size < size) {
+            mem_cache.reset();  // reset the cache to create a new one
             mem_cache      = std::make_unique<uint8_t[]>(size + 256);
             mem_cache_size = mem_cache ? size : 0;
         }
