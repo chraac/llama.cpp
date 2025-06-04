@@ -200,7 +200,22 @@ inline void vec_scale_impl(const _TParam * src, float scale, _TParam * dst, size
     HVX_Vector scale_vec = Q6_V_vsplat_R(reinterpret_cast<const uint32_t &>(scale));
     scale_vec            = _FuncScaleConvert(scale_vec);
 
-    while (src_vec_ptr < src_vec_end) {
+    while (src_vec_end - src_vec_ptr > 1) {
+        HVX_Vector curr_lo = src_vec_ptr[0];
+        HVX_Vector curr_hi = src_vec_ptr[1];
+        src_vec_ptr += 2;
+
+        HVX_Vector lo = Q6_V_valign_VVR(curr_lo, prev, (size_t) src);
+        HVX_Vector hi = Q6_V_valign_VVR(curr_hi, curr_lo, (size_t) src);
+
+        dst_vec_ptr[0] = _Func(lo, dst_vec_ptr, scale_vec);
+        dst_vec_ptr[1] = _Func(hi, dst_vec_ptr + 1, scale_vec);
+
+        dst_vec_ptr += 2;
+        prev = curr_hi;
+    }
+
+    if (src_vec_end - src_vec_ptr > 0) {
         HVX_Vector curr = *src_vec_ptr++;
         HVX_Vector s0   = Q6_V_valign_VVR(curr, prev, (size_t) src);
         dst_vec_ptr[0]  = _Func(s0, dst_vec_ptr, scale_vec);
