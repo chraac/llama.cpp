@@ -12,6 +12,7 @@ inline float f16_to_f32(const npu_device_fp16_t src) {
     return reinterpret_cast<const __fp16 &>(src);
 }
 
+// From: ggml/src/ggml-cpu/ops.cpp
 void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hexagon::tensor * k,
                      const hexagon::tensor * v, const hexagon::tensor * mask, hexagon::compute_params * params) {
     static_assert(3 <= hexagon::kMaxParamsCount, "flash_attn op params count exceeds max params count");
@@ -39,6 +40,10 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
     const auto q_to_vec_dot = hexagon::get_type_traits(NPU_DATA_TYPE_F16).from_float;  // TODO: support more k types
     const auto kq_vec_dot   = hexagon::get_type_traits(k->get_type()).vec_dot;
     const auto v_to_float   = hexagon::get_type_traits(v->get_type()).to_float;
+    if (!q_to_vec_dot || !kq_vec_dot) {
+        DEVICE_LOG_ERROR("flash_attn_impl: unsupported data type for q, k, or v\n");
+        return;
+    }
 
     const int64_t total_rows = q->get_ne(1) * q->get_ne(2) * q->get_ne(3);       // total number of rows in Q
     const auto    start_end_row =
@@ -46,8 +51,9 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
 
     const auto DK          = k->get_ne(0);
     const auto DV          = v->get_ne(0);
+    const auto row_bytes_q = q->get_ne(0) * hexagon::get_type_traits(q->get_type()).type_size;
     const auto row_bytes_k = DK * hexagon::get_type_traits(k->get_type()).type_size;
-    const auto row_bytes_v = DK * hexagon::get_type_traits(v->get_type()).type_size;
+    const auto row_bytes_v = DV * hexagon::get_type_traits(v->get_type()).type_size;
 
     size_t total_cache_size = sizeof(float) * (DK + 2 * DV) + 16;  // CACHE_LINE_SIZE_F32 == 16
     auto * cache_ptr        = params->get_vtcm_cache(total_cache_size);
@@ -109,9 +115,12 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
         const int iv3 = iq3 / rv3;
         const int iv2 = iq2 / rv2;
 
-        const float * pq =
-            reinterpret_cast<const float *>(q_ptr + (iq1 * q->get_nb(1) + iq2 * q->get_nb(2) + iq3 * q->get_nb(3)));
-        q_to_vec_dot(pq, Q_q, DK, params->f16_to_f32_table);
+        const auto * q_data = q_ptr + (iq1 * q->get_nb(1) + iq2 * q->get_nb(2) + iq3 * q->get_nb(3));
+        if (iq1 < q->get_ne(1) - 1) {
+            hexagon::l2fetch_row(q_data + q->get_nb(1), row_bytes_q);
+        }
+
+        q_to_vec_dot(reinterpret_cast<const float *>(q_data), Q_q, DK, params->f16_to_f32_table);
 
         // online softmax / attention
         // loop over n_kv and n_head_kv
@@ -150,7 +159,7 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
             float vs = 1.0f;  // post-softmax KQ value, expf(s - M)
 
             const auto * v_data = v_ptr + (ic * v->get_nb(1) + iv2 * v->get_nb(2) + iv3 * v->get_nb(3));
-            if (ic < k->get_ne(1) - 1) {
+            if (ic < v->get_ne(1) - 1) {
                 hexagon::l2fetch_row(v_data + v->get_nb(1), row_bytes_v);
             }
 
