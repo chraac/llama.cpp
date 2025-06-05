@@ -47,10 +47,10 @@ class host_tensor {
 
         tensor->extra = this;
         _ggml_tensor  = tensor;
-        LOG_DEBUG("host_tensor(%p), ggml_tensor(%p[%ldx%ldx%ldx%ld], nb[%ld][%ld][%ld][%ld], %s), handle(%p)\n",
-                  (void *) this, (void *) tensor, (long) tensor->ne[0], (long) tensor->ne[1], (long) tensor->ne[2],
+        LOG_DEBUG("host_tensor(%p), ggml_tensor(%s[%ldx%ldx%ldx%ld], nb[%ld][%ld][%ld][%ld], %s, %p), handle(%p)\n",
+                  (void *) this, tensor->name, (long) tensor->ne[0], (long) tensor->ne[1], (long) tensor->ne[2],
                   (long) tensor->ne[3], (long) tensor->nb[0], (long) tensor->nb[1], (long) tensor->nb[2],
-                  (long) tensor->nb[3], ggml_type_name(tensor->type), (void *) _device_tensor_handle);
+                  (long) tensor->nb[3], ggml_type_name(tensor->type), (void *) _device_tensor_handle, (void *) tensor);
     }
 
     ~host_tensor() {
@@ -91,14 +91,15 @@ class host_tensor {
         }
 
         npu_device_tensor_handle_t src_tensor_handles[DEVICE_TENSOR_MAX_SRC] = {};
-        for (size_t j = 0; j < DEVICE_TENSOR_MAX_SRC && _ggml_tensor->src[j]; ++j) {
-            auto * src            = host_tensor::from_ggml_tensor(_ggml_tensor->src[j]);
-            src_tensor_handles[j] = src->get_device_tensor_handle();
-            LOG_DEBUG("host_tensor(%p) set_src[%zu]: %p\n", (void *) this, j, (void *) src);
-        }
-
         static_assert(std::is_same<decltype(_info_update.src_handles), decltype(src_tensor_handles)>::value,
                       "src tensor handles type mismatch");
+
+        for (size_t j = 0; j < DEVICE_TENSOR_MAX_SRC && _ggml_tensor->src[j]; ++j) {
+            auto * ggml_src       = _ggml_tensor->src[j];
+            auto * src            = host_tensor::from_ggml_tensor(ggml_src);
+            src_tensor_handles[j] = src->get_device_tensor_handle();
+            LOG_DEBUG("host_tensor(%p) set_src[%zu]: %p(%s)\n", (void *) this, j, (void *) src, ggml_src->name);
+        }
 
         if (memcmp(_info_update.src_handles, src_tensor_handles, sizeof(_info_update.src_handles)) != 0) {
             params_changed = true;
@@ -131,9 +132,10 @@ class host_tensor {
         memcpy(_info_update.params, _ggml_tensor->op_params, sizeof(_info_update.params));
 
         for (size_t j = 0; j < DEVICE_TENSOR_MAX_SRC && _ggml_tensor->src[j]; ++j) {
-            auto * src                  = host_tensor::from_ggml_tensor(_ggml_tensor->src[j]);
+            auto * ggml_src             = _ggml_tensor->src[j];
+            auto * src                  = host_tensor::from_ggml_tensor(ggml_src);
             _info_update.src_handles[j] = src->get_device_tensor_handle();
-            LOG_DEBUG("host_tensor(%p) set_src[%zu]: %p\n", (void *) this, j, (void *) src);
+            LOG_DEBUG("host_tensor(%p) set_src[%zu]: %p(%s)\n", (void *) this, j, (void *) src, ggml_src->name);
         }
 
         LOG_DEBUG("host_tensor(%p) update_params, op: %s, params: [%x, %x, %x, %x]\n", (void *) this,
@@ -143,6 +145,15 @@ class host_tensor {
     }
 
     bool is_valid() const { return _device_tensor_handle != 0; }
+
+    int64_t get_ne(size_t index) const {
+        if (index >= DEVICE_TENSOR_MAX_DIMS) {
+            LOG_ERROR("host_tensor(%p) get_ne: index out of bounds: %zu\n", (void *) this, index);
+            return 0;
+        }
+
+        return _info.ne[index];
+    }
 
   private:
     remote_handle64                 _device_handle        = 0;
