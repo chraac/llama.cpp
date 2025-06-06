@@ -227,6 +227,11 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
     }
 }
 
+bool is_transposed_or_permuted(const npu_device_nb_type & nb) {
+    // Check if the tensor is transposed or permuted
+    return (nb[0] > nb[1]) || (nb[1] > nb[2]) || (nb[2] > nb[3]);
+}
+
 }  // namespace
 
 namespace hexagon {
@@ -301,7 +306,7 @@ bool is_flash_attn_supported(npu_device_tensor_op op, const npu_device_tensor_sp
         return false;
     }
 
-    if (dst->nb[0] > dst->nb[1] || dst->nb[1] > dst->nb[2] || dst->nb[2] > dst->nb[3]) {
+    if (is_transposed_or_permuted(dst->nb)) {
         DEVICE_LOG_DEBUG("[%s]dst cannot be transposed or permuted, nb: %zu, %zu, %zu, %zu\n", op_get_name(op),
                          dst->nb[0], dst->nb[1], dst->nb[2], dst->nb[3]);
         return false;

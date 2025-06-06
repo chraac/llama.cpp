@@ -51,7 +51,7 @@ class host_tensor {
         LOG_DEBUG("host_tensor(%p), ggml_tensor(%s[%ldx%ldx%ldx%ld], nb[%ld][%ld][%ld][%ld], %s, %p), handle(%p)\n",
                   (void *) this, tensor->name, (long) tensor->ne[0], (long) tensor->ne[1], (long) tensor->ne[2],
                   (long) tensor->ne[3], (long) tensor->nb[0], (long) tensor->nb[1], (long) tensor->nb[2],
-                  (long) tensor->nb[3], ggml_type_name(tensor->type), (void *) _device_tensor_handle, (void *) tensor);
+                  (long) tensor->nb[3], ggml_type_name(tensor->type), (void *) tensor, (void *) _device_tensor_handle);
     }
 
     ~host_tensor() {
