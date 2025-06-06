@@ -37,7 +37,7 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
     const float m0 = powf(2.0f, -(max_bias) / n_head_log2);
     const float m1 = powf(2.0f, -(max_bias / 2.0f) / n_head_log2);
 
-    const auto q_to_vec_dot = hexagon::get_type_traits(NPU_DATA_TYPE_F16).from_float;  // TODO: support more k types
+    const auto q_to_vec_dot = hexagon::get_type_traits(k->get_type()).from_float;  // TODO: fix this
     const auto kq_vec_dot   = hexagon::get_type_traits(k->get_type()).vec_dot;
     const auto v_to_float   = hexagon::get_type_traits(v->get_type()).to_float;
     if (!q_to_vec_dot || !kq_vec_dot) {
@@ -281,8 +281,9 @@ bool is_flash_attn_supported(npu_device_tensor_op op, const npu_device_tensor_sp
     }
 
     const auto * v = &srcs[2];
-    if (v->type != NPU_DATA_TYPE_F16) {  // TODO: support more v types
-        DEVICE_LOG_DEBUG("[%s]v type is not F16: %s\n", op_get_name(op), get_type_name(v->type));
+    if (v->type != k->type) {  // TODO: support more v types
+        DEVICE_LOG_DEBUG("[%s]v type is not the same as k: %s vs %s\n", op_get_name(op), get_type_name(v->type),
+                         get_type_name(k->type));
         return false;
     }
 
