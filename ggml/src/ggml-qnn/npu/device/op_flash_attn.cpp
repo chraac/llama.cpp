@@ -55,7 +55,7 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
     const auto row_bytes_k = DK * hexagon::get_type_traits(k->get_type()).type_size;
     const auto row_bytes_v = DV * hexagon::get_type_traits(v->get_type()).type_size;
 
-    size_t total_cache_size = sizeof(float) * (DK + 2 * DV) + 16;  // CACHE_LINE_SIZE_F32 == 16
+    size_t total_cache_size = sizeof(float) * (DK + 2 * DV) + hexagon::kBytesPerVector;
     auto * cache_ptr        = params->get_vtcm_cache(total_cache_size);
     if (!cache_ptr) {
         DEVICE_LOG_ERROR("Failed to allocate VTCM cache for flash_attn: %zu bytes\n", total_cache_size);
@@ -127,11 +127,7 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
         // ref: https://arxiv.org/pdf/2112.05682.pdf
         for (int64_t ic = 0; ic < k->get_ne(1); ++ic) {
             DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(flash_attn, 0, loop);
-            float mv = 0.0f;
-            if (mp) {
-                mv = slope * f16_to_f32(mp[ic]);
-            }
-
+            float mv = mp ? (slope * f16_to_f32(mp[ic])) : 0.0f;
             if (mv == -INFINITY) {
                 continue;
             }
