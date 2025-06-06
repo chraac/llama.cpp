@@ -59,6 +59,11 @@ inline constexpr const char * op_get_name(npu_device_tensor_op op) {
     }
 }
 
+inline bool is_transposed_or_permuted(const npu_device_nb_type & nb) {
+    // Check if the tensor is transposed or permuted
+    return (nb[0] > nb[1]) || (nb[1] > nb[2]) || (nb[2] > nb[3]);
+}
+
 class power_utils {
   public:
     power_utils() {

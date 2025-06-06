@@ -159,7 +159,7 @@ bool npu_device::supports_op_impl(const ggml_tensor * op) {
     npu_device_tensor_spec srcs[DEVICE_TENSOR_MAX_SRC] = {};
     constexpr const auto   get_spec                    = [](const ggml_tensor * tensor) -> npu_device_tensor_spec {
         if (!tensor) {
-            return npu_device_tensor_spec{ {}, NPU_DATA_TYPE_COUNT };
+            return npu_device_tensor_spec{ {}, {}, NPU_DATA_TYPE_COUNT };
         }
 
         static_assert(DEVICE_TENSOR_MAX_DIMS == GGML_MAX_DIMS, "tensor dimensions mismatch");

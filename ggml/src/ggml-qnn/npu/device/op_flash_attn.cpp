@@ -227,11 +227,6 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
     }
 }
 
-bool is_transposed_or_permuted(const npu_device_nb_type & nb) {
-    // Check if the tensor is transposed or permuted
-    return (nb[0] > nb[1]) || (nb[1] > nb[2]) || (nb[2] > nb[3]);
-}
-
 }  // namespace
 
 namespace hexagon {

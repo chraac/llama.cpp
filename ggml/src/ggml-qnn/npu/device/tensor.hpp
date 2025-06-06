@@ -76,6 +76,11 @@ class tensor {
 
     const size_t get_nb(size_t index) const { return _info.nb[index]; }
 
+    const bool is_permuted() const {
+        // Check if the tensor is permuted by comparing the nb values
+        return is_transposed_or_permuted(_info.nb);
+    }
+
     npu_device_tensor_op get_op() const { return _op_type; }
 
     template <typename _TyParam> const _TyParam get_op_param(size_t index) const {
