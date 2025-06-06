@@ -22,7 +22,8 @@ class host_tensor {
     explicit host_tensor(ggml_tensor * tensor, int buffer_fd, uint64_t offset, remote_handle64 device_handle) :
         _device_handle(device_handle) {
         // TODO: figure out why the npu_device_tensor_config can't be larger than 100 bytes
-        static_assert(sizeof(npu_device_tensor_config) < 100, "npu_device_tensor_config size too large");
+        static_assert(sizeof(npu_device_tensor_config) < kMaxNpuRpcStructSize,
+                      "npu_device_tensor_config size too large");
 
         _info.buffer_fd   = buffer_fd;
         _info.offset      = offset;

@@ -12,6 +12,7 @@ const uint32_t QUANT_K_SCALE_SIZE = 12;
 interface npu_device : remote_handle64{
 
     typedef int64_t ne_type[DEVICE_TENSOR_MAX_DIMS];
+    typedef uint64_t nb_type[DEVICE_TENSOR_MAX_DIMS];
     typedef uint64_t tensor_handle_t;
     typedef uint64_t graph_handle_t;
 
@@ -55,6 +56,7 @@ interface npu_device : remote_handle64{
 
     struct tensor_spec {
         ne_type ne;
+        nb_type nb;
         tensor_data_type type;
     };
 
@@ -66,7 +68,7 @@ interface npu_device : remote_handle64{
 
     struct tensor_config {
         ne_type ne;
-        uint64_t nb[DEVICE_TENSOR_MAX_DIMS];
+        nb_type nb;
         long buffer_fd;
         uint64_t offset;
         uint64_t size;

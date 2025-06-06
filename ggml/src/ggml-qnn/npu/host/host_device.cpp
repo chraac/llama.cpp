@@ -168,6 +168,11 @@ bool npu_device::supports_op_impl(const ggml_tensor * op) {
         spec.ne[1] = tensor->ne[1];
         spec.ne[2] = tensor->ne[2];
         spec.ne[3] = tensor->ne[3];
+
+        spec.nb[0] = tensor->nb[0];
+        spec.nb[1] = tensor->nb[1];
+        spec.nb[2] = tensor->nb[2];
+        spec.nb[3] = tensor->nb[3];
         spec.type  = type_to_npu_type(tensor->type);
         return spec;
     };
