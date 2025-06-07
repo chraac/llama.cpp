@@ -55,7 +55,10 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
     const auto row_bytes_k = DK * hexagon::get_type_traits(k->get_type()).type_size;
     const auto row_bytes_v = DV * hexagon::get_type_traits(v->get_type()).type_size;
 
-    size_t total_cache_size = sizeof(float) * (DK + 2 * DV) + hexagon::kBytesPerVector;
+    constexpr const size_t kFloatsPerVector = hexagon::kBytesPerVector / sizeof(float);
+    const auto             aligned_dk       = DK + kFloatsPerVector - DK % kFloatsPerVector;
+    const auto             aligned_dv       = DV + kFloatsPerVector - DV % kFloatsPerVector;
+    size_t total_cache_size = sizeof(float) * (aligned_dk + 2 * aligned_dv) + 4 * hexagon::kBytesPerVector;
     auto * cache_ptr        = params->get_vtcm_cache(total_cache_size);
     if (!cache_ptr) {
         DEVICE_LOG_ERROR("Failed to allocate VTCM cache for flash_attn: %zu bytes\n", total_cache_size);
@@ -89,14 +92,14 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
         const float    slope =
             (max_bias > 0.0f) ? h < n_head_log2 ? powf(m0, h + 1) : powf(m1, 2 * (h - n_head_log2) + 1) : 1.0f;
 
-        float S = 0.0f;                                                     // sum
-        float M = -INFINITY;                                                // maximum KQ value
+        float S = 0.0f;                                                             // sum
+        float M = -INFINITY;                                                        // maximum KQ value
 
-        float * VKQ32 = reinterpret_cast<float *>(cache_ptr);               // FP32 VKQ accumulator
-        float * V32   = VKQ32 + DV;                                         // (temporary) FP32 V buffer
-        auto *  VKQ16 = reinterpret_cast<npu_device_fp16_t *>(VKQ32 + DV);  // (temporary) FP16 VKQ accumulator
+        float * VKQ32 = reinterpret_cast<float *>(cache_ptr);                       // FP32 VKQ accumulator
+        float * V32   = VKQ32 + aligned_dv;                                         // (temporary) FP32 V buffer
+        auto *  VKQ16 = reinterpret_cast<npu_device_fp16_t *>(VKQ32 + aligned_dv);  // (temporary) FP16 VKQ accumulator
         auto *  Q_q   = reinterpret_cast<npu_device_fp16_t *>(
-            VKQ32 + 2 * DV);  // (temporary) buffer for Q converted to quantized/FP16
+            VKQ32 + 2 * aligned_dv);  // (temporary) buffer for Q converted to quantized/FP16
 
         if (is_v_f16) {
             memset(VKQ16, 0, DV * sizeof(npu_device_fp16_t));
