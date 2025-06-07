@@ -277,7 +277,7 @@ inline HVX_Vector hvx_vec_mad_f16_qf32(HVX_Vector src, HVX_UVector * dst_ptr, HV
     HVX_Vector     hi       = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(src_pair), scale_vec);
     src_pair                = Q6_W_vcombine_VV(Q6_Vsf_equals_Vqf32(lo), Q6_Vsf_equals_Vqf32(hi));
     lo                      = qhmath_hvx_vhf_convert_vqf32(src_pair);  // TODO: can we avoid the vdeal?
-    lo                      = Q6_Vqf16_vadd_Vqf16Vhf(lo, dst);
+    lo                      = Q6_Vqf16_vadd_VhfVhf(lo, dst);
     return Q6_Vhf_equals_Vqf16(lo);
 }
 
