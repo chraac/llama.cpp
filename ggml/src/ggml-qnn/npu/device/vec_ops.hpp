@@ -162,9 +162,8 @@ inline float vec_reduction_qf16_f32(HVX_Vector sums) {
     return reinterpret_cast<__fp16 &>(i);
 }
 
-inline HVX_Vector hvx_nop(HVX_Vector src) {
-    // This is a no-op function that can be used as a placeholder for vector operations
-    return src;
+inline HVX_Vector hvx_scale_f32(float scale) {
+    return Q6_V_vsplat_R(reinterpret_cast<const uint32_t &>(scale));
 }
 
 template <auto _Func, auto _FuncScaleConvert, typename _TParam>
@@ -197,8 +196,7 @@ inline void vec_scale_impl(const _TParam * src, float scale, _TParam * dst, size
     const size_t       leftover       = count % kElementsPerVector;
     const size_t       leftover_bytes = leftover * sizeof(_TParam);
 
-    HVX_Vector scale_vec = Q6_V_vsplat_R(reinterpret_cast<const uint32_t &>(scale));
-    scale_vec            = _FuncScaleConvert(scale_vec);
+    HVX_Vector scale_vec = _FuncScaleConvert(scale);
 
     while (src_vec_end - src_vec_ptr > 1) {
         HVX_Vector curr_lo = src_vec_ptr[0];
@@ -255,38 +253,35 @@ inline HVX_Vector hvx_vec_mad_f32_f32(HVX_Vector src, HVX_UVector * dst_ptr, HVX
 }
 
 inline void vec_scale_f32(const float * src, float scale, float * dst, size_t count) {
-    vec_scale_impl<hvx_vec_scale_f32_f32, hvx_nop, float>(src, scale, dst, count);
+    vec_scale_impl<hvx_vec_scale_f32_f32, hvx_scale_f32, float>(src, scale, dst, count);
 }
 
 inline void vec_mad_f32(const float * src, float scale, float * dst, size_t count) {
-    vec_scale_impl<hvx_vec_mad_f32_f32, hvx_nop, float>(src, scale, dst, count);
+    vec_scale_impl<hvx_vec_mad_f32_f32, hvx_scale_f32, float>(src, scale, dst, count);
 }
 
-inline HVX_Vector hvx_vec_scale_f16_qf32(HVX_Vector src, HVX_UVector *, HVX_Vector scale_vec) {
-    HVX_VectorPair src_pair = qhmath_hvx_vqf32_convert_vqf16(qhmath_hvx_vqf16_convert_vhf(src));
-    HVX_Vector     lo       = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(src_pair), scale_vec);
-    HVX_Vector     hi       = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(src_pair), scale_vec);
-    src_pair                = Q6_W_vcombine_VV(Q6_Vsf_equals_Vqf32(hi), Q6_Vsf_equals_Vqf32(lo));
-    return qhmath_hvx_vhf_convert_vqf32(src_pair);  // TODO: can we avoid the vdeal?
+inline HVX_Vector hvx_scale_f16(float scale) {
+    __fp16 f16_scale = scale;
+    return Q6_Vh_vsplat_R(reinterpret_cast<const npu_device_fp16_t &>(f16_scale));
 }
 
-inline HVX_Vector hvx_vec_mad_f16_qf32(HVX_Vector src, HVX_UVector * dst_ptr, HVX_Vector scale_vec) {
-    HVX_Vector     dst      = *dst_ptr;  // TODO: opt the unaligned case?
-    HVX_VectorPair src_pair = qhmath_hvx_vqf32_convert_vqf16(qhmath_hvx_vqf16_convert_vhf(src));
-    HVX_Vector     lo       = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(src_pair), scale_vec);
-    HVX_Vector     hi       = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(src_pair), scale_vec);
-    src_pair                = Q6_W_vcombine_VV(Q6_Vsf_equals_Vqf32(hi), Q6_Vsf_equals_Vqf32(lo));
-    lo                      = qhmath_hvx_vhf_convert_vqf32(src_pair);  // TODO: can we avoid the vdeal?
-    lo                      = Q6_Vqf16_vadd_VhfVhf(lo, dst);
-    return Q6_Vhf_equals_Vqf16(lo);
+inline HVX_Vector hvx_vec_scale_f16_f16(HVX_Vector src, HVX_UVector *, HVX_Vector scale_vec) {
+    return Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(src, scale_vec));
+}
+
+inline HVX_Vector hvx_vec_mad_f16_f16(HVX_Vector src, HVX_UVector * dst_ptr, HVX_Vector scale_vec) {
+    HVX_Vector dst    = *dst_ptr;  // TODO: opt the unaligned case?
+    HVX_Vector scaled = Q6_Vqf16_vmpy_VhfVhf(src, scale_vec);
+    HVX_Vector result = Q6_Vqf16_vadd_Vqf16Vhf(scaled, dst);
+    return Q6_Vhf_equals_Vqf16(result);
 }
 
 inline void vec_scale_f16(const npu_device_fp16_t * src, float scale, npu_device_fp16_t * dst, size_t count) {
-    vec_scale_impl<hvx_vec_scale_f16_qf32, qhmath_hvx_vqf32_convert_vsf, npu_device_fp16_t>(src, scale, dst, count);
+    vec_scale_impl<hvx_vec_scale_f16_f16, hvx_scale_f16, npu_device_fp16_t>(src, scale, dst, count);
 }
 
 inline void vec_mad_f16(const npu_device_fp16_t * src, float scale, npu_device_fp16_t * dst, size_t count) {
-    vec_scale_impl<hvx_vec_mad_f16_qf32, qhmath_hvx_vqf32_convert_vsf, npu_device_fp16_t>(src, scale, dst, count);
+    vec_scale_impl<hvx_vec_mad_f16_f16, hvx_scale_f16, npu_device_fp16_t>(src, scale, dst, count);
 }
 
 float vec_dot_product_f32_f32(const float * src0, const float * src1, size_t count);
