@@ -58,8 +58,8 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
     constexpr const size_t kFloatsPerVector = hexagon::kBytesPerVector / sizeof(float);
     const auto             aligned_dk       = DK + kFloatsPerVector - DK % kFloatsPerVector;
     const auto             aligned_dv       = DV + kFloatsPerVector - DV % kFloatsPerVector;
-    size_t total_cache_size = sizeof(float) * (aligned_dk + 2 * aligned_dv) + 4 * hexagon::kBytesPerVector;
-    auto * cache_ptr        = params->get_vtcm_cache(total_cache_size);
+    size_t                 total_cache_size = sizeof(float) * (aligned_dk + 2 * aligned_dv);
+    auto *                 cache_ptr        = params->get_vtcm_cache(total_cache_size);
     if (!cache_ptr) {
         DEVICE_LOG_ERROR("Failed to allocate VTCM cache for flash_attn: %zu bytes\n", total_cache_size);
         return;
