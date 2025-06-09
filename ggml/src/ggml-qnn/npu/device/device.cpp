@@ -124,7 +124,7 @@ int npu_device_close(remote_handle64 h) {
 
 AEEResult npu_device_device_get_alignment(remote_handle64 _h, uint32_t * alignment) {
     NPU_UNUSED(_h);
-    *alignment = sizeof(HVX_Vector);
+    *alignment = sizeof(HVX_VectorPair);
     return AEE_SUCCESS;
 }
 
