@@ -23,7 +23,7 @@ class tensor {
         }
 
         _data = static_cast<uint8_t *>(mmap_address);
-        DEVICE_LOG_INFO("tensor(%p[%ldx%ldx%ldx%ld]), fd: %d, offset: %zu, mmap_address: %p, phy_address: 0x%lx\n",
+        DEVICE_LOG_INFO("tensor(%p[%ldx%ldx%ldx%ld]), fd: %d, offset: %zu, mmap_addr: %p, phy_addr: 0x%lx\n",
                         (void *) this, (long) _info.ne[0], (long) _info.ne[1], (long) _info.ne[2], (long) _info.ne[3],
                         _info.buffer_fd, _info.offset, (void *) mmap_address, phy_address);
     }

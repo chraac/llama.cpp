@@ -32,25 +32,25 @@ inline void vec_op_impl(const _TyData * src0, const _TyData * src1, size_t count
         prev1            = curr1;
     }
 
+    const size_t leftover = count % kElementsPerVector;
     if ((iptr0_end - ((HVX_Vector *) src0)) > 0) {
         // handle the last vector
         // see also:
         //   https://github.com/UbiquitousLearning/mllm/blob/babf4410352ce8730824c87699c025a0d4ce3a6f/src/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/src/ops/LLaMAMul.cpp#L147
         //   or qualcomm sdk libs\qhl_hvx\src\qhblas_hvx\qhblas_hvx_aw_vector_add_ah.c
-        bool       iptr0_aligned = hexagon::is_addr_aligned(iptr0);
-        HVX_Vector curr0         = iptr0_aligned ? prev0 : *iptr0;
-        iptr0                    = iptr0_aligned ? iptr0 : iptr0 + 1;
-        bool       iptr1_aligned = hexagon::is_addr_aligned(iptr1);
-        HVX_Vector curr1         = iptr1_aligned ? prev1 : *iptr1;
-        iptr1                    = iptr1_aligned ? iptr1 : iptr1 + 1;
-        HVX_Vector s0            = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
-        HVX_Vector s1            = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-        *optr++                  = _OpIntrinsic(s0, s1);
-        prev0                    = curr0;
-        prev1                    = curr1;
+        bool       should_fetch_src0 = leftover == 0 && hexagon::is_addr_aligned(iptr0);
+        bool       should_fetch_src1 = leftover == 0 && hexagon::is_addr_aligned(iptr1);
+        HVX_Vector curr0             = should_fetch_src0 ? prev0 : *iptr0;
+        HVX_Vector curr1             = should_fetch_src1 ? prev1 : *iptr1;
+        iptr0                        = should_fetch_src0 ? iptr0 : iptr0 + 1;
+        iptr1                        = should_fetch_src1 ? iptr1 : iptr1 + 1;
+        HVX_Vector s0                = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
+        HVX_Vector s1                = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
+        *optr++                      = _OpIntrinsic(s0, s1);
+        prev0                        = curr0;
+        prev1                        = curr1;
     }
 
-    const size_t leftover       = count % kElementsPerVector;
     const size_t leftover_bytes = leftover * sizeof(_TyData);
     if (leftover > 0) {
         // handle the leftover elements
@@ -249,17 +249,17 @@ void rms_norm_vec_f32(const float * src, size_t count, float eps, float * dst) {
         prev            = curr;
     }
 
+    const size_t leftover = count % kElementsPerVector;
     if ((src_vec_end - ((HVX_Vector *) src)) > 0) {
         // handle the last vector
-        bool       src_ptr_aligned = hexagon::is_addr_aligned(src_vec_ptr);
-        HVX_Vector curr            = src_ptr_aligned ? prev : *src_vec_ptr;
-        src_vec_ptr                = src_ptr_aligned ? src_vec_ptr : src_vec_ptr + 1;
-        HVX_Vector s0              = Q6_V_valign_VVR(curr, prev, (size_t) src);
-        sum                        = Q6_Vqf32_vadd_Vqf32Vqf32(sum, Q6_Vqf32_vmpy_VsfVsf(s0, s0));
-        prev                       = curr;
+        bool       should_fetch_src = leftover == 0 && hexagon::is_addr_aligned(src_vec_ptr);
+        HVX_Vector curr             = should_fetch_src ? prev : *src_vec_ptr;
+        src_vec_ptr                 = should_fetch_src ? src_vec_ptr : src_vec_ptr + 1;
+        HVX_Vector s0               = Q6_V_valign_VVR(curr, prev, (size_t) src);
+        sum                         = Q6_Vqf32_vadd_Vqf32Vqf32(sum, Q6_Vqf32_vmpy_VsfVsf(s0, s0));
+        prev                        = curr;
     }
 
-    const size_t leftover       = count % kElementsPerVector;
     const size_t leftover_bytes = leftover * sizeof(float);
     if (leftover > 0) {
         // handle the leftover elements

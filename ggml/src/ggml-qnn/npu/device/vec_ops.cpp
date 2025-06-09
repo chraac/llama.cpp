@@ -51,26 +51,26 @@ inline float vec_dot_product_impl(const _TElem * src0, const _TElem * src1, size
         sum = _AddFunc(_MpyFunc(s0, s1), sum);
     }
 
+    const size_t leftover = count % kElementsPerVector;
     if ((src0_vec_ptr_end - ((HVX_Vector *) src0)) > 0) {
         // handle the last vector
         // see also:
         //   https://github.com/UbiquitousLearning/mllm/blob/babf4410352ce8730824c87699c025a0d4ce3a6f/src/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/src/ops/LLaMAMul.cpp#L147
         //   or qualcomm sdk libs\qhl_hvx\src\qhblas_hvx\qhblas_hvx_aw_vector_add_ah.c
-        bool       iptr0_aligned = hexagon::is_addr_aligned(src0_vec_ptr);
-        HVX_Vector curr0         = iptr0_aligned ? prev0 : *src0_vec_ptr;
-        src0_vec_ptr             = iptr0_aligned ? src0_vec_ptr : src0_vec_ptr + 1;
-        bool       iptr1_aligned = hexagon::is_addr_aligned(src1_vec_ptr);
-        HVX_Vector curr1         = iptr1_aligned ? prev1 : *src1_vec_ptr;
-        src1_vec_ptr             = iptr1_aligned ? src1_vec_ptr : src1_vec_ptr + 1;
-        HVX_Vector s0            = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
-        HVX_Vector s1            = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-        prev0                    = curr0;
-        prev1                    = curr1;
+        bool       should_fetch_src0 = leftover == 0 && hexagon::is_addr_aligned(src0_vec_ptr);
+        bool       should_fetch_src1 = leftover == 0 && hexagon::is_addr_aligned(src1_vec_ptr);
+        HVX_Vector curr0             = should_fetch_src0 ? prev0 : *src0_vec_ptr;
+        HVX_Vector curr1             = should_fetch_src1 ? prev1 : *src1_vec_ptr;
+        src0_vec_ptr                 = should_fetch_src0 ? src0_vec_ptr : src0_vec_ptr + 1;
+        src1_vec_ptr                 = should_fetch_src1 ? src1_vec_ptr : src1_vec_ptr + 1;
+        HVX_Vector s0                = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
+        HVX_Vector s1                = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
+        prev0                        = curr0;
+        prev1                        = curr1;
 
         sum = _AddFunc(_MpyFunc(s0, s1), sum);
     }
 
-    const size_t leftover       = count % kElementsPerVector;
     const size_t leftover_bytes = leftover * sizeof(_TElem);
     if (leftover > 0) {
         // handle the leftover elements

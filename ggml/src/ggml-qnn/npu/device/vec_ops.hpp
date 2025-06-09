@@ -223,11 +223,11 @@ inline void vec_scale_impl(const _TParam * src, float scale, _TParam * dst, size
 
     if ((src_vec_end - ((HVX_Vector *) src)) > 0) {
         // handle the last vector
-        bool       src_ptr_aligned = hexagon::is_addr_aligned(src_vec_ptr);
-        HVX_Vector curr            = src_ptr_aligned ? prev : *src_vec_ptr;
-        src_vec_ptr                = src_ptr_aligned ? src_vec_ptr : src_vec_ptr + 1;
-        HVX_Vector s0              = Q6_V_valign_VVR(curr, prev, (size_t) src);
-        dst_vec_ptr[0]             = _Func(s0, dst_vec_ptr, scale_vec);
+        bool       should_fetch_next = leftover == 0 && hexagon::is_addr_aligned(src_vec_ptr);
+        HVX_Vector curr              = should_fetch_next ? prev : *src_vec_ptr;
+        src_vec_ptr                  = should_fetch_next ? src_vec_ptr : src_vec_ptr + 1;
+        HVX_Vector s0                = Q6_V_valign_VVR(curr, prev, (size_t) src);
+        dst_vec_ptr[0]               = _Func(s0, dst_vec_ptr, scale_vec);
         dst_vec_ptr++;
         prev = curr;
     }
