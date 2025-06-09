@@ -199,18 +199,17 @@ inline void vec_scale_impl(const _TParam * src, float scale, _TParam * dst, size
     HVX_Vector scale_vec = _FuncScaleConvert(scale);
 
     while (src_vec_end - src_vec_ptr > 1) {
-        HVX_Vector curr_lo = src_vec_ptr[0];
-        HVX_Vector curr_hi = src_vec_ptr[1];
+        HVX_VectorPair curr = reinterpret_cast<HVX_VectorPair *>(src_vec_ptr)[0];
         src_vec_ptr += 2;
 
-        HVX_Vector lo = Q6_V_valign_VVR(curr_lo, prev, (size_t) src);
-        HVX_Vector hi = Q6_V_valign_VVR(curr_hi, curr_lo, (size_t) src);
+        HVX_Vector lo = Q6_V_valign_VVR(Q6_V_lo_W(curr), prev, (size_t) src);
+        HVX_Vector hi = Q6_V_valign_VVR(Q6_V_hi_W(curr), Q6_V_lo_W(curr), (size_t) src);
 
         dst_vec_ptr[0] = _Func(lo, dst_vec_ptr, scale_vec);
         dst_vec_ptr[1] = _Func(hi, dst_vec_ptr + 1, scale_vec);
 
         dst_vec_ptr += 2;
-        prev = curr_hi;
+        prev = Q6_V_hi_W(curr);
     }
 
     if (src_vec_end - src_vec_ptr > 0) {

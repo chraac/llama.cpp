@@ -21,17 +21,15 @@ inline float vec_dot_product_impl(const _TElem * src0, const _TElem * src1, size
     HVX_Vector         sum1             = Q6_V_vzero();
 
     while (src0_vec_ptr_end - src0_vec_ptr > 1) {
-        HVX_Vector curr0_lo = src0_vec_ptr[0];
-        HVX_Vector curr0_hi = src0_vec_ptr[1];
-        HVX_Vector curr1_lo = src1_vec_ptr[0];
-        HVX_Vector curr1_hi = src1_vec_ptr[1];
+        HVX_VectorPair curr0 = reinterpret_cast<HVX_VectorPair *>(src0_vec_ptr)[0];
+        HVX_VectorPair curr1 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[0];
 
-        HVX_Vector l0 = Q6_V_valign_VVR(curr0_lo, prev0, (size_t) src0);
-        HVX_Vector l1 = Q6_V_valign_VVR(curr1_lo, prev1, (size_t) src1);
-        HVX_Vector h0 = Q6_V_valign_VVR(curr0_hi, curr0_lo, (size_t) src0);
-        HVX_Vector h1 = Q6_V_valign_VVR(curr1_hi, curr1_lo, (size_t) src1);
-        prev0         = curr0_hi;
-        prev1         = curr1_hi;
+        HVX_Vector l0 = Q6_V_valign_VVR(Q6_V_lo_W(curr0), prev0, (size_t) src0);
+        HVX_Vector l1 = Q6_V_valign_VVR(Q6_V_lo_W(curr1), prev1, (size_t) src1);
+        HVX_Vector h0 = Q6_V_valign_VVR(Q6_V_hi_W(curr0), Q6_V_lo_W(curr0), (size_t) src0);
+        HVX_Vector h1 = Q6_V_valign_VVR(Q6_V_hi_W(curr1), Q6_V_lo_W(curr1), (size_t) src1);
+        prev0         = Q6_V_hi_W(curr0);
+        prev1         = Q6_V_hi_W(curr1);
         src0_vec_ptr += 2;
         src1_vec_ptr += 2;
 
