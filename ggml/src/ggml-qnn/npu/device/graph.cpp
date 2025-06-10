@@ -90,7 +90,10 @@ void graph::compute_impl(default_thread_pool * pool, default_thread_pool::thread
         if (pool && should_sync && i < _tensor_count - 1) {
             pool->sync_thread();
         }
-        dst->invalidate();
+    }
+
+    if (_tensor_count > 0) {
+        _tensors[_tensor_count - 1]->invalidate();
     }
 }
 
