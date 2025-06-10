@@ -99,7 +99,7 @@ template <size_t _ThreadCount> class thread_pool {
 
         uint8_t * get_vtcm_cache(size_t size) {
             if (!vtcm_cache || vtcm_cache->get_size() < size) {
-                DEVICE_SCOPED_PERFORMANCE_TRACKER("[compute_params]get_vtcm_cache, size: %zu", size);
+                DEVICE_SCOPED_PERFORMANCE_TRACKER("[thread_params]get_vtcm_cache, size: %zu, tidx: %zu", size, tidx);
                 vtcm_cache.reset();  // reset the cache to create a new one
                 vtcm_cache = std::make_unique<vtcm_mem>(size, false);
             }
