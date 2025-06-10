@@ -84,11 +84,10 @@ void graph::compute_impl(default_thread_pool * pool, default_thread_pool::thread
             DEVICE_LOG_ERROR("graph(%p) tensor[%zu] op %d compute failed\n", (void *) this, i, op);
         }
 
-        DEVICE_SCOPED_PERFORMANCE_TRACKER("[%p]sync_thread, tidx: %zu, tensor[%zu/%zu]", (void *) this,
-                                          params.get_thread_index(), i, _tensor_count);
-
         const bool should_sync = requires_thread_barrier(op);
         if (pool && should_sync && i < _tensor_count - 1) {
+            DEVICE_SCOPED_PERFORMANCE_TRACKER("[%p]sync_thread, tidx: %zu, tensor[%zu/%zu]", (void *) this,
+                                              params.get_thread_index(), i, _tensor_count);
             pool->sync_thread();
         }
     }
