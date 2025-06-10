@@ -45,9 +45,8 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
         return;
     }
 
-    const int64_t total_rows = q->get_ne(1) * q->get_ne(2) * q->get_ne(3);       // total number of rows in Q
-    const auto    start_end_row =
-        hexagon::get_thread_work_slice(total_rows, params->tidx, params->tcnt);  // work slice for this thread
+    const int64_t total_rows    = q->get_ne(1) * q->get_ne(2) * q->get_ne(3);  // total number of rows in Q
+    const auto    start_end_row = params->get_work_slice(total_rows);          // work slice for this thread
 
     const auto DK          = k->get_ne(0);
     const auto DV          = v->get_ne(0);
@@ -77,7 +76,7 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
         return;
     }
 
-    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_WITH_MULTI_SUB_PROC(out, params->tidx, flash_attn);
+    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_WITH_MULTI_SUB_PROC(out, params->get_thread_index(), flash_attn);
     const uint8_t * q_ptr    = q->get_read_buffer();
     const uint8_t * k_ptr    = k->get_read_buffer();
     const uint8_t * v_ptr    = v->get_read_buffer();

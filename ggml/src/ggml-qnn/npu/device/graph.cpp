@@ -10,8 +10,7 @@
 namespace hexagon {
 
 graph::graph() noexcept {
-    _vtcm_quota_size = hexagon::vtcm_mem::get_avail_block_size();  // TODO: move to device init?
-    DEVICE_LOG_DEBUG("graph(%p) created: vtcm quota size: %zu\n", (void *) this, _vtcm_quota_size);
+    DEVICE_LOG_DEBUG("graph(%p) created\n", (void *) this);
 }
 
 graph::~graph() noexcept {
@@ -51,21 +50,26 @@ bool graph::compute(default_thread_pool * thread_pool, const float * f16_to_f32_
     DEVICE_SCOPED_PERFORMANCE_TRACKER("[%p]compute", (void *) this);
     _f16_to_f32_table = f16_to_f32_table;
     if (thread_pool) {
-        thread_pool->sync_execute(reinterpret_cast<default_thread_pool::task_type>(&graph::thread_pool_task), this);
+        thread_pool->sync_execute(&graph::thread_pool_task, this);
     } else {
-        compute_impl(nullptr, 0, 1);
+        default_thread_pool::thread_params param = {
+            0, 1, nullptr, hexagon::vtcm_mem::get_avail_block_size()
+        };  // TODO: should have a better way to initialize thread_params
+
+        compute_impl(nullptr, &param);
     }
 
     _f16_to_f32_table = nullptr;
     return true;
 }
 
-void graph::thread_pool_task(default_thread_pool * pool, size_t thread_idx, size_t thread_count, graph * graph) {
-    graph->compute_impl(pool, thread_idx, thread_count);
+void graph::thread_pool_task(default_thread_pool * pool, default_thread_pool::thread_params * thread_params,
+                             void * graph) {
+    reinterpret_cast<hexagon::graph *>(graph)->compute_impl(pool, thread_params);
 }
 
-void graph::compute_impl(default_thread_pool * pool, size_t thread_idx, size_t thread_count) {
-    hexagon::compute_params params = { thread_idx, thread_count, _vtcm_quota_size / thread_count, _f16_to_f32_table };
+void graph::compute_impl(default_thread_pool * pool, default_thread_pool::thread_params * thread_params) {
+    hexagon::compute_params params = { thread_params, _f16_to_f32_table };
 
     for (size_t i = 0; i < _tensor_count; ++i) {
         auto * dst  = _tensors[i];
@@ -79,8 +83,8 @@ void graph::compute_impl(default_thread_pool * pool, size_t thread_idx, size_t t
             DEVICE_LOG_ERROR("graph(%p) tensor[%zu] op %d compute failed\n", (void *) this, i, op);
         }
 
-        DEVICE_SCOPED_PERFORMANCE_TRACKER("[%p]sync_thread, tidx: %zu, tensor[%zu/%zu]", (void *) this, thread_idx, i,
-                                          _tensor_count);
+        DEVICE_SCOPED_PERFORMANCE_TRACKER("[%p]sync_thread, tidx: %zu, tensor[%zu/%zu]", (void *) this,
+                                          params.get_thread_index(), i, _tensor_count);
 
         const bool should_sync = requires_thread_barrier(op);
         if (pool && should_sync && i < _tensor_count - 1) {

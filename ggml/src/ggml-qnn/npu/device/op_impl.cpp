@@ -146,12 +146,12 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
     const uint8_t * src1_ptr      = src1->get_read_buffer();
     auto            total_rows    = out->get_ne(3) * out->get_ne(2) * out->get_ne(1);
     const auto      rows_per_cube = out->get_ne(2) * out->get_ne(1);
-    const auto      start_end     = hexagon::get_thread_work_slice(total_rows, params->tidx, params->tcnt);
+    const auto      start_end     = params->get_work_slice(total_rows);
     if (start_end.first >= start_end.second) {
         return true;
     }
 
-    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER(out, params->tidx);
+    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER(out, params->get_thread_index());
 
     const size_t valid_row_bytes = src0->get_ne(0) * sizeof(data_type);
     for (int64_t ir = start_end.first; ir < start_end.second; ++ir) {
@@ -300,12 +300,12 @@ template <auto _RowFunc> bool unary_op(hexagon::tensor * out, hexagon::compute_p
     const auto * src0_ptr      = src0->get_read_buffer();
     auto         total_rows    = out->get_ne(3) * out->get_ne(2) * out->get_ne(1);
     const auto   rows_per_cube = out->get_ne(2) * out->get_ne(1);
-    const auto   start_end     = hexagon::get_thread_work_slice(total_rows, params->tidx, params->tcnt);
+    const auto   start_end     = params->get_work_slice(total_rows);
     if (start_end.first >= start_end.second) {
         return true;
     }
 
-    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER(out, params->tidx);
+    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER(out, params->get_thread_index());
 
     const auto   param           = out->get_op_param<param_type>(0);
     const size_t valid_row_bytes = src0->get_ne(0) * sizeof(data_type);

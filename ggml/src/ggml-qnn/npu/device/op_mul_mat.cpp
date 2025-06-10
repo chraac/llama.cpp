@@ -34,12 +34,12 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
     auto start_end_row     = std::pair<int64_t, int64_t>{ 0, dst->get_ne(1) };
     auto start_end_element = std::pair<int64_t, int64_t>{ 0, dst->get_ne(0) };
 
-    if (total_planes >= params->tcnt) {
-        start_end_plane = hexagon::get_thread_work_slice(total_planes, params->tidx, params->tcnt);
-    } else if (dst->get_ne(1) >= params->tcnt) {
-        start_end_row = hexagon::get_thread_work_slice(dst->get_ne(1), params->tidx, params->tcnt);
+    if (total_planes >= params->get_thread_count()) {
+        start_end_plane = params->get_work_slice(total_planes);
+    } else if (dst->get_ne(1) >= params->get_thread_count()) {
+        start_end_row = params->get_work_slice(dst->get_ne(1));
     } else {
-        start_end_element = hexagon::get_thread_work_slice(dst->get_ne(0), params->tidx, params->tcnt);
+        start_end_element = params->get_work_slice(dst->get_ne(0));
     }
 
     if (start_end_plane.second <= start_end_plane.first || start_end_row.second <= start_end_row.first ||
@@ -60,7 +60,7 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
     bool            is_mem_cache               = false;
     if (is_quantized) {
         src0_plane_slice_row_count =
-            std::min(params->vtcm_quota_size / src0_actual_row_size, src0_plane_slice_row_count);
+            std::min(params->get_vtcm_quota_size() / src0_actual_row_size, src0_plane_slice_row_count);
         src0_plane_cache_size = src0_actual_row_size * src0_plane_slice_row_count;
         src0_plane_cache_ptr  = params->get_vtcm_cache(src0_plane_cache_size);
         if (src0_plane_cache_ptr == nullptr) {
@@ -80,7 +80,7 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
         src0_plane_cache_size);
 
     const size_t valid_row_bytes = src1->get_ne(0) * sizeof(data_type);
-    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_WITH_SUB_PROC(dst, params->tidx, dequant);
+    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_WITH_SUB_PROC(dst, params->get_thread_index(), dequant);
 
     uint8_t * dst_ptr = dst->get_write_buffer();
     if (!dst_ptr) {
