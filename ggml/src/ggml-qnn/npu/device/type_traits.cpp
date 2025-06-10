@@ -338,9 +338,7 @@ void dequantize_row_q4_0(const void * src, float * dst, size_t count, const floa
 
         HVX_Vector d1 = Q6_Vh_vsplat_R(src1.d);
         HVX_Vector d2 = Q6_Vh_vsplat_R(src2.d);
-        d1            = Q6_V_valign_VVR(d1, Q6_V_vzero(), hexagon::kBytesPerVector / 2);
-        d1            = Q6_V_valign_VVR(d2, d1, hexagon::kBytesPerVector / 2);
-        HVX_Vector d  = Q6_Vh_vshuff_Vh(d1);
+        HVX_Vector d  = Q6_Vh_vshuff_Vh(Q6_V_valign_VVR(d2, d1, hexagon::kBytesPerVector / 2));
 
         HVX_Vector     q_lo = load_dual_block_generic(src1, src2);
         HVX_Vector     q_hi = Q6_Vub_vlsr_VubR(q_lo, 4);
