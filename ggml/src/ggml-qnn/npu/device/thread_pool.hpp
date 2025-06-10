@@ -211,9 +211,10 @@ template <size_t _ThreadCount> class thread_pool {
             }
 
 #ifdef GGML_HEXAGON_ENABLE_PERFORMANCE_TRACKING
-            DEVICE_LOG_WARN("[profiler]worker_thread, tidx: %zu, prepare: %llu", param->tidx,
-                            static_cast<unsigned long long>(HAP_perf_qtimer_count_to_us(
-                                HAP_perf_get_qtimer_count() - pool._task_begin_cycles.load())));
+            auto task_begin_cycles = pool._task_begin_cycles.load();
+            DEVICE_LOG_WARN("[profiler]worker_thread, tidx: %zu, prepare: %lluus", param->tidx,
+                            static_cast<unsigned long long>(
+                                HAP_perf_qtimer_count_to_us(HAP_perf_get_qtimer_count() - task_begin_cycles)));
 #endif
 
             auto task = pool._task;
@@ -223,6 +224,12 @@ template <size_t _ThreadCount> class thread_pool {
 
             DEVICE_LOG_DEBUG("thread_func_impl.task_completed: %zu", param->tidx);
             qurt_barrier_wait(&pool._completed);
+
+#ifdef GGML_HEXAGON_ENABLE_PERFORMANCE_TRACKING
+            DEVICE_LOG_WARN("[profiler]worker_thread, tidx: %zu, task_end: %lluus", param->tidx,
+                            static_cast<unsigned long long>(
+                                HAP_perf_qtimer_count_to_us(HAP_perf_get_qtimer_count() - task_begin_cycles)));
+#endif
         }
 
         DEVICE_LOG_DEBUG("thread_func_impl.end: %zu", param->tidx);
