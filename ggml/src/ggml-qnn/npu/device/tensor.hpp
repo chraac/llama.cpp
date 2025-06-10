@@ -3,6 +3,8 @@
 #include <HAP_mem.h>
 #include <qurt.h>
 
+#include <atomic>
+
 #include "hexagon_npu.h"
 #include "util.hpp"
 
@@ -100,8 +102,9 @@ class tensor {
     npu_device_tensor_data_type get_type() const { return _info.type; }
 
     const uint8_t * get_read_buffer() const {
-        if (!_info.is_constant) {
+        if (!_info.is_constant && _has_modified) {
             invalidate();
+            const_cast<tensor *>(this)->_has_modified = false;  // TODO: avoid const_cast
         }
 
         return _data + _info.offset;
@@ -116,6 +119,8 @@ class tensor {
         return _data + _info.offset;
     }
 
+    void release_write_buffer() { _has_modified = true; }
+
     bool is_valid() const { return _data != nullptr; }
 
   private:
@@ -124,6 +129,7 @@ class tensor {
     int32_t                  _op_params[kMaxParamsCount] = {};
     tensor *                 _src[kMaxTensorSrc]         = {};
     uint8_t *                _data                       = nullptr;
+    std::atomic_bool         _has_modified               = false;
 
     DISABLE_COPY_AND_MOVE(tensor);
 };

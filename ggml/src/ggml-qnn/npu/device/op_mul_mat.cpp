@@ -141,6 +141,8 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
             }
         }
     }
+
+    dst->release_write_buffer();  // mark the output tensor as modified
 }
 
 bool is_quantized_mul_mat_supported(const npu_device_tensor_spec & src0, const npu_device_tensor_spec & src1) {

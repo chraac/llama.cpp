@@ -223,6 +223,8 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
         // permute(0, 2, 1, 3)
         memcpy(dst_ptr + (i3 * out_rows_per_batch + i2 + i1 * out->get_ne(1)) * out->get_nb(1), VKQ32, out->get_nb(1));
     }
+
+    out->release_write_buffer();  // mark the output tensor as modified
 }
 
 }  // namespace

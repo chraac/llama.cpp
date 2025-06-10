@@ -175,6 +175,7 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
                  static_cast<size_t>(out->get_ne(0)), reinterpret_cast<data_type *>(dst_row));
     }
 
+    out->release_write_buffer();  // mark the output tensor as modified
     return true;
 }
 
@@ -324,6 +325,7 @@ template <auto _RowFunc> bool unary_op(hexagon::tensor * out, hexagon::compute_p
                  reinterpret_cast<data_type *>(dst_row));
     }
 
+    out->release_write_buffer();  // mark the output tensor as modified
     return true;
 }
 
