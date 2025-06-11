@@ -157,8 +157,8 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
             float vs = 1.0f;  // post-softmax KQ value, expf(s - M)
 
             const auto * v_data = v_ptr + (ic * v->get_nb(1) + iv2 * v->get_nb(2) + iv3 * v->get_nb(3));
-            if (ic < v->get_ne(1) - 1) {
-                hexagon::l2fetch_row(v_data + v->get_nb(1), row_bytes_v);
+            if (ic < v->get_ne(1)) {
+                hexagon::l2fetch_row(v_data, row_bytes_v);
             }
 
             if (is_v_f16) {
