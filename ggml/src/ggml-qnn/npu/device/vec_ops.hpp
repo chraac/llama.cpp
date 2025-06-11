@@ -166,7 +166,8 @@ inline HVX_Vector hvx_scale_f32(float scale) {
     return Q6_V_vsplat_R(reinterpret_cast<const uint32_t &>(scale));
 }
 
-template <auto _Func, auto _FuncScaleConvert, typename _TParam>
+template <HVX_Vector (*_Func)(HVX_Vector, HVX_UVector *, HVX_Vector), HVX_Vector (*_FuncScaleConvert)(float),
+          typename _TParam>
 inline void vec_scale_impl(const _TParam * src, float scale, _TParam * dst, size_t count) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TParam);
 
