@@ -165,7 +165,7 @@ bool is_quantized_mul_mat_supported(const npu_device_tensor_spec & src0, const n
         return false;
     }
 
-    const auto vtcm_thread_quota_size = hexagon::vtcm_mem::get_total_size() / hexagon::kMaxThreadCount;
+    const auto vtcm_thread_quota_size = hexagon::default_thread_pool::get_per_thread_vtcm_quota();
     if (src0.ne[0] * sizeof(hexagon::dequantized_element_type) > vtcm_thread_quota_size) {
         DEVICE_LOG_DEBUG("[MUL_MAT]src0.type(%s) ne[0] is too large: %ld, vtcm_thread_quota_size: %zu\n",
                          hexagon::get_type_name(src0.type), (long) src0.ne[0], vtcm_thread_quota_size);

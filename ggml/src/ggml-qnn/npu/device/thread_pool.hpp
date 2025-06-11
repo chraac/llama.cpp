@@ -194,6 +194,8 @@ template <size_t _ThreadCount> class thread_pool {
 
     void sync_thread() { qurt_barrier_wait(&_completed); }
 
+    static size_t get_per_thread_vtcm_quota() { return vtcm_mem::get_total_size() / kMaxThreadCount; }
+
   private:
     static void thread_func_impl(thread_type * thread, void * arg) {
         NPU_UNUSED(thread);

@@ -167,25 +167,6 @@ inline HVX_Vector hvx_scale_f32(float scale) {
 }
 
 template <auto _Func, auto _FuncScaleConvert, typename _TParam>
-inline void vec_scale_aligned_impl(const _TParam * src, float scale, _TParam * dst, size_t count) {
-    constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TParam);
-
-    HVX_Vector *       src_vec_ptr = ((HVX_Vector *) src);
-    HVX_Vector * const src_vec_end = ((HVX_Vector *) src) + (count / kElementsPerVector);
-    HVX_Vector *       dst_vec_ptr = ((HVX_Vector *) dst);
-
-    HVX_Vector scale_vec = Q6_V_vsplat_R(reinterpret_cast<const uint32_t &>(scale));
-    scale_vec            = _FuncScaleConvert(scale_vec);
-
-    while (src_vec_ptr < src_vec_end) {
-        HVX_Vector curr = *src_vec_ptr;
-        dst_vec_ptr[0]  = _Func(curr, dst_vec_ptr, scale_vec);
-        dst_vec_ptr++;
-        src_vec_ptr++;
-    }
-}
-
-template <auto _Func, auto _FuncScaleConvert, typename _TParam>
 inline void vec_scale_impl(const _TParam * src, float scale, _TParam * dst, size_t count) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TParam);
 
