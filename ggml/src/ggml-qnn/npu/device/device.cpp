@@ -132,7 +132,7 @@ AEEResult npu_device_device_support_op(remote_handle64 _h, npu_device_tensor_op 
                                        const npu_device_tensor_spec * srcs, int srcsLen, boolean * is_supported) {
     NPU_UNUSED(_h);
 
-    if (!srcs || !srcsLen || !dst || !is_supported) {
+    if (!srcs || srcsLen <= 0 || !dst || !is_supported) {
         DEVICE_LOG_ERROR("npu_device_device_support_op: Invalid arguments");
         return AEE_EINVARGS;
     }
