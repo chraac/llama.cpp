@@ -142,10 +142,10 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
                     hexagon::l2fetch_row(k_data + k->get_nb(1), row_bytes_k);
                 }
 
-                s = kq_vec_dot(k_data, Q_q, DK);  // KQ value
-                s = s * scale;                    // scale KQ value
+                s = kq_vec_dot(k_data, Q_q, DK);   // KQ value
+                s = s * scale;                     // scale KQ value
                 if (logit_softcap != 0.0f) {
-                    s = logit_softcap * tanhf(s);
+                    s = logit_softcap * tanhf(s);  // TODO: vectorize this?
                 }
 
                 s += mv;  // apply mask
