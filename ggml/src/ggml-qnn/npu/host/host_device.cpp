@@ -197,7 +197,7 @@ bool npu_device::supports_op_impl(const ggml_tensor * op) {
     auto    ret       = npu_device_device_support_op(_device_handle, npu_op, &dst_spec, srcs, i, &supported);
     if (ret != AEE_SUCCESS || !supported) {
 #ifndef NDEBUG
-        auto * src0_type = ggml_type_name(op->src[0]->type);
+        auto * src0_type = i ? ggml_type_name(op->src[0]->type) : "null";
         auto * src1_type = (i > 1) ? ggml_type_name(op->src[1]->type) : "null";
         LOG_DEBUG("[%s][%s]unsupported %s(%s,%s), ret: 0x%x, supported: %d\n", get_name(), ggml_op_name(op->op),
                   ggml_type_name(op->type), src0_type, src1_type, ret, supported);
