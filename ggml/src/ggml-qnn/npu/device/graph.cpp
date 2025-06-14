@@ -19,7 +19,7 @@ graph::~graph() noexcept {
 }
 
 void graph::set_tensor(const npu_device_tensor_handle_t * tensors, int tensor_count) {
-    if (tensor_count <= 0) {
+    if (tensor_count <= 0 || !tensors) {
         _tensors.reset();
         _tensor_count = 0;
         DEVICE_LOG_DEBUG("graph(%p) set_tensor: no tensors to set\n", (void *) this);

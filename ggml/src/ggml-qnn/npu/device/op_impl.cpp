@@ -458,7 +458,7 @@ bool support_op(npu_device_tensor_op op, const npu_device_tensor_spec * dst, con
 
     auto is_supported_func = kOpCapabilities[op].is_supported;
     if (!is_supported_func || !is_supported_func(op, dst, srcs, src_len)) {
-        DEVICE_LOG_DEBUG("[%s]unsupported, is_supported_func failed\n", op_get_name(op));
+        DEVICE_LOG_DEBUG("[%s]unsupported, is_supported_func return false\n", op_get_name(op));
         return false;
     }
 
