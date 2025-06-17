@@ -55,8 +55,8 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
     const auto row_bytes_v = DV * hexagon::get_type_traits(v->get_type()).type_size;
 
     constexpr const size_t kFloatsPerVector = hexagon::kBytesPerVector / sizeof(float);
-    const auto             aligned_dk       = DK + kFloatsPerVector - DK % kFloatsPerVector;
-    const auto             aligned_dv       = DV + kFloatsPerVector - DV % kFloatsPerVector;
+    const auto             aligned_dk       = (DK + kFloatsPerVector - 1) / kFloatsPerVector * kFloatsPerVector;
+    const auto             aligned_dv       = (DV + kFloatsPerVector - 1) / kFloatsPerVector * kFloatsPerVector;
     size_t                 total_cache_size = sizeof(float) * (aligned_dk + 2 * aligned_dv);
     auto *                 cache_ptr        = params->get_vtcm_cache(total_cache_size);
     if (!cache_ptr) {
