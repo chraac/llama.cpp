@@ -12,6 +12,7 @@ bool init_f16_f32_table(float * table, size_t count);
 typedef void (*quantize_row_type)(const float * src, void * dst, size_t count);
 typedef void (*dequantize_row_type)(const void * src, dequant_target_type * dst, size_t count);
 typedef float (*vec_dot_type)(const void * src0, const void * src1, size_t count);
+typedef bool (*can_use_aligned_vec_dot_type)(const void * src0, const void * src1, size_t count);
 
 struct device_type_traits {
     npu_device_tensor_data_type type;
@@ -20,9 +21,11 @@ struct device_type_traits {
     size_t                      type_size;
     bool                        is_quantized;
 
-    dequantize_row_type to_float;
-    quantize_row_type   from_float;
-    vec_dot_type        vec_dot;
+    dequantize_row_type          to_float;
+    quantize_row_type            from_float;
+    vec_dot_type                 vec_dot;
+    vec_dot_type                 vec_dot_aligned;
+    can_use_aligned_vec_dot_type can_use_aligned_vec_dot;
 };
 
 const device_type_traits & get_type_traits(npu_device_tensor_data_type type);

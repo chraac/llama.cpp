@@ -37,8 +37,14 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
     const float m0 = powf(2.0f, -(max_bias) / n_head_log2);
     const float m1 = powf(2.0f, -(max_bias / 2.0f) / n_head_log2);
 
-    const auto q_to_vec_dot = hexagon::get_type_traits(k->get_type()).from_float;  // TODO: fix this
-    const auto kq_vec_dot   = hexagon::get_type_traits(k->get_type()).vec_dot;
+    const auto      DK               = k->get_ne(0);
+    const uint8_t * k_ptr            = k->get_read_buffer();
+    const auto &    k_type_traits    = hexagon::get_type_traits(k->get_type());
+    const auto      is_vec_aligned   = k_type_traits.can_use_aligned_vec_dot;
+    const auto      is_k_vec_aligned = is_vec_aligned(k_ptr, k_ptr, DK);
+
+    const auto q_to_vec_dot = k_type_traits.from_float;  // TODO: fix this
+    const auto kq_vec_dot   = is_k_vec_aligned ? k_type_traits.vec_dot_aligned : k_type_traits.vec_dot;
     if (!q_to_vec_dot || !kq_vec_dot) {
         DEVICE_LOG_ERROR("flash_attn_impl: unsupported data type for q, k, or v\n");
         return;
@@ -47,15 +53,14 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
     const int64_t total_rows    = q->get_ne(1) * q->get_ne(2) * q->get_ne(3);  // total number of rows in Q
     const auto    start_end_row = params->get_work_slice(total_rows);          // work slice for this thread
 
-    const auto DK          = k->get_ne(0);
     const auto DV          = v->get_ne(0);
     const auto row_bytes_q = q->get_ne(0) * hexagon::get_type_traits(q->get_type()).type_size;
-    const auto row_bytes_k = DK * hexagon::get_type_traits(k->get_type()).type_size;
+    const auto row_bytes_k = DK * k_type_traits.type_size;
     const auto row_bytes_v = DV * hexagon::get_type_traits(v->get_type()).type_size;
 
-    constexpr const size_t kFloatsPerVector = hexagon::kBytesPerVector / sizeof(float);
-    const auto             aligned_dk       = (DK + kFloatsPerVector - 1) / kFloatsPerVector * kFloatsPerVector;
-    const auto             aligned_dv       = (DV + kFloatsPerVector - 1) / kFloatsPerVector * kFloatsPerVector;
+    constexpr const size_t kFloatsPerVectorPair = hexagon::kBytesPerVector * 2 / sizeof(float);
+    const auto             aligned_dk = (DK + kFloatsPerVectorPair - 1) / kFloatsPerVectorPair * kFloatsPerVectorPair;
+    const auto             aligned_dv = (DV + kFloatsPerVectorPair - 1) / kFloatsPerVectorPair * kFloatsPerVectorPair;
     size_t                 total_cache_size = sizeof(float) * (aligned_dk + 2 * aligned_dv);
     auto *                 cache_ptr        = params->get_vtcm_cache(total_cache_size);
     if (!cache_ptr) {
@@ -77,7 +82,6 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
 
     DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_WITH_MULTI_SUB_PROC(out, params->get_thread_index(), flash_attn);
     const uint8_t * q_ptr    = q->get_read_buffer();
-    const uint8_t * k_ptr    = k->get_read_buffer();
     const uint8_t * v_ptr    = v->get_read_buffer();
     const uint8_t * mask_ptr = mask ? mask->get_read_buffer() : nullptr;
     for (auto ir = start_end_row.first; ir < start_end_row.second; ++ir) {
