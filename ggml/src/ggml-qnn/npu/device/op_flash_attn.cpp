@@ -127,6 +127,8 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
         // online softmax / attention
         // loop over n_kv and n_head_kv
         // ref: https://arxiv.org/pdf/2112.05682.pdf
+        const auto * k_plane_ptr = k_ptr + ik2 * k->get_nb(2) + ik3 * k->get_nb(3);
+        const auto * v_plane_ptr = v_ptr + iv2 * v->get_nb(2) + iv3 * v->get_nb(3);
         for (int64_t ic = 0; ic < k->get_ne(1); ++ic) {
             DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(flash_attn, 0, loop);
             float mv = mp ? (slope * f16_to_f32(mp[ic])) : 0.0f;
@@ -137,7 +139,7 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
             float s = 0.f;
             {
                 DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(flash_attn, 1, kq_dot);
-                const auto * k_data = k_ptr + (ic * k->get_nb(1) + ik2 * k->get_nb(2) + ik3 * k->get_nb(3));
+                const auto * k_data = k_plane_ptr + ic * k->get_nb(1);
                 if (ic < k->get_ne(1) - 1) {
                     hexagon::l2fetch_row(k_data + k->get_nb(1), row_bytes_k);
                 }
@@ -156,7 +158,7 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
             float ms = 1.0f;  // upon new higher max val, scale VKQ and KQ sum with this value
             float vs = 1.0f;  // post-softmax KQ value, expf(s - M)
 
-            const auto * v_data = v_ptr + (ic * v->get_nb(1) + iv2 * v->get_nb(2) + iv3 * v->get_nb(3));
+            const auto * v_data = v_plane_ptr + ic * v->get_nb(1);
             if (ic < v->get_ne(1)) {
                 hexagon::l2fetch_row(v_data, row_bytes_v);
             }
