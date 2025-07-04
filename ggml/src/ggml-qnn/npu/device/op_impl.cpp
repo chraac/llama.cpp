@@ -16,54 +16,58 @@ template <HVX_Vector (*_OpIntrinsic)(HVX_Vector, HVX_Vector), typename _TyData>
 inline void vec_op_impl(const _TyData * src0, const _TyData * src1, size_t count, _TyData * dst) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TyData);
 
-    HVX_Vector *       iptr0     = ((HVX_Vector *) src0);
-    HVX_Vector * const iptr0_end = ((HVX_Vector *) src0) + (count / kElementsPerVector);
-    HVX_Vector *       iptr1     = ((HVX_Vector *) src1);
-    HVX_Vector *       optr      = ((HVX_Vector *) dst);  // framework will ensure the dst is aligned
-    HVX_Vector         prev0     = *iptr0++;
-    HVX_Vector         prev1     = *iptr1++;
+    HVX_Vector *       src0_vec_ptr     = ((HVX_Vector *) src0);
+    HVX_Vector * const src0_vec_ptr_end = ((HVX_Vector *) src0) + count / kElementsPerVector;
+    HVX_Vector *       src1_vec_ptr     = ((HVX_Vector *) src1);
+    HVX_Vector *       dst_vec_ptr      = ((HVX_Vector *) dst);  // framework will ensure the dst is aligned
+    HVX_Vector         prev0            = *src0_vec_ptr++;
+    HVX_Vector         prev1            = *src1_vec_ptr++;
 
-    while (iptr0 < iptr0_end) {
-        HVX_Vector curr0 = *iptr0++;
-        HVX_Vector curr1 = *iptr1++;
+    while (src0_vec_ptr < src0_vec_ptr_end) {
+        HVX_Vector curr0 = *src0_vec_ptr++;
+        HVX_Vector curr1 = *src1_vec_ptr++;
         HVX_Vector s0    = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
         HVX_Vector s1    = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-        *optr++          = _OpIntrinsic(s0, s1);
-        prev0            = curr0;
-        prev1            = curr1;
+        dst_vec_ptr[0]   = _OpIntrinsic(s0, s1);
+        dst_vec_ptr++;
+        prev0 = curr0;
+        prev1 = curr1;
     }
 
     const size_t leftover = count % kElementsPerVector;
-    if ((iptr0_end - ((HVX_Vector *) src0)) > 0) {
+    if ((src0_vec_ptr_end - ((HVX_Vector *) src0)) > 0) {
         // handle the last vector
         // see also:
         //   https://github.com/UbiquitousLearning/mllm/blob/babf4410352ce8730824c87699c025a0d4ce3a6f/src/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/src/ops/LLaMAMul.cpp#L147
         //   or qualcomm sdk libs\qhl_hvx\src\qhblas_hvx\qhblas_hvx_aw_vector_add_ah.c
-        bool       should_fetch_src0 = leftover != 0 || !hexagon::is_addr_aligned(iptr0);
-        bool       should_fetch_src1 = leftover != 0 || !hexagon::is_addr_aligned(iptr1);
-        HVX_Vector curr0             = should_fetch_src0 ? *iptr0 : prev0;
-        HVX_Vector curr1             = should_fetch_src1 ? *iptr1 : prev1;
-        iptr0 += should_fetch_src0 ? 1 : 0;
-        iptr1 += should_fetch_src1 ? 1 : 0;
-        HVX_Vector s0 = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
-        HVX_Vector s1 = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-        *optr++       = _OpIntrinsic(s0, s1);
-        prev0         = curr0;
-        prev1         = curr1;
+        bool       should_fetch_src0 = leftover != 0 || !hexagon::is_addr_aligned(src0_vec_ptr);
+        bool       should_fetch_src1 = leftover != 0 || !hexagon::is_addr_aligned(src1_vec_ptr);
+        HVX_Vector curr0             = should_fetch_src0 ? *src0_vec_ptr : prev0;
+        HVX_Vector curr1             = should_fetch_src1 ? *src1_vec_ptr : prev1;
+        src0_vec_ptr += should_fetch_src0 ? 1 : 0;
+        src1_vec_ptr += should_fetch_src1 ? 1 : 0;
+        HVX_Vector s0  = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
+        HVX_Vector s1  = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
+        dst_vec_ptr[0] = _OpIntrinsic(s0, s1);
+        dst_vec_ptr++;
+        prev0 = curr0;
+        prev1 = curr1;
     }
 
     const size_t leftover_bytes = leftover * sizeof(_TyData);
     if (leftover > 0) {
         // handle the leftover elements
-        HVX_Vector curr0 =
-            (leftover_bytes + hexagon::unaligned_bytes(iptr0) > hexagon::kBytesPerVector) ? *iptr0 : prev0;
-        curr0 = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
+        HVX_Vector curr0 = (leftover_bytes + hexagon::unaligned_bytes(src0_vec_ptr) > hexagon::kBytesPerVector) ?
+                               *src0_vec_ptr :
+                               prev0;
+        curr0            = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
 
-        HVX_Vector curr1 =
-            (leftover_bytes + hexagon::unaligned_bytes(iptr1) > hexagon::kBytesPerVector) ? *iptr1 : prev1;
-        curr1 = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
+        HVX_Vector curr1 = (leftover_bytes + hexagon::unaligned_bytes(src1_vec_ptr) > hexagon::kBytesPerVector) ?
+                               *src1_vec_ptr :
+                               prev1;
+        curr1            = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
 
-        hexagon::q6op_vstu_variable_ARV(optr, leftover_bytes, _OpIntrinsic(curr0, curr1));
+        hexagon::q6op_vstu_variable_ARV(dst_vec_ptr, leftover_bytes, _OpIntrinsic(curr0, curr1));
     }
 }
 
