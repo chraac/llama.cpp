@@ -288,14 +288,6 @@ inline HVX_Vector hvx_vec_mad_f32_f32(HVX_Vector src, HVX_UVector * dst_ptr, HVX
     return Q6_Vsf_equals_Vqf32(src);
 }
 
-inline void vec_scale_f32(const float * src, float scale, float * dst, size_t count) {
-    vec_scale_impl<hvx_vec_scale_f32_f32, hvx_scale_f32, float>(src, scale, dst, count);
-}
-
-inline void vec_mad_f32(const float * src, float scale, float * dst, size_t count) {
-    vec_scale_impl<hvx_vec_mad_f32_f32, hvx_scale_f32, float>(src, scale, dst, count);
-}
-
 inline HVX_Vector hvx_scale_f16(float scale) {
     __fp16 f16_scale = scale;
     return Q6_Vh_vsplat_R(reinterpret_cast<const npu_device_fp16_t &>(f16_scale));
@@ -312,12 +304,36 @@ inline HVX_Vector hvx_vec_mad_f16_f16(HVX_Vector src, HVX_UVector * dst_ptr, HVX
     return Q6_Vhf_equals_Vqf16(result);
 }
 
+inline HVX_Vector hvx_nop(float scale) {
+    return HVX_Vector();
+}
+
+inline HVX_Vector hvx_passthru(HVX_Vector src, HVX_UVector *, HVX_Vector) {
+    return src;
+}
+
+inline void vec_scale_f32(const float * src, float scale, float * dst, size_t count) {
+    vec_scale_impl<hvx_vec_scale_f32_f32, hvx_scale_f32, float>(src, scale, dst, count);
+}
+
+inline void vec_mad_f32(const float * src, float scale, float * dst, size_t count) {
+    vec_scale_impl<hvx_vec_mad_f32_f32, hvx_scale_f32, float>(src, scale, dst, count);
+}
+
+inline void vec_cpy_f32(const float * src, float * dst, size_t count) {
+    vec_scale_impl<hvx_passthru, hvx_nop, float>(src, 0, dst, count);
+}
+
 inline void vec_scale_f16(const npu_device_fp16_t * src, float scale, npu_device_fp16_t * dst, size_t count) {
     vec_scale_impl<hvx_vec_scale_f16_f16, hvx_scale_f16, npu_device_fp16_t>(src, scale, dst, count);
 }
 
 inline void vec_mad_f16(const npu_device_fp16_t * src, float scale, npu_device_fp16_t * dst, size_t count) {
     vec_scale_impl<hvx_vec_mad_f16_f16, hvx_scale_f16, npu_device_fp16_t>(src, scale, dst, count);
+}
+
+inline void vec_cpy_f16(const npu_device_fp16_t * src, npu_device_fp16_t * dst, size_t count) {
+    vec_scale_impl<hvx_passthru, hvx_nop, npu_device_fp16_t>(src, 0, dst, count);
 }
 
 template <typename _TElem0, typename _TElem1>

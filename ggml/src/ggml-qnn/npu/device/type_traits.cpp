@@ -489,7 +489,7 @@ void dequantize_row_q4_K(const void * src, hexagon::dequant_target_type * dst, s
 }
 
 void copy_row_f16(const void * src, hexagon::dequant_target_type * dst, size_t count) {
-    memcpy(dst, src, count * sizeof(hexagon::dequant_target_type));
+    hexagon::vec_cpy_f16(reinterpret_cast<const hexagon::dequant_target_type *>(src), dst, count);
 }
 
 template <typename _TFunc> struct dot_func_traits {};

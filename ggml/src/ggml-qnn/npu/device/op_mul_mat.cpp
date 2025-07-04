@@ -300,8 +300,8 @@ bool mul_mat_f32(hexagon::tensor * out, compute_params * params) {
     switch (src1->get_type()) {
         case NPU_DATA_TYPE_F32:
             if (is_src0_quantized || src0->get_type() == NPU_DATA_TYPE_F16) {
-                kMulMatF16F32Funcs[is_src0_quantized][is_mul_mat_f16_f32_src_tensors_aligned(
-                    src0, src1, is_src0_quantized)](src0, src1, out, params);
+                kMulMatF16F32Funcs[1][is_mul_mat_f16_f32_src_tensors_aligned(src0, src1, is_src0_quantized)](
+                    src0, src1, out, params);
             } else {
                 if (is_mul_mat_f32_f32_src_tensors_aligned(src0, src1)) {
                     mul_mat_impl<hexagon::vec_dot_product_aligned_f32_f32, false>(src0, src1, out, params);
