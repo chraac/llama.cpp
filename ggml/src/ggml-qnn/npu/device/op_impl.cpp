@@ -23,15 +23,36 @@ inline void vec_op_impl(const _TyData * src0, const _TyData * src1, size_t count
     HVX_Vector         prev0            = *src0_vec_ptr++;
     HVX_Vector         prev1            = *src1_vec_ptr++;
 
-    while (src0_vec_ptr < src0_vec_ptr_end) {
+    {
+        while (src0_vec_ptr_end - src0_vec_ptr > 1) {
+            HVX_VectorPair curr0 = reinterpret_cast<HVX_VectorPair *>(src0_vec_ptr)[0];
+            HVX_VectorPair curr1 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[0];
+
+            HVX_Vector l0 = Q6_V_valign_VVR(Q6_V_lo_W(curr0), prev0, (size_t) src0);
+            HVX_Vector l1 = Q6_V_valign_VVR(Q6_V_lo_W(curr1), prev1, (size_t) src1);
+            HVX_Vector h0 = Q6_V_valign_VVR(Q6_V_hi_W(curr0), Q6_V_lo_W(curr0), (size_t) src0);
+            HVX_Vector h1 = Q6_V_valign_VVR(Q6_V_hi_W(curr1), Q6_V_lo_W(curr1), (size_t) src1);
+            prev0         = Q6_V_hi_W(curr0);
+            prev1         = Q6_V_hi_W(curr1);
+            src0_vec_ptr += 2;
+            src1_vec_ptr += 2;
+
+            dst_vec_ptr[0] = _OpIntrinsic(l0, l1);
+            dst_vec_ptr[1] = _OpIntrinsic(h0, h1);
+            dst_vec_ptr += 2;
+        }
+    }
+
+    if (src0_vec_ptr_end - src0_vec_ptr > 0) {
         HVX_Vector curr0 = *src0_vec_ptr++;
         HVX_Vector curr1 = *src1_vec_ptr++;
         HVX_Vector s0    = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
         HVX_Vector s1    = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-        dst_vec_ptr[0]   = _OpIntrinsic(s0, s1);
+        prev0            = curr0;
+        prev1            = curr1;
+
+        dst_vec_ptr[0] = _OpIntrinsic(s0, s1);
         dst_vec_ptr++;
-        prev0 = curr0;
-        prev1 = curr1;
     }
 
     const size_t leftover = count % kElementsPerVector;
@@ -46,12 +67,13 @@ inline void vec_op_impl(const _TyData * src0, const _TyData * src1, size_t count
         HVX_Vector curr1             = should_fetch_src1 ? *src1_vec_ptr : prev1;
         src0_vec_ptr += should_fetch_src0 ? 1 : 0;
         src1_vec_ptr += should_fetch_src1 ? 1 : 0;
-        HVX_Vector s0  = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
-        HVX_Vector s1  = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
+        HVX_Vector s0 = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
+        HVX_Vector s1 = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
+        prev0         = curr0;
+        prev1         = curr1;
+
         dst_vec_ptr[0] = _OpIntrinsic(s0, s1);
         dst_vec_ptr++;
-        prev0 = curr0;
-        prev1 = curr1;
     }
 
     const size_t leftover_bytes = leftover * sizeof(_TyData);

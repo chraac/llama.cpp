@@ -15,27 +15,31 @@ inline float vec_dot_product_impl(const _TElem * src0, const _TElem * src1, size
     HVX_Vector         prev0            = *src0_vec_ptr++;
     HVX_Vector         prev1            = *src1_vec_ptr++;
     HVX_Vector         sum              = Q6_V_vzero();
-    HVX_Vector         sum0             = Q6_V_vzero();
-    HVX_Vector         sum1             = Q6_V_vzero();
 
-    while (src0_vec_ptr_end - src0_vec_ptr > 1) {
-        HVX_VectorPair curr0 = reinterpret_cast<HVX_VectorPair *>(src0_vec_ptr)[0];
-        HVX_VectorPair curr1 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[0];
+    {
+        HVX_Vector sum0 = Q6_V_vzero();
+        HVX_Vector sum1 = Q6_V_vzero();
 
-        HVX_Vector l0 = Q6_V_valign_VVR(Q6_V_lo_W(curr0), prev0, (size_t) src0);
-        HVX_Vector l1 = Q6_V_valign_VVR(Q6_V_lo_W(curr1), prev1, (size_t) src1);
-        HVX_Vector h0 = Q6_V_valign_VVR(Q6_V_hi_W(curr0), Q6_V_lo_W(curr0), (size_t) src0);
-        HVX_Vector h1 = Q6_V_valign_VVR(Q6_V_hi_W(curr1), Q6_V_lo_W(curr1), (size_t) src1);
-        prev0         = Q6_V_hi_W(curr0);
-        prev1         = Q6_V_hi_W(curr1);
-        src0_vec_ptr += 2;
-        src1_vec_ptr += 2;
+        while (src0_vec_ptr_end - src0_vec_ptr > 1) {
+            HVX_VectorPair curr0 = reinterpret_cast<HVX_VectorPair *>(src0_vec_ptr)[0];
+            HVX_VectorPair curr1 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[0];
 
-        sum0 = _AddFunc(_MpyFunc(l0, l1), sum0);
-        sum1 = _AddFunc(_MpyFunc(h0, h1), sum1);
+            HVX_Vector l0 = Q6_V_valign_VVR(Q6_V_lo_W(curr0), prev0, (size_t) src0);
+            HVX_Vector l1 = Q6_V_valign_VVR(Q6_V_lo_W(curr1), prev1, (size_t) src1);
+            HVX_Vector h0 = Q6_V_valign_VVR(Q6_V_hi_W(curr0), Q6_V_lo_W(curr0), (size_t) src0);
+            HVX_Vector h1 = Q6_V_valign_VVR(Q6_V_hi_W(curr1), Q6_V_lo_W(curr1), (size_t) src1);
+            prev0         = Q6_V_hi_W(curr0);
+            prev1         = Q6_V_hi_W(curr1);
+            src0_vec_ptr += 2;
+            src1_vec_ptr += 2;
+
+            sum0 = _AddFunc(_MpyFunc(l0, l1), sum0);
+            sum1 = _AddFunc(_MpyFunc(h0, h1), sum1);
+        }
+
+        sum = _AddFunc(sum0, sum1);
     }
 
-    sum = _AddFunc(sum0, sum1);
     if (src0_vec_ptr_end - src0_vec_ptr > 0) {
         HVX_Vector curr0 = *src0_vec_ptr++;
         HVX_Vector curr1 = *src1_vec_ptr++;
