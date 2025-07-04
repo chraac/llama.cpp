@@ -12,8 +12,8 @@
 
 namespace {
 
-template <HVX_Vector (*_OpIntrinsic)(HVX_Vector, HVX_Vector), typename _TyData>
-inline void vec_op_impl(const _TyData * src0, const _TyData * src1, size_t count, _TyData * dst) {
+template <HVX_Vector (*_OpBinaryTransform)(HVX_Vector, HVX_Vector), typename _TyData>
+inline void vec_trans_op_impl(const _TyData * src0, const _TyData * src1, size_t count, _TyData * dst) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TyData);
 
     HVX_Vector *       src0_vec_ptr     = ((HVX_Vector *) src0);
@@ -37,8 +37,8 @@ inline void vec_op_impl(const _TyData * src0, const _TyData * src1, size_t count
             src0_vec_ptr += 2;
             src1_vec_ptr += 2;
 
-            dst_vec_ptr[0] = _OpIntrinsic(l0, l1);
-            dst_vec_ptr[1] = _OpIntrinsic(h0, h1);
+            dst_vec_ptr[0] = _OpBinaryTransform(l0, l1);
+            dst_vec_ptr[1] = _OpBinaryTransform(h0, h1);
             dst_vec_ptr += 2;
         }
     }
@@ -51,7 +51,7 @@ inline void vec_op_impl(const _TyData * src0, const _TyData * src1, size_t count
         prev0            = curr0;
         prev1            = curr1;
 
-        dst_vec_ptr[0] = _OpIntrinsic(s0, s1);
+        dst_vec_ptr[0] = _OpBinaryTransform(s0, s1);
         dst_vec_ptr++;
     }
 
@@ -72,7 +72,7 @@ inline void vec_op_impl(const _TyData * src0, const _TyData * src1, size_t count
         prev0         = curr0;
         prev1         = curr1;
 
-        dst_vec_ptr[0] = _OpIntrinsic(s0, s1);
+        dst_vec_ptr[0] = _OpBinaryTransform(s0, s1);
         dst_vec_ptr++;
     }
 
@@ -89,13 +89,13 @@ inline void vec_op_impl(const _TyData * src0, const _TyData * src1, size_t count
                                prev1;
         curr1            = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
 
-        hexagon::q6op_vstu_variable_ARV(dst_vec_ptr, leftover_bytes, _OpIntrinsic(curr0, curr1));
+        hexagon::q6op_vstu_variable_ARV(dst_vec_ptr, leftover_bytes, _OpBinaryTransform(curr0, curr1));
     }
 }
 
-template <HVX_Vector (*_OpIntrinsic)(HVX_Vector, HVX_Vector)>
+template <HVX_Vector (*_OpBinaryTransform)(HVX_Vector, HVX_Vector)>
 inline void vec_op_f32_f32(const float * src0, const float * src1, size_t count, float * dst) {
-    vec_op_impl<_OpIntrinsic, float>(src0, src1, count, dst);
+    vec_trans_op_impl<_OpBinaryTransform, float>(src0, src1, count, dst);
 }
 
 inline HVX_Vector vadd_f32_f32(HVX_Vector a, HVX_Vector b) {
@@ -110,10 +110,10 @@ inline HVX_Vector vmul_f32_f32(HVX_Vector a, HVX_Vector b) {
     return Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_VsfVsf(a, b));
 }
 
-template <HVX_Vector (*_OpIntrinsic)(HVX_Vector, HVX_Vector)>
+template <HVX_Vector (*_OpBinaryTransform)(HVX_Vector, HVX_Vector)>
 inline void vec_op_f16_f16(const npu_device_fp16_t * src0, const npu_device_fp16_t * src1, size_t count,
                            npu_device_fp16_t * dst) {
-    vec_op_impl<_OpIntrinsic, npu_device_fp16_t>(src0, src1, count, dst);
+    vec_trans_op_impl<_OpBinaryTransform, npu_device_fp16_t>(src0, src1, count, dst);
 }
 
 inline HVX_Vector vadd_f16_f16(HVX_Vector a, HVX_Vector b) {
