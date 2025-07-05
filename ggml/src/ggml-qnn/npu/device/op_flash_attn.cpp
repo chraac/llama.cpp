@@ -13,9 +13,16 @@ inline float f16_to_f32(const npu_device_fp16_t src) {
 }
 
 // From: ggml/src/ggml-cpu/ops.cpp
+template <bool _IsKvF16>
 void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hexagon::tensor * k,
                      const hexagon::tensor * v, const hexagon::tensor * mask, hexagon::compute_params * params) {
     static_assert(3 <= hexagon::kMaxParamsCount, "flash_attn op params count exceeds max params count");
+
+    if (k->get_type() != (_IsKvF16 ? NPU_DATA_TYPE_F16 : NPU_DATA_TYPE_F32) || v->get_type() != k->get_type()) {
+        DEVICE_LOG_ERROR("flash_attn_impl: k and v must be F16 type, got k: %s, v: %s\n",
+                         hexagon::get_type_name(k->get_type()), hexagon::get_type_name(v->get_type()));
+        return;
+    }
 
     float       scale         = out->get_op_param<float>(0);
     const float max_bias      = out->get_op_param<float>(1);
@@ -65,11 +72,10 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
     }
 
     // loop over n_batch and n_head
-    const auto rows_per_batch     = q->get_ne(2) * q->get_ne(1);
-    const auto out_rows_per_batch = out->get_ne(2) * out->get_ne(1);
-    const bool is_v_f16 =
-        v->get_type() == NPU_DATA_TYPE_F16;  // check if V is in FP16 format, otherwise it is in FP32 format
-    uint8_t * dst_ptr = out->get_write_buffer();
+    constexpr bool is_v_f16           = _IsKvF16;  // check if V is in FP16 format, otherwise it is in FP32 format
+    const auto     rows_per_batch     = q->get_ne(2) * q->get_ne(1);
+    const auto     out_rows_per_batch = out->get_ne(2) * out->get_ne(1);
+    uint8_t *      dst_ptr            = out->get_write_buffer();
     if (!dst_ptr) {
         DEVICE_LOG_ERROR("flash_attn_impl: dst_ptr is not writable, tensor: %p, type: %s\n", (void *) out,
                          hexagon::get_type_name(out->get_type()));
@@ -99,7 +105,7 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
         auto *  Q_q   = reinterpret_cast<npu_device_fp16_t *>(
             VKQ32 + 2 * aligned_dv);  // (temporary) buffer for Q converted to quantized/FP16
 
-        if (is_v_f16) {
+        if constexpr (is_v_f16) {
             memset(VKQ16, 0, DV * sizeof(npu_device_fp16_t));
         } else {
             memset(VKQ32, 0, DV * sizeof(float));
@@ -164,7 +170,7 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
                 hexagon::l2fetch_row(v_data, row_bytes_v);
             }
 
-            if (is_v_f16) {
+            if constexpr (is_v_f16) {
                 if (s > M) {
                     // s is new maximum, ms < 1.0f, vs == expf(s - s) == 1.0f
                     M  = s;
@@ -204,7 +210,7 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
             S = S * ms + vs;  // scale and increment sum with partial sum
         }
 
-        if (is_v_f16) {
+        if constexpr (is_v_f16) {
             // TODO: use a more efficient conversion
             for (int64_t d = 0; d < DV; ++d) {
                 VKQ32[d] = f16_to_f32(VKQ16[d]);
@@ -250,7 +256,11 @@ bool flash_attn_f32(tensor * out, compute_params * params) {
         return false;
     }
 
-    flash_attn_impl(out, q, k, v, mask, params);
+    if (k->get_type() == NPU_DATA_TYPE_F16) {
+        flash_attn_impl<true>(out, q, k, v, mask, params);
+    } else {
+        flash_attn_impl<false>(out, q, k, v, mask, params);
+    }
     return true;
 }
 
