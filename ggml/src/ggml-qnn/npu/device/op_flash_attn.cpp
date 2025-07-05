@@ -87,6 +87,10 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
     const uint8_t * k_ptr    = k->get_read_buffer();
     const uint8_t * v_ptr    = v->get_read_buffer();
     const uint8_t * mask_ptr = mask ? mask->get_read_buffer() : nullptr;
+    float *         VKQ32    = reinterpret_cast<float *>(cache_ptr);           // FP32 VKQ accumulator
+    auto * VKQ16 = reinterpret_cast<npu_device_fp16_t *>(VKQ32 + aligned_dv);  // (temporary) FP16 VKQ accumulator
+    auto * Q_q   = reinterpret_cast<npu_device_fp16_t *>(
+        VKQ32 + 2 * aligned_dv);  // (temporary) buffer for Q converted to quantized/FP16
     for (auto ir = start_end_row.first; ir < start_end_row.second; ++ir) {
         // q indices
         const auto iq3 = ir / rows_per_batch;
@@ -97,13 +101,8 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
         const float    slope =
             (max_bias > 0.0f) ? h < n_head_log2 ? powf(m0, h + 1) : powf(m1, 2 * (h - n_head_log2) + 1) : 1.0f;
 
-        float S = 0.0f;                                                             // sum
-        float M = -INFINITY;                                                        // maximum KQ value
-
-        float * VKQ32 = reinterpret_cast<float *>(cache_ptr);                       // FP32 VKQ accumulator
-        auto *  VKQ16 = reinterpret_cast<npu_device_fp16_t *>(VKQ32 + aligned_dv);  // (temporary) FP16 VKQ accumulator
-        auto *  Q_q   = reinterpret_cast<npu_device_fp16_t *>(
-            VKQ32 + 2 * aligned_dv);  // (temporary) buffer for Q converted to quantized/FP16
+        float S = 0.0f;       // sum
+        float M = -INFINITY;  // maximum KQ value
 
         const auto * q_data = q_ptr + (iq1 * q->get_nb(1) + iq2 * q->get_nb(2) + iq3 * q->get_nb(3));
         hexagon::l2fetch_row(q_data, row_bytes_q);
