@@ -12,6 +12,9 @@ inline float f16_to_f32(const npu_device_fp16_t src) {
     return reinterpret_cast<const __fp16 &>(src);
 }
 
+constexpr const float kF32Infinity  = -INFINITY;  // Use negative infinity to indicate invalid values in F32 tensors
+constexpr const __fp16 kF16Infinity = (__fp16) kF32Infinity;
+
 // From: ggml/src/ggml-cpu/ops.cpp
 template <bool _IsKvF16>
 void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hexagon::tensor * k,
@@ -96,9 +99,10 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
         const uint32_t h = iq2;  // head index
         const float    slope =
             (max_bias > 0.0f) ? h < n_head_log2 ? powf(m0, h + 1) : powf(m1, 2 * (h - n_head_log2) + 1) : 1.0f;
+        const bool is_slope_valid = slope != kF32Infinity;
 
         float S = 0.0f;                                                             // sum
-        float M = -INFINITY;                                                        // maximum KQ value
+        float M = kF32Infinity;                                                     // maximum KQ value
 
         float * VKQ32 = reinterpret_cast<float *>(cache_ptr);                       // FP32 VKQ accumulator
         auto *  VKQ16 = reinterpret_cast<npu_device_fp16_t *>(VKQ32 + aligned_dv);  // (temporary) FP16 VKQ accumulator
@@ -134,78 +138,82 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
         // ref: https://arxiv.org/pdf/2112.05682.pdf
         const auto * k_plane_ptr = k_ptr + ik2 * k->get_nb(2) + ik3 * k->get_nb(3);
         const auto * v_plane_ptr = v_ptr + iv2 * v->get_nb(2) + iv3 * v->get_nb(3);
-        for (int64_t ic = 0; ic < k->get_ne(1); ++ic) {
-            DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(flash_attn, 0, loop);
-            float mv = mp ? (slope * f16_to_f32(mp[ic])) : 0.0f;
-            if (mv == -INFINITY) {
-                continue;
-            }
-
-            float s = 0.f;
-            {
-                DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(flash_attn, 1, kq_dot);
-                const auto * k_data = k_plane_ptr + ic * k->get_nb(1);
-                if (ic < k->get_ne(1) - 1) {
-                    hexagon::l2fetch_row(k_data + k->get_nb(1), row_bytes_k);
+        if (is_slope_valid) {
+            for (int64_t ic = 0; ic < k->get_ne(1); ++ic) {
+                DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(flash_attn, 0, loop);
+                const auto mask_elem = mp[ic];  // mask element for current channel
+                if (reinterpret_cast<const __fp16 &>(mask_elem) == kF16Infinity) {
+                    continue;
                 }
 
-                s = kq_vec_dot(k_data, Q_q, DK);   // KQ value
-                s = s * scale;                     // scale KQ value
-                if (logit_softcap != 0.0f) {
-                    s = logit_softcap * tanhf(s);  // TODO: vectorize this?
-                }
+                float mv = mp ? (slope * f16_to_f32(mask_elem)) : 0.0f;
 
-                s += mv;  // apply mask
-            }
-
-            const float Mold = M;
-
-            float ms = 1.0f;  // upon new higher max val, scale VKQ and KQ sum with this value
-            float vs = 1.0f;  // post-softmax KQ value, expf(s - M)
-
-            const auto * v_data = v_plane_ptr + ic * v->get_nb(1);
-            if (ic < v->get_ne(1)) {
-                hexagon::l2fetch_row(v_data, row_bytes_v);
-            }
-
-            if constexpr (is_v_f16) {
-                if (s > M) {
-                    // s is new maximum, ms < 1.0f, vs == expf(s - s) == 1.0f
-                    M  = s;
-                    ms = expf(Mold - M);
-
-                    // V = V*expf(Mold - M)
-                    hexagon::vec_scale_f16(VKQ16, ms, VKQ16, DV);
-                } else {
-                    // no new maximum, ms == 1.0f, vs != 1.0f
-                    vs = expf(s - M);
-                }
-
-                // V += v*expf(s - M)
-                DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(flash_attn, 2, mad);
-                hexagon::vec_mad_f16(reinterpret_cast<const npu_device_fp16_t *>(v_data), vs, VKQ16, DV);
-            } else {
-                if (s > M) {
-                    // s is new maximum, ms < 1.0f, vs == expf(s - s) == 1.0f
-                    M  = s;
-                    ms = expf(Mold - M);
-
-                    // V = V*expf(Mold - M)
-                    hexagon::vec_scale_f32(VKQ32, ms, VKQ32, DV);
-                } else {
-                    // no new maximum, ms == 1.0f, vs != 1.0f
-                    vs = expf(s - M);
-                }
-
-                // V += v*expf(s - M)
-                DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(flash_attn, 2, mad);
+                float s = 0.f;
                 {
-                    // V is F32
-                    hexagon::vec_mad_f32(reinterpret_cast<const float *>(v_data), vs, VKQ32, DV);
-                }
-            }
+                    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(flash_attn, 1, kq_dot);
+                    const auto * k_data = k_plane_ptr + ic * k->get_nb(1);
+                    if (ic < k->get_ne(1) - 1) {
+                        hexagon::l2fetch_row(k_data + k->get_nb(1), row_bytes_k);
+                    }
 
-            S = S * ms + vs;  // scale and increment sum with partial sum
+                    s = kq_vec_dot(k_data, Q_q, DK);   // KQ value
+                    s = s * scale;                     // scale KQ value
+                    if (logit_softcap != 0.0f) {
+                        s = logit_softcap * tanhf(s);  // TODO: vectorize this?
+                    }
+
+                    s += mv;  // apply mask
+                }
+
+                const float Mold = M;
+
+                float ms = 1.0f;  // upon new higher max val, scale VKQ and KQ sum with this value
+                float vs = 1.0f;  // post-softmax KQ value, expf(s - M)
+
+                const auto * v_data = v_plane_ptr + ic * v->get_nb(1);
+                if (ic < v->get_ne(1)) {
+                    hexagon::l2fetch_row(v_data, row_bytes_v);
+                }
+
+                if constexpr (is_v_f16) {
+                    if (s > M) {
+                        // s is new maximum, ms < 1.0f, vs == expf(s - s) == 1.0f
+                        M  = s;
+                        ms = expf(Mold - M);
+
+                        // V = V*expf(Mold - M)
+                        hexagon::vec_scale_f16(VKQ16, ms, VKQ16, DV);
+                    } else {
+                        // no new maximum, ms == 1.0f, vs != 1.0f
+                        vs = expf(s - M);
+                    }
+
+                    // V += v*expf(s - M)
+                    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(flash_attn, 2, mad);
+                    hexagon::vec_mad_f16(reinterpret_cast<const npu_device_fp16_t *>(v_data), vs, VKQ16, DV);
+                } else {
+                    if (s > M) {
+                        // s is new maximum, ms < 1.0f, vs == expf(s - s) == 1.0f
+                        M  = s;
+                        ms = expf(Mold - M);
+
+                        // V = V*expf(Mold - M)
+                        hexagon::vec_scale_f32(VKQ32, ms, VKQ32, DV);
+                    } else {
+                        // no new maximum, ms == 1.0f, vs != 1.0f
+                        vs = expf(s - M);
+                    }
+
+                    // V += v*expf(s - M)
+                    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(flash_attn, 2, mad);
+                    {
+                        // V is F32
+                        hexagon::vec_mad_f32(reinterpret_cast<const float *>(v_data), vs, VKQ32, DV);
+                    }
+                }
+
+                S = S * ms + vs;  // scale and increment sum with partial sum
+            }
         }
 
         if constexpr (is_v_f16) {
