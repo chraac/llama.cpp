@@ -19,8 +19,37 @@ inline float vec_dot_product_impl(const _TElem * src0, const _TElem * src1, size
     {
         HVX_Vector sum0 = Q6_V_vzero();
         HVX_Vector sum1 = Q6_V_vzero();
+        HVX_Vector sum2 = Q6_V_vzero();
+        HVX_Vector sum3 = Q6_V_vzero();
 
-        while (src0_vec_ptr_end - src0_vec_ptr > 1) {
+        while (src0_vec_ptr_end - src0_vec_ptr > 3) {
+            HVX_VectorPair curr00 = reinterpret_cast<HVX_VectorPair *>(src0_vec_ptr)[0];
+            HVX_VectorPair curr01 = reinterpret_cast<HVX_VectorPair *>(src0_vec_ptr)[1];
+            HVX_VectorPair curr10 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[0];
+            HVX_VectorPair curr11 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[1];
+
+            HVX_Vector l00 = Q6_V_valign_VVR(Q6_V_lo_W(curr00), prev0, (size_t) src0);
+            HVX_Vector l10 = Q6_V_valign_VVR(Q6_V_lo_W(curr10), prev1, (size_t) src1);
+            HVX_Vector h00 = Q6_V_valign_VVR(Q6_V_hi_W(curr00), Q6_V_lo_W(curr00), (size_t) src0);
+            HVX_Vector h10 = Q6_V_valign_VVR(Q6_V_hi_W(curr10), Q6_V_lo_W(curr10), (size_t) src1);
+
+            HVX_Vector l01 = Q6_V_valign_VVR(Q6_V_lo_W(curr01), Q6_V_hi_W(curr00), (size_t) src0);
+            HVX_Vector l11 = Q6_V_valign_VVR(Q6_V_lo_W(curr11), Q6_V_hi_W(curr10), (size_t) src1);
+            HVX_Vector h01 = Q6_V_valign_VVR(Q6_V_hi_W(curr01), Q6_V_lo_W(curr01), (size_t) src0);
+            HVX_Vector h11 = Q6_V_valign_VVR(Q6_V_hi_W(curr11), Q6_V_lo_W(curr11), (size_t) src1);
+
+            prev0 = Q6_V_hi_W(curr01);
+            prev1 = Q6_V_hi_W(curr11);
+            src0_vec_ptr += 4;
+            src1_vec_ptr += 4;
+
+            sum0 = _AddFunc(_MpyFunc(l00, l10), sum0);
+            sum1 = _AddFunc(_MpyFunc(h00, h10), sum1);
+            sum2 = _AddFunc(_MpyFunc(l01, l11), sum2);
+            sum3 = _AddFunc(_MpyFunc(h01, h11), sum3);
+        }
+
+        if (src0_vec_ptr_end - src0_vec_ptr > 1) {
             HVX_VectorPair curr0 = reinterpret_cast<HVX_VectorPair *>(src0_vec_ptr)[0];
             HVX_VectorPair curr1 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[0];
 
@@ -37,7 +66,9 @@ inline float vec_dot_product_impl(const _TElem * src0, const _TElem * src1, size
             sum1 = _AddFunc(_MpyFunc(h0, h1), sum1);
         }
 
-        sum = _AddFunc(sum0, sum1);
+        sum0 = _AddFunc(sum2, sum0);
+        sum1 = _AddFunc(sum3, sum1);
+        sum  = _AddFunc(sum0, sum1);
     }
 
     if (src0_vec_ptr_end - src0_vec_ptr > 0) {
