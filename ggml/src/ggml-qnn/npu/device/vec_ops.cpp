@@ -98,12 +98,14 @@ inline float vec_dot_product_aligned_impl(const _TElem * src0, const _TElem * sr
     HVX_Vector *       src0_vec_ptr     = ((HVX_Vector *) src0);
     HVX_Vector * const src0_vec_ptr_end = ((HVX_Vector *) src0) + count / kElementsPerVector;
     HVX_Vector *       src1_vec_ptr     = ((HVX_Vector *) src1);
-    HVX_Vector         sum0             = Q6_V_vzero();
-    HVX_Vector         sum1             = Q6_V_vzero();
+    HVX_Vector         sum              = Q6_V_vzero();
 
     {
+        HVX_Vector sum0 = Q6_V_vzero();
+        HVX_Vector sum1 = Q6_V_vzero();
         HVX_Vector sum2 = Q6_V_vzero();
         HVX_Vector sum3 = Q6_V_vzero();
+
         while (src0_vec_ptr_end - src0_vec_ptr > 3) {
             HVX_VectorPair curr00 = reinterpret_cast<HVX_VectorPair *>(src0_vec_ptr)[0];
             HVX_VectorPair curr01 = reinterpret_cast<HVX_VectorPair *>(src0_vec_ptr)[1];
@@ -130,16 +132,17 @@ inline float vec_dot_product_aligned_impl(const _TElem * src0, const _TElem * sr
 
         sum0 = _AddFunc(sum2, sum0);
         sum1 = _AddFunc(sum3, sum1);
+        sum  = _AddFunc(sum0, sum1);
     }
 
     if (src0_vec_ptr_end - src0_vec_ptr > 0) {
         HVX_Vector curr0 = src0_vec_ptr[0];
         HVX_Vector curr1 = src1_vec_ptr[0];
 
-        sum0 = _AddFunc(_MpyFunc(curr0, curr1), sum0);
+        sum = _AddFunc(_MpyFunc(curr0, curr1), sum);
     }
 
-    return _ReduceFunc(_AddFunc(sum0, sum1));
+    return _ReduceFunc(sum);
 }
 
 inline HVX_Vector vec_mpy_qf32(HVX_Vector src0, HVX_Vector src1) {
