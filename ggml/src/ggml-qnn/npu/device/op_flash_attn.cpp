@@ -105,6 +105,9 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
         auto *  Q_q   = reinterpret_cast<npu_device_fp16_t *>(
             VKQ32 + 2 * aligned_dv);  // (temporary) buffer for Q converted to quantized/FP16
 
+        const auto * q_data = q_ptr + (iq1 * q->get_nb(1) + iq2 * q->get_nb(2) + iq3 * q->get_nb(3));
+        hexagon::l2fetch_row(q_data, row_bytes_q);
+
         if constexpr (is_v_f16) {
             memset(VKQ16, 0, DV * sizeof(npu_device_fp16_t));
         } else {
@@ -123,11 +126,6 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
         // v indices
         const int iv3 = iq3 / rv3;
         const int iv2 = iq2 / rv2;
-
-        const auto * q_data = q_ptr + (iq1 * q->get_nb(1) + iq2 * q->get_nb(2) + iq3 * q->get_nb(3));
-        if (iq1 < q->get_ne(1) - 1) {
-            hexagon::l2fetch_row(q_data + q->get_nb(1), row_bytes_q);
-        }
 
         q_to_vec_dot(reinterpret_cast<const float *>(q_data), Q_q, DK);
 
