@@ -252,20 +252,20 @@ typedef void (*mul_mat_func_type)(hexagon::tensor * src0, hexagon::tensor * src1
 
 constexpr const mul_mat_func_type kMulMatF16F32Funcs[2] = {
     // quantized and non-quantized
-    mul_mat_impl<hexagon::vec_dot_product_f16_f32, true>,          // F32 * F32 quantized unaligned
-    mul_mat_impl<hexagon::vec_dot_product_aligned_f16_f32, true>,  // F32 * F32 quantized aligned
+    mul_mat_impl<hexagon::vec_dot_product_vqf32_f16_f32, true>,          // F32 * F32 quantized unaligned
+    mul_mat_impl<hexagon::vec_dot_product_aligned_vqf32_f16_f32, true>,  // F32 * F32 quantized aligned
 };
 
 constexpr const mul_mat_func_type kMulMatF16Funcs[2][2] = {
     {
      // non-quantized
-        mul_mat_impl<hexagon::vec_dot_product_f16_f16, false>, // F16 * F16 unaligned
-        mul_mat_impl<hexagon::vec_dot_product_aligned_f16_f16, false>,                                        // F16 * F16 aligned
+        mul_mat_impl<hexagon::vec_dot_product_vqf16_f16_f16, false>, // F16 * F16 unaligned
+        mul_mat_impl<hexagon::vec_dot_product_aligned_vqf16_f16_f16, false>,                                              // F16 * F16 aligned
     },
     {
      // quantized
-        mul_mat_impl<hexagon::vec_dot_product_f16_f16,                                                 true>,         // F16 * F16 quantized unaligned
-        mul_mat_impl<hexagon::vec_dot_product_aligned_f16_f16, true>,  // F16 * F16 quantized aligned
+        mul_mat_impl<hexagon::vec_dot_product_vqf16_f16_f16,                                                       true>,         // F16 * F16 quantized unaligned
+        mul_mat_impl<hexagon::vec_dot_product_aligned_vqf16_f16_f16, true>,  // F16 * F16 quantized aligned
     },
 };
 
@@ -297,9 +297,9 @@ bool mul_mat_f32(hexagon::tensor * out, compute_params * params) {
                                                                                                           out, params);
             } else {
                 if (is_mul_mat_f32_f32_src_tensors_aligned(src0, src1)) {
-                    mul_mat_impl<hexagon::vec_dot_product_aligned_f32_f32, false>(src0, src1, out, params);
+                    mul_mat_impl<hexagon::vec_dot_product_aligned_vqf32_f32_f32, false>(src0, src1, out, params);
                 } else {
-                    mul_mat_impl<hexagon::vec_dot_product_f32_f32, false>(src0, src1, out, params);
+                    mul_mat_impl<hexagon::vec_dot_product_vqf32_f32_f32, false>(src0, src1, out, params);
                 }
             }
             return true;

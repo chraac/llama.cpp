@@ -4,9 +4,9 @@
 
 namespace {
 
-template <typename _TElem, HVX_Vector (*_MpyFunc)(HVX_Vector, HVX_Vector),
-          HVX_Vector (*_AddFunc)(HVX_Vector, HVX_Vector), float (*_ReduceFunc)(HVX_Vector)>
-inline float vec_dot_product_impl(const _TElem * src0, const _TElem * src1, size_t count) {
+template <typename _TElem, typename _TRet, HVX_Vector (*_MpyFunc)(HVX_Vector, HVX_Vector),
+          HVX_Vector (*_AddFunc)(HVX_Vector, HVX_Vector), _TRet (*_ReduceFunc)(HVX_Vector)>
+inline _TRet vec_dot_product_impl(const _TElem * src0, const _TElem * src1, size_t count) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TElem);
 
     HVX_Vector *       src0_vec_ptr     = ((HVX_Vector *) src0);
@@ -90,9 +90,9 @@ inline float vec_dot_product_impl(const _TElem * src0, const _TElem * src1, size
     return _ReduceFunc(sum);
 }
 
-template <typename _TElem, HVX_Vector (*_MpyFunc)(HVX_Vector, HVX_Vector),
-          HVX_Vector (*_AddFunc)(HVX_Vector, HVX_Vector), float (*_ReduceFunc)(HVX_Vector)>
-inline float vec_dot_product_aligned_impl(const _TElem * src0, const _TElem * src1, size_t count) {
+template <typename _TElem, typename _TRet, HVX_Vector (*_MpyFunc)(HVX_Vector, HVX_Vector),
+          HVX_Vector (*_AddFunc)(HVX_Vector, HVX_Vector), _TRet (*_ReduceFunc)(HVX_Vector)>
+inline _TRet vec_dot_product_aligned_impl(const _TElem * src0, const _TElem * src1, size_t count) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TElem);
 
     HVX_Vector *       src0_vec_ptr     = ((HVX_Vector *) src0);
@@ -161,10 +161,10 @@ inline HVX_Vector vec_add_qf16(HVX_Vector sum, HVX_Vector result) {
     return Q6_Vqf16_vadd_Vqf16Vqf16(sum, result);
 }
 
-template <typename _TElem0, typename _TElem1, HVX_VectorPair (*_ExpandFunc)(HVX_Vector, HVX_Vector),
+template <typename _TElem0, typename _TElem1, typename _TRet, HVX_VectorPair (*_ExpandFunc)(HVX_Vector, HVX_Vector),
           HVX_Vector (*_MpyFunc)(HVX_Vector, HVX_Vector), HVX_Vector (*_AddFunc)(HVX_Vector, HVX_Vector),
-          float (*_ReduceFunc)(HVX_Vector)>
-inline float vec_dot_product_mixed_impl(const _TElem0 * src0, const _TElem1 * src1, size_t count) {
+          _TRet (*_ReduceFunc)(HVX_Vector)>
+inline _TRet vec_dot_product_mixed_impl(const _TElem0 * src0, const _TElem1 * src1, size_t count) {
     static_assert(sizeof(_TElem0) < sizeof(_TElem1), "Element size mismatch: _TElem0 must be smaller than _TElem1");
     static_assert((sizeof(_TElem1) / sizeof(_TElem0)) == 2,
                   "Element size mismatch: _TElem1 must be twice the size of _TElem0");
@@ -260,10 +260,10 @@ inline float vec_dot_product_mixed_impl(const _TElem0 * src0, const _TElem1 * sr
     return _ReduceFunc(sum);
 }
 
-template <typename _TElem0, typename _TElem1, HVX_VectorPair (*_ExpandFunc)(HVX_Vector, HVX_Vector),
+template <typename _TElem0, typename _TElem1, typename _TRet, HVX_VectorPair (*_ExpandFunc)(HVX_Vector, HVX_Vector),
           HVX_Vector (*_MpyFunc)(HVX_Vector, HVX_Vector), HVX_Vector (*_AddFunc)(HVX_Vector, HVX_Vector),
-          float (*_ReduceFunc)(HVX_Vector)>
-inline float vec_dot_product_mix_aligned_impl(const _TElem0 * src0, const _TElem1 * src1, size_t count) {
+          _TRet (*_ReduceFunc)(HVX_Vector)>
+inline _TRet vec_dot_product_mix_aligned_impl(const _TElem0 * src0, const _TElem1 * src1, size_t count) {
     static_assert(sizeof(_TElem0) < sizeof(_TElem1), "Element size mismatch: _TElem0 must be smaller than _TElem1");
     static_assert((sizeof(_TElem1) / sizeof(_TElem0)) == 2,
                   "Element size mismatch: _TElem1 must be twice the size of _TElem0");
@@ -322,32 +322,63 @@ inline float vec_dot_product_mix_aligned_impl(const _TElem0 * src0, const _TElem
 
 namespace hexagon {
 
+HVX_Vector vec_dot_product_vqf32_f32_f32(const float * src0, const float * src1, size_t count) {
+    return vec_dot_product_impl<float, HVX_Vector, vec_mpy_qf32, vec_add_qf32, vec_reduction_qf32>(src0, src1, count);
+}
+
+HVX_Vector vec_dot_product_aligned_vqf32_f32_f32(const float * src0, const float * src1, size_t count) {
+    return vec_dot_product_aligned_impl<float, HVX_Vector, vec_mpy_qf32, vec_add_qf32, vec_reduction_qf32>(src0, src1,
+                                                                                                           count);
+}
+
 float vec_dot_product_f32_f32(const float * src0, const float * src1, size_t count) {
-    return vec_dot_product_impl<float, vec_mpy_qf32, vec_add_qf32, vec_reduction_f32_qf32>(src0, src1, count);
+    return vec_dot_product_impl<float, float, vec_mpy_qf32, vec_add_qf32, vec_reduction_f32_qf32>(src0, src1, count);
 }
 
 float vec_dot_product_aligned_f32_f32(const float * src0, const float * src1, size_t count) {
-    return vec_dot_product_aligned_impl<float, vec_mpy_qf32, vec_add_qf32, vec_reduction_f32_qf32>(src0, src1, count);
+    return vec_dot_product_aligned_impl<float, float, vec_mpy_qf32, vec_add_qf32, vec_reduction_f32_qf32>(src0, src1,
+                                                                                                          count);
 }
 
-float vec_dot_product_f16_f16(const npu_device_fp16_t * src0, const npu_device_fp16_t * src1, size_t count) {
-    return vec_dot_product_impl<npu_device_fp16_t, vec_mpy_qf16, vec_add_qf16, vec_reduction_qf16_f32>(src0, src1,
-                                                                                                       count);
-}
-
-float vec_dot_product_aligned_f16_f16(const npu_device_fp16_t * src0, const npu_device_fp16_t * src1, size_t count) {
-    return vec_dot_product_aligned_impl<npu_device_fp16_t, vec_mpy_qf16, vec_add_qf16, vec_reduction_qf16_f32>(
+HVX_Vector vec_dot_product_vqf16_f16_f16(const npu_device_fp16_t * src0, const npu_device_fp16_t * src1, size_t count) {
+    return vec_dot_product_impl<npu_device_fp16_t, HVX_Vector, vec_mpy_qf16, vec_add_qf16, vec_reduction_qf16>(
         src0, src1, count);
 }
 
+HVX_Vector vec_dot_product_aligned_vqf16_f16_f16(const npu_device_fp16_t * src0, const npu_device_fp16_t * src1,
+                                                 size_t count) {
+    return vec_dot_product_aligned_impl<npu_device_fp16_t, HVX_Vector, vec_mpy_qf16, vec_add_qf16, vec_reduction_qf16>(
+        src0, src1, count);
+}
+
+float vec_dot_product_f16_f16(const npu_device_fp16_t * src0, const npu_device_fp16_t * src1, size_t count) {
+    return vec_dot_product_impl<npu_device_fp16_t, float, vec_mpy_qf16, vec_add_qf16, vec_reduction_qf16_f32>(
+        src0, src1, count);
+}
+
+float vec_dot_product_aligned_f16_f16(const npu_device_fp16_t * src0, const npu_device_fp16_t * src1, size_t count) {
+    return vec_dot_product_aligned_impl<npu_device_fp16_t, float, vec_mpy_qf16, vec_add_qf16, vec_reduction_qf16_f32>(
+        src0, src1, count);
+}
+
+HVX_Vector vec_dot_product_vqf32_f16_f32(const npu_device_fp16_t * src0, const float * src1, size_t count) {
+    return vec_dot_product_mixed_impl<npu_device_fp16_t, float, HVX_Vector, hvx_vsf_convert_vhf, vec_mpy_qf32,
+                                      vec_add_qf32, vec_reduction_qf32>(src0, src1, count);
+}
+
+HVX_Vector vec_dot_product_aligned_vqf32_f16_f32(const npu_device_fp16_t * src0, const float * src1, size_t count) {
+    return vec_dot_product_mix_aligned_impl<npu_device_fp16_t, float, HVX_Vector, hvx_vsf_convert_vhf, vec_mpy_qf32,
+                                            vec_add_qf32, vec_reduction_qf32>(src0, src1, count);
+}
+
 float vec_dot_product_f16_f32(const npu_device_fp16_t * src0, const float * src1, size_t count) {
-    return vec_dot_product_mixed_impl<npu_device_fp16_t, float, hvx_vsf_convert_vhf, vec_mpy_qf32, vec_add_qf32,
+    return vec_dot_product_mixed_impl<npu_device_fp16_t, float, float, hvx_vsf_convert_vhf, vec_mpy_qf32, vec_add_qf32,
                                       vec_reduction_f32_qf32>(src0, src1, count);
 }
 
 float vec_dot_product_aligned_f16_f32(const npu_device_fp16_t * src0, const float * src1, size_t count) {
-    return vec_dot_product_mix_aligned_impl<npu_device_fp16_t, float, hvx_vsf_convert_vhf, vec_mpy_qf32, vec_add_qf32,
-                                            vec_reduction_f32_qf32>(src0, src1, count);
+    return vec_dot_product_mix_aligned_impl<npu_device_fp16_t, float, float, hvx_vsf_convert_vhf, vec_mpy_qf32,
+                                            vec_add_qf32, vec_reduction_f32_qf32>(src0, src1, count);
 }
 
 }  // namespace hexagon

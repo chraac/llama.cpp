@@ -333,12 +333,19 @@ inline bool is_dot_product_aligned(const _TElem0 * src0, const _TElem1 * src1, s
     return true;
 }
 
+HVX_Vector vec_dot_product_vqf32_f32_f32(const float * src0, const float * src1, size_t count);
+HVX_Vector vec_dot_product_aligned_vqf32_f32_f32(const float * src0, const float * src1, size_t count);
+
 float vec_dot_product_f32_f32(const float * src0, const float * src1, size_t count);
 float vec_dot_product_aligned_f32_f32(const float * src0, const float * src1, size_t count);
 
 inline bool is_f32_f32_dot_product_aligned(const float * src0, const float * src1, size_t count) {
     return is_dot_product_aligned<float, float>(src0, src1, count);
 }
+
+HVX_Vector vec_dot_product_vqf16_f16_f16(const npu_device_fp16_t * src0, const npu_device_fp16_t * src1, size_t count);
+HVX_Vector vec_dot_product_aligned_vqf16_f16_f16(const npu_device_fp16_t * src0, const npu_device_fp16_t * src1,
+                                                 size_t count);
 
 float vec_dot_product_f16_f16(const npu_device_fp16_t * src0, const npu_device_fp16_t * src1, size_t count);
 float vec_dot_product_aligned_f16_f16(const npu_device_fp16_t * src0, const npu_device_fp16_t * src1, size_t count);
@@ -347,6 +354,9 @@ inline bool is_f16_f16_dot_product_aligned(const npu_device_fp16_t * src0, const
                                            size_t count) {
     return is_dot_product_aligned<npu_device_fp16_t, npu_device_fp16_t>(src0, src1, count);
 }
+
+HVX_Vector vec_dot_product_vqf32_f16_f32(const npu_device_fp16_t * src0, const float * src1, size_t count);
+HVX_Vector vec_dot_product_aligned_vqf32_f16_f32(const npu_device_fp16_t * src0, const float * src1, size_t count);
 
 float vec_dot_product_f16_f32(const npu_device_fp16_t * src0, const float * src1, size_t count);
 float vec_dot_product_aligned_f16_f32(const npu_device_fp16_t * src0, const float * src1, size_t count);
