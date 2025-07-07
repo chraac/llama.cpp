@@ -71,13 +71,13 @@ inline _TRet vec_dot_product_impl(const _TElem * src0, const _TElem * src1, size
         sum = _AddFunc(_MpyFunc(s0, s1), sum);
     }
 
-    const size_t leftover_bytes = leftover * sizeof(_TElem);
     if (leftover > 0) {
         // handle the leftover elements
-        HVX_Vector curr0 = (leftover_bytes + hexagon::unaligned_bytes(src0_vec_ptr) > hexagon::kBytesPerVector) ?
-                               *src0_vec_ptr :
-                               prev0;
-        curr0            = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
+        const size_t leftover_bytes = leftover * sizeof(_TElem);
+        HVX_Vector   curr0 = (leftover_bytes + hexagon::unaligned_bytes(src0_vec_ptr) > hexagon::kBytesPerVector) ?
+                                 *src0_vec_ptr :
+                                 prev0;
+        curr0              = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
 
         HVX_Vector curr1 = (leftover_bytes + hexagon::unaligned_bytes(src1_vec_ptr) > hexagon::kBytesPerVector) ?
                                *src1_vec_ptr :
@@ -240,11 +240,11 @@ inline _TRet vec_dot_product_mixed_impl(const _TElem0 * src0, const _TElem1 * sr
         sum = _AddFunc(_MpyFunc(has_remaining_src1_vector ? Q6_V_hi_W(s0_pair) : Q6_V_lo_W(s0_pair), s1), sum);
     }
 
-    const size_t leftover0       = count % kElementsPerVector0;
-    const size_t leftover_bytes1 = leftover1 * sizeof(_TElem1);
     if (leftover1 > 0) {
         // handle the leftover elements
-        HVX_Vector curr0 =
+        const size_t leftover0       = count % kElementsPerVector0;
+        const size_t leftover_bytes1 = leftover1 * sizeof(_TElem1);
+        HVX_Vector   curr0 =
             reinterpret_cast<const _TElem0 *>(hexagon::align_down(src0_vec_ptr)) < src0_ptr_end ? *src0_vec_ptr : prev0;
         HVX_Vector curr1 = (leftover_bytes1 + hexagon::unaligned_bytes(src1_vec_ptr) > hexagon::kBytesPerVector) ?
                                *src1_vec_ptr :

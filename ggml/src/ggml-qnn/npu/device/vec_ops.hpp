@@ -208,12 +208,11 @@ template <HVX_Vector (*_Func)(HVX_Vector, HVX_UVector *, HVX_Vector), HVX_Vector
 inline void vec_scale_impl(const _TParam * src, float scale, _TParam * dst, size_t count) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TParam);
 
-    HVX_Vector *       src_vec_ptr    = ((HVX_Vector *) src);
-    HVX_Vector * const src_vec_end    = ((HVX_Vector *) src) + (count / kElementsPerVector);
-    HVX_UVector *      dst_vec_ptr    = ((HVX_UVector *) dst);  // TODO: opt the unaligned case?
-    HVX_Vector         prev           = *src_vec_ptr++;
-    const size_t       leftover       = count % kElementsPerVector;
-    const size_t       leftover_bytes = leftover * sizeof(_TParam);
+    HVX_Vector *       src_vec_ptr = ((HVX_Vector *) src);
+    HVX_Vector * const src_vec_end = ((HVX_Vector *) src) + (count / kElementsPerVector);
+    HVX_UVector *      dst_vec_ptr = ((HVX_UVector *) dst);  // TODO: opt the unaligned case?
+    HVX_Vector         prev        = *src_vec_ptr++;
+    const size_t       leftover    = count % kElementsPerVector;
 
     HVX_Vector scale_vec = _FuncScaleConvert(scale);
 
@@ -252,7 +251,8 @@ inline void vec_scale_impl(const _TParam * src, float scale, _TParam * dst, size
 
     if (leftover > 0) {
         // handle the leftover elements
-        HVX_Vector curr =
+        const size_t leftover_bytes = leftover * sizeof(_TParam);
+        HVX_Vector   curr =
             (leftover_bytes + hexagon::unaligned_bytes(src_vec_ptr) > hexagon::kBytesPerVector) ? *src_vec_ptr : prev;
         curr = Q6_V_valign_VVR(curr, prev, (size_t) src);
         q6op_vstu_variable_ARV(dst_vec_ptr, leftover_bytes, _Func(curr, dst_vec_ptr, scale_vec));

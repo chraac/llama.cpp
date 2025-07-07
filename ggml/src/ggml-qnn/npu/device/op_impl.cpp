@@ -76,13 +76,13 @@ inline void vec_trans_op_impl(const _TyData * src0, const _TyData * src1, size_t
         dst_vec_ptr++;
     }
 
-    const size_t leftover_bytes = leftover * sizeof(_TyData);
     if (leftover > 0) {
         // handle the leftover elements
-        HVX_Vector curr0 = (leftover_bytes + hexagon::unaligned_bytes(src0_vec_ptr) > hexagon::kBytesPerVector) ?
-                               *src0_vec_ptr :
-                               prev0;
-        curr0            = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
+        const size_t leftover_bytes = leftover * sizeof(_TyData);
+        HVX_Vector   curr0 = (leftover_bytes + hexagon::unaligned_bytes(src0_vec_ptr) > hexagon::kBytesPerVector) ?
+                                 *src0_vec_ptr :
+                                 prev0;
+        curr0              = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
 
         HVX_Vector curr1 = (leftover_bytes + hexagon::unaligned_bytes(src1_vec_ptr) > hexagon::kBytesPerVector) ?
                                *src1_vec_ptr :
@@ -278,10 +278,10 @@ void rms_norm_vec_f32(const float * src, size_t count, float eps, float * dst) {
         prev          = curr;
     }
 
-    const size_t leftover_bytes = leftover * sizeof(float);
     if (leftover > 0) {
         // handle the leftover elements
-        HVX_Vector curr =
+        const size_t leftover_bytes = leftover * sizeof(float);
+        HVX_Vector   curr =
             (leftover_bytes + hexagon::unaligned_bytes(src_vec_ptr) > hexagon::kBytesPerVector) ? *src_vec_ptr : prev;
         curr = Q6_V_valign_VVR(curr, prev, (size_t) src);
         sum  = Q6_Vqf32_vadd_Vqf32Vqf32(sum,
