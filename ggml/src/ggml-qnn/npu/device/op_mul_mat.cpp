@@ -6,12 +6,26 @@
 
 namespace {
 
-template <typename T> struct get_data_type {};
+template <typename _T> struct get_data_type {};
 
-template <typename _TyData0, typename _TyData1>
-struct get_data_type<float (*)(const _TyData0 *, const _TyData1 *, size_t)> {
-    using data_type0 = _TyData0;
-    using data_type1 = _TyData1;
+template <typename _TData0, typename _TData1>
+struct get_data_type<HVX_Vector (*)(const _TData0 *, const _TData1 *, size_t)> {
+    using data_type0 = _TData0;
+    using data_type1 = _TData1;
+};
+
+template <typename _TRet> struct convert_vector {};
+
+template <> struct convert_vector<float> {
+    static float convert(HVX_Vector vec) { return hexagon::get_flt0_from_fltv(Q6_Vsf_equals_Vqf32(vec)); }
+};
+
+template <> struct convert_vector<npu_device_fp16_t> {
+    static float convert(HVX_Vector vec) {
+        HVX_Vector vect = Q6_Vhf_equals_Vqf16(vec);
+        uint16_t   i    = (vect[0] & 0xffff);
+        return reinterpret_cast<__fp16 &>(i);
+    }
 };
 
 template <auto _DotFunc, bool _ShouldCacheSrc0>
@@ -145,17 +159,26 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
                     }
 
                     // TODO: figure dst how to handle a entire row
-                    dst_row[i0] = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row),
-                                           reinterpret_cast<const data_type1 *>(src1_row), (size_t) src0->get_ne(0));
+                    auto res0 = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row),
+                                         reinterpret_cast<const data_type1 *>(src1_row), (size_t) src0->get_ne(0));
+
+                    {
+                        DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 2, store);
+                        dst_row[i0] = convert_vector<data_type1>::convert(res0);
+                    }
 
                     if (should_fetch_src0_row && i0 + 2 < (int64_t) actual_row_count) {
                         hexagon::l2fetch_row(src0_row + src0_actual_row_size + src0_actual_row_size, valid_row0_bytes);
                     }
 
                     // TODO: figure dst how to handle a entire row
-                    dst_row[i0 + 1] =
-                        _DotFunc(reinterpret_cast<const data_type0 *>(src0_row + src0_actual_row_size),
-                                 reinterpret_cast<const data_type1 *>(src1_row), (size_t) src0->get_ne(0));
+                    auto res1 = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row + src0_actual_row_size),
+                                         reinterpret_cast<const data_type1 *>(src1_row), (size_t) src0->get_ne(0));
+
+                    {
+                        DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 2, store);
+                        dst_row[i0 + 1] = convert_vector<data_type1>::convert(res1);
+                    }
                 }
 
                 if (ip + 1 < start_end_plane.second) {
@@ -164,8 +187,10 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
 
                 if (i0 < (int64_t) actual_row_count) {
                     auto * src0_row = src0_plane + i0 * src0_actual_row_size;
-                    dst_row[i0]     = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row),
+                    auto   res      = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row),
                                                reinterpret_cast<const data_type1 *>(src1_row), (size_t) src0->get_ne(0));
+                    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 2, store);
+                    dst_row[i0] = convert_vector<data_type1>::convert(res);
                 }
             }
         }
