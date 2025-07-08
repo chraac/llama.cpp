@@ -252,11 +252,13 @@ inline _TRet vec_dot_product_mixed_impl(const _TElem0 * src0, const _TElem1 * sr
         const size_t leftover_bytes1 = leftover1 * sizeof(_TElem1);
         HVX_Vector   curr0 =
             reinterpret_cast<const _TElem0 *>(hexagon::align_down(src0_vec_ptr)) < src0_ptr_end ? *src0_vec_ptr : prev0;
+        curr0 = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
+
         HVX_Vector curr1 = (leftover_bytes1 + hexagon::unaligned_bytes(src1_vec_ptr) > hexagon::kBytesPerVector) ?
                                *src1_vec_ptr :
                                prev1;
-        curr0            = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
         curr1            = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
+
         HVX_Vector_Dual curr0_pair = _ExpandFunc(curr0, kOneV);
 
         curr0 = leftover1 == leftover0 ? curr0_pair.first : curr0_pair.second;
@@ -316,9 +318,8 @@ inline _TRet vec_dot_product_mix_aligned_impl(const _TElem0 * src0, const _TElem
         HVX_Vector_Dual s0_pair = _ExpandFunc(curr0, kOneV);
 
         HVX_VectorPair curr1 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[0];
-
-        sum0 = _AddFunc(_MpyFunc(s0_pair.first, Q6_V_lo_W(curr1)), sum0);
-        sum1 = _AddFunc(_MpyFunc(s0_pair.second, Q6_V_hi_W(curr1)), sum1);
+        sum0                 = _AddFunc(_MpyFunc(s0_pair.first, Q6_V_lo_W(curr1)), sum0);
+        sum1                 = _AddFunc(_MpyFunc(s0_pair.second, Q6_V_hi_W(curr1)), sum1);
     }
 
     return _ReduceFunc(_AddFunc(sum0, sum1));
@@ -414,13 +415,15 @@ inline void vec_trans_op_impl(const _TyData * src0, const _TyData * src1, size_t
 
     if (src0_vec_ptr_end - src0_vec_ptr > 0) {
         HVX_Vector curr0 = *src0_vec_ptr++;
-        HVX_Vector curr1 = *src1_vec_ptr++;
         HVX_Vector s0    = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
+
+        HVX_Vector curr1 = *src1_vec_ptr++;
         HVX_Vector s1    = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-        prev0            = curr0;
-        prev1            = curr1;
 
         dst_vec_ptr[0] = _OpBinaryTransform(s0, s1);
+
+        prev0 = curr0;
+        prev1 = curr1;
         dst_vec_ptr++;
     }
 
@@ -430,18 +433,21 @@ inline void vec_trans_op_impl(const _TyData * src0, const _TyData * src1, size_t
         // see also:
         //   https://github.com/UbiquitousLearning/mllm/blob/babf4410352ce8730824c87699c025a0d4ce3a6f/src/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/src/ops/LLaMAMul.cpp#L147
         //   or qualcomm sdk libs\qhl_hvx\src\qhblas_hvx\qhblas_hvx_aw_vector_add_ah.c
-        bool       should_fetch_src0 = leftover != 0 || !hexagon::is_addr_aligned(src0_vec_ptr);
-        bool       should_fetch_src1 = leftover != 0 || !hexagon::is_addr_aligned(src1_vec_ptr);
-        HVX_Vector curr0             = should_fetch_src0 ? *src0_vec_ptr : prev0;
-        HVX_Vector curr1             = should_fetch_src1 ? *src1_vec_ptr : prev1;
-        src0_vec_ptr += should_fetch_src0 ? 1 : 0;
-        src1_vec_ptr += should_fetch_src1 ? 1 : 0;
-        HVX_Vector s0 = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
-        HVX_Vector s1 = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-        prev0         = curr0;
-        prev1         = curr1;
+        bool should_fetch_src0 = leftover != 0 || !hexagon::is_addr_aligned(src0_vec_ptr);
+        bool should_fetch_src1 = leftover != 0 || !hexagon::is_addr_aligned(src1_vec_ptr);
+
+        HVX_Vector curr0 = should_fetch_src0 ? *src0_vec_ptr : prev0;
+        HVX_Vector s0    = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
+
+        HVX_Vector curr1 = should_fetch_src1 ? *src1_vec_ptr : prev1;
+        HVX_Vector s1    = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
 
         dst_vec_ptr[0] = _OpBinaryTransform(s0, s1);
+
+        src0_vec_ptr += should_fetch_src0 ? 1 : 0;
+        src1_vec_ptr += should_fetch_src1 ? 1 : 0;
+        prev0 = curr0;
+        prev1 = curr1;
         dst_vec_ptr++;
     }
 
