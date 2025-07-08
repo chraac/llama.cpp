@@ -12,89 +12,9 @@
 
 namespace {
 
-template <HVX_Vector (*_OpBinaryTransform)(HVX_Vector, HVX_Vector), typename _TyData>
-inline void vec_trans_op_impl(const _TyData * src0, const _TyData * src1, size_t count, _TyData * dst) {
-    constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TyData);
-
-    HVX_Vector *       src0_vec_ptr     = ((HVX_Vector *) src0);
-    HVX_Vector * const src0_vec_ptr_end = ((HVX_Vector *) src0) + count / kElementsPerVector;
-    HVX_Vector *       src1_vec_ptr     = ((HVX_Vector *) src1);
-    HVX_Vector *       dst_vec_ptr      = ((HVX_Vector *) dst);  // framework will ensure the dst is aligned
-    HVX_Vector         prev0            = *src0_vec_ptr++;
-    HVX_Vector         prev1            = *src1_vec_ptr++;
-
-    {
-        while (src0_vec_ptr_end - src0_vec_ptr > 1) {
-            HVX_VectorPair curr0 = reinterpret_cast<HVX_VectorPair *>(src0_vec_ptr)[0];
-            HVX_VectorPair curr1 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[0];
-
-            HVX_Vector l0 = Q6_V_valign_VVR(Q6_V_lo_W(curr0), prev0, (size_t) src0);
-            HVX_Vector l1 = Q6_V_valign_VVR(Q6_V_lo_W(curr1), prev1, (size_t) src1);
-            HVX_Vector h0 = Q6_V_valign_VVR(Q6_V_hi_W(curr0), Q6_V_lo_W(curr0), (size_t) src0);
-            HVX_Vector h1 = Q6_V_valign_VVR(Q6_V_hi_W(curr1), Q6_V_lo_W(curr1), (size_t) src1);
-            prev0         = Q6_V_hi_W(curr0);
-            prev1         = Q6_V_hi_W(curr1);
-            src0_vec_ptr += 2;
-            src1_vec_ptr += 2;
-
-            dst_vec_ptr[0] = _OpBinaryTransform(l0, l1);
-            dst_vec_ptr[1] = _OpBinaryTransform(h0, h1);
-            dst_vec_ptr += 2;
-        }
-    }
-
-    if (src0_vec_ptr_end - src0_vec_ptr > 0) {
-        HVX_Vector curr0 = *src0_vec_ptr++;
-        HVX_Vector curr1 = *src1_vec_ptr++;
-        HVX_Vector s0    = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
-        HVX_Vector s1    = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-        prev0            = curr0;
-        prev1            = curr1;
-
-        dst_vec_ptr[0] = _OpBinaryTransform(s0, s1);
-        dst_vec_ptr++;
-    }
-
-    const size_t leftover = count % kElementsPerVector;
-    if ((src0_vec_ptr_end - ((HVX_Vector *) src0)) > 0) {
-        // handle the last vector
-        // see also:
-        //   https://github.com/UbiquitousLearning/mllm/blob/babf4410352ce8730824c87699c025a0d4ce3a6f/src/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/src/ops/LLaMAMul.cpp#L147
-        //   or qualcomm sdk libs\qhl_hvx\src\qhblas_hvx\qhblas_hvx_aw_vector_add_ah.c
-        bool       should_fetch_src0 = leftover != 0 || !hexagon::is_addr_aligned(src0_vec_ptr);
-        bool       should_fetch_src1 = leftover != 0 || !hexagon::is_addr_aligned(src1_vec_ptr);
-        HVX_Vector curr0             = should_fetch_src0 ? *src0_vec_ptr : prev0;
-        HVX_Vector curr1             = should_fetch_src1 ? *src1_vec_ptr : prev1;
-        src0_vec_ptr += should_fetch_src0 ? 1 : 0;
-        src1_vec_ptr += should_fetch_src1 ? 1 : 0;
-        HVX_Vector s0 = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
-        HVX_Vector s1 = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-        prev0         = curr0;
-        prev1         = curr1;
-
-        dst_vec_ptr[0] = _OpBinaryTransform(s0, s1);
-        dst_vec_ptr++;
-    }
-
-    if (leftover > 0) {
-        // handle the leftover elements
-        const size_t leftover_bytes = leftover * sizeof(_TyData);
-        HVX_Vector   curr0 = (leftover_bytes + hexagon::unaligned_bytes(src0_vec_ptr) > hexagon::kBytesPerVector) ?
-                                 *src0_vec_ptr :
-                                 prev0;
-        curr0              = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
-
-        HVX_Vector curr1 = (leftover_bytes + hexagon::unaligned_bytes(src1_vec_ptr) > hexagon::kBytesPerVector) ?
-                               *src1_vec_ptr :
-                               prev1;
-        curr1            = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-
-        hexagon::q6op_vstu_variable_ARV(dst_vec_ptr, leftover_bytes, _OpBinaryTransform(curr0, curr1));
-    }
-}
-
 template <HVX_Vector (*_OpBinaryTransform)(HVX_Vector, HVX_Vector)>
 inline void vec_op_f32_f32(const float * src0, const float * src1, size_t count, float * dst) {
+    using namespace hexagon::vec;
     vec_trans_op_impl<_OpBinaryTransform, float>(src0, src1, count, dst);
 }
 
@@ -113,6 +33,7 @@ inline HVX_Vector vmul_f32_f32(HVX_Vector a, HVX_Vector b) {
 template <HVX_Vector (*_OpBinaryTransform)(HVX_Vector, HVX_Vector)>
 inline void vec_op_f16_f16(const npu_device_fp16_t * src0, const npu_device_fp16_t * src1, size_t count,
                            npu_device_fp16_t * dst) {
+    using namespace hexagon::vec;
     vec_trans_op_impl<_OpBinaryTransform, npu_device_fp16_t>(src0, src1, count, dst);
 }
 
