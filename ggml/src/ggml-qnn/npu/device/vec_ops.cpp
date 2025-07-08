@@ -1,7 +1,5 @@
 #include "vec_ops.hpp"
 
-#include "util.hpp"
-
 namespace {
 
 template <typename _TElem, typename _TRet, HVX_Vector (*_MpyFunc)(HVX_Vector, HVX_Vector),
