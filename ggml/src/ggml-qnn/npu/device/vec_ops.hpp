@@ -262,6 +262,11 @@ inline void vec_cpy_f32(const float * src, float * dst, size_t count) {
     vec_scale_impl<hvx_passthru, hvx_nop, float>(src, 0, dst, count);
 }
 
+inline void vec_zero_f32(float * src, size_t count) {
+    using namespace hexagon::vec;
+    vec_zero_impl<float>(src, count);
+}
+
 inline void vec_scale_f16(const npu_device_fp16_t * src, float scale, npu_device_fp16_t * dst, size_t count) {
     using namespace hexagon::vec;
     vec_scale_impl<hvx_vec_scale_f16_f16, hvx_scale_f16, npu_device_fp16_t>(src, scale, dst, count);
@@ -275,6 +280,11 @@ inline void vec_mad_f16(const npu_device_fp16_t * src, float scale, npu_device_f
 inline void vec_cpy_f16(const npu_device_fp16_t * src, npu_device_fp16_t * dst, size_t count) {
     using namespace hexagon::vec;
     vec_scale_impl<hvx_passthru, hvx_nop, npu_device_fp16_t>(src, 0, dst, count);
+}
+
+inline void vec_zero_f16(npu_device_fp16_t * src, size_t count) {
+    using namespace hexagon::vec;
+    vec_zero_impl<npu_device_fp16_t>(src, count);
 }
 
 template <typename _TElem0, typename _TElem1>

@@ -381,6 +381,31 @@ inline void vec_scale_impl(const _TParam * src, float scale, _TParam * dst, size
     }
 }
 
+template <typename _TData> inline void vec_zero_impl(_TData * src, size_t count) {
+    constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TData);
+
+    HVX_UVector *       src_vec_ptr = ((HVX_UVector *) src);
+    HVX_UVector * const src_vec_end = ((HVX_UVector *) src) + (count / kElementsPerVector);
+
+    while (src_vec_end - src_vec_ptr > 1) {
+        src_vec_ptr[0] = Q6_V_vzero();
+        src_vec_ptr[1] = Q6_V_vzero();
+        src_vec_ptr += 2;
+    }
+
+    if (src_vec_end - src_vec_ptr > 0) {
+        src_vec_ptr[0] = Q6_V_vzero();
+        src_vec_ptr++;
+    }
+
+    const size_t leftover = count % kElementsPerVector;
+    if (leftover > 0) {
+        // handle the leftover elements
+        const size_t leftover_bytes = leftover * sizeof(_TData);
+        q6op_vstu_variable_ARV(src_vec_ptr, leftover_bytes, Q6_V_vzero());
+    }
+}
+
 template <HVX_Vector (*_OpBinaryTransform)(HVX_Vector, HVX_Vector), typename _TyData>
 inline void vec_trans_op_impl(const _TyData * src0, const _TyData * src1, size_t count, _TyData * dst) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TyData);

@@ -107,10 +107,13 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
         const auto * q_data = q_ptr + (iq1 * q->get_nb(1) + iq2 * q->get_nb(2) + iq3 * q->get_nb(3));
         hexagon::l2fetch_row(q_data, row_bytes_q);
 
-        if constexpr (is_v_f16) {
-            memset(VKQ16, 0, DV * sizeof(npu_device_fp16_t));
-        } else {
-            memset(VKQ32, 0, DV * sizeof(float));
+        {
+            DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(flash_attn, 2, memset);
+            if constexpr (is_v_f16) {
+                hexagon::vec_zero_f16(VKQ16, DV);
+            } else {
+                hexagon::vec_zero_f32(VKQ32, DV);
+            }
         }
 
         const npu_device_fp16_t * mp =
