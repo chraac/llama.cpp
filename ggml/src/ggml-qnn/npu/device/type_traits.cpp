@@ -495,7 +495,12 @@ void dequantize_row_q4_K(const void * src, hexagon::dequant_target_type * dst, s
 }
 
 void copy_row_f16(const void * src, hexagon::dequant_target_type * dst, size_t count) {
-    hexagon::vec_cpy_f16(reinterpret_cast<const hexagon::dequant_target_type *>(src), dst, count);
+    hexagon::vec_cpy_f16(reinterpret_cast<const npu_device_fp16_t *>(src), dst, count);
+}
+
+void copy_row_f32(const void * src, hexagon::dequant_target_type * dst, size_t count) {
+    hexagon::vec_cpy_f16(reinterpret_cast<const npu_device_fp16_t *>(src), dst,
+                         count * sizeof(float) / sizeof(npu_device_fp16_t));
 }
 
 template <typename _TFunc> struct dot_func_traits {};
@@ -515,7 +520,7 @@ _TReturn wrap_dot_func(const void * src0, const void * src1, size_t count) {
 }
 
 constexpr const hexagon::device_type_traits kDeviceTypeTraits[] = {
-    { NPU_DATA_TYPE_F32, "F32", 1, sizeof(float), false, nullptr, nullptr,
+    { NPU_DATA_TYPE_F32, "F32", 1, sizeof(float), false, copy_row_f32, nullptr,
      wrap_dot_func<hexagon::vec_dot_product_f32_f32>, wrap_dot_func<hexagon::vec_dot_product_aligned_f32_f32>,
      wrap_dot_func<hexagon::is_f32_f32_dot_product_aligned> },
     { NPU_DATA_TYPE_F16, "F16", 1, sizeof(npu_device_fp16_t), false, copy_row_f16, quantize_row_fp16,

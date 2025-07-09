@@ -199,6 +199,25 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
     dst->release_write_buffer();  // mark the output tensor as modified
 }
 
+bool is_row_size_cacheable(const npu_device_tensor_spec & src) {
+    const auto & type_traits = hexagon::get_type_traits(src.type);
+    if (type_traits.to_float == nullptr) {
+        DEVICE_LOG_DEBUG("[MUL_MAT]src.type(%s) cannot be cached, to_float is null\n",
+                         hexagon::get_type_name(src.type));
+        return false;
+    }
+
+    const size_t type_size = type_traits.is_quantized ? sizeof(hexagon::dequant_target_type) : type_traits.type_size;
+    const auto   vtcm_thread_quota_size = hexagon::default_thread_pool::get_per_thread_vtcm_quota();
+    if (src.ne[0] * type_size > vtcm_thread_quota_size) {
+        DEVICE_LOG_DEBUG("[MUL_MAT]src.type(%s) ne[0] is too large: %ld, vtcm_thread_quota_size: %zu\n",
+                         hexagon::get_type_name(src.type), (long) src.ne[0], vtcm_thread_quota_size);
+        return false;
+    }
+
+    return true;
+}
+
 bool is_quantized_mul_mat_supported(const npu_device_tensor_spec & src0, const npu_device_tensor_spec & src1) {
     if (src1.type != NPU_DATA_TYPE_F32 && src1.type != NPU_DATA_TYPE_F16) {
         DEVICE_LOG_DEBUG("[MUL_MAT]src0.type(%s) and src1.type(%s) mismatch and src1 is not F32\n",
@@ -219,10 +238,7 @@ bool is_quantized_mul_mat_supported(const npu_device_tensor_spec & src0, const n
         return false;
     }
 
-    const auto vtcm_thread_quota_size = hexagon::default_thread_pool::get_per_thread_vtcm_quota();
-    if (src0.ne[0] * sizeof(hexagon::dequant_target_type) > vtcm_thread_quota_size) {
-        DEVICE_LOG_DEBUG("[MUL_MAT]src0.type(%s) ne[0] is too large: %ld, vtcm_thread_quota_size: %zu\n",
-                         hexagon::get_type_name(src0.type), (long) src0.ne[0], vtcm_thread_quota_size);
+    if (!is_row_size_cacheable(src0)) {
         return false;
     }
 
