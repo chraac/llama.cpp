@@ -191,11 +191,11 @@ inline _TRet vec_dot_product_mixed_impl(const _TElem0 * src0, const _TElem1 * sr
     HVX_Vector            prev1            = *src1_vec_ptr++;
     HVX_Vector            sum              = Q6_V_vzero();
 
-    {
+    if (src1_vec_ptr_end - src1_vec_ptr > 1) {
         HVX_Vector sum0 = Q6_V_vzero();
         HVX_Vector sum1 = Q6_V_vzero();
 
-        while (src1_vec_ptr_end - src1_vec_ptr > 1) {
+        do {
             HVX_Vector     curr0 = src0_vec_ptr[0];
             HVX_VectorPair curr1 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[0];
 
@@ -212,7 +212,7 @@ inline _TRet vec_dot_product_mixed_impl(const _TElem0 * src0, const _TElem1 * sr
             prev1 = Q6_V_hi_W(curr1);
             src0_vec_ptr++;
             src1_vec_ptr += 2;
-        }
+        } while (src1_vec_ptr_end - src1_vec_ptr > 1);
 
         sum = _AddFunc(sum0, sum1);
     }
@@ -289,11 +289,11 @@ inline _TRet vec_dot_product_mix_aligned_impl(const _TElem0 * src0, const _TElem
     HVX_Vector         sum0             = Q6_V_vzero();
     HVX_Vector         sum1             = Q6_V_vzero();
 
-    {
+    if (src1_vec_ptr_end - src1_vec_ptr > 3) {
         HVX_Vector sum2 = Q6_V_vzero();
         HVX_Vector sum3 = Q6_V_vzero();
 
-        while (src1_vec_ptr_end - src1_vec_ptr > 3) {
+        do {
             HVX_VectorPair  curr0  = reinterpret_cast<HVX_VectorPair *>(src0_vec_ptr)[0];
             HVX_Vector_Dual curr00 = _ExpandFunc(Q6_V_lo_W(curr0), kOneV);
             HVX_VectorPair  curr10 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[0];
@@ -307,7 +307,7 @@ inline _TRet vec_dot_product_mix_aligned_impl(const _TElem0 * src0, const _TElem
 
             src0_vec_ptr += 2;
             src1_vec_ptr += 4;
-        }
+        } while (src1_vec_ptr_end - src1_vec_ptr > 3);
 
         sum0 = _AddFunc(sum0, sum2);
         sum1 = _AddFunc(sum1, sum3);
