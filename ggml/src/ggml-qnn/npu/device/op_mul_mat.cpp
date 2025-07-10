@@ -93,7 +93,8 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
         src0_plane_cache_size);
 
     const size_t valid_row0_bytes = src0->get_ne(0) * sizeof(data_type0);
-    const size_t valid_row1_bytes = src1->get_ne(0) * sizeof(data_type1);
+    const size_t valid_row1_bytes =
+        src0->get_ne(0) * sizeof(data_type1);  // src0 and src1 should have the same element count in the 1st dimension
     DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_WITH_MULTI_SUB_PROC(dst, params->get_thread_index(), mul_mat);
 
     uint8_t * dst_ptr = dst->get_write_buffer();
