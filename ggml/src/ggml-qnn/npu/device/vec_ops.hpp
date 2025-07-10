@@ -291,7 +291,7 @@ template <typename _TElem0, typename _TElem1>
 inline bool is_dot_product_aligned(const _TElem0 * src0, const _TElem1 * src1, size_t count) {
     static_assert(sizeof(_TElem0) <= sizeof(_TElem1), "src0 should be smaller than src1");
 
-    if (!hexagon::is_addr_aligned(src0) || !hexagon::is_addr_aligned(src1)) {
+    if ((src0 && !hexagon::is_addr_aligned(src0)) || (src1 && !hexagon::is_addr_aligned(src1))) {
         return false;
     }
 
