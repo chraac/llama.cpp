@@ -389,4 +389,20 @@ inline bool is_f16_f32_dot_product_aligned(const npu_device_fp16_t * src0, const
     return is_dot_product_aligned<npu_device_fp16_t, float>(src0, src1, count);
 }
 
+template <typename _TFunc> struct dot_func_traits {};
+
+template <typename _TData, typename _TReturn> struct dot_func_traits<_TReturn (*)(_TData, _TData, size_t)> {
+    using param_type  = std::remove_const_t<std::remove_pointer_t<_TData>>;
+    using return_type = _TReturn;
+};
+
+template <auto _DotFunc, typename _TReturn = typename dot_func_traits<decltype(_DotFunc)>::return_type>
+_TReturn type_erase_dot_func(const void * src0, const void * src1, size_t count) {
+    using param_type = typename dot_func_traits<decltype(_DotFunc)>::param_type;
+
+    auto * src0_typed = reinterpret_cast<const param_type *>(src0);
+    auto * src1_typed = reinterpret_cast<const param_type *>(src1);
+    return _DotFunc(src0_typed, src1_typed, count);
+}
+
 }  // namespace hexagon

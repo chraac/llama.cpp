@@ -18,8 +18,10 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
                      const hexagon::tensor * v, const hexagon::tensor * mask, hexagon::compute_params * params) {
     static_assert(3 <= hexagon::kMaxParamsCount, "flash_attn op params count exceeds max params count");
 
-    if (k->get_type() != (_IsKvF16 ? NPU_DATA_TYPE_F16 : NPU_DATA_TYPE_F32) || v->get_type() != k->get_type()) {
-        DEVICE_LOG_ERROR("flash_attn_impl: k and v must be F16 type, got k: %s, v: %s\n",
+    constexpr const npu_device_tensor_data_type kKvDataType = _IsKvF16 ? NPU_DATA_TYPE_F16 : NPU_DATA_TYPE_F32;
+
+    if (k->get_type() != kKvDataType || v->get_type() != k->get_type()) {
+        DEVICE_LOG_ERROR("flash_attn_impl: k and v must have same type, got k: %s, v: %s\n",
                          hexagon::get_type_name(k->get_type()), hexagon::get_type_name(v->get_type()));
         return;
     }
@@ -44,10 +46,11 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
     const float m0 = powf(2.0f, -(max_bias) / n_head_log2);
     const float m1 = powf(2.0f, -(max_bias / 2.0f) / n_head_log2);
 
-    const auto & k_type_traits = hexagon::get_type_traits(k->get_type());
-    const auto   q_to_vec_dot  = k_type_traits.from_float;  // TODO: fix this
-    const auto   kq_vec_dot    = k_type_traits.vec_dot;
-    if (!q_to_vec_dot || !kq_vec_dot) {
+    const auto &         k_type_traits = hexagon::get_type_traits(kKvDataType);
+    const auto           q_to_vec_dot  = k_type_traits.from_float;
+    constexpr const auto kq_vec_dot    = _IsKvF16 ? hexagon::type_erase_dot_func<hexagon::vec_dot_product_f16_f16> :
+                                                    hexagon::type_erase_dot_func<hexagon::vec_dot_product_f32_f32>;
+    if (!q_to_vec_dot) {
         DEVICE_LOG_ERROR("flash_attn_impl: unsupported data type for q, k, or v\n");
         return;
     }

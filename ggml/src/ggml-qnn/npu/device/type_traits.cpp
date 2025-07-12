@@ -506,29 +506,15 @@ void copy_row_f32(const void * src, hexagon::dequant_target_type * dst, size_t c
                          count * sizeof(float) / sizeof(npu_device_fp16_t));
 }
 
-template <typename _TFunc> struct dot_func_traits {};
-
-template <typename _TData, typename _TReturn> struct dot_func_traits<_TReturn (*)(_TData, _TData, size_t)> {
-    using param_type  = std::remove_const_t<std::remove_pointer_t<_TData>>;
-    using return_type = _TReturn;
-};
-
-template <auto _DotFunc, typename _TReturn = typename dot_func_traits<decltype(_DotFunc)>::return_type>
-_TReturn wrap_dot_func(const void * src0, const void * src1, size_t count) {
-    using param_type = typename dot_func_traits<decltype(_DotFunc)>::param_type;
-
-    auto * src0_typed = reinterpret_cast<const param_type *>(src0);
-    auto * src1_typed = reinterpret_cast<const param_type *>(src1);
-    return _DotFunc(src0_typed, src1_typed, count);
-}
-
 constexpr const hexagon::device_type_traits kDeviceTypeTraits[] = {
     { NPU_DATA_TYPE_F32, "F32", 1, sizeof(float), false, copy_row_f32, nullptr,
-     wrap_dot_func<hexagon::vec_dot_product_f32_f32>, wrap_dot_func<hexagon::vec_dot_product_aligned_f32_f32>,
-     wrap_dot_func<hexagon::is_f32_f32_dot_product_aligned> },
+     hexagon::type_erase_dot_func<hexagon::vec_dot_product_f32_f32>,
+     hexagon::type_erase_dot_func<hexagon::vec_dot_product_aligned_f32_f32>,
+     hexagon::type_erase_dot_func<hexagon::is_f32_f32_dot_product_aligned> },
     { NPU_DATA_TYPE_F16, "F16", 1, sizeof(npu_device_fp16_t), false, copy_row_f16, quantize_row_fp16,
-     wrap_dot_func<hexagon::vec_dot_product_f16_f16>, wrap_dot_func<hexagon::vec_dot_product_aligned_f16_f16>,
-     wrap_dot_func<hexagon::is_f16_f16_dot_product_aligned> },
+     hexagon::type_erase_dot_func<hexagon::vec_dot_product_f16_f16>,
+     hexagon::type_erase_dot_func<hexagon::vec_dot_product_aligned_f16_f16>,
+     hexagon::type_erase_dot_func<hexagon::is_f16_f16_dot_product_aligned> },
     { NPU_DATA_TYPE_I32, "I32", 1, sizeof(int32_t), false },
     { NPU_DATA_TYPE_Q8_0, "Q8_0", QUANT_BLOCK_SIZE, sizeof(npu_device_block_q8_0), true, dequantize_row_q8_0,
      quantize_row_q8_0 },
