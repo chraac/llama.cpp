@@ -127,9 +127,11 @@ template <size_t _ThreadCount> class thread_pool {
 
     thread_pool() {
         for (size_t i = 0; i < kMaxThreadCount; ++i) {
-            _thread_params[i].tidx            = i;
-            _thread_params[i].vtcm_quota_size = hexagon::vtcm_mem::get_avail_block_size() / kMaxThreadCount;
-            _thread_params[i].pool            = this;
+            auto & param          = _thread_params[i];
+            param.tidx            = i;
+            param.vtcm_quota_size = hexagon::vtcm_mem::get_avail_block_size() / kMaxThreadCount;
+            param.pool            = this;
+            param.get_vtcm_cache(param.vtcm_quota_size);  // pre-allocate VTCM cache for each thread
         }
 
         qurt_barrier_init(&_pending, kMaxSubThreadCount + 1);
