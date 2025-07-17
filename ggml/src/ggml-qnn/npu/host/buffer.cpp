@@ -3,6 +3,7 @@
 #include <rpcmem.h>
 
 #include "host_device.hpp"
+#include "profiler.hpp"
 #include "tensor.hpp"
 
 namespace {
@@ -78,6 +79,8 @@ void backend_buffer_clear(ggml_backend_buffer_t buffer, uint8_t value) {
 void backend_buffer_reset(ggml_backend_buffer_t buffer) {
     auto * buffer_obj = get_buffer_object(buffer);
     GGML_ASSERT(buffer_obj != nullptr);
+
+    SCOPED_PERFORMANCE_TRACKER("[hexagon-npu][%p]backend_buffer_reset", (void *) buffer_obj);
     buffer_obj->clear_tensors();
 }
 
