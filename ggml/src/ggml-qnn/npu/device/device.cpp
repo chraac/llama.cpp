@@ -177,6 +177,26 @@ AEEResult npu_device_tensor_free(remote_handle64 _h, npu_device_tensor_handle_t 
     return AEE_SUCCESS;
 }
 
+AEEResult npu_device_tensors_free(remote_handle64 _h, const npu_device_tensor_handle_t * tensor_handles,
+                                  int tensor_handlesLen) {
+    NPU_UNUSED(_h);
+    if (!tensor_handles || tensor_handlesLen < 0) {
+        DEVICE_LOG_ERROR("npu_device_tensors_free: Invalid arguments");
+        return AEE_EINVARGS;
+    }
+
+    for (int i = 0; i < tensor_handlesLen; ++i) {
+        auto * tensor = tensor_from_handle(tensor_handles[i]);
+        if (tensor) {
+            delete tensor;
+        } else {
+            DEVICE_LOG_ERROR("npu_device_tensors_free: Invalid tensor handle at index %d", i);
+        }
+    }
+
+    return AEE_SUCCESS;
+}
+
 AEEResult npu_device_graph_init(remote_handle64 _h, npu_device_graph_handle_t * graph_handle) {
     NPU_UNUSED(_h);
     auto * graph = new (std::nothrow) hexagon::graph();
