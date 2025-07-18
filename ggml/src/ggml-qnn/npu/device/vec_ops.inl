@@ -492,7 +492,7 @@ inline void vec_trans_op_impl(const _TyData * src0, const _TyData * src1, size_t
                                prev1;
         curr1            = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
 
-        hexagon::q6op_vstu_variable_ARV(dst_vec_ptr, leftover_bytes, _OpBinaryTransform(curr0, curr1));
+        q6op_vstu_variable_ARV(dst_vec_ptr, leftover_bytes, _OpBinaryTransform(curr0, curr1));
     }
 }
 

@@ -75,7 +75,7 @@ class host_tensor {
         remote_handle64 device_handle = 0;
 
         for (auto tensor : tensors) {
-            if (tensor) {
+            if (tensor && tensor->_device_tensor_handle != npu_device_INVALID_DEVICE_TENSOR_HANDLE) {
                 handles.push_back(tensor->_device_tensor_handle);
                 tensor->_device_tensor_handle = npu_device_INVALID_DEVICE_TENSOR_HANDLE;  // prevent double free
                 device_handle                 = tensor->_device_handle;
