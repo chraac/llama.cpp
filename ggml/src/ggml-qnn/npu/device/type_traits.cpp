@@ -560,4 +560,13 @@ const device_type_traits & get_type_traits(npu_device_tensor_data_type type) {
     return kDeviceTypeTraits[type];
 }
 
+size_t get_dequantized_row_size(const tensor * tensor) {
+    if (!is_quantized_type(tensor->get_type())) {
+        return tensor->get_nb(1);  // for f32 and f16
+    }
+
+    auto row_elems_count = tensor->get_ne(0);
+    return hexagon::get_aligned_size(row_elems_count * sizeof(dequant_target_type));  // currently only f32 is supported
+}
+
 }  // namespace hexagon

@@ -34,7 +34,7 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
     using data_type0 = typename get_data_type<decltype(_DotFunc)>::data_type0;
     using data_type1 = typename get_data_type<decltype(_DotFunc)>::data_type1;
 
-    const auto src0_actual_row_size = hexagon::get_aligned_size(hexagon::get_dequantized_row_size(src0));
+    const auto src0_actual_row_size = hexagon::get_dequantized_row_size(src0);
     auto *     dequantize_row_func  = hexagon::get_type_traits(src0->get_type()).to_float;
     if (_ShouldCacheSrc0 && dequantize_row_func == nullptr) {
         DEVICE_LOG_ERROR("Unsupported quantized src0 type: %d, dequantize_row_func is null\n", src0->get_type());
@@ -268,6 +268,16 @@ bool is_mul_mat_f16_f16_src_tensors_aligned(hexagon::tensor * src0, hexagon::ten
         return false;
     }
 
+    if (!is_src0_quantized && !hexagon::is_size_aligned(src0->get_nb(1))) {
+        DEVICE_LOG_DEBUG("[MUL_MAT]src0 tensor nb[1] is not aligned: %zu\n", src0->get_nb(1));
+        return false;
+    }
+
+    if (!hexagon::is_size_aligned(src1->get_nb(1))) {
+        DEVICE_LOG_DEBUG("[MUL_MAT]src1 tensor nb[1] is not aligned: %zu\n", src1->get_nb(1));
+        return false;
+    }
+
     DEVICE_LOG_DEBUG("[MUL_MAT]src_tensors_aligned: ne[0]: %ld\n", (long) src0->get_ne(0));
     return true;
 }
@@ -278,6 +288,16 @@ bool is_mul_mat_f32_f32_src_tensors_aligned(hexagon::tensor * src0, hexagon::ten
 
     if (!hexagon::is_f32_f32_dot_product_aligned(src0_ptr, src1_ptr, src0->get_ne(0))) {
         DEVICE_LOG_DEBUG("[MUL_MAT]src_tensors_unaligned: ne[0]: %ld\n", (long) src0->get_ne(0));
+        return false;
+    }
+
+    if (!hexagon::is_size_aligned(src0->get_nb(1))) {
+        DEVICE_LOG_DEBUG("[MUL_MAT]src0 tensor nb[1] is not aligned: %zu\n", src0->get_nb(1));
+        return false;
+    }
+
+    if (!hexagon::is_size_aligned(src1->get_nb(1))) {
+        DEVICE_LOG_DEBUG("[MUL_MAT]src1 tensor nb[1] is not aligned: %zu\n", src1->get_nb(1));
         return false;
     }
 

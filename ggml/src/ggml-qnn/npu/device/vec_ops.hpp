@@ -31,6 +31,10 @@ inline bool is_addr_aligned(const void * addr) {
     return unaligned_bytes(addr) == 0;
 }
 
+inline bool is_size_aligned(size_t size) {
+    return (size & kAlignMask) == 0;
+}
+
 inline float get_flt0_from_fltv(HVX_Vector vect) {
     static_assert(sizeof(vect[0]) == sizeof(float), "vect[0] should be a float");
     int32_t i = vect[0];

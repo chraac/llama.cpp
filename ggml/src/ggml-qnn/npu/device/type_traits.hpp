@@ -34,14 +34,7 @@ inline bool is_quantized_type(npu_device_tensor_data_type type) {
     return get_type_traits(type).is_quantized;
 }
 
-inline size_t get_dequantized_row_size(const tensor * tensor) {
-    if (!is_quantized_type(tensor->get_type())) {
-        return tensor->get_nb(1);  // for f32 and f16
-    }
-
-    auto row_elems_count = tensor->get_ne(0);
-    return row_elems_count * sizeof(dequant_target_type);  // currently only f32 is supported
-}
+size_t get_dequantized_row_size(const tensor * tensor);
 
 inline const char * get_type_name(npu_device_tensor_data_type type) {
     return get_type_traits(type).type_name;
