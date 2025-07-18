@@ -502,8 +502,7 @@ void copy_row_f16(const void * src, hexagon::dequant_target_type * dst, size_t c
 }
 
 void copy_row_f32(const void * src, hexagon::dequant_target_type * dst, size_t count) {
-    hexagon::vec_cpy_f16(reinterpret_cast<const npu_device_fp16_t *>(src), dst,
-                         count * sizeof(float) / sizeof(npu_device_fp16_t));
+    hexagon::vec_cpy_f32(reinterpret_cast<const float *>(src), reinterpret_cast<float *>(dst), count);
 }
 
 constexpr const hexagon::device_type_traits kDeviceTypeTraits[] = {
