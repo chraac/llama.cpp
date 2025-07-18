@@ -34,7 +34,7 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
     using data_type0 = typename get_data_type<decltype(_DotFunc)>::data_type0;
     using data_type1 = typename get_data_type<decltype(_DotFunc)>::data_type1;
 
-    const auto src0_actual_row_size = hexagon::get_dequantized_row_size(src0);
+    const auto src0_actual_row_size = hexagon::get_aligned_size(hexagon::get_dequantized_row_size(src0));
     auto *     dequantize_row_func  = hexagon::get_type_traits(src0->get_type()).to_float;
     if (_ShouldCacheSrc0 && dequantize_row_func == nullptr) {
         DEVICE_LOG_ERROR("Unsupported quantized src0 type: %d, dequantize_row_func is null\n", src0->get_type());
