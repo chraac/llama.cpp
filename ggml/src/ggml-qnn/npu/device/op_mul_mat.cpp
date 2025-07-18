@@ -130,8 +130,8 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
                             hexagon::l2fetch_row(src0_row + src0->get_nb(1), src0->get_nb(1));
                         }
 
-                        auto * dst_row = src0_plane_cache_ptr + ir * src0_actual_row_size;
-                        dequantize_row_func(src0_row, reinterpret_cast<hexagon::dequant_target_type *>(dst_row),
+                        auto * cached_row_ptr = src0_plane_cache_ptr + ir * src0_actual_row_size;
+                        dequantize_row_func(src0_row, reinterpret_cast<hexagon::dequant_target_type *>(cached_row_ptr),
                                             src0->get_ne(0));
                     }
 

@@ -565,7 +565,8 @@ size_t get_dequantized_row_size(const tensor * tensor) {
     }
 
     auto row_elems_count = tensor->get_ne(0);
-    return hexagon::get_aligned_size(row_elems_count * sizeof(dequant_target_type));  // currently only f32 is supported
+    return hexagon::get_aligned_size(
+        row_elems_count * sizeof(dequant_target_type));  // dequant_target_type is currently restricted to f32
 }
 
 }  // namespace hexagon
