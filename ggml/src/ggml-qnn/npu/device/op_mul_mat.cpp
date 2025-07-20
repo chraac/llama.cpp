@@ -197,6 +197,199 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
     dst->release_write_buffer();  // mark the output tensor as modified
 }
 
+template <auto _DotFunc, bool _ShouldCacheSrc0>
+void mul_mat_gemv_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tensor * dst,
+                       hexagon::compute_params * params) {
+    using data_type0 = typename get_data_type<decltype(_DotFunc)>::data_type0;
+    using data_type1 = typename get_data_type<decltype(_DotFunc)>::data_type1;
+
+    const auto src0_actual_row_size = hexagon::get_dequantized_row_size(src0);
+    const auto src1_actual_row_size = src1->get_nb(1);
+    auto *     dequantize_row_func  = hexagon::get_type_traits(src0->get_type()).to_float;
+    if (_ShouldCacheSrc0 && dequantize_row_func == nullptr) {
+        DEVICE_LOG_ERROR("Unsupported quantized src0 type: %d, dequantize_row_func is null\n", src0->get_type());
+        return;
+    }
+
+    if (dst->get_ne(1) != 1) {
+        DEVICE_LOG_ERROR("Unsupported dst type: %d, only 1D dst is supported\n", dst->get_type());
+        return;
+    }
+
+    const auto r02          = src1->get_ne(2) / src0->get_ne(2);
+    const auto r03          = src1->get_ne(3) / src0->get_ne(3);
+    const auto total_planes = dst->get_ne(3) * dst->get_ne(2);
+
+    auto start_end_plane   = std::pair<int64_t, int64_t>{ 0, total_planes };
+    auto start_end_element = std::pair<int64_t, int64_t>{ 0, dst->get_ne(0) };
+
+    if (total_planes >= params->get_thread_count()) {
+        start_end_plane = params->get_work_slice(total_planes);
+    } else if (dst->get_ne(0) >= params->get_thread_count()) {
+        start_end_element = params->get_work_slice(dst->get_ne(0));
+    } else {
+        DEVICE_LOG_ERROR("Unsupported dst type: %d, only 1D dst is supported\n", dst->get_type());
+        return;
+    }
+
+    if (start_end_plane.second <= start_end_plane.first || start_end_element.second <= start_end_element.first) {
+        DEVICE_LOG_DEBUG(
+            "mul_mat_impl: no work to do, start_end_plane: (%ld, %ld), "
+            "start_end_element: (%ld, %ld)\n",
+            start_end_plane.first, start_end_plane.second, start_end_element.first, start_end_element.second);
+        return;
+    }
+
+    // cache the src0 plane in VTCM
+    size_t          src0_plane_slice_row_count = start_end_element.second - start_end_element.first;
+    size_t          src0_plane_cache_size      = 0;
+    uint8_t *       src0_plane_cache_ptr       = nullptr;
+    const uint8_t * last_src0_cached_plane_ptr = nullptr;
+    uint8_t *       src1_row_cache_ptr         = nullptr;
+    const uint8_t * last_src1_cached_plane_ptr = nullptr;
+    if constexpr (_ShouldCacheSrc0) {
+        src0_plane_slice_row_count = std::min(
+            (params->get_vtcm_quota_size() - src1_actual_row_size) / src0_actual_row_size, src0_plane_slice_row_count);
+        src0_plane_cache_size = src0_actual_row_size * src0_plane_slice_row_count;
+        src0_plane_cache_ptr  = params->get_vtcm_cache(src0_plane_cache_size + src1_actual_row_size);
+        if (src0_plane_cache_ptr == nullptr) {
+            DEVICE_LOG_ERROR(
+                "mul_mat_impl: failed to get VTCM cache for src0, size: %zu, src0_plane_slice_row_count: %zu, "
+                "src0_actual_row_size: %zu\n",
+                src0_plane_cache_size + src1_actual_row_size, src0_plane_slice_row_count, src0_actual_row_size);
+            return;
+        }
+
+        src1_row_cache_ptr = src0_plane_cache_ptr;
+        src0_plane_cache_ptr += src1_actual_row_size;
+    } else {
+        src1_row_cache_ptr = params->get_vtcm_cache(src1_actual_row_size);
+        if (src1_row_cache_ptr == nullptr) {
+            DEVICE_LOG_ERROR("mul_mat_impl: failed to get VTCM cache for src1, size: %zu\n", src1_actual_row_size);
+            return;
+        }
+    }
+
+    DEVICE_LOG_DEBUG(
+        "mul_mat_impl src0_actual_row_size: %zu, src0_plane_slice_row_count: %zu, is_quantized: %d, vtcm_mem: "
+        "%p(%zu)\n",
+        src0_actual_row_size, src0_plane_slice_row_count, _ShouldCacheSrc0, (void *) src0_plane_cache_ptr,
+        src0_plane_cache_size);
+
+    const size_t valid_row0_bytes = src0->get_ne(0) * sizeof(data_type0);
+    const size_t valid_row1_bytes =
+        src0->get_ne(0) * sizeof(data_type1);  // src0 and src1 should have the same element count in the 1st dimension
+    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_WITH_MULTI_SUB_PROC(dst, params->get_thread_index(), mul_mat);
+
+    uint8_t * dst_ptr = dst->get_write_buffer();
+    if (!dst_ptr) {
+        DEVICE_LOG_ERROR("mul_mat_impl: dst_ptr is not writable, tensor: %p, type: %s\n", (void *) dst,
+                         hexagon::get_type_name(dst->get_type()));
+        return;
+    }
+
+    constexpr bool  should_fetch_src0_row = !_ShouldCacheSrc0;
+    const uint8_t * src0_ptr              = src0->get_read_buffer();
+    const uint8_t * src1_ptr              = src1->get_read_buffer();
+    for (int64_t ip = start_end_plane.first; ip < start_end_plane.second; ip++) {
+        const auto   i3         = ip / dst->get_ne(2);
+        const auto   i2         = ip - i3 * dst->get_ne(2);
+        const auto * src1_plane = src1_ptr + i3 * src1->get_nb(3) + i2 * src1->get_nb(2);
+        auto *       dst_plane  = dst_ptr + i3 * dst->get_nb(3) + i2 * dst->get_nb(2);
+        for (int64_t col_idx = start_end_element.first; col_idx < start_end_element.second;
+             col_idx += src0_plane_slice_row_count) {
+            const int64_t actual_row_count =
+                std::min<int64_t>(src0_plane_slice_row_count,
+                                  start_end_element.second - col_idx);  // number of rows in this slice
+            const uint8_t * src0_plane =
+                src0_ptr + i3 / r03 * src0->get_nb(3) + i2 / r02 * src0->get_nb(2) + col_idx * src0->get_nb(1);
+            if constexpr (_ShouldCacheSrc0) {
+                if (last_src0_cached_plane_ptr != src0_plane) {
+                    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 0, dequant);
+
+                    hexagon::l2fetch_row(src0_plane, src0->get_nb(1));
+                    for (int64_t ir = 0; ir < actual_row_count; ir++) {
+                        auto * src0_row = src0_plane + ir * src0->get_nb(1);
+                        if (ir + 1 < actual_row_count) {
+                            hexagon::l2fetch_row(src0_row + src0->get_nb(1), src0->get_nb(1));
+                        }
+
+                        auto * cached_row_ptr = src0_plane_cache_ptr + ir * src0_actual_row_size;
+                        dequantize_row_func(src0_row, reinterpret_cast<hexagon::dequant_target_type *>(cached_row_ptr),
+                                            src0->get_ne(0));
+                    }
+
+                    last_src0_cached_plane_ptr = src0_plane;
+                }
+
+                src0_plane = src0_plane_cache_ptr;
+            }
+
+            if (last_src1_cached_plane_ptr != src1_plane) {
+                if constexpr (std::is_same_v<data_type1, float>) {
+                    hexagon::vec_cpy_f32(reinterpret_cast<const data_type1 *>(src1_plane),
+                                         reinterpret_cast<data_type1 *>(src1_row_cache_ptr), src1->get_nb(1));
+                } else {
+                    hexagon::vec_cpy_f16(reinterpret_cast<const data_type1 *>(src1_plane),
+                                         reinterpret_cast<data_type1 *>(src1_row_cache_ptr), src1->get_nb(1));
+                }
+
+                last_src1_cached_plane_ptr = src1_plane;
+                src1_plane                 = src1_row_cache_ptr;
+            }
+
+            {
+                DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 1, vec_dot);
+                auto *  src1_row = src1_plane;
+                auto *  dst_row  = reinterpret_cast<float *>(dst_plane) + col_idx;
+                int64_t i0       = 0;
+                for (; i0 + 1 < actual_row_count; i0 += 2) {
+                    auto * src0_row = src0_plane + i0 * src0_actual_row_size;
+                    if constexpr (should_fetch_src0_row) {
+                        hexagon::l2fetch_row(src0_row + src0_actual_row_size, valid_row0_bytes);
+                    }
+
+                    // TODO: figure dst how to handle a entire row
+                    auto res0 = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row),
+                                         reinterpret_cast<const data_type1 *>(src1_row), (size_t) src0->get_ne(0));
+
+                    {
+                        DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 2, store);
+                        dst_row[i0] = convert_vector<data_type1>::convert(res0);
+                    }
+
+                    if (should_fetch_src0_row && i0 + 2 < actual_row_count) {
+                        hexagon::l2fetch_row(src0_row + src0_actual_row_size + src0_actual_row_size, valid_row0_bytes);
+                    }
+
+                    // TODO: figure dst how to handle a entire row
+                    auto res1 = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row + src0_actual_row_size),
+                                         reinterpret_cast<const data_type1 *>(src1_row), (size_t) src0->get_ne(0));
+
+                    {
+                        DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 2, store);
+                        dst_row[i0 + 1] = convert_vector<data_type1>::convert(res1);
+                    }
+                }
+
+                if (ip + 1 < start_end_plane.second) {
+                    hexagon::l2fetch_row(src1_row + src1->get_nb(1), valid_row1_bytes);
+                }
+
+                if (i0 < actual_row_count) {
+                    auto * src0_row = src0_plane + i0 * src0_actual_row_size;
+                    auto   res      = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row),
+                                               reinterpret_cast<const data_type1 *>(src1_row), (size_t) src0->get_ne(0));
+                    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 2, store);
+                    dst_row[i0] = convert_vector<data_type1>::convert(res);
+                }
+            }
+        }
+    }
+
+    dst->release_write_buffer();  // mark the output tensor as modified
+}
+
 bool is_row_size_cacheable(const npu_device_tensor_spec & src) {
     const auto & type_traits = hexagon::get_type_traits(src.type);
     if (type_traits.to_float == nullptr) {
