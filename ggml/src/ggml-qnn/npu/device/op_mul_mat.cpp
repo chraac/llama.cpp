@@ -233,16 +233,27 @@ void mul_mat_gemv_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::
     size_t          src0_plane_cache_size      = 0;
     uint8_t *       src0_plane_cache_ptr       = nullptr;
     const uint8_t * last_cached_plane_ptr      = nullptr;
+    const auto      src1_actual_row_size       = src1->get_nb(1);
+    uint8_t *       src1_row_cache_ptr         = nullptr;
     if constexpr (_ShouldCacheSrc0) {
-        src0_plane_slice_row_count =
-            std::min(params->get_vtcm_quota_size() / src0_actual_row_size, src0_plane_slice_row_count);
+        src0_plane_slice_row_count = std::min(
+            (params->get_vtcm_quota_size() - src1_actual_row_size) / src0_actual_row_size, src0_plane_slice_row_count);
         src0_plane_cache_size = src0_actual_row_size * src0_plane_slice_row_count;
-        src0_plane_cache_ptr  = params->get_vtcm_cache(src0_plane_cache_size);
+        src0_plane_cache_ptr  = params->get_vtcm_cache(src0_plane_cache_size + src1_actual_row_size);
         if (src0_plane_cache_ptr == nullptr) {
             DEVICE_LOG_ERROR(
                 "mul_mat_impl: failed to get VTCM cache for src0, size: %zu, src0_plane_slice_row_count: %zu, "
                 "src0_actual_row_size: %zu, will fallback to mem cache\n",
                 src0_plane_cache_size, src0_plane_slice_row_count, src0_actual_row_size);
+            return;
+        }
+
+        src1_row_cache_ptr = src0_plane_cache_ptr;
+        src0_plane_cache_ptr += src1_actual_row_size;
+    } else {
+        src1_row_cache_ptr = params->get_vtcm_cache(src1_actual_row_size);
+        if (src1_row_cache_ptr == nullptr) {
+            DEVICE_LOG_ERROR("mul_mat_impl: failed to get VTCM cache for src1, size: %zu\n", src1_actual_row_size);
             return;
         }
     }
@@ -266,6 +277,19 @@ void mul_mat_gemv_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::
     constexpr bool  should_fetch_src0_row = !_ShouldCacheSrc0;
     const uint8_t * src0_ptr              = src0->get_read_buffer();
     const uint8_t * src1_ptr              = src1->get_read_buffer();
+
+    {
+        if constexpr (std::is_same_v<data_type1, float>) {
+            hexagon::vec_cpy_f32(reinterpret_cast<const data_type1 *>(src1_ptr),
+                                 reinterpret_cast<data_type1 *>(src1_row_cache_ptr), src1->get_ne(0));
+        } else {
+            hexagon::vec_cpy_f16(reinterpret_cast<const data_type1 *>(src1_ptr),
+                                 reinterpret_cast<data_type1 *>(src1_row_cache_ptr), src1->get_ne(0));
+        }
+
+        src1_ptr = src1_row_cache_ptr;
+    }
+
     {
         for (int64_t col_idx = start_end_element.first; col_idx < start_end_element.second;
              col_idx += src0_plane_slice_row_count) {
