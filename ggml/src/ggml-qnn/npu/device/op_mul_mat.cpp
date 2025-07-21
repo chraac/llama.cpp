@@ -267,8 +267,6 @@ void mul_mat_gemv_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::
     const uint8_t * src0_ptr              = src0->get_read_buffer();
     const uint8_t * src1_ptr              = src1->get_read_buffer();
     {
-        const auto * src1_plane = src1_ptr;
-        auto *       dst_plane  = dst_ptr;
         for (int64_t col_idx = start_end_element.first; col_idx < start_end_element.second;
              col_idx += src0_plane_slice_row_count) {
             const int64_t actual_row_count =
@@ -299,9 +297,8 @@ void mul_mat_gemv_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::
 
             {
                 DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 1, vec_dot);
-                auto *  src1_row = src1_plane;
-                auto *  dst_row  = reinterpret_cast<float *>(dst_plane) + col_idx;
-                int64_t i0       = 0;
+                auto *  dst_row = reinterpret_cast<float *>(dst_ptr) + col_idx;
+                int64_t i0      = 0;
                 for (; i0 + 1 < actual_row_count; i0 += 2) {
                     auto * src0_row = src0_plane + i0 * src0_actual_row_size;
                     if constexpr (should_fetch_src0_row) {
@@ -310,7 +307,7 @@ void mul_mat_gemv_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::
 
                     // TODO: figure dst how to handle a entire row
                     auto res0 = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row),
-                                         reinterpret_cast<const data_type1 *>(src1_row), (size_t) src0->get_ne(0));
+                                         reinterpret_cast<const data_type1 *>(src1_ptr), (size_t) src0->get_ne(0));
 
                     {
                         DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 2, store);
@@ -323,7 +320,7 @@ void mul_mat_gemv_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::
 
                     // TODO: figure dst how to handle a entire row
                     auto res1 = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row + src0_actual_row_size),
-                                         reinterpret_cast<const data_type1 *>(src1_row), (size_t) src0->get_ne(0));
+                                         reinterpret_cast<const data_type1 *>(src1_ptr), (size_t) src0->get_ne(0));
 
                     {
                         DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 2, store);
@@ -334,7 +331,7 @@ void mul_mat_gemv_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::
                 if (i0 < actual_row_count) {
                     auto * src0_row = src0_plane + i0 * src0_actual_row_size;
                     auto   res      = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row),
-                                               reinterpret_cast<const data_type1 *>(src1_row), (size_t) src0->get_ne(0));
+                                               reinterpret_cast<const data_type1 *>(src1_ptr), (size_t) src0->get_ne(0));
                     DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 2, store);
                     dst_row[i0] = convert_vector<data_type1>::convert(res);
                 }
