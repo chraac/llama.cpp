@@ -225,12 +225,11 @@ void mul_mat_gemv_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::
     }
 
     // cache the src0 plane in VTCM
-    size_t          src0_plane_slice_row_count = start_end_element.second - start_end_element.first;
-    size_t          src0_plane_cache_size      = 0;
-    uint8_t *       src0_plane_cache_ptr       = nullptr;
-    const uint8_t * last_cached_plane_ptr      = nullptr;
-    const auto      src1_actual_row_size       = src1->get_nb(1);
-    uint8_t *       src1_row_cache_ptr         = nullptr;
+    size_t     src0_plane_slice_row_count = start_end_element.second - start_end_element.first;
+    size_t     src0_plane_cache_size      = 0;
+    uint8_t *  src0_plane_cache_ptr       = nullptr;
+    const auto src1_actual_row_size       = src1->get_nb(1);
+    uint8_t *  src1_row_cache_ptr         = nullptr;
     if constexpr (_ShouldCacheSrc0) {
         src0_plane_slice_row_count = std::min(
             (params->get_vtcm_quota_size() - src1_actual_row_size) / src0_actual_row_size, src0_plane_slice_row_count);
@@ -294,22 +293,18 @@ void mul_mat_gemv_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::
                                   start_end_element.second - col_idx);  // number of rows in this slice
             const uint8_t * src0_plane = src0_ptr + col_idx * src0->get_nb(1);
             if constexpr (_ShouldCacheSrc0) {
-                if (last_cached_plane_ptr != src0_plane) {
-                    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 0, dequant);
+                DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 0, dequant);
 
-                    hexagon::l2fetch_row(src0_plane, src0->get_nb(1));
-                    for (int64_t ir = 0; ir < actual_row_count; ir++) {
-                        auto * src0_row = src0_plane + ir * src0->get_nb(1);
-                        if (ir + 1 < actual_row_count) {
-                            hexagon::l2fetch_row(src0_row + src0->get_nb(1), src0->get_nb(1));
-                        }
-
-                        auto * cached_row_ptr = src0_plane_cache_ptr + ir * src0_actual_row_size;
-                        dequantize_row_func(src0_row, reinterpret_cast<hexagon::dequant_target_type *>(cached_row_ptr),
-                                            src0->get_ne(0));
+                hexagon::l2fetch_row(src0_plane, src0->get_nb(1));
+                for (int64_t ir = 0; ir < actual_row_count; ir++) {
+                    auto * src0_row = src0_plane + ir * src0->get_nb(1);
+                    if (ir + 1 < actual_row_count) {
+                        hexagon::l2fetch_row(src0_row + src0->get_nb(1), src0->get_nb(1));
                     }
 
-                    last_cached_plane_ptr = src0_plane;
+                    auto * cached_row_ptr = src0_plane_cache_ptr + ir * src0_actual_row_size;
+                    dequantize_row_func(src0_row, reinterpret_cast<hexagon::dequant_target_type *>(cached_row_ptr),
+                                        src0->get_ne(0));
                 }
 
                 src0_plane = src0_plane_cache_ptr;
