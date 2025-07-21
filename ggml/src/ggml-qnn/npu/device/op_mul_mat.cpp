@@ -470,16 +470,16 @@ constexpr const mul_mat_func_type kMulMatF32F32CachedFuncs[4] = {
     // quantized and non-quantized
     mul_mat_impl<hexagon::vec_dot_product_vqf32_f32_f32, true>,               // F32 * F32 quantized unaligned
     mul_mat_impl<hexagon::vec_dot_product_aligned_vqf32_f32_f32, true>,       // F32 * F32 quantized aligned
-    mul_mat_gemv_impl<hexagon::vec_dot_product_vqf32_f32_f32, true>,          // F32 * F32 quantized unaligned
-    mul_mat_gemv_impl<hexagon::vec_dot_product_aligned_vqf32_f32_f32, true>,  // F32 * F32 quantized aligned
+    mul_mat_gemv_impl<hexagon::vec_dot_product_aligned_vqf32_f32_f32, true>,  // F32 * F32 quantized gemv
+    mul_mat_gemv_impl<hexagon::vec_dot_product_aligned_vqf32_f32_f32, true>,  // F32 * F32 quantized gemv
 };
 
 constexpr const mul_mat_func_type kMulMatF32F32Funcs[4] = {
     // quantized and non-quantized
     mul_mat_impl<hexagon::vec_dot_product_vqf32_f32_f32, false>,               // F32 * F32 quantized unaligned
     mul_mat_impl<hexagon::vec_dot_product_aligned_vqf32_f32_f32, false>,       // F32 * F32 quantized aligned
-    mul_mat_gemv_impl<hexagon::vec_dot_product_vqf32_f32_f32, false>,          // F32 * F32 quantized unaligned
-    mul_mat_gemv_impl<hexagon::vec_dot_product_aligned_vqf32_f32_f32, false>,  // F32 * F32 quantized aligned
+    mul_mat_gemv_impl<hexagon::vec_dot_product_vqf32_f32_f32, false>,          // F32 * F32 quantized gemv
+    mul_mat_gemv_impl<hexagon::vec_dot_product_aligned_vqf32_f32_f32, false>,  // F32 * F32 quantized gemv
 };
 
 constexpr const mul_mat_func_type kMulMatF16F32Funcs[4] = {
@@ -493,15 +493,15 @@ constexpr const mul_mat_func_type kMulMatF16F32Funcs[4] = {
 constexpr const mul_mat_func_type kMulMatF16CachedFuncs[4] = {
     mul_mat_impl<hexagon::vec_dot_product_vqf16_f16_f16, true>,               // F16 * F16 quantized unaligned
     mul_mat_impl<hexagon::vec_dot_product_aligned_vqf16_f16_f16, true>,       // F16 * F16 quantized aligned
-    mul_mat_gemv_impl<hexagon::vec_dot_product_vqf16_f16_f16, true>,          // F16 * F16 quantized unaligned
-    mul_mat_gemv_impl<hexagon::vec_dot_product_aligned_vqf16_f16_f16, true>,  // F16 * F16 quantized aligned
+    mul_mat_gemv_impl<hexagon::vec_dot_product_aligned_vqf16_f16_f16, true>,  // F16 * F16 quantized gemv
+    mul_mat_gemv_impl<hexagon::vec_dot_product_aligned_vqf16_f16_f16, true>,  // F16 * F16 quantized gemv
 };
 
 constexpr const mul_mat_func_type kMulMatF16Funcs[4] = {
     mul_mat_impl<hexagon::vec_dot_product_vqf16_f16_f16, false>,               // F16 * F16 quantized unaligned
     mul_mat_impl<hexagon::vec_dot_product_aligned_vqf16_f16_f16, false>,       // F16 * F16 quantized aligned
-    mul_mat_gemv_impl<hexagon::vec_dot_product_vqf16_f16_f16, false>,          // F16 * F16 quantized unaligned
-    mul_mat_gemv_impl<hexagon::vec_dot_product_aligned_vqf16_f16_f16, false>,  // F16 * F16 quantized aligned
+    mul_mat_gemv_impl<hexagon::vec_dot_product_vqf16_f16_f16, false>,          // F16 * F16 quantized gemv
+    mul_mat_gemv_impl<hexagon::vec_dot_product_aligned_vqf16_f16_f16, false>,  // F16 * F16 quantized gemv
 };
 
 }  // namespace
