@@ -160,11 +160,6 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
                     auto res0 = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row),
                                          reinterpret_cast<const data_type1 *>(src1_row), (size_t) src0->get_ne(0));
 
-                    {
-                        DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 2, store);
-                        dst_row[i0] = convert_vector<data_type1>::convert(res0);
-                    }
-
                     if (should_fetch_src0_row && i0 + 2 < actual_row_count) {
                         hexagon::l2fetch_row(src0_row + src0_actual_row_size + src0_actual_row_size, valid_row0_bytes);
                     }
@@ -175,6 +170,7 @@ void mul_mat_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::tenso
 
                     {
                         DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 2, store);
+                        dst_row[i0]     = convert_vector<data_type1>::convert(res0);
                         dst_row[i0 + 1] = convert_vector<data_type1>::convert(res1);
                     }
                 }
@@ -333,11 +329,6 @@ void mul_mat_gemv_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::
                     auto res0 = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row),
                                          reinterpret_cast<const data_type1 *>(src1_ptr), (size_t) src0->get_ne(0));
 
-                    {
-                        DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 2, store);
-                        dst_row[i0] = convert_vector<data_type1>::convert(res0);
-                    }
-
                     if (should_fetch_src0_row && i0 + 2 < actual_row_count) {
                         hexagon::l2fetch_row(src0_row + src0_actual_row_size + src0_actual_row_size, valid_row0_bytes);
                     }
@@ -348,6 +339,7 @@ void mul_mat_gemv_impl(hexagon::tensor * src0, hexagon::tensor * src1, hexagon::
 
                     {
                         DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 2, store);
+                        dst_row[i0]     = convert_vector<data_type1>::convert(res0);
                         dst_row[i0 + 1] = convert_vector<data_type1>::convert(res1);
                     }
                 }
