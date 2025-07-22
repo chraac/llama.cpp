@@ -1,5 +1,8 @@
 #pragma once
 
+#include "util.hpp"
+#include "vtcm_mem.hpp"
+
 #include <qurt.h>
 
 #include <array>
@@ -7,9 +10,6 @@
 #include <cstdint>
 #include <memory>
 #include <string>
-
-#include "util.hpp"
-#include "vtcm_mem.hpp"
 
 namespace hexagon {
 
@@ -21,8 +21,10 @@ template <size_t _stack_size> class qurt_thread {
   public:
     typedef void (*qurt_thread_func_type)(qurt_thread * thread, void * arg);
 
-    explicit qurt_thread(const std::string & thread_name, qurt_thread_func_type thread_func, void * arg,
-                         unsigned short priority) {
+    explicit qurt_thread(const std::string &   thread_name,
+                         qurt_thread_func_type thread_func,
+                         void *                arg,
+                         unsigned short        priority) {
         DEVICE_LOG_DEBUG("qurt_thread.create: %s", thread_name.c_str());
         qurt_thread_attr_init(&_attributes);
         qurt_thread_attr_set_name(&_attributes, (char *) thread_name.c_str());
@@ -215,7 +217,8 @@ template <size_t _ThreadCount> class thread_pool {
 
 #ifdef GGML_HEXAGON_ENABLE_PERFORMANCE_TRACKING
             auto task_begin_cycles = pool._task_begin_cycles.load();
-            DEVICE_LOG_WARN("[profiler]worker_thread, tidx: %zu, prepare: %lluus", param->tidx,
+            DEVICE_LOG_WARN("[profiler]worker_thread, tidx: %zu, prepare: %lluus",
+                            param->tidx,
                             static_cast<unsigned long long>(
                                 HAP_perf_qtimer_count_to_us(HAP_perf_get_qtimer_count() - task_begin_cycles)));
 #endif
@@ -229,7 +232,8 @@ template <size_t _ThreadCount> class thread_pool {
             qurt_barrier_wait(&pool._completed);
 
 #ifdef GGML_HEXAGON_ENABLE_PERFORMANCE_TRACKING
-            DEVICE_LOG_WARN("[profiler]worker_thread, tidx: %zu, task_end: %lluus", param->tidx,
+            DEVICE_LOG_WARN("[profiler]worker_thread, tidx: %zu, task_end: %lluus",
+                            param->tidx,
                             static_cast<unsigned long long>(
                                 HAP_perf_qtimer_count_to_us(HAP_perf_get_qtimer_count() - task_begin_cycles)));
 #endif

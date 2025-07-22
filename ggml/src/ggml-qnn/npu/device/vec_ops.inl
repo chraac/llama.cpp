@@ -1,15 +1,18 @@
 #pragma once
 
+#include "hexagon_npu.h"
+
 #include <hexagon_types.h>
 
 #include <cstdint>
 
-#include "hexagon_npu.h"
-
 namespace hexagon::vec {
 
-template <typename _TElem, typename _TRet, HVX_Vector (*_MpyFunc)(HVX_Vector, HVX_Vector),
-          HVX_Vector (*_AddFunc)(HVX_Vector, HVX_Vector), _TRet (*_ReduceFunc)(HVX_Vector)>
+template <typename _TElem,
+          typename _TRet,
+          HVX_Vector (*_MpyFunc)(HVX_Vector, HVX_Vector),
+          HVX_Vector (*_AddFunc)(HVX_Vector, HVX_Vector),
+          _TRet (*_ReduceFunc)(HVX_Vector)>
 inline _TRet vec_dot_product_impl(const _TElem * src0, const _TElem * src1, size_t count) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TElem);
 
@@ -95,8 +98,11 @@ inline _TRet vec_dot_product_impl(const _TElem * src0, const _TElem * src1, size
     return _ReduceFunc(sum);
 }
 
-template <typename _TElem, typename _TRet, HVX_Vector (*_MpyFunc)(HVX_Vector, HVX_Vector),
-          HVX_Vector (*_AddFunc)(HVX_Vector, HVX_Vector), _TRet (*_ReduceFunc)(HVX_Vector)>
+template <typename _TElem,
+          typename _TRet,
+          HVX_Vector (*_MpyFunc)(HVX_Vector, HVX_Vector),
+          HVX_Vector (*_AddFunc)(HVX_Vector, HVX_Vector),
+          _TRet (*_ReduceFunc)(HVX_Vector)>
 inline _TRet vec_dot_product_aligned_impl(const _TElem * src0, const _TElem * src1, size_t count) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TElem);
 
@@ -170,8 +176,12 @@ inline HVX_Vector vec_add_qf16(HVX_Vector sum, HVX_Vector result) {
     return Q6_Vqf16_vadd_Vqf16Vqf16(sum, result);
 }
 
-template <typename _TElem0, typename _TElem1, typename _TRet, HVX_Vector_Dual (*_ExpandFunc)(HVX_Vector, HVX_Vector),
-          HVX_Vector (*_MpyFunc)(HVX_Vector, HVX_Vector), HVX_Vector (*_AddFunc)(HVX_Vector, HVX_Vector),
+template <typename _TElem0,
+          typename _TElem1,
+          typename _TRet,
+          HVX_Vector_Dual (*_ExpandFunc)(HVX_Vector, HVX_Vector),
+          HVX_Vector (*_MpyFunc)(HVX_Vector, HVX_Vector),
+          HVX_Vector (*_AddFunc)(HVX_Vector, HVX_Vector),
           _TRet (*_ReduceFunc)(HVX_Vector)>
 inline _TRet vec_dot_product_mixed_impl(const _TElem0 * src0, const _TElem1 * src1, size_t count) {
     static_assert(sizeof(_TElem0) < sizeof(_TElem1), "Element size mismatch: _TElem0 must be smaller than _TElem1");
@@ -271,8 +281,12 @@ inline _TRet vec_dot_product_mixed_impl(const _TElem0 * src0, const _TElem1 * sr
     return _ReduceFunc(sum);
 }
 
-template <typename _TElem0, typename _TElem1, typename _TRet, HVX_Vector_Dual (*_ExpandFunc)(HVX_Vector, HVX_Vector),
-          HVX_Vector (*_MpyFunc)(HVX_Vector, HVX_Vector), HVX_Vector (*_AddFunc)(HVX_Vector, HVX_Vector),
+template <typename _TElem0,
+          typename _TElem1,
+          typename _TRet,
+          HVX_Vector_Dual (*_ExpandFunc)(HVX_Vector, HVX_Vector),
+          HVX_Vector (*_MpyFunc)(HVX_Vector, HVX_Vector),
+          HVX_Vector (*_AddFunc)(HVX_Vector, HVX_Vector),
           _TRet (*_ReduceFunc)(HVX_Vector)>
 inline _TRet vec_dot_product_mix_aligned_impl(const _TElem0 * src0, const _TElem1 * src1, size_t count) {
     static_assert(sizeof(_TElem0) < sizeof(_TElem1), "Element size mismatch: _TElem0 must be smaller than _TElem1");
@@ -328,7 +342,8 @@ inline _TRet vec_dot_product_mix_aligned_impl(const _TElem0 * src0, const _TElem
     return _ReduceFunc(_AddFunc(sum0, sum1));
 }
 
-template <HVX_Vector (*_Func)(HVX_Vector, HVX_UVector *, HVX_Vector), HVX_Vector (*_FuncScaleConvert)(float),
+template <HVX_Vector (*_Func)(HVX_Vector, HVX_UVector *, HVX_Vector),
+          HVX_Vector (*_FuncScaleConvert)(float),
           typename _TParam>
 inline void vec_scale_impl(const _TParam * src, float scale, _TParam * dst, size_t count) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TParam);
