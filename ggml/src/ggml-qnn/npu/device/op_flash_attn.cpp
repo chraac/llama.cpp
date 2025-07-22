@@ -118,7 +118,8 @@ void flash_attn_impl(hexagon::tensor * out, const hexagon::tensor * q, const hex
 
         const npu_device_fp16_t * mp =
             mask_ptr ? reinterpret_cast<const npu_device_fp16_t *>(mask_ptr + iq1 * mask->get_nb(1) +
-                                                                   (iq3 % mask->get_ne(2)) * mask->get_nb(2)) :
+                                                                   (iq2 % mask->get_ne(2)) * mask->get_nb(2) +
+                                                                   (iq3 % mask->get_ne(3)) * mask->get_nb(3)) :
                        nullptr;
 
         // k indices
@@ -322,14 +323,6 @@ bool is_flash_attn_supported(npu_device_tensor_op op, const npu_device_tensor_sp
     }
 
     if (q->ne[0] != k->ne[0]) {
-        DEVICE_LOG_DEBUG("[%s]q and k shapes do not match: q ne: %ld, %ld, %ld, %ld, k ne: %ld, %ld, %ld, %ld\n",
-                         op_get_name(op), q->ne[0], q->ne[1], q->ne[2], q->ne[3], k->ne[0], k->ne[1], k->ne[2],
-                         k->ne[3]);
-        return false;
-    }
-
-    if (q->ne[3] != k->ne[3] || q->ne[3] != 1) {
-        // TODO: add broadcast support
         DEVICE_LOG_DEBUG("[%s]q and k shapes do not match: q ne: %ld, %ld, %ld, %ld, k ne: %ld, %ld, %ld, %ld\n",
                          op_get_name(op), q->ne[0], q->ne[1], q->ne[2], q->ne[3], k->ne[0], k->ne[1], k->ne[2],
                          k->ne[3]);
