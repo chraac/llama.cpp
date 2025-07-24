@@ -251,7 +251,7 @@ void mul_mat_gemv_impl(hexagon::tensor *         src0,
     size_t     src0_plane_slice_row_count = start_end_element.second - start_end_element.first;
     size_t     src0_plane_cache_size      = 0;
     uint8_t *  src0_plane_cache_ptr       = nullptr;
-    const auto src1_actual_row_size       = src1->get_nb(1);
+    const auto src1_actual_row_size       = hexagon::get_aligned_size(src1->get_nb(1));
     uint8_t *  src1_row_cache_ptr         = nullptr;
     if constexpr (_ShouldCacheSrc0) {
         src0_plane_slice_row_count = std::min(
@@ -268,8 +268,7 @@ void mul_mat_gemv_impl(hexagon::tensor *         src0,
             return;
         }
 
-        src1_row_cache_ptr = src0_plane_cache_ptr;
-        src0_plane_cache_ptr += src1_actual_row_size;
+        src1_row_cache_ptr = src0_plane_cache_ptr + src0_plane_cache_size;
     } else {
         src1_row_cache_ptr = params->get_vtcm_cache(src1_actual_row_size);
         if (src1_row_cache_ptr == nullptr) {
