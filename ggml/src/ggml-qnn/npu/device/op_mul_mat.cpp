@@ -126,16 +126,17 @@ void mul_mat_impl(hexagon::tensor *         src0,
         auto *       dst_plane  = dst_ptr + i3 * dst->get_nb(3) + i2 * dst->get_nb(2);
         for (int64_t col_idx = start_end_element.first; col_idx < start_end_element.second;
              col_idx += src0_plane_slice_row_count) {
+            const uint8_t * src0_plane =
+                src0_ptr + i3 / r03 * src0->get_nb(3) + i2 / r02 * src0->get_nb(2) + col_idx * src0->get_nb(1);
+            hexagon::l2fetch_row(src0_plane, src0->get_nb(1));
+
             const int64_t actual_row_count =
                 std::min<int64_t>(src0_plane_slice_row_count,
                                   start_end_element.second - col_idx);  // number of rows in this slice
-            const uint8_t * src0_plane =
-                src0_ptr + i3 / r03 * src0->get_nb(3) + i2 / r02 * src0->get_nb(2) + col_idx * src0->get_nb(1);
             if constexpr (_ShouldCacheSrc0) {
                 if (last_cached_plane_ptr != src0_plane) {
                     DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 0, dequant);
 
-                    hexagon::l2fetch_row(src0_plane, src0->get_nb(1));
                     for (int64_t ir = 0; ir < actual_row_count; ir++) {
                         auto * src0_row = src0_plane + ir * src0->get_nb(1);
                         if (ir + 1 < actual_row_count) {
@@ -318,14 +319,15 @@ void mul_mat_gemv_impl(hexagon::tensor *         src0,
     {
         for (int64_t col_idx = start_end_element.first; col_idx < start_end_element.second;
              col_idx += src0_plane_slice_row_count) {
+            const uint8_t * src0_plane = src0_ptr + col_idx * src0->get_nb(1);
+            hexagon::l2fetch_row(src0_plane, src0->get_nb(1));
+
             const int64_t actual_row_count =
                 std::min<int64_t>(src0_plane_slice_row_count,
                                   start_end_element.second - col_idx);  // number of rows in this slice
-            const uint8_t * src0_plane = src0_ptr + col_idx * src0->get_nb(1);
             if constexpr (_ShouldCacheSrc0) {
                 DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 0, dequant);
 
-                hexagon::l2fetch_row(src0_plane, src0->get_nb(1));
                 for (int64_t ir = 0; ir < actual_row_count; ir++) {
                     auto * src0_row = src0_plane + ir * src0->get_nb(1);
                     if (ir + 1 < actual_row_count) {
