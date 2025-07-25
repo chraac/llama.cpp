@@ -96,9 +96,9 @@ template <size_t _ThreadCount> class thread_pool {
         thread_pool<kMaxThreadCount> * pool = nullptr;
         size_t                         vtcm_quota_size;
 
-        std::unique_ptr<vtcm_mem>  vtcm_cache;
-        std::unique_ptr<uint8_t[]> mem_cache;
-        size_t                     mem_cache_size = 0;
+        std::unique_ptr<vtcm_mem> vtcm_cache;
+
+        void init_vtcm_cache() { vtcm_cache = std::make_unique<vtcm_mem>(vtcm_quota_size, false); }
 
         uint8_t * get_vtcm_cache(size_t size) {
             if (!vtcm_cache || vtcm_cache->get_size() < size) {
@@ -113,25 +113,18 @@ template <size_t _ThreadCount> class thread_pool {
 
             return vtcm_cache->get_mem();
         }
-
-        uint8_t * get_mem_cache(size_t size) {
-            if (!mem_cache || mem_cache_size < size) {
-                mem_cache.reset();  // reset the cache to create a new one
-                mem_cache      = std::make_unique<uint8_t[]>(size + 256);
-                mem_cache_size = mem_cache ? size : 0;
-            }
-
-            return mem_cache.get();
-        }
     };
 
     typedef void (*task_type)(thread_pool * pool, thread_params * param, void * arg);
 
     thread_pool() {
         for (size_t i = 0; i < kMaxThreadCount; ++i) {
-            _thread_params[i].tidx            = i;
-            _thread_params[i].vtcm_quota_size = hexagon::vtcm_mem::get_avail_block_size() / kMaxThreadCount;
-            _thread_params[i].pool            = this;
+            auto & thread_param          = _thread_params[i];
+            thread_param.tidx            = i;
+            thread_param.vtcm_quota_size = hexagon::vtcm_mem::get_avail_block_size() / kMaxThreadCount;
+            thread_param.pool            = this;
+
+            thread_param.init_vtcm_cache();
         }
 
         qurt_barrier_init(&_pending, kMaxSubThreadCount + 1);

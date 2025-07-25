@@ -44,8 +44,6 @@ struct compute_params {
 
     uint8_t * get_vtcm_cache(size_t size) { return thread_params->get_vtcm_cache(size); }
 
-    uint8_t * get_mem_cache(size_t size) { return thread_params->get_mem_cache(size); }
-
     std::pair<int64_t, int64_t> get_work_slice(int64_t total) const {
         return get_thread_work_slice(total, thread_params->tidx, thread_params->tcnt);
     }
