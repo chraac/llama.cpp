@@ -324,13 +324,13 @@ void quantize_row_q4_K(const float * src, void * dst, size_t count) {
     }
 }
 
-void dequantize_row_q8_0(const void * src, hexagon::dequant_target_type * dst, size_t count) {
+void dequantize_row_q8_0(const void * src, hexagon::dequant_output_type * dst, size_t count) {
     constexpr const int qk = QUANT_BLOCK_SIZE;
     static_assert(QUANT_BLOCK_SIZE == hexagon::kBytesPerVector / sizeof(float));
 
     const int    nb      = count / qk;
     const auto * src_ptr = reinterpret_cast<const npu_device_block_q8_0 *>(src);
-    auto *       dst_ptr = ((hexagon::dequant_target_type *) dst);  // TODO: opt for aligned access
+    auto *       dst_ptr = ((hexagon::dequant_output_type *) dst);  // TODO: opt for aligned access
 
     int i = 0;
     for (; i + 1 < nb; i += 2) {
@@ -363,7 +363,7 @@ void dequantize_row_q8_0(const void * src, hexagon::dequant_target_type * dst, s
 }
 
 template <bool _IsDstAligned>
-void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_target_type * dst, size_t count) {
+void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_output_type * dst, size_t count) {
     constexpr const int qk = QUANT_BLOCK_SIZE;
     static_assert(qk % 2 == 0, "qk must be even");
     static_assert(QUANT_BLOCK_SIZE == hexagon::kBytesPerVector / sizeof(float));
@@ -373,7 +373,7 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_target_type * d
     const auto *                   src_ptr = reinterpret_cast<const npu_device_block_q4_0 *>(src);
     const HVX_Vector               mask    = Q6_Vb_vsplat_R(0x0F);
     const HVX_Vector               minus   = Q6_Vb_vsplat_R(8);
-    hexagon::dequant_target_type * dst_ptr = dst;  // TODO: opt for aligned access
+    hexagon::dequant_output_type * dst_ptr = dst;  // TODO: opt for aligned access
 
     int i = 0;
     for (; i + 3 < nb; i += 4) {
@@ -411,7 +411,7 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_target_type * d
             reinterpret_cast<HVX_UVector *>(dst_ptr)[1] = q_hi;
         }
 
-        dst_ptr += hexagon::kBytesPerVector / sizeof(hexagon::dequant_target_type) * 2;
+        dst_ptr += hexagon::kBytesPerVector / sizeof(hexagon::dequant_output_type) * 2;
     }
 
     for (; i + 1 < nb; i += 2) {
@@ -437,7 +437,7 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_target_type * d
             *reinterpret_cast<HVX_UVector *>(dst_ptr) = q_lo;
         }
 
-        dst_ptr += hexagon::kBytesPerVector / sizeof(hexagon::dequant_target_type);
+        dst_ptr += hexagon::kBytesPerVector / sizeof(hexagon::dequant_output_type);
     }
 
     if (i < nb) {
@@ -462,7 +462,7 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_target_type * d
     }
 }
 
-void dequantize_row_q4_0(const void * src, hexagon::dequant_target_type * dst, size_t count) {
+void dequantize_row_q4_0(const void * src, hexagon::dequant_output_type * dst, size_t count) {
     const bool dst_aligned = hexagon::is_addr_aligned(dst);
     if (dst_aligned) {
         dequantize_row_q4_0_impl<true>(src, dst, count);
@@ -471,7 +471,7 @@ void dequantize_row_q4_0(const void * src, hexagon::dequant_target_type * dst, s
     }
 }
 
-void dequantize_row_q4_K(const void * src, hexagon::dequant_target_type * dst, size_t count) {
+void dequantize_row_q4_K(const void * src, hexagon::dequant_output_type * dst, size_t count) {
     const int    nb      = count / QUANT_K_BLOCK_SIZE;
     const auto * src_ptr = reinterpret_cast<const npu_device_block_q4_k *>(src);
     auto *       dst_ptr = reinterpret_cast<__fp16 *>(dst);
@@ -506,11 +506,11 @@ void dequantize_row_q4_K(const void * src, hexagon::dequant_target_type * dst, s
     }
 }
 
-void copy_row_f16(const void * src, hexagon::dequant_target_type * dst, size_t count) {
+void copy_row_f16(const void * src, hexagon::dequant_output_type * dst, size_t count) {
     hexagon::vec_cpy_f16(reinterpret_cast<const npu_device_fp16_t *>(src), dst, count);
 }
 
-void copy_row_f32(const void * src, hexagon::dequant_target_type * dst, size_t count) {
+void copy_row_f32(const void * src, hexagon::dequant_output_type * dst, size_t count) {
     hexagon::vec_cpy_f32(reinterpret_cast<const float *>(src), reinterpret_cast<float *>(dst), count);
 }
 
@@ -590,7 +590,7 @@ size_t get_dequantized_row_size(const tensor * tensor) {
 
     auto row_elems_count = tensor->get_ne(0);
     return hexagon::get_aligned_size(
-        row_elems_count * sizeof(dequant_target_type));  // dequant_target_type is currently restricted to f32
+        row_elems_count * sizeof(dequant_output_type));  // dequant_output_type is currently restricted to f32
 }
 
 }  // namespace hexagon

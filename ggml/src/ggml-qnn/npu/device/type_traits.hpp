@@ -5,12 +5,12 @@
 
 namespace hexagon {
 
-using dequant_target_type = npu_device_fp16_t;
+using dequant_output_type = npu_device_fp16_t;
 
 bool init_f16_f32_table(float * table, size_t count);
 
 typedef void (*quantize_row_type)(const float * src, void * dst, size_t count);
-typedef void (*dequantize_row_type)(const void * src, dequant_target_type * dst, size_t count);
+typedef void (*dequantize_row_type)(const void * src, dequant_output_type * dst, size_t count);
 typedef float (*vec_dot_type)(const void * src0, const void * src1, size_t count);
 typedef bool (*can_use_aligned_vec_dot_type)(const void * src0, const void * src1, size_t count);
 

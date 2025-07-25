@@ -145,7 +145,7 @@ void mul_mat_impl(hexagon::tensor *         src0,
 
                         auto * cached_row_ptr = src0_plane_cache_ptr + ir * src0_actual_row_size;
                         dequantize_row_func(src0_row,
-                                            reinterpret_cast<hexagon::dequant_target_type *>(cached_row_ptr),
+                                            reinterpret_cast<hexagon::dequant_output_type *>(cached_row_ptr),
                                             src0->get_ne(0));
                     }
 
@@ -335,7 +335,7 @@ void mul_mat_gemv_impl(hexagon::tensor *         src0,
 
                     auto * cached_row_ptr = src0_plane_cache_ptr + ir * src0_actual_row_size;
                     dequantize_row_func(
-                        src0_row, reinterpret_cast<hexagon::dequant_target_type *>(cached_row_ptr), src0->get_ne(0));
+                        src0_row, reinterpret_cast<hexagon::dequant_output_type *>(cached_row_ptr), src0->get_ne(0));
                 }
 
                 src0_plane = src0_plane_cache_ptr;
@@ -395,7 +395,7 @@ bool is_row_size_cacheable(const npu_device_tensor_spec & src) {
         return false;
     }
 
-    const size_t type_size = type_traits.is_quantized ? sizeof(hexagon::dequant_target_type) : type_traits.type_size;
+    const size_t type_size = type_traits.is_quantized ? sizeof(hexagon::dequant_output_type) : type_traits.type_size;
     const auto   vtcm_thread_quota_size = hexagon::default_thread_pool::get_per_thread_vtcm_quota();
     if (src.ne[0] * type_size > vtcm_thread_quota_size) {
         DEVICE_LOG_DEBUG("[MUL_MAT]src.type(%s) ne[0] is too large: %ld, vtcm_thread_quota_size: %zu\n",
@@ -553,9 +553,9 @@ namespace hexagon {
 
 bool mul_mat_f32(hexagon::tensor * out, compute_params * params) {
     static_assert(DEVICE_TENSOR_MAX_DIMS == 4, "mul_mat_f32 requires max dims 4");
-    static_assert(std::is_same<hexagon::dequant_target_type, float>::value ||
-                      std::is_same<hexagon::dequant_target_type, npu_device_fp16_t>::value,
-                  "dequant_target_type must be float or npu_device_fp16_t");
+    static_assert(std::is_same<hexagon::dequant_output_type, float>::value ||
+                      std::is_same<hexagon::dequant_output_type, npu_device_fp16_t>::value,
+                  "dequant_output_type must be float or npu_device_fp16_t");
 
     if (!out) {
         return false;
