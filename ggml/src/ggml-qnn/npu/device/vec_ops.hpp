@@ -366,4 +366,18 @@ _TReturn type_erase_dot_func(const void * src0, const void * src1, size_t count)
     return _DotFunc(src0_typed, src1_typed, count);
 }
 
+inline HVX_Vector vec_silu_f32(HVX_Vector x) {
+    HVX_Vector one = Q6_V_vsplat_R(1.0f);
+
+    // x/(1.0f + expf(-x));
+    return x / (vec::math::qhmath_hvx_exp_vf(Q6_Vqf32_vsub_VsfVsf(Q6_V_vzero(), x)) + one);
+}
+
+inline HVX_Vector vec_silu_f16(HVX_Vector x) {
+    HVX_Vector one = Q6_V_vsplat_R(1.0f);
+
+    // x/(1.0f + expf(-x));
+    return x / (vec::math::qhmath_hvx_exp_vhf(Q6_Vqf16_vsub_VhfVhf(Q6_V_vzero(), x)) + one);
+}
+
 }  // namespace hexagon
