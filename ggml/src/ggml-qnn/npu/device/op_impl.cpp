@@ -458,7 +458,8 @@ bool is_glu_op_supported(const npu_device_tensor_op_spec * op_spec,
         return false;
     }
 
-    return true;
+    // TODO: fix GLU
+    return false;
 }
 
 struct op_capabilities {

@@ -197,9 +197,7 @@ bool npu_device::supports_op_impl(const ggml_tensor * op) {
     boolean supported = false;
     auto    dst_spec  = get_spec(op);
 
-    npu_device_tensor_op_spec npu_op_spec = {
-        npu_op,
-    };
+    npu_device_tensor_op_spec npu_op_spec = { npu_op, {} };
     static_assert(sizeof(npu_op_spec.params) <= sizeof(op->op_params),
                   "npu_op_spec.params size should less than op->op_params size");
     memcpy(npu_op_spec.params, op->op_params, sizeof(npu_op_spec.params));
