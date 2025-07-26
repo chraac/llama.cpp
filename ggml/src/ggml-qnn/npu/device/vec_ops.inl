@@ -179,7 +179,7 @@ inline HVX_Vector vec_add_qf16(HVX_Vector sum, HVX_Vector result) {
 template <typename _TElem0,
           typename _TElem1,
           typename _TRet,
-          HVX_Vector_Dual (*_ExpandFunc)(HVX_Vector, HVX_Vector),
+          HVX_Vector_x2 (*_ExpandFunc)(HVX_Vector, HVX_Vector),
           HVX_Vector (*_MpyFunc)(HVX_Vector, HVX_Vector),
           HVX_Vector (*_AddFunc)(HVX_Vector, HVX_Vector),
           _TRet (*_ReduceFunc)(HVX_Vector)>
@@ -212,8 +212,8 @@ inline _TRet vec_dot_product_mixed_impl(const _TElem0 * src0, const _TElem1 * sr
             HVX_Vector     curr0 = src0_vec_ptr[0];
             HVX_VectorPair curr1 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[0];
 
-            HVX_Vector      s0      = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
-            HVX_Vector_Dual s0_pair = _ExpandFunc(s0, kOneV);
+            HVX_Vector    s0      = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
+            HVX_Vector_x2 s0_pair = _ExpandFunc(s0, kOneV);
 
             HVX_Vector l1 = Q6_V_valign_VVR(Q6_V_lo_W(curr1), prev1, (size_t) src1);
             sum0          = _AddFunc(_MpyFunc(s0_pair.first, l1), sum0);
@@ -238,8 +238,8 @@ inline _TRet vec_dot_product_mixed_impl(const _TElem0 * src0, const _TElem1 * sr
         HVX_Vector curr0 = should_fetch_src0 ? *src0_vec_ptr : prev0;
         src0_vec_ptr += should_fetch_src0 ? 1 : 0;
 
-        HVX_Vector      s0      = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
-        HVX_Vector_Dual s0_pair = _ExpandFunc(s0, kOneV);
+        HVX_Vector    s0      = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
+        HVX_Vector_x2 s0_pair = _ExpandFunc(s0, kOneV);
 
         const bool has_remaining_src1_vector = src1_vec_ptr_end - src1_vec_ptr > 0;
         if (has_remaining_src1_vector) {
@@ -272,7 +272,7 @@ inline _TRet vec_dot_product_mixed_impl(const _TElem0 * src0, const _TElem1 * sr
                                prev1;
         curr1            = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
 
-        HVX_Vector_Dual curr0_pair = _ExpandFunc(curr0, kOneV);
+        HVX_Vector_x2 curr0_pair = _ExpandFunc(curr0, kOneV);
 
         curr0 = leftover1 == leftover0 ? curr0_pair.first : curr0_pair.second;
         sum   = _AddFunc(Q6_V_valign_VVR(_MpyFunc(curr0, curr1), Q6_V_vzero(), leftover_bytes1), sum);
@@ -284,7 +284,7 @@ inline _TRet vec_dot_product_mixed_impl(const _TElem0 * src0, const _TElem1 * sr
 template <typename _TElem0,
           typename _TElem1,
           typename _TRet,
-          HVX_Vector_Dual (*_ExpandFunc)(HVX_Vector, HVX_Vector),
+          HVX_Vector_x2 (*_ExpandFunc)(HVX_Vector, HVX_Vector),
           HVX_Vector (*_MpyFunc)(HVX_Vector, HVX_Vector),
           HVX_Vector (*_AddFunc)(HVX_Vector, HVX_Vector),
           _TRet (*_ReduceFunc)(HVX_Vector)>
@@ -311,16 +311,16 @@ inline _TRet vec_dot_product_mix_aligned_impl(const _TElem0 * src0, const _TElem
         HVX_Vector sum3 = Q6_V_vzero();
 
         do {
-            HVX_VectorPair  curr0  = reinterpret_cast<HVX_VectorPair *>(src0_vec_ptr)[0];
-            HVX_Vector_Dual curr00 = _ExpandFunc(Q6_V_lo_W(curr0), kOneV);
-            HVX_VectorPair  curr10 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[0];
-            sum0                   = _AddFunc(_MpyFunc(curr00.first, Q6_V_lo_W(curr10)), sum0);
-            sum1                   = _AddFunc(_MpyFunc(curr00.second, Q6_V_hi_W(curr10)), sum1);
+            HVX_VectorPair curr0  = reinterpret_cast<HVX_VectorPair *>(src0_vec_ptr)[0];
+            HVX_Vector_x2  curr00 = _ExpandFunc(Q6_V_lo_W(curr0), kOneV);
+            HVX_VectorPair curr10 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[0];
+            sum0                  = _AddFunc(_MpyFunc(curr00.first, Q6_V_lo_W(curr10)), sum0);
+            sum1                  = _AddFunc(_MpyFunc(curr00.second, Q6_V_hi_W(curr10)), sum1);
 
-            HVX_Vector_Dual curr01 = _ExpandFunc(Q6_V_hi_W(curr0), kOneV);
-            HVX_VectorPair  curr11 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[1];
-            sum2                   = _AddFunc(_MpyFunc(curr01.first, Q6_V_lo_W(curr11)), sum2);
-            sum3                   = _AddFunc(_MpyFunc(curr01.second, Q6_V_hi_W(curr11)), sum3);
+            HVX_Vector_x2  curr01 = _ExpandFunc(Q6_V_hi_W(curr0), kOneV);
+            HVX_VectorPair curr11 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[1];
+            sum2                  = _AddFunc(_MpyFunc(curr01.first, Q6_V_lo_W(curr11)), sum2);
+            sum3                  = _AddFunc(_MpyFunc(curr01.second, Q6_V_hi_W(curr11)), sum3);
 
             src0_vec_ptr += 2;
             src1_vec_ptr += 4;
@@ -331,8 +331,8 @@ inline _TRet vec_dot_product_mix_aligned_impl(const _TElem0 * src0, const _TElem
     }
 
     if (src1_vec_ptr_end - src1_vec_ptr > 1) {
-        HVX_Vector      curr0   = src0_vec_ptr[0];
-        HVX_Vector_Dual s0_pair = _ExpandFunc(curr0, kOneV);
+        HVX_Vector    curr0   = src0_vec_ptr[0];
+        HVX_Vector_x2 s0_pair = _ExpandFunc(curr0, kOneV);
 
         HVX_VectorPair curr1 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[0];
         sum0                 = _AddFunc(_MpyFunc(s0_pair.first, Q6_V_lo_W(curr1)), sum0);
