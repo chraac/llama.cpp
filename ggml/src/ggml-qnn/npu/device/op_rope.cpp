@@ -362,10 +362,11 @@ bool rope_f32(tensor * out, compute_params * params) {
     return kRopeImplFuncs[impl_index](out, params);
 }
 
-bool is_rope_supported(npu_device_tensor_op           op,
-                       const npu_device_tensor_spec * dst,
-                       const npu_device_tensor_spec * srcs,
-                       size_t                         src_len) {
+bool is_rope_supported(const npu_device_tensor_op_spec * op_spec,
+                       const npu_device_tensor_spec *    dst,
+                       const npu_device_tensor_spec *    srcs,
+                       size_t                            src_len) {
+    const auto op = op_spec->op;
     if (op != NPU_OP_ROPE) {
         DEVICE_LOG_DEBUG("[%s]op is not ROPE\n", op_get_name(op));
         return false;

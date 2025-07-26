@@ -130,12 +130,12 @@ AEEResult npu_device_device_get_alignment(remote_handle64 _h, uint32_t * alignme
     return AEE_SUCCESS;
 }
 
-AEEResult npu_device_device_support_op(remote_handle64                _h,
-                                       npu_device_tensor_op           op,
-                                       const npu_device_tensor_spec * dst,
-                                       const npu_device_tensor_spec * srcs,
-                                       int                            srcsLen,
-                                       boolean *                      is_supported) {
+AEEResult npu_device_device_support_op(remote_handle64                   _h,
+                                       const npu_device_tensor_op_spec * op_spec,
+                                       const npu_device_tensor_spec *    dst,
+                                       const npu_device_tensor_spec *    srcs,
+                                       int                               srcsLen,
+                                       boolean *                         is_supported) {
     NPU_UNUSED(_h);
 
     if (!srcs || srcsLen <= 0 || !dst || !is_supported) {
@@ -143,7 +143,7 @@ AEEResult npu_device_device_support_op(remote_handle64                _h,
         return AEE_EINVARGS;
     }
 
-    *is_supported = hexagon::support_op(op, dst, srcs, srcsLen);
+    *is_supported = hexagon::support_op(op_spec, dst, srcs, srcsLen);
     return AEE_SUCCESS;
 }
 

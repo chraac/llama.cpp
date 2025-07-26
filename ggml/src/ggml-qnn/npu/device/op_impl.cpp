@@ -132,10 +132,11 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
     return true;
 }
 
-bool is_element_wise_op_supported(npu_device_tensor_op           op,
-                                  const npu_device_tensor_spec * dst,
-                                  const npu_device_tensor_spec * srcs,
-                                  size_t                         src_len) {
+bool is_element_wise_op_supported(const npu_device_tensor_op_spec * op_spec,
+                                  const npu_device_tensor_spec *    dst,
+                                  const npu_device_tensor_spec *    srcs,
+                                  size_t                            src_len) {
+    const auto op = op_spec->op;
     if (op != NPU_OP_ADD && op != NPU_OP_SUB && op != NPU_OP_MUL) {
         DEVICE_LOG_DEBUG("[%s]unsupported\n", hexagon::op_get_name(op));
         return false;
@@ -281,10 +282,11 @@ template <auto _RowFunc> bool unary_op(hexagon::tensor * out, hexagon::compute_p
     return true;
 }
 
-bool is_unary_op_supported(npu_device_tensor_op           op,
-                           const npu_device_tensor_spec * dst,
-                           const npu_device_tensor_spec * srcs,
-                           size_t                         src_len) {
+bool is_unary_op_supported(const npu_device_tensor_op_spec * op_spec,
+                           const npu_device_tensor_spec *    dst,
+                           const npu_device_tensor_spec *    srcs,
+                           size_t                            src_len) {
+    const auto op = op_spec->op;
     if (op != NPU_OP_RMS_NORM) {
         DEVICE_LOG_DEBUG("[%s]unsupported\n", hexagon::op_get_name(op));
         return false;
@@ -384,11 +386,78 @@ template <auto _GluRowFunc> bool glu_impl(hexagon::tensor * out, hexagon::comput
 
         _GluRowFunc(reinterpret_cast<const data_type *>(src0_row),
                     reinterpret_cast<const data_type *>(src1_row),
-                    static_cast<size_t>(out->get_ne(0)),
+                    static_cast<size_t>(total_cols),
                     reinterpret_cast<data_type *>(dst_row));
     }
 
     out->release_write_buffer();  // mark the output tensor as modified
+    return true;
+}
+
+template <npu_device_tensor_data_type _DataType>
+bool glu_dispatcher(hexagon::tensor * out, hexagon::compute_params * params) {
+    if (out->get_op_param<int32_t>(0) != NPU_GLU_OP_SWIGLU) {
+        DEVICE_LOG_ERROR("Invalid GLU op type: %d\n", out->get_op_param<int32_t>(0));
+        return false;
+    }
+
+    if (out->get_type() != _DataType) {
+        DEVICE_LOG_ERROR("GLU op type mismatch: %s vs %s\n",
+                         hexagon::get_type_name(out->get_type()),
+                         hexagon::get_type_name(_DataType));
+        return false;
+    }
+
+    if constexpr (_DataType == NPU_DATA_TYPE_F32) {
+        return glu_impl<vec_op_f32_f32<hexagon::vec_swiglu_f32_f32>>(out, params);
+    } else if constexpr (_DataType == NPU_DATA_TYPE_F16) {
+        return glu_impl<vec_op_f16_f16<hexagon::vec_swiglu_f16_f16>>(out, params);
+    }
+
+    DEVICE_LOG_ERROR("Unsupported GLU data type: %s\n", hexagon::get_type_name(out->get_type()));
+    return false;  // unsupported data type
+}
+
+bool is_glu_op_supported(const npu_device_tensor_op_spec * op_spec,
+                         const npu_device_tensor_spec *    dst,
+                         const npu_device_tensor_spec *    srcs,
+                         size_t                            src_len) {
+    const auto op = op_spec->op;
+    if (op_spec->op != NPU_OP_GLU) {
+        DEVICE_LOG_DEBUG("[%s]unsupported\n", hexagon::op_get_name(op));
+        return false;
+    }
+
+    if (op_spec->params[0] != NPU_GLU_OP_SWIGLU) {
+        DEVICE_LOG_DEBUG("[%s]unsupported GLU op type: %d\n", hexagon::op_get_name(op), op_spec->params[0]);
+        return false;
+    }
+
+    if (!dst || !srcs || src_len < 1) {
+        DEVICE_LOG_DEBUG("[%s]invalid dst or srcs\n", hexagon::op_get_name(op));
+        return false;
+    }
+
+    const auto & src0 = srcs[0];
+    if (dst->type != src0.type) {
+        DEVICE_LOG_DEBUG("[%s]src0.type and dst.type mismatch: %s vs %s\n",
+                         hexagon::op_get_name(op),
+                         hexagon::get_type_name(src0.type),
+                         hexagon::get_type_name(dst->type));
+        return false;
+    }
+
+    if (dst->type != NPU_DATA_TYPE_F32 && dst->type != NPU_DATA_TYPE_F16) {
+        DEVICE_LOG_DEBUG(
+            "[%s]unsupported data type: %s\n", hexagon::op_get_name(op), hexagon::get_type_name(dst->type));
+        return false;
+    }
+
+    if (!hexagon::is_same_shape(src0, *dst)) {
+        DEVICE_LOG_DEBUG("[%s]src0 and dst have different shape\n", hexagon::op_get_name(op));
+        return false;
+    }
+
     return true;
 }
 
@@ -433,7 +502,7 @@ constexpr const op_capabilities kOpCapabilities[] = {
      {
             unary_op<rms_norm_vec_f32>,  // NPU_DATA_TYPE_F32
             nullptr,                     // NPU_DATA_TYPE_F16
-        }, false,                           // requires_thread_barrier
+        },                                                                                                                   false,                           // requires_thread_barrier
     },
     {
      NPU_OP_FLASH_ATTN,hexagon::is_flash_attn_supported,
@@ -449,6 +518,13 @@ constexpr const op_capabilities kOpCapabilities[] = {
             nullptr,            // NPU_DATA_TYPE_F16
         }, false,                  // requires_thread_barrier
     },
+    {
+     NPU_OP_GLU,                                                                         is_glu_op_supported,
+     {
+            glu_dispatcher<NPU_DATA_TYPE_F32>,  // NPU_DATA_TYPE_F32
+            glu_dispatcher<NPU_DATA_TYPE_F16>,  // NPU_DATA_TYPE_F16
+        }, false,                                  // requires_thread_barrier
+    },
 };
 
 static_assert(kOpCapabilities[NPU_OP_MUL_MAT].compute_funcs[NPU_DATA_TYPE_F32] == hexagon::mul_mat_f32,
@@ -462,6 +538,7 @@ static_assert(kOpCapabilities[NPU_OP_RMS_NORM].op == NPU_OP_RMS_NORM,
 static_assert(kOpCapabilities[NPU_OP_FLASH_ATTN].op == NPU_OP_FLASH_ATTN,
               "kOpArray[NPU_OP_FLASH_ATTN].op != NPU_OP_FLASH_ATTN");
 static_assert(kOpCapabilities[NPU_OP_ROPE].op == NPU_OP_ROPE, "kOpArray[NPU_OP_ROPE].op != NPU_OP_ROPE");
+static_assert(kOpCapabilities[NPU_OP_GLU].op == NPU_OP_GLU, "kOpArray[NPU_OP_GLU].op != NPU_OP_GLU");
 
 hexagon::compute_func_type get_compute_func_impl(npu_device_tensor_op op, npu_device_tensor_data_type type) {
     if (op >= NPU_OP_COUNT) {
@@ -487,12 +564,18 @@ bool requires_thread_barrier(npu_device_tensor_op op) {
     return kOpCapabilities[op].requires_thread_barrier;
 }
 
-bool support_op(npu_device_tensor_op           op,
-                const npu_device_tensor_spec * dst,
-                const npu_device_tensor_spec * srcs,
-                size_t                         src_len) {
-    auto is_supported_func = kOpCapabilities[op].is_supported;
-    if (!is_supported_func || !is_supported_func(op, dst, srcs, src_len)) {
+bool support_op(const npu_device_tensor_op_spec * op_spec,
+                const npu_device_tensor_spec *    dst,
+                const npu_device_tensor_spec *    srcs,
+                size_t                            src_len) {
+    if (!op_spec) {
+        DEVICE_LOG_ERROR("[hexagon-npu]invalid op_spec\n");
+        return false;
+    }
+
+    const auto op                = op_spec->op;
+    auto       is_supported_func = kOpCapabilities[op].is_supported;
+    if (!is_supported_func || !is_supported_func(op_spec, dst, srcs, src_len)) {
         DEVICE_LOG_DEBUG("[%s]unsupported, is_supported_func return false\n", op_get_name(op));
         return false;
     }

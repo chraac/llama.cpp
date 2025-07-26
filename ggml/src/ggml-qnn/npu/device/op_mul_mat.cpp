@@ -601,10 +601,11 @@ bool mul_mat_f32(hexagon::tensor * out, compute_params * params) {
     return false;
 }
 
-bool is_mul_mat_supported(npu_device_tensor_op           op,
-                          const npu_device_tensor_spec * dst,
-                          const npu_device_tensor_spec * srcs,
-                          size_t                         src_len) {
+bool is_mul_mat_supported(const npu_device_tensor_op_spec * op_spec,
+                          const npu_device_tensor_spec *    dst,
+                          const npu_device_tensor_spec *    srcs,
+                          size_t                            src_len) {
+    const auto op = op_spec->op;
     if (op != NPU_OP_MUL_MAT) {
         DEVICE_LOG_DEBUG("op is not MUL_MAT: %d\n", op);
         return false;

@@ -56,6 +56,8 @@ inline constexpr const char * op_get_name(npu_device_tensor_op op) {
             return "FLASH_ATTN_EXT";
         case NPU_OP_ROPE:
             return "ROPE";
+        case NPU_OP_GLU:
+            return "GLU";
         default:
             return "UNKNOWN";
     }
