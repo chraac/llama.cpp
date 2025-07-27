@@ -467,7 +467,7 @@ inline HVX_Vector qhmath_hvx_exp_vhf(HVX_Vector sline) {
     return y_v;
 }
 
-inline HVX_VectorPair_x4 qhmath_load_div_hf_ltu() {
+inline HVX_VectorPair_x4 qhmath_load_div_sf_ltu() {
     /* Coefficients in float representation */
     constexpr const float c0_coeffs[32] __attribute__((aligned(hexagon::kBytesPerVector))) = {
         0.0,
@@ -674,6 +674,9 @@ inline HVX_Vector qhmath_hvx_div_vf(HVX_Vector num, HVX_Vector denom, HVX_Vector
      */
     HVX_Vector input_min_v_f = Q6_V_vsplat_R(0x3f800000);
 
+    /* Convert scale factor from sf to q32. Use the same vector for both formats */
+    scale_v = Q6_Vqf32_vadd_VsfVsf(scale_v, zero_v_sf);
+
     /* Calculate normalization factor */
     norm_factor = Q6_V_vand_VV(denom, signexp_mask);
     norm_factor = Q6_Vw_vsub_VwVw(exp, norm_factor);
@@ -743,6 +746,304 @@ inline HVX_Vector qhmath_hvx_div_vf(HVX_Vector num, HVX_Vector denom, HVX_Vector
     output_v = Q6_Vqf32_vmpy_Vqf32Vqf32(output_v, sline1);
 
     return Q6_Vsf_equals_Vqf32(output_v);
+}
+
+inline HVX_VectorPair_x4 qhmath_load_div_hf_ltu() {
+    /* Coefficients in float representation */
+    constexpr const float c0_coeffs[32] __attribute__((aligned(hexagon::kBytesPerVector))) = {
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        3.8807721943716516,
+        3.6618209528616856,
+        3.4657742282097708,
+        3.2853461610022414,
+        3.1229570908314015,
+        2.976379865829892,
+        2.8438614274889833,
+        2.723793061029549,
+        2.613859154046634,
+        2.5119508509784287,
+        2.4167270706641473,
+        2.3286721812015188,
+        2.2462659531748064,
+        2.1692490555028736,
+        2.0981551828382417,
+        2.0319234960945,
+    };
+    constexpr const float c1_coeffs[32] __attribute__((aligned(hexagon::kBytesPerVector))) = {
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -5.646783581176797,
+        -5.027704168781284,
+        -4.5037889029173535,
+        -4.0470997487793445,
+        -3.6569569537789364,
+        -3.3217563552211695,
+        -3.03258650196419,
+        -2.781935505534812,
+        -2.5619261358961922,
+        -2.3660577978107398,
+        -2.190083163030879,
+        -2.033405493468989,
+        -1.8920413948588666,
+        -1.7645298754188785,
+        -1.6507730169513504,
+        -1.5482028127706613,
+    };
+    constexpr const float c2_coeffs[32] __attribute__((aligned(hexagon::kBytesPerVector))) = {
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        3.6511964773849632,
+        3.0676375988553106,
+        2.6008750952258324,
+        2.215514199159397,
+        1.9030391013295935,
+        1.6474963735373633,
+        1.4371447652517673,
+        1.2627141904289978,
+        1.11593649827749,
+        0.9904415490260164,
+        0.882033772823834,
+        0.7891019704346331,
+        0.7082630629776306,
+        0.6378888508693012,
+        0.5772121720355701,
+        0.524261196551401,
+    };
+    constexpr const float c3_coeffs[32] __attribute__((aligned(hexagon::kBytesPerVector))) = {
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.8851851956149304,
+        -0.7018008948429424,
+        -0.5631686602024177,
+        -0.4547647803673564,
+        -0.37133287830029976,
+        -0.3063883382130307,
+        -0.255378412302572,
+        -0.2149126167280633,
+        -0.18226975346347984,
+        -0.15546600267845986,
+        -0.13320337246909697,
+        -0.11482846255803722,
+        -0.0994184164975366,
+        -0.08647114157420362,
+        -0.07568254923048714,
+        -0.06657033258736733,
+    };
+
+    /* Load coefficients */
+    HVX_Vector c0_coeff_v = *((HVX_Vector *) (c0_coeffs));
+    HVX_Vector c1_coeff_v = *((HVX_Vector *) (c1_coeffs));
+    HVX_Vector c2_coeff_v = *((HVX_Vector *) (c2_coeffs));
+    HVX_Vector c3_coeff_v = *((HVX_Vector *) (c3_coeffs));
+
+    /* Split 32-bit coefficients to lower and upper part in order to obtain them later with VLUT16. */
+    hexagon::HVX_VectorPair_x4 result;
+    result.val[0] = Q6_Wuw_vzxt_Vuh(c0_coeff_v);
+    result.val[1] = Q6_Wuw_vzxt_Vuh(c1_coeff_v);
+    result.val[2] = Q6_Wuw_vzxt_Vuh(c2_coeff_v);
+    result.val[3] = Q6_Wuw_vzxt_Vuh(c3_coeff_v);
+
+    return result;
+}
+
+inline HVX_Vector qhmath_hvx_div_vhf(HVX_Vector num, HVX_Vector denom, HVX_VectorPair_x4 coeffs) {
+    HVX_Vector     sline2;
+    HVX_Vector     norm_factor;
+    HVX_VectorPair norm_factor_qf32;
+    HVX_Vector     tmp_v;
+    HVX_Vector     idx1_v;
+    HVX_Vector     idx2_v;
+    HVX_DV         output_dv;
+    HVX_Vector     input_shifted_v_hf;
+    HVX_Vector     input_scaled_v;
+    HVX_VectorPair input_vp_qf32;
+    HVX_VectorPair input_n_vp_qf32;
+    HVX_VectorPair c0_coeff_vp;
+    HVX_VectorPair c1_coeff_vp;
+    HVX_VectorPair c2_coeff_vp;
+    HVX_VectorPair c3_coeff_vp;
+
+    /*
+      * Splat scale factor in order to be used later for finding indexes of coefficients.
+      * Scale factor is represented in IEEE 16-bit floating-point format and it is
+      * calculated using the following formula:
+      *    scale_factor = (convert_sf_to_hf) (16.0 / (b0 - a0))
+      * NOTE: Calculated value is slightly decreased in order to avoid out of bound
+      *       indexes during VLUT lookup.
+      */
+    HVX_Vector scale_v = Q6_Vh_vsplat_R(0x4bfb);
+
+    /* Vector of ones used as mpy neutral element in conversions from hf vector to qf32 vector pair */
+    HVX_Vector one_v_hf = Q6_Vh_vsplat_R(0x3c00);
+
+    /*
+     * Vector of zeroes used as neutral element in hf to qf16 conversions.
+     * NOTE: Some of conversions (i.e conversion of scale factor and coefficients)
+     *       can be avoided in real-time, but this is not done in order to don't
+     *       sacrify code readibility in expense of insignificant performance improvement.
+     */
+    HVX_Vector zero_v_hf = Q6_V_vzero();
+
+    /* Set sign = 0, exp = 30, mant = 0 */
+    HVX_Vector exp = Q6_Vh_vsplat_R(0x7800);
+
+    /* Set mask for sign and exponent */
+    HVX_Vector signexp_mask = Q6_Vh_vsplat_R(0xFC00);
+
+    /* Mask for extracting only 4 bits of mantissa */
+    HVX_Vector mask_idx1_v = Q6_Vh_vsplat_R(0x000F);
+    HVX_Vector mask_idx2_v = Q6_V_vsplat_R(0x00001010);
+
+    /* 16.0 in IEEE 16-bit floating-point representation */
+    HVX_Vector const16_0_v_hf = Q6_Vh_vsplat_R(0x4c00);
+
+    /*
+     * Prepare vector of input_min values, that is used later in shifting input range.
+     * input_min is low boundary of specified input range.
+     */
+    HVX_Vector input_min_v_hf = Q6_Vh_vsplat_R(0x3c00);
+
+    /* Convert scale factor from hf to q16. Use the same vector for both formats */
+    scale_v = Q6_Vqf16_vadd_VhfVhf(scale_v, zero_v_hf);
+
+    /* Calculate normalization factor */
+    norm_factor = Q6_V_vand_VV(denom, signexp_mask);
+    norm_factor = Q6_Vh_vsub_VhVh(exp, norm_factor);
+
+    /* Normalize denominators */
+    sline2 = Q6_Vqf16_vmpy_VhfVhf(sline2, norm_factor);
+
+    /* Convert normalization factor to qf32 */
+    norm_factor_qf32 = Q6_Wqf32_vmpy_VhfVhf(norm_factor, one_v_hf);
+
+    /* Shift input range from [input_min, input_max] to [0, input_max - input_min] */
+    tmp_v              = Q6_Vh_vdeal_Vh(sline2);
+    input_shifted_v_hf = Q6_Vqf16_vsub_Vqf16Vhf(tmp_v, input_min_v_hf);
+
+    /*
+             * Scale shifted input range from [0, input_max - input_min] to [0,16.0)
+             * in order to get corresponding coefficient indexes
+             */
+    input_scaled_v = Q6_Vqf16_vmpy_Vqf16Vqf16(input_shifted_v_hf, scale_v);
+
+    /*
+             * VLUT 16 requires integer indexes. Shift scaled input range from [0,16.0)
+             * to [16.0,32.0) in order to convert float indexes to integer values.
+             * Float values, represented in IEEE 754, in range [16.0,32.0] have the
+             * same exponent, which means 4 MSB of mantissa carry information about
+             * integer index.
+             */
+    /* Use the same input_scaled_v vector for hf and qf16 representation */
+    input_scaled_v = Q6_Vqf16_vadd_Vqf16Vhf(input_scaled_v, const16_0_v_hf);
+
+    /* Convert back from qf16 to hf in order to extract integer index  */
+    tmp_v = Q6_Vhf_equals_Vqf16(input_scaled_v);
+
+    /* Only 4 MSB bits of mantissa represent segment index */
+    idx1_v = Q6_Vuh_vlsr_VuhR(tmp_v, 6);
+
+    /* Ensure only 4 MSB bits of mantissa are used as indexes */
+    idx1_v = Q6_V_vand_VV(idx1_v, mask_idx1_v);
+
+    idx1_v = Q6_Vb_vshuff_Vb(idx1_v);
+    idx1_v = Q6_V_vor_VV(idx1_v, mask_idx2_v);
+    idx2_v = Q6_Vw_vasl_VwR(idx1_v, 16);
+
+    /* Obtain the polynomial coefficients from lookup table */
+    c0_coeff_vp = Q6_Wh_vlut16_VbVhR(idx1_v, Q6_V_lo_W(coeffs.val[0]), 1);
+    c0_coeff_vp = Q6_Wh_vlut16or_WhVbVhR(c0_coeff_vp, idx2_v, Q6_V_hi_W(coeffs.val[0]), 1);
+    c1_coeff_vp = Q6_Wh_vlut16_VbVhR(idx1_v, Q6_V_lo_W(coeffs.val[1]), 1);
+    c1_coeff_vp = Q6_Wh_vlut16or_WhVbVhR(c1_coeff_vp, idx2_v, Q6_V_hi_W(coeffs.val[1]), 1);
+    c2_coeff_vp = Q6_Wh_vlut16_VbVhR(idx1_v, Q6_V_lo_W(coeffs.val[2]), 1);
+    c2_coeff_vp = Q6_Wh_vlut16or_WhVbVhR(c2_coeff_vp, idx2_v, Q6_V_hi_W(coeffs.val[2]), 1);
+    c3_coeff_vp = Q6_Wh_vlut16_VbVhR(idx1_v, Q6_V_lo_W(coeffs.val[3]), 1);
+    c3_coeff_vp = Q6_Wh_vlut16or_WhVbVhR(c3_coeff_vp, idx2_v, Q6_V_hi_W(coeffs.val[3]), 1);
+
+    /* Convert inputs from hf vector to qf32 vector pair for Horner's method*/
+    input_vp_qf32   = Q6_Wqf32_vmpy_Vqf16Vhf(sline2, one_v_hf);
+    input_n_vp_qf32 = Q6_Wqf32_vmpy_VhfVhf(num, one_v_hf);
+
+    /* Perform evaluation of polynomial using Horner's method */
+    output_dv.V.lo = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(c3_coeff_vp), Q6_V_lo_W(input_vp_qf32));
+    output_dv.V.lo = Q6_Vqf32_vadd_Vqf32Vqf32(output_dv.V.lo, Q6_V_lo_W(c2_coeff_vp));
+    output_dv.V.lo = Q6_Vqf32_vmpy_Vqf32Vqf32(output_dv.V.lo, Q6_V_lo_W(input_vp_qf32));
+    output_dv.V.lo = Q6_Vqf32_vadd_Vqf32Vqf32(output_dv.V.lo, Q6_V_lo_W(c1_coeff_vp));
+    output_dv.V.lo = Q6_Vqf32_vmpy_Vqf32Vqf32(output_dv.V.lo, Q6_V_lo_W(input_vp_qf32));
+    output_dv.V.lo = Q6_Vqf32_vadd_Vqf32Vqf32(output_dv.V.lo, Q6_V_lo_W(c0_coeff_vp));
+
+    output_dv.V.hi = Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(c3_coeff_vp), Q6_V_hi_W(input_vp_qf32));
+    output_dv.V.hi = Q6_Vqf32_vadd_Vqf32Vqf32(output_dv.V.hi, Q6_V_hi_W(c2_coeff_vp));
+    output_dv.V.hi = Q6_Vqf32_vmpy_Vqf32Vqf32(output_dv.V.hi, Q6_V_hi_W(input_vp_qf32));
+    output_dv.V.hi = Q6_Vqf32_vadd_Vqf32Vqf32(output_dv.V.hi, Q6_V_hi_W(c1_coeff_vp));
+    output_dv.V.hi = Q6_Vqf32_vmpy_Vqf32Vqf32(output_dv.V.hi, Q6_V_hi_W(input_vp_qf32));
+    output_dv.V.hi = Q6_Vqf32_vadd_Vqf32Vqf32(output_dv.V.hi, Q6_V_hi_W(c0_coeff_vp));
+
+    /* Multiply result by same normalization factor applied to input earlier */
+    output_dv.V.lo = Q6_Vqf32_vmpy_Vqf32Vqf32(output_dv.V.lo, Q6_V_lo_W(norm_factor_qf32));
+    output_dv.V.hi = Q6_Vqf32_vmpy_Vqf32Vqf32(output_dv.V.hi, Q6_V_hi_W(norm_factor_qf32));
+
+    /* Calculate num * 1/den */
+    output_dv.V.lo = Q6_Vqf32_vmpy_Vqf32Vqf32(output_dv.V.lo, Q6_V_lo_W(input_n_vp_qf32));
+    output_dv.V.hi = Q6_Vqf32_vmpy_Vqf32Vqf32(output_dv.V.hi, Q6_V_hi_W(input_n_vp_qf32));
+
+    return Q6_Vhf_equals_Wqf32(output_dv.VV);
 }
 
 /*

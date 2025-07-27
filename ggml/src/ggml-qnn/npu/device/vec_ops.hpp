@@ -15,6 +15,15 @@ template <typename T, int N> struct HEXAGON_pack {
 using HVX_Vector_x2     = std::pair<HVX_Vector, HVX_Vector>;
 using HVX_VectorPair_x4 = HEXAGON_pack<HVX_VectorPair, 4>;
 
+typedef union {
+    HVX_VectorPair VV;
+
+    struct {
+        HVX_Vector lo;
+        HVX_Vector hi;
+    } V;
+} HVX_DV;
+
 constexpr const size_t kBytesPerVector = sizeof(HVX_Vector);  // 128 for v73
 constexpr const size_t kAlignMask      = kBytesPerVector - 1;
 
