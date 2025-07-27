@@ -395,7 +395,7 @@ template <auto _GluRowFunc> bool glu_impl(hexagon::tensor * out, hexagon::comput
 }
 
 template <npu_device_tensor_data_type _DataType>
-bool glu_dispatcher(hexagon::tensor * out, hexagon::compute_params * params) {
+bool glu_compute(hexagon::tensor * out, hexagon::compute_params * params) {
     if (out->get_op_param<int32_t>(0) != NPU_GLU_OP_SWIGLU) {
         DEVICE_LOG_ERROR("Invalid GLU op type: %d\n", out->get_op_param<int32_t>(0));
         return false;
@@ -458,8 +458,7 @@ bool is_glu_op_supported(const npu_device_tensor_op_spec * op_spec,
         return false;
     }
 
-    // TODO: fix GLU
-    return false;
+    return true;
 }
 
 struct op_capabilities {
@@ -522,9 +521,9 @@ constexpr const op_capabilities kOpCapabilities[] = {
     {
      NPU_OP_GLU,                                                                         is_glu_op_supported,
      {
-            glu_dispatcher<NPU_DATA_TYPE_F32>,  // NPU_DATA_TYPE_F32
-            glu_dispatcher<NPU_DATA_TYPE_F16>,  // NPU_DATA_TYPE_F16
-        }, false,                                  // requires_thread_barrier
+            glu_compute<NPU_DATA_TYPE_F32>,  // NPU_DATA_TYPE_F32
+            glu_compute<NPU_DATA_TYPE_F16>,  // NPU_DATA_TYPE_F16
+        }, false,                               // requires_thread_barrier
     },
 };
 
