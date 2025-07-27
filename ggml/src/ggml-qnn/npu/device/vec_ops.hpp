@@ -382,12 +382,12 @@ inline HVX_Vector vec_silu_f16_f16(HVX_Vector x) {
     return x / (vec::math::qhmath_hvx_exp_vhf(exp_neg_x) + one);
 }
 
-inline HVX_Vector vec_swiglu_f32_f32(HVX_Vector x, HVX_UVector g) {
+inline HVX_Vector vec_swiglu_f32_f32(HVX_Vector x, HVX_Vector g) {
     HVX_Vector silu = vec_silu_f32_f32(x);
     return Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_VsfVsf(silu, g));
 }
 
-inline HVX_Vector vec_swiglu_f16_f16(HVX_Vector x, HVX_UVector g) {
+inline HVX_Vector vec_swiglu_f16_f16(HVX_Vector x, HVX_Vector g) {
     HVX_Vector silu = vec_silu_f16_f16(x);
     return Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(silu, g));
 }

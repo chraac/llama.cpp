@@ -322,17 +322,16 @@ bool is_unary_op_supported(const npu_device_tensor_op_spec * op_spec,
 
 template <auto _GluRowFunc> bool glu_impl(hexagon::tensor * out, hexagon::compute_params * params) {
     using data_type = typename get_data_type<decltype(_GluRowFunc)>::type;
+    static_assert(DEVICE_TENSOR_MAX_DIMS == 4, "element_wise_op requires max dims 4");
 
     if (!out) {
         return false;
     }
 
-    static_assert(DEVICE_TENSOR_MAX_DIMS == 4, "element_wise_op requires max dims 4");
-
     const bool has_src1 = out->get_src(1) != nullptr;
     auto *     src0     = out->get_src(0);
     auto *     src1     = has_src1 ? out->get_src(1) : src0;
-    if (!src0) {
+    if (!src0 || !src1) {
         return true;  // skip if no src
     }
 
