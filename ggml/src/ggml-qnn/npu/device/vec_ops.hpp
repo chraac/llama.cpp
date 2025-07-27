@@ -385,7 +385,7 @@ inline HVX_Vector vec_silu_f32_f32(HVX_Vector x) {
 
     // x/(1.0f + expf(-x));
     HVX_Vector exp_neg_x = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vsub_VsfVsf(Q6_V_vzero(), x));
-    return x / (vec::math::qhmath_hvx_exp_vf(exp_neg_x) + one);
+    return (vec::math::qhmath_hvx_exp_vf(exp_neg_x) + one);  // TODO: fix the division here
 }
 
 inline HVX_Vector vec_silu_f16_f16(HVX_Vector x) {
@@ -393,7 +393,7 @@ inline HVX_Vector vec_silu_f16_f16(HVX_Vector x) {
 
     // x/(1.0f + expf(-x));
     HVX_Vector exp_neg_x = Q6_Vhf_equals_Vqf16(Q6_Vqf16_vsub_VhfVhf(Q6_V_vzero(), x));
-    return x / (vec::math::qhmath_hvx_exp_vhf(exp_neg_x) + one);
+    return (vec::math::qhmath_hvx_exp_vhf(exp_neg_x) + one);  // TODO: fix the division here
 }
 
 inline HVX_Vector vec_swiglu_f32_f32(HVX_Vector x, HVX_Vector g) {

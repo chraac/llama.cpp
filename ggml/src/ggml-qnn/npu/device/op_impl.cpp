@@ -13,9 +13,9 @@
 namespace {
 
 template <HVX_Vector (*_OpBinaryTransform)(HVX_Vector, HVX_Vector)>
-inline void vec_op_f32_f32(const float * src0, const float * src1, size_t count, float * dst) {
+inline void vec_op_f32_f32(const float * src0, const float * src1, float * dst, size_t count) {
     using namespace hexagon::vec;
-    vec_trans_op_impl<_OpBinaryTransform, float>(src0, src1, count, dst);
+    vec_trans_op_impl<_OpBinaryTransform, float>(src0, src1, dst, count);
 }
 
 inline HVX_Vector vadd_f32_f32(HVX_Vector a, HVX_Vector b) {
@@ -33,10 +33,10 @@ inline HVX_Vector vmul_f32_f32(HVX_Vector a, HVX_Vector b) {
 template <HVX_Vector (*_OpBinaryTransform)(HVX_Vector, HVX_Vector)>
 inline void vec_op_f16_f16(const npu_device_fp16_t * src0,
                            const npu_device_fp16_t * src1,
-                           size_t                    count,
-                           npu_device_fp16_t *       dst) {
+                           npu_device_fp16_t *       dst,
+                           size_t                    count) {
     using namespace hexagon::vec;
-    vec_trans_op_impl<_OpBinaryTransform, npu_device_fp16_t>(src0, src1, count, dst);
+    vec_trans_op_impl<_OpBinaryTransform, npu_device_fp16_t>(src0, src1, dst, count);
 }
 
 inline HVX_Vector vadd_f16_f16(HVX_Vector a, HVX_Vector b) {
@@ -55,12 +55,12 @@ inline HVX_Vector vmul_f16_f16(HVX_Vector a, HVX_Vector b) {
 
 template <typename T> struct get_data_type {};
 
-template <typename _TyData> struct get_data_type<void (*)(const _TyData *, const _TyData *, size_t, _TyData *)> {
+template <typename _TyData> struct get_data_type<void (*)(const _TyData *, const _TyData *, _TyData *, size_t)> {
     using type = _TyData;
 };
 
 template <typename _TyData, typename _TyParam>
-struct get_data_type<void (*)(const _TyData *, size_t, _TyParam, _TyData *)> {
+struct get_data_type<void (*)(const _TyData *, _TyData *, size_t, _TyParam)> {
     using type       = _TyData;
     using param_type = typename std::remove_cv<typename std::remove_reference<_TyData>::type>::type;
 };
@@ -124,8 +124,8 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
 
         _RowFunc(reinterpret_cast<const data_type *>(src0_row),
                  reinterpret_cast<const data_type *>(src1_row),
-                 static_cast<size_t>(out->get_ne(0)),
-                 reinterpret_cast<data_type *>(dst_row));
+                 reinterpret_cast<data_type *>(dst_row),
+                 static_cast<size_t>(out->get_ne(0)));
     }
 
     out->release_write_buffer();  // mark the output tensor as modified
@@ -186,7 +186,7 @@ bool is_element_wise_op_supported(const npu_device_tensor_op_spec * op_spec,
     return true;
 }
 
-void rms_norm_vec_f32(const float * src, size_t count, float eps, float * dst) {
+void rms_norm_vec_f32(const float * src, float * dst, size_t count, float eps) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(float);
 
     HVX_Vector *       src_vec_ptr = ((HVX_Vector *) src);
@@ -273,9 +273,9 @@ template <auto _RowFunc> bool unary_op(hexagon::tensor * out, hexagon::compute_p
         }
 
         _RowFunc(reinterpret_cast<const data_type *>(src0_row),
+                 reinterpret_cast<data_type *>(dst_row),
                  static_cast<size_t>(out->get_ne(0)),
-                 param,
-                 reinterpret_cast<data_type *>(dst_row));
+                 param);
     }
 
     out->release_write_buffer();  // mark the output tensor as modified
@@ -385,8 +385,8 @@ template <auto _GluRowFunc> bool glu_impl(hexagon::tensor * out, hexagon::comput
 
         _GluRowFunc(reinterpret_cast<const data_type *>(src0_row),
                     reinterpret_cast<const data_type *>(src1_row),
-                    static_cast<size_t>(total_cols),
-                    reinterpret_cast<data_type *>(dst_row));
+                    reinterpret_cast<data_type *>(dst_row),
+                    static_cast<size_t>(total_cols));
     }
 
     out->release_write_buffer();  // mark the output tensor as modified
@@ -457,7 +457,7 @@ bool is_glu_op_supported(const npu_device_tensor_op_spec * op_spec,
         return false;
     }
 
-    return true;
+    return false;  // TODO: fix glu op
 }
 
 struct op_capabilities {

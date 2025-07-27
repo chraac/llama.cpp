@@ -425,7 +425,7 @@ template <typename _TData> inline void vec_zero_impl(_TData * src, size_t count)
 }
 
 template <HVX_Vector (*_OpBinaryTransform)(HVX_Vector, HVX_Vector), typename _TyData>
-inline void vec_trans_op_impl(const _TyData * src0, const _TyData * src1, size_t count, _TyData * dst) {
+inline void vec_trans_op_impl(const _TyData * src0, const _TyData * src1, _TyData * dst, size_t count) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TyData);
 
     HVX_Vector *       src0_vec_ptr     = ((HVX_Vector *) src0);
