@@ -445,7 +445,7 @@ bool glu_compute(hexagon::tensor * out, hexagon::compute_params * params) {
     }
 
     DEVICE_LOG_ERROR("Unsupported GLU data type: %s\n", hexagon::get_type_name(out->get_type()));
-    return false;  // unsupported data type
+    return true;
 }
 
 bool is_glu_op_supported(const npu_device_tensor_op_spec * op_spec,

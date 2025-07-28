@@ -383,7 +383,7 @@ _TReturn type_erase_dot_func(const void * src0, const void * src1, size_t count)
 inline HVX_Vector vec_silu_f32_f32(HVX_Vector x, HVX_VectorPair_x4 coeff) {
     using namespace hexagon::vec::math;
 
-    HVX_Vector one = Q6_V_vsplat_R(1.0f);
+    HVX_Vector one = Q6_V_vsplat_R(0x3F800000);
 
     // x/(1.0f + expf(-x));
     HVX_Vector exp_neg_x = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vsub_VsfVsf(Q6_V_vzero(), x));
@@ -392,7 +392,7 @@ inline HVX_Vector vec_silu_f32_f32(HVX_Vector x, HVX_VectorPair_x4 coeff) {
 
 inline HVX_Vector vec_silu_f16_f16(HVX_Vector x, HVX_VectorPair_x4 coeff) {
     using namespace hexagon::vec::math;
-    HVX_Vector one = Q6_V_vsplat_R(1.0f);
+    HVX_Vector one = Q6_Vh_vsplat_R(0x3c00);
 
     // x/(1.0f + expf(-x));
     HVX_Vector exp_neg_x = Q6_Vhf_equals_Vqf16(Q6_Vqf16_vsub_VhfVhf(Q6_V_vzero(), x));
