@@ -15,7 +15,7 @@ namespace {
 template <HVX_Vector (*_OpBinaryTransform)(HVX_Vector, HVX_Vector)>
 inline void vec_op_f32_f32(const float * src0, const float * src1, float * dst, size_t count) {
     using namespace hexagon::vec;
-    vec_trans_op_impl<_OpBinaryTransform, float>(src0, src1, dst, count);
+    vec_trans_impl<_OpBinaryTransform, float>(src0, src1, dst, count);
 }
 
 inline HVX_Vector vadd_f32_f32(HVX_Vector a, HVX_Vector b) {
@@ -36,7 +36,7 @@ inline void vec_op_f16_f16(const npu_device_fp16_t * src0,
                            npu_device_fp16_t *       dst,
                            size_t                    count) {
     using namespace hexagon::vec;
-    vec_trans_op_impl<_OpBinaryTransform, npu_device_fp16_t>(src0, src1, dst, count);
+    vec_trans_impl<_OpBinaryTransform, npu_device_fp16_t>(src0, src1, dst, count);
 }
 
 inline HVX_Vector vadd_f16_f16(HVX_Vector a, HVX_Vector b) {
@@ -56,6 +56,11 @@ inline HVX_Vector vmul_f16_f16(HVX_Vector a, HVX_Vector b) {
 template <typename T> struct get_data_type {};
 
 template <typename _TyData> struct get_data_type<void (*)(const _TyData *, const _TyData *, _TyData *, size_t)> {
+    using type = _TyData;
+};
+
+template <typename _TyData>
+struct get_data_type<void (*)(const _TyData *, const _TyData *, _TyData *, size_t, hexagon::HVX_VectorPair_x4)> {
     using type = _TyData;
 };
 
@@ -320,7 +325,29 @@ bool is_unary_op_supported(const npu_device_tensor_op_spec * op_spec,
     return true;
 }
 
-template <auto _GluRowFunc> bool glu_impl(hexagon::tensor * out, hexagon::compute_params * params) {
+template <HVX_Vector (*_OpBinaryTransform)(HVX_Vector, HVX_Vector, hexagon::HVX_VectorPair_x4)>
+inline void glu_vec_op_f32_f32(const float *              src0,
+                               const float *              src1,
+                               float *                    dst,
+                               size_t                     count,
+                               hexagon::HVX_VectorPair_x4 coeff) {
+    using namespace hexagon::vec;
+    vec_trans_with_param_impl<_OpBinaryTransform, float, hexagon::HVX_VectorPair_x4>(src0, src1, dst, count, coeff);
+}
+
+template <HVX_Vector (*_OpBinaryTransform)(HVX_Vector, HVX_Vector, hexagon::HVX_VectorPair_x4)>
+inline void glu_vec_op_f16_f16(const npu_device_fp16_t *  src0,
+                               const npu_device_fp16_t *  src1,
+                               npu_device_fp16_t *        dst,
+                               size_t                     count,
+                               hexagon::HVX_VectorPair_x4 coeff) {
+    using namespace hexagon::vec;
+    vec_trans_with_param_impl<_OpBinaryTransform, npu_device_fp16_t, hexagon::HVX_VectorPair_x4>(
+        src0, src1, dst, count, coeff);
+}
+
+template <auto _GluRowFunc, hexagon::HVX_VectorPair_x4 (*_CoeffLoadFunc)()>
+bool glu_impl(hexagon::tensor * out, hexagon::compute_params * params) {
     using data_type = typename get_data_type<decltype(_GluRowFunc)>::type;
     static_assert(DEVICE_TENSOR_MAX_DIMS == 4, "element_wise_op requires max dims 4");
 
@@ -365,7 +392,8 @@ template <auto _GluRowFunc> bool glu_impl(hexagon::tensor * out, hexagon::comput
 
     DEVICE_SCOPED_OP_PERFORMANCE_TRACKER(out, params->get_thread_index());
 
-    const size_t valid_row_bytes = src0->get_ne(0) * sizeof(data_type);
+    hexagon::HVX_VectorPair_x4 coeff           = _CoeffLoadFunc();
+    const size_t               valid_row_bytes = src0->get_ne(0) * sizeof(data_type);
     for (int64_t ir = start_end.first; ir < start_end.second; ++ir) {
         const auto i03 = ir / rows_per_cube;
         const auto i02 = ir / out->get_ne(1) - i03 * out->get_ne(2);
@@ -386,7 +414,8 @@ template <auto _GluRowFunc> bool glu_impl(hexagon::tensor * out, hexagon::comput
         _GluRowFunc(reinterpret_cast<const data_type *>(src0_row),
                     reinterpret_cast<const data_type *>(src1_row),
                     reinterpret_cast<data_type *>(dst_row),
-                    static_cast<size_t>(total_cols));
+                    static_cast<size_t>(total_cols),
+                    coeff);
     }
 
     out->release_write_buffer();  // mark the output tensor as modified
@@ -395,6 +424,8 @@ template <auto _GluRowFunc> bool glu_impl(hexagon::tensor * out, hexagon::comput
 
 template <npu_device_tensor_data_type _DataType>
 bool glu_compute(hexagon::tensor * out, hexagon::compute_params * params) {
+    using namespace hexagon::vec::math;
+
     if (out->get_op_param<int32_t>(0) != NPU_GLU_OP_SWIGLU) {
         DEVICE_LOG_ERROR("Invalid GLU op type: %d\n", out->get_op_param<int32_t>(0));
         return false;
@@ -408,9 +439,9 @@ bool glu_compute(hexagon::tensor * out, hexagon::compute_params * params) {
     }
 
     if constexpr (_DataType == NPU_DATA_TYPE_F32) {
-        return glu_impl<vec_op_f32_f32<hexagon::vec_swiglu_f32_f32>>(out, params);
+        return glu_impl<glu_vec_op_f32_f32<hexagon::vec_swiglu_f32_f32>, qhmath_load_div_sf_ltu>(out, params);
     } else if constexpr (_DataType == NPU_DATA_TYPE_F16) {
-        return glu_impl<vec_op_f16_f16<hexagon::vec_swiglu_f16_f16>>(out, params);
+        return glu_impl<glu_vec_op_f16_f16<hexagon::vec_swiglu_f16_f16>, qhmath_load_div_hf_ltu>(out, params);
     }
 
     DEVICE_LOG_ERROR("Unsupported GLU data type: %s\n", hexagon::get_type_name(out->get_type()));

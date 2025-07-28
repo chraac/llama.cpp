@@ -380,29 +380,32 @@ _TReturn type_erase_dot_func(const void * src0, const void * src1, size_t count)
     return _DotFunc(src0_typed, src1_typed, count);
 }
 
-inline HVX_Vector vec_silu_f32_f32(HVX_Vector x) {
+inline HVX_Vector vec_silu_f32_f32(HVX_Vector x, HVX_VectorPair_x4 coeff) {
+    using namespace hexagon::vec::math;
+
     HVX_Vector one = Q6_V_vsplat_R(1.0f);
 
     // x/(1.0f + expf(-x));
     HVX_Vector exp_neg_x = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vsub_VsfVsf(Q6_V_vzero(), x));
-    return (vec::math::qhmath_hvx_exp_vf(exp_neg_x) + one);  // TODO: fix the division here
+    return qhmath_hvx_div_vf(x, qhmath_hvx_exp_vf(exp_neg_x) + one, coeff);
 }
 
-inline HVX_Vector vec_silu_f16_f16(HVX_Vector x) {
+inline HVX_Vector vec_silu_f16_f16(HVX_Vector x, HVX_VectorPair_x4 coeff) {
+    using namespace hexagon::vec::math;
     HVX_Vector one = Q6_V_vsplat_R(1.0f);
 
     // x/(1.0f + expf(-x));
     HVX_Vector exp_neg_x = Q6_Vhf_equals_Vqf16(Q6_Vqf16_vsub_VhfVhf(Q6_V_vzero(), x));
-    return (vec::math::qhmath_hvx_exp_vhf(exp_neg_x) + one);  // TODO: fix the division here
+    return qhmath_hvx_div_vhf(x, qhmath_hvx_exp_vhf(exp_neg_x) + one, coeff);
 }
 
-inline HVX_Vector vec_swiglu_f32_f32(HVX_Vector x, HVX_Vector g) {
-    HVX_Vector silu = vec_silu_f32_f32(x);
+inline HVX_Vector vec_swiglu_f32_f32(HVX_Vector x, HVX_Vector g, HVX_VectorPair_x4 coeff) {
+    HVX_Vector silu = vec_silu_f32_f32(x, coeff);
     return Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_VsfVsf(silu, g));
 }
 
-inline HVX_Vector vec_swiglu_f16_f16(HVX_Vector x, HVX_Vector g) {
-    HVX_Vector silu = vec_silu_f16_f16(x);
+inline HVX_Vector vec_swiglu_f16_f16(HVX_Vector x, HVX_Vector g, HVX_VectorPair_x4 coeff) {
+    HVX_Vector silu = vec_silu_f16_f16(x, coeff);
     return Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(silu, g));
 }
 
