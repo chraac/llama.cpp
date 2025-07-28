@@ -422,7 +422,7 @@ bool is_glu_op_supported(const npu_device_tensor_op_spec * op_spec,
                          const npu_device_tensor_spec *    srcs,
                          size_t                            src_len) {
     const auto op = op_spec->op;
-    if (op_spec->op != NPU_OP_GLU) {
+    if (op != NPU_OP_GLU) {
         DEVICE_LOG_DEBUG("[%s]unsupported\n", hexagon::op_get_name(op));
         return false;
     }
