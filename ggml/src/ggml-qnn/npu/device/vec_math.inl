@@ -893,6 +893,13 @@ inline HVX_VectorPair_x4 qhmath_load_div_hf_ltu() {
     HVX_Vector c2_coeff_v = *((HVX_Vector *) (c2_coeffs));
     HVX_Vector c3_coeff_v = *((HVX_Vector *) (c3_coeffs));
 
+    /* Convert coefficients from hf to qf32 format. Use the same vector for both representations */
+    HVX_Vector zero_v_hf = Q6_V_vzero();
+    c0_coeff_v           = Q6_Vqf32_vadd_VsfVsf(c0_coeff_v, zero_v_hf);
+    c1_coeff_v           = Q6_Vqf32_vadd_VsfVsf(c1_coeff_v, zero_v_hf);
+    c2_coeff_v           = Q6_Vqf32_vadd_VsfVsf(c2_coeff_v, zero_v_hf);
+    c3_coeff_v           = Q6_Vqf32_vadd_VsfVsf(c3_coeff_v, zero_v_hf);
+
     /* Split 32-bit coefficients to lower and upper part in order to obtain them later with VLUT16. */
     hexagon::HVX_VectorPair_x4 result;
     result.val[0] = Q6_Wuw_vzxt_Vuh(c0_coeff_v);
@@ -968,7 +975,7 @@ inline HVX_Vector qhmath_hvx_div_vhf(HVX_Vector num, HVX_Vector denom, HVX_Vecto
     norm_factor = Q6_Vh_vsub_VhVh(exp, norm_factor);
 
     /* Normalize denominators */
-    sline2 = Q6_Vqf16_vmpy_VhfVhf(sline2, norm_factor);
+    sline2 = Q6_Vqf16_vmpy_VhfVhf(denom, norm_factor);
 
     /* Convert normalization factor to qf32 */
     norm_factor_qf32 = Q6_Wqf32_vmpy_VhfVhf(norm_factor, one_v_hf);
