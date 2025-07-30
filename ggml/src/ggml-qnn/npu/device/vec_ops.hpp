@@ -387,7 +387,8 @@ inline HVX_Vector vec_silu_f32_f32(HVX_Vector x, HVX_VectorPair_x4 coeff) {
 
     // x/(1.0f + expf(-x));
     HVX_Vector exp_neg_x = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vsub_VsfVsf(Q6_V_vzero(), x));
-    return qhmath_hvx_div_vf(x, qhmath_hvx_exp_vf(exp_neg_x) + one, coeff);
+    HVX_Vector denom     = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vadd_VsfVsf(qhmath_hvx_exp_vf(exp_neg_x), one));
+    return qhmath_hvx_div_vf(x, denom, coeff);
 }
 
 inline HVX_Vector vec_silu_f16_f16(HVX_Vector x, HVX_VectorPair_x4 coeff) {
@@ -396,7 +397,8 @@ inline HVX_Vector vec_silu_f16_f16(HVX_Vector x, HVX_VectorPair_x4 coeff) {
 
     // x/(1.0f + expf(-x));
     HVX_Vector exp_neg_x = Q6_Vhf_equals_Vqf16(Q6_Vqf16_vsub_VhfVhf(Q6_V_vzero(), x));
-    return qhmath_hvx_div_vhf(x, qhmath_hvx_exp_vhf(exp_neg_x) + one, coeff);
+    HVX_Vector denom     = Q6_Vhf_equals_Vqf16(Q6_Vqf16_vadd_VhfVhf(qhmath_hvx_exp_vhf(exp_neg_x), one));
+    return qhmath_hvx_div_vhf(x, denom, coeff);
 }
 
 inline HVX_Vector vec_swiglu_f32_f32(HVX_Vector x, HVX_Vector g, HVX_VectorPair_x4 coeff) {

@@ -325,24 +325,23 @@ bool is_unary_op_supported(const npu_device_tensor_op_spec * op_spec,
     return true;
 }
 
-template <HVX_Vector (*_OpBinaryTransform)(HVX_Vector, HVX_Vector, hexagon::HVX_VectorPair_x4)>
 inline void glu_vec_op_f32_f32(const float *              src0,
                                const float *              src1,
                                float *                    dst,
                                size_t                     count,
                                hexagon::HVX_VectorPair_x4 coeff) {
     using namespace hexagon::vec;
-    vec_trans_with_param_impl<_OpBinaryTransform, float, hexagon::HVX_VectorPair_x4>(src0, src1, dst, count, coeff);
+    vec_trans_with_param_impl<hexagon::vec_swiglu_f32_f32, float, hexagon::HVX_VectorPair_x4>(
+        src0, src1, dst, count, coeff);
 }
 
-template <HVX_Vector (*_OpBinaryTransform)(HVX_Vector, HVX_Vector, hexagon::HVX_VectorPair_x4)>
 inline void glu_vec_op_f16_f16(const npu_device_fp16_t *  src0,
                                const npu_device_fp16_t *  src1,
                                npu_device_fp16_t *        dst,
                                size_t                     count,
                                hexagon::HVX_VectorPair_x4 coeff) {
     using namespace hexagon::vec;
-    vec_trans_with_param_impl<_OpBinaryTransform, npu_device_fp16_t, hexagon::HVX_VectorPair_x4>(
+    vec_trans_with_param_impl<hexagon::vec_swiglu_f16_f16, npu_device_fp16_t, hexagon::HVX_VectorPair_x4>(
         src0, src1, dst, count, coeff);
 }
 
@@ -392,8 +391,8 @@ bool glu_impl(hexagon::tensor * out, hexagon::compute_params * params) {
 
     DEVICE_SCOPED_OP_PERFORMANCE_TRACKER(out, params->get_thread_index());
 
-    hexagon::HVX_VectorPair_x4 coeff           = _CoeffLoadFunc();
-    const size_t               valid_row_bytes = src0->get_ne(0) * sizeof(data_type);
+    auto         coeff           = _CoeffLoadFunc();
+    const size_t valid_row_bytes = src0->get_ne(0) * sizeof(data_type);
     for (int64_t ir = start_end.first; ir < start_end.second; ++ir) {
         const auto i03 = ir / rows_per_cube;
         const auto i02 = ir / out->get_ne(1) - i03 * out->get_ne(2);
@@ -439,9 +438,9 @@ bool glu_compute(hexagon::tensor * out, hexagon::compute_params * params) {
     }
 
     if constexpr (_DataType == NPU_DATA_TYPE_F32) {
-        return glu_impl<glu_vec_op_f32_f32<hexagon::vec_swiglu_f32_f32>, qhmath_load_div_sf_ltu>(out, params);
+        return glu_impl<glu_vec_op_f32_f32, qhmath_load_div_sf_ltu>(out, params);
     } else if constexpr (_DataType == NPU_DATA_TYPE_F16) {
-        return glu_impl<glu_vec_op_f16_f16<hexagon::vec_swiglu_f16_f16>, qhmath_load_div_hf_ltu>(out, params);
+        return glu_impl<glu_vec_op_f16_f16, qhmath_load_div_hf_ltu>(out, params);
     }
 
     DEVICE_LOG_ERROR("Unsupported GLU data type: %s\n", hexagon::get_type_name(out->get_type()));
@@ -488,7 +487,7 @@ bool is_glu_op_supported(const npu_device_tensor_op_spec * op_spec,
         return false;
     }
 
-    return false;  // TODO: fix glu op
+    return true;
 }
 
 struct op_capabilities {
