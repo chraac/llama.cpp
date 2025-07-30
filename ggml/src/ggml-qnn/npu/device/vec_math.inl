@@ -682,7 +682,7 @@ inline HVX_Vector qhmath_hvx_div_vf(HVX_Vector num, HVX_Vector denom, HVX_Vector
     norm_factor = Q6_Vw_vsub_VwVw(exp, norm_factor);
 
     /* Normalize denominators */
-    sline2 = Q6_Vqf32_vmpy_VsfVsf(sline2, norm_factor);
+    sline2 = Q6_Vqf32_vmpy_VsfVsf(denom, norm_factor);
     sline2 = Q6_Vsf_equals_Vqf32(sline2);
 
     /* Convert normalization factor and numerator to qf32 */
