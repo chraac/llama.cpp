@@ -487,7 +487,7 @@ bool is_glu_op_supported(const npu_device_tensor_op_spec * op_spec,
         return false;
     }
 
-    return false;  // TODO: fix GLU support
+    return false;  // TODO: fix: for some input hexagon intrinsics will generate nan instead of inf.
 }
 
 struct op_capabilities {
