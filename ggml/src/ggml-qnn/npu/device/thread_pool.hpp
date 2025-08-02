@@ -13,9 +13,8 @@
 
 namespace hexagon {
 
-constexpr const size_t             kMaxThreadCount       = 4;
-constexpr const size_t             kDefaultStackSize     = 1024 * 128;  // 128KB
-constexpr const unsigned long long kThreadTaskPendingBit = 1;
+constexpr const size_t kMaxThreadCount   = 4;
+constexpr const size_t kDefaultStackSize = 1024 * 64;  // 64KB
 
 template <size_t _stack_size> class qurt_thread {
   public:
@@ -84,9 +83,8 @@ using qurt_thread_ptr = std::unique_ptr<qurt_thread<kDefaultStackSize>>;
 
 template <size_t _ThreadCount> class thread_pool {
     static_assert(_ThreadCount > 1, "Thread count must be greater than 1");
-    constexpr const static size_t kMaxThreadCount = _ThreadCount;
-    constexpr const static size_t kMaxSubThreadCount =
-        _ThreadCount;  // TODO: reuse the main thread if we figure out how to enlarge the stack size
+    constexpr const static size_t kMaxThreadCount    = _ThreadCount;
+    constexpr const static size_t kMaxSubThreadCount = _ThreadCount - 1;
 
   public:
     typedef qurt_thread<kDefaultStackSize> thread_type;
@@ -134,7 +132,7 @@ template <size_t _ThreadCount> class thread_pool {
         std::string thread_name_base = "thread_pool_";
         for (size_t i = 0; i < kMaxSubThreadCount; ++i) {
             auto thread = std::make_unique<thread_type>(
-                thread_name_base + std::to_string(i), &thread_pool::thread_func_impl, &_thread_params[i], priority);
+                thread_name_base + std::to_string(i), &thread_pool::thread_func_impl, &_thread_params[i + 1], priority);
             if (!thread->is_valid()) {
                 DEVICE_LOG_ERROR("Failed to create thread: %zu", i);
                 // destroy all barriers and threads at destructor
@@ -173,8 +171,11 @@ template <size_t _ThreadCount> class thread_pool {
         _task = task;
         _arg  = arg;
         qurt_barrier_wait(&_pending);
-        qurt_barrier_wait(&_completed);
+
+        task(this, &_thread_params[0], arg);
         DEVICE_LOG_DEBUG("main_thread.task_completed: 0");
+
+        qurt_barrier_wait(&_completed);
 
         _task = nullptr;
         _arg  = nullptr;
