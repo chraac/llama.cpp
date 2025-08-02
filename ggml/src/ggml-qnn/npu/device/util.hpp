@@ -138,22 +138,22 @@ class power_utils {
         }
 
         HAP_power_request_t request = {};
-        request.type                = HAP_power_set_DCVS_v3;
-        request.dcvs_v3.dcvs_enable = enable ? TRUE : FALSE;
+        request.type                = HAP_power_set_DCVS_v2;
+        request.dcvs_v2.dcvs_enable = enable ? TRUE : FALSE;
         if (enable) {
-            request.dcvs_v3.dcvs_option = HAP_DCVS_V2_PERFORMANCE_MODE;
             /*
              * sleep_latency : To request for sleep latency in micro-seconds.
              *                 Sleep latency is the minimum time before which the DSP sleeps
              *                 Set latency to 65535 to reset it to the default value
              */
-            request.dcvs_v3.set_latency = TRUE;
-            request.dcvs_v3.latency     = 1000;
+            request.dcvs_v2.set_latency = TRUE;
+            request.dcvs_v2.latency     = 1000000L;
 
-            request.dcvs_v3.set_bus_params           = TRUE;
-            request.dcvs_v3.bus_params.min_corner    = HAP_DCVS_VCORNER_SVS;
-            request.dcvs_v3.bus_params.max_corner    = HAP_DCVS_VCORNER_TURBO;
-            request.dcvs_v3.bus_params.target_corner = HAP_DCVS_VCORNER_NOM;
+            const auto power_level                    = HAP_DCVS_VCORNER_TURBO_PLUS;
+            request.dcvs_v2.set_dcvs_params           = TRUE;
+            request.dcvs_v2.dcvs_params.min_corner    = power_level;
+            request.dcvs_v2.dcvs_params.max_corner    = power_level;
+            request.dcvs_v2.dcvs_params.target_corner = power_level;
         }
 
         auto ret = HAP_power_set(_context_ptr, &request);

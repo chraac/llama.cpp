@@ -17,6 +17,7 @@
 namespace {
 
 struct npu_device_context {
+    std::unique_ptr<hexagon::power_utils>         power_utils;       // Power management utilities
     std::unique_ptr<hexagon::default_thread_pool> thread_pool;
     std::unique_ptr<float[]>                      f16_to_f32_table;  // TODO: store vtcm?
 
@@ -29,6 +30,14 @@ struct npu_device_context {
         if (!init_thread_pool()) {
             DEVICE_LOG_ERROR("Failed to initialize thread pool");
             return false;
+        }
+
+        power_utils = std::make_unique<hexagon::power_utils>();
+        if (power_utils && power_utils->is_valid()) {
+            power_utils->set_dvcs_performance_mode(true);
+            DEVICE_LOG_DEBUG("Power utilities initialized with DVCS performance mode enabled");
+        } else {
+            DEVICE_LOG_ERROR("Failed to initialize power utilities");
         }
 
         DEVICE_LOG_DEBUG("NPU device context initialized");
