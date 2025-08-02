@@ -30,6 +30,7 @@ template <size_t _stack_size> class qurt_thread {
         qurt_thread_attr_set_stack_addr(&_attributes, _stack);
         qurt_thread_attr_set_stack_size(&_attributes, _stack_size);
         qurt_thread_attr_set_priority(&_attributes, priority);
+        qurt_thread_attr_set_bus_priority(&_attributes, QURT_THREAD_BUS_PRIO_ENABLED);
 
         _func    = thread_func;
         _arg     = arg;
