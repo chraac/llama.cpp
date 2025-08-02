@@ -387,20 +387,25 @@ void mul_mat_gemv_impl(hexagon::tensor *         src0,
     dst->release_write_buffer();  // mark the output tensor as modified
 }
 
-bool is_row_size_cacheable(const npu_device_tensor_spec & src) {
-    const auto & type_traits = hexagon::get_type_traits(src.type);
-    if (type_traits.to_float == nullptr) {
-        DEVICE_LOG_DEBUG("[MUL_MAT]src.type(%s) cannot be cached, to_float is null\n",
-                         hexagon::get_type_name(src.type));
+bool is_src_cacheable(const npu_device_tensor_spec & src0, const npu_device_tensor_spec & src1) {
+    const auto & src0_type_traits = hexagon::get_type_traits(src0.type);
+    if (src0_type_traits.to_float == nullptr) {
+        DEVICE_LOG_DEBUG("[MUL_MAT]src0.type(%s) cannot be cached, to_float is null\n",
+                         hexagon::get_type_name(src0.type));
         return false;
     }
 
-    const size_t type_size = type_traits.is_quantized ? sizeof(hexagon::dequant_output_type) : type_traits.type_size;
     const auto   vtcm_thread_quota_size = hexagon::default_thread_pool::get_per_thread_vtcm_quota();
-    if (src.ne[0] * type_size > vtcm_thread_quota_size) {
-        DEVICE_LOG_DEBUG("[MUL_MAT]src.type(%s) ne[0] is too large: %ld, vtcm_thread_quota_size: %zu\n",
-                         hexagon::get_type_name(src.type),
-                         (long) src.ne[0],
+    const size_t src0_type_size =
+        src0_type_traits.is_quantized ? sizeof(hexagon::dequant_output_type) : src0_type_traits.type_size;
+    const auto & src1_type_traits = hexagon::get_type_traits(src1.type);
+    const bool   is_gemv          = src1.ne[1] == 1 && src1.ne[2] == 1 && src1.ne[3] == 1;
+    size_t       min_cache_size   = is_gemv ? (src1.ne[0] * src1_type_traits.type_size) : 0;
+    min_cache_size += src0.ne[0] * src0_type_size;
+    if (min_cache_size > vtcm_thread_quota_size) {
+        DEVICE_LOG_DEBUG("[MUL_MAT]src0.type(%s) min_cache_size is too large: %ld, vtcm_thread_quota_size: %zu\n",
+                         hexagon::get_type_name(src0.type),
+                         (long) min_cache_size,
                          vtcm_thread_quota_size);
         return false;
     }
@@ -430,7 +435,7 @@ bool is_quantized_mul_mat_supported(const npu_device_tensor_spec & src0, const n
         return false;
     }
 
-    if (!is_row_size_cacheable(src0)) {
+    if (!is_src_cacheable(src0, src1)) {
         return false;
     }
 
