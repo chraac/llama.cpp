@@ -96,8 +96,10 @@ inline auto make_scoped_op_perf_timer(tensor * op, size_t tidx) {
 #    define DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_WITH_MULTI_SUB_PROC(op, tidx, tracker_name) \
         auto __npu_op_timer_##tracker_name = hexagon::make_scoped_op_perf_timer(op, tidx)
 
-#    define DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(tracker_name, idx, sub_prefix)          \
-        hexagon::npu_sub_process_scoped_timer<decltype(__npu_op_timer_##tracker_name)::kBufferCount, idx> \
+#    define DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(tracker_name, idx, sub_prefix) \
+        hexagon::npu_sub_process_scoped_timer<                                                   \
+            std::remove_reference_t<decltype(__npu_op_timer_##tracker_name)>::kBufferCount,      \
+            idx>                                                                                 \
         __npu_op_sub_timer##sub_prefix(__npu_op_timer_##tracker_name, #sub_prefix)
 
 #else
