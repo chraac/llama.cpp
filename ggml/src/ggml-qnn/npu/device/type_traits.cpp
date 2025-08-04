@@ -45,7 +45,7 @@ template <typename _TBlock> inline HVX_Vector load_dual_block_generic(const _TBl
     constexpr const uint32_t kSizeOfQs = sizeof(_TBlock::qs);
 
     HVX_Vector blocks = load_into_vector<_TBlock, 2, &_TBlock::qs>(srcs);
-    HVX_Vector block1 = Q6_V_valign_VVR(Q6_V_vzero(), blocks, sizeof(_TBlock));
+    HVX_Vector block1 = Q6_V_vror_VR(blocks, sizeof(_TBlock));
     return Q6_V_lo_W(Q6_W_vshuff_VVR(block1, blocks, kSizeOfQs));
 }
 
@@ -53,15 +53,14 @@ template <typename _TBlock> inline HVX_Vector load_qual_block_generic(const _TBl
     static_assert(hexagon::kBytesPerVector >= sizeof(_TBlock) * 4, "wrong q4_0 block size/padding");
     constexpr const uint32_t kSizeOfQs = sizeof(_TBlock::qs);
 
-    HVX_Vector zero = Q6_V_vzero();
+    HVX_Vector blocks = load_into_vector<_TBlock, 4, &_TBlock::qs>(srcs);
+    HVX_Vector block1 = Q6_V_vror_VR(blocks, sizeof(_TBlock));
 
-    HVX_Vector     blocks = load_into_vector<_TBlock, 4, &_TBlock::qs>(srcs);
-    HVX_Vector     block1 = Q6_V_valign_VVR(zero, blocks, sizeof(_TBlock));
-    HVX_VectorPair qp0    = Q6_W_vshuff_VVR(block1, blocks, kSizeOfQs);
+    HVX_Vector block2 = Q6_V_vror_VR(blocks, sizeof(_TBlock) * 2);
+    HVX_Vector block3 = Q6_V_vror_VR(blocks, sizeof(_TBlock) * 3);
 
-    HVX_Vector     block2 = Q6_V_valign_VVR(zero, blocks, sizeof(_TBlock) * 2);
-    HVX_Vector     block3 = Q6_V_valign_VVR(zero, blocks, sizeof(_TBlock) * 3);
-    HVX_VectorPair qp1    = Q6_W_vshuff_VVR(block3, block2, kSizeOfQs);
+    HVX_VectorPair qp0 = Q6_W_vshuff_VVR(block1, blocks, kSizeOfQs);
+    HVX_VectorPair qp1 = Q6_W_vshuff_VVR(block3, block2, kSizeOfQs);
 
     return Q6_V_lo_W(Q6_W_vshuff_VVR(Q6_V_lo_W(qp1), Q6_V_lo_W(qp0), kSizeOfQs * 2));
 }
