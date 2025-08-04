@@ -464,22 +464,20 @@ HVX_Vector load_dequant_table_q4_0() {
     constexpr const int kTableSize = 1 << 4;  // 4 bits per value, 16 values
     static_assert(kTableSize <= hexagon::kBytesPerVector / sizeof(__fp16), "table too large");
 
-    static union {
-        HVX_Vector v;
-        __fp16 f16[sizeof(HVX_Vector) / sizeof(__fp16)];
-    } table __attribute__((aligned(hexagon::kBytesPerVector)));
+    const static HVX_Vector result = []() -> HVX_Vector {
+        union {
+            HVX_Vector v;
+            __fp16 f16[sizeof(HVX_Vector) / sizeof(__fp16)];
+        } table __attribute__((aligned(hexagon::kBytesPerVector)));
 
-    static bool initialized = false;
-
-    if (!initialized) {
-        initialized = true;
-        table.v     = Q6_V_vzero();
+        table.v = Q6_V_vzero();
         for (int i = 0; i < kTableSize; ++i) {
             table.f16[i * 2] = i - 8;  // TODO: vectorize this?
         }
-    }
+        return table.v;
+    }();
 
-    return table.v;
+    return result;
 }
 
 void dequantize_row_q4_0(const void * src, hexagon::dequant_output_type * dst, size_t count, HVX_Vector table) {
