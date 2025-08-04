@@ -370,7 +370,6 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_output_type * d
     const int                      nb      = count / qk;
     const auto *                   src_ptr = reinterpret_cast<const npu_device_block_q4_0 *>(src);
     const HVX_Vector               mask    = Q6_Vb_vsplat_R(0x0F);
-    const HVX_Vector               minus   = Q6_Vb_vsplat_R(8);
     hexagon::dequant_output_type * dst_ptr = dst;  // TODO: opt for aligned access
 
     int i = 0;
@@ -423,11 +422,12 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_output_type * d
         HVX_Vector     q_lo = Q6_V_vand_VV(qs, mask);
         HVX_Vector     q_hi = Q6_Vub_vlsr_VubR(qs, 4);
         HVX_VectorPair qp0  = Q6_W_vshuff_VVR(q_hi, q_lo, kSizeOfQs * (1 + 2));
-        q_lo                = Q6_Vb_vsub_VbVb(Q6_V_lo_W(qp0), minus);
-        qp0                 = Q6_Wh_vunpack_Vb(q_lo);
-        q_lo                = Q6_Vhf_equals_Vh(Q6_V_lo_W(qp0));
-        q_lo                = Q6_Vqf16_vmpy_VhfVhf(q_lo, scales01);
-        q_lo                = Q6_Vhf_equals_Vqf16(q_lo);
+
+        q_lo = Q6_Vb_vshuff_Vb(Q6_V_lo_W(qp0));
+        qp0  = Q6_Wh_vlut16_VbVhI(q_lo, table, 0);
+
+        q_lo = Q6_Vqf16_vmpy_VhfVhf(Q6_V_lo_W(qp0), scales01);
+        q_lo = Q6_Vhf_equals_Vqf16(q_lo);
 
         if constexpr (_IsDstAligned) {
             *reinterpret_cast<HVX_Vector *>(dst_ptr) = q_lo;
@@ -446,11 +446,12 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_output_type * d
         HVX_Vector     q_lo = Q6_V_vand_VV(qs, mask);
         HVX_Vector     q_hi = Q6_Vub_vlsr_VubR(qs, 4);
         HVX_VectorPair qp0  = Q6_W_vshuff_VVR(q_hi, q_lo, kSizeOfQs);
-        q_lo                = Q6_Vb_vsub_VbVb(Q6_V_lo_W(qp0), minus);
-        qp0                 = Q6_Wh_vunpack_Vb(q_lo);
-        q_lo                = Q6_Vhf_equals_Vh(Q6_V_lo_W(qp0));
-        q_lo                = Q6_Vqf16_vmpy_VhfVhf(q_lo, scales);
-        q_lo                = Q6_Vhf_equals_Vqf16(q_lo);
+
+        q_lo = Q6_Vb_vshuff_Vb(Q6_V_lo_W(qp0));
+        qp0  = Q6_Wh_vlut16_VbVhI(q_lo, table, 0);
+
+        q_lo = Q6_Vqf16_vmpy_VhfVhf(Q6_V_lo_W(qp0), scales);
+        q_lo = Q6_Vhf_equals_Vqf16(q_lo);
 
         if constexpr (_IsDstAligned) {
             hexagon::q6op_vstu_variable_aligned<hexagon::kBytesPerVector / 2>(dst_ptr, q_lo);
