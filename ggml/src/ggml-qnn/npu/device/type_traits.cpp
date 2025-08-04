@@ -53,12 +53,14 @@ template <typename _TBlock> inline HVX_Vector load_qual_block_generic(const _TBl
     static_assert(hexagon::kBytesPerVector >= sizeof(_TBlock) * 4, "wrong q4_0 block size/padding");
     constexpr const uint32_t kSizeOfQs = sizeof(_TBlock::qs);
 
+    HVX_Vector zero = Q6_V_vzero();
+
     HVX_Vector     blocks = load_into_vector<_TBlock, 4, &_TBlock::qs>(srcs);
-    HVX_Vector     block1 = Q6_V_valign_VVR(Q6_V_vzero(), blocks, sizeof(_TBlock));
+    HVX_Vector     block1 = Q6_V_valign_VVR(zero, blocks, sizeof(_TBlock));
     HVX_VectorPair qp0    = Q6_W_vshuff_VVR(block1, blocks, kSizeOfQs);
 
-    HVX_Vector     block2 = Q6_V_valign_VVR(Q6_V_vzero(), blocks, sizeof(_TBlock) * 2);
-    HVX_Vector     block3 = Q6_V_valign_VVR(Q6_V_vzero(), blocks, sizeof(_TBlock) * 3);
+    HVX_Vector     block2 = Q6_V_valign_VVR(zero, blocks, sizeof(_TBlock) * 2);
+    HVX_Vector     block3 = Q6_V_valign_VVR(zero, blocks, sizeof(_TBlock) * 3);
     HVX_VectorPair qp1    = Q6_W_vshuff_VVR(block3, block2, kSizeOfQs);
 
     return Q6_V_lo_W(Q6_W_vshuff_VVR(Q6_V_lo_W(qp1), Q6_V_lo_W(qp0), kSizeOfQs * 2));
@@ -391,13 +393,10 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_output_type * d
         q_lo                = Q6_Vb_vshuff_Vb(Q6_V_lo_W(qp0));
         qp0                 = Q6_Wh_vlut16_VbVhI(q_lo, table, 0);
 
-        q_lo = Q6_V_lo_W(qp0);
-        q_hi = Q6_V_hi_W(qp0);
-
-        q_lo = Q6_Vqf16_vmpy_VhfVhf(q_lo, scales01);
+        q_lo = Q6_Vqf16_vmpy_VhfVhf(Q6_V_lo_W(qp0), scales01);
         q_lo = Q6_Vhf_equals_Vqf16(q_lo);
 
-        q_hi = Q6_Vqf16_vmpy_VhfVhf(q_hi, scales23);
+        q_hi = Q6_Vqf16_vmpy_VhfVhf(Q6_V_hi_W(qp0), scales23);
         q_hi = Q6_Vhf_equals_Vqf16(q_hi);
 
         if constexpr (_IsDstAligned) {
