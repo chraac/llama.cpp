@@ -36,8 +36,9 @@ void mul_mat_impl(hexagon::tensor *         src0,
     using data_type0 = typename get_data_type<decltype(_DotFunc)>::data_type0;
     using data_type1 = typename get_data_type<decltype(_DotFunc)>::data_type1;
 
-    const auto src0_actual_row_size = hexagon::get_dequantized_row_size(src0);
-    auto *     dequantize_row_func  = hexagon::get_type_traits(src0->get_type()).to_float;
+    const auto src0_actual_row_size    = hexagon::get_dequantized_row_size(src0);
+    auto *     dequantize_row_func     = hexagon::get_type_traits(src0->get_type()).to_float;
+    auto *     load_dequant_table_func = hexagon::get_type_traits(src0->get_type()).load_dequant_table;
     if (_ShouldCacheSrc0 && dequantize_row_func == nullptr) {
         DEVICE_LOG_ERROR("Unsupported quantized src0 type: %d, dequantize_row_func is null\n", src0->get_type());
         return;
@@ -116,6 +117,7 @@ void mul_mat_impl(hexagon::tensor *         src0,
         return;
     }
 
+    auto            dequant_table         = load_dequant_table_func ? load_dequant_table_func() : HVX_Vector();
     constexpr bool  should_fetch_src0_row = !_ShouldCacheSrc0;
     const uint8_t * src0_ptr              = src0->get_read_buffer();
     const uint8_t * src1_ptr              = src1->get_read_buffer();
@@ -146,7 +148,8 @@ void mul_mat_impl(hexagon::tensor *         src0,
                         auto * cached_row_ptr = src0_plane_cache_ptr + ir * src0_actual_row_size;
                         dequantize_row_func(src0_row,
                                             reinterpret_cast<hexagon::dequant_output_type *>(cached_row_ptr),
-                                            src0->get_ne(0));
+                                            src0->get_ne(0),
+                                            dequant_table);
                     }
 
                     last_cached_plane_ptr = src0_plane;
@@ -218,8 +221,9 @@ void mul_mat_gemv_impl(hexagon::tensor *         src0,
     using data_type0 = typename get_data_type<decltype(_DotFunc)>::data_type0;
     using data_type1 = typename get_data_type<decltype(_DotFunc)>::data_type1;
 
-    const auto src0_actual_row_size = hexagon::get_dequantized_row_size(src0);
-    auto *     dequantize_row_func  = hexagon::get_type_traits(src0->get_type()).to_float;
+    const auto src0_actual_row_size    = hexagon::get_dequantized_row_size(src0);
+    auto *     dequantize_row_func     = hexagon::get_type_traits(src0->get_type()).to_float;
+    auto *     load_dequant_table_func = hexagon::get_type_traits(src0->get_type()).load_dequant_table;
     if (_ShouldCacheSrc0 && dequantize_row_func == nullptr) {
         DEVICE_LOG_ERROR("Unsupported quantized src0 type: %d, dequantize_row_func is null\n", src0->get_type());
         return;
@@ -297,6 +301,7 @@ void mul_mat_gemv_impl(hexagon::tensor *         src0,
         return;
     }
 
+    auto            dequant_table         = load_dequant_table_func ? load_dequant_table_func() : HVX_Vector();
     constexpr bool  should_fetch_src0_row = !_ShouldCacheSrc0;
     const uint8_t * src0_ptr              = src0->get_read_buffer();
     const uint8_t * src1_ptr              = src1->get_read_buffer();
@@ -325,8 +330,10 @@ void mul_mat_gemv_impl(hexagon::tensor *         src0,
                     }
 
                     auto * cached_row_ptr = src0_plane_cache_ptr + ir * src0_actual_row_size;
-                    dequantize_row_func(
-                        src0_row, reinterpret_cast<hexagon::dequant_output_type *>(cached_row_ptr), src0->get_ne(0));
+                    dequantize_row_func(src0_row,
+                                        reinterpret_cast<hexagon::dequant_output_type *>(cached_row_ptr),
+                                        src0->get_ne(0),
+                                        dequant_table);
                 }
 
                 src0_plane = src0_plane_cache_ptr;

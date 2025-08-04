@@ -3,6 +3,8 @@
 #include "tensor.hpp"
 #include "util.hpp"
 
+#include <hexagon_types.h>
+
 namespace hexagon {
 
 using dequant_output_type = npu_device_fp16_t;
@@ -10,9 +12,10 @@ using dequant_output_type = npu_device_fp16_t;
 bool init_f16_f32_table(float * table, size_t count);
 
 typedef void (*quantize_row_type)(const float * src, void * dst, size_t count);
-typedef void (*dequantize_row_type)(const void * src, dequant_output_type * dst, size_t count);
+typedef void (*dequantize_row_type)(const void * src, dequant_output_type * dst, size_t count, HVX_Vector table);
 typedef float (*vec_dot_type)(const void * src0, const void * src1, size_t count);
 typedef bool (*can_use_aligned_vec_dot_type)(const void * src0, const void * src1, size_t count);
+typedef HVX_Vector (*load_dequant_table_type)();
 
 struct device_type_traits {
     npu_device_tensor_data_type type;
@@ -21,11 +24,12 @@ struct device_type_traits {
     size_t                      type_size;
     bool                        is_quantized;
 
-    dequantize_row_type          to_float;
-    quantize_row_type            from_float;
-    vec_dot_type                 vec_dot;
-    vec_dot_type                 vec_dot_aligned;
-    can_use_aligned_vec_dot_type can_use_aligned_vec_dot;
+    dequantize_row_type          to_float                = nullptr;
+    quantize_row_type            from_float              = nullptr;
+    vec_dot_type                 vec_dot                 = nullptr;
+    vec_dot_type                 vec_dot_aligned         = nullptr;
+    can_use_aligned_vec_dot_type can_use_aligned_vec_dot = nullptr;
+    load_dequant_table_type      load_dequant_table      = nullptr;
 };
 
 const device_type_traits & get_type_traits(npu_device_tensor_data_type type);
