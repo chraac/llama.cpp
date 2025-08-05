@@ -42,27 +42,32 @@ template <typename _TBlock> inline HVX_Vector load_block_generic(const _TBlock &
 
 template <typename _TBlock> inline HVX_Vector load_dual_block_generic(const _TBlock * srcs) {
     static_assert(hexagon::kBytesPerVector >= sizeof(_TBlock) * 2, "wrong q4_0 block size/padding");
-    constexpr const uint32_t kSizeOfQs = sizeof(_TBlock::qs);
+    constexpr const uint32_t kSizeOfQs    = sizeof(_TBlock::qs);
+    constexpr const uint32_t kSizeOfScale = sizeof(_TBlock) - kSizeOfQs;
+
+    HVX_VectorPred mask = Q6_Q_vsetq_R(kSizeOfQs);
 
     HVX_Vector blocks = load_into_vector<_TBlock, 2, &_TBlock::qs>(srcs);
-    HVX_Vector block1 = Q6_V_vror_VR(blocks, sizeof(_TBlock));
-    return Q6_V_lo_W(Q6_W_vshuff_VVR(block1, blocks, kSizeOfQs));
+    HVX_Vector block1 = Q6_V_vror_VR(blocks, kSizeOfScale);
+    return Q6_V_vmux_QVV(mask, blocks, block1);
 }
 
 template <typename _TBlock> inline HVX_Vector load_qual_block_generic(const _TBlock * srcs) {
     static_assert(hexagon::kBytesPerVector >= sizeof(_TBlock) * 4, "wrong q4_0 block size/padding");
-    constexpr const uint32_t kSizeOfQs = sizeof(_TBlock::qs);
+    constexpr const uint32_t kSizeOfQs    = sizeof(_TBlock::qs);
+    constexpr const uint32_t kSizeOfScale = sizeof(_TBlock) - kSizeOfQs;
+
+    HVX_VectorPred mask = Q6_Q_vsetq_R(kSizeOfQs);
 
     HVX_Vector blocks = load_into_vector<_TBlock, 4, &_TBlock::qs>(srcs);
-    HVX_Vector block1 = Q6_V_vror_VR(blocks, sizeof(_TBlock));
+    HVX_Vector block1 = Q6_V_vror_VR(blocks, kSizeOfScale);
 
     HVX_Vector block2 = Q6_V_vror_VR(blocks, sizeof(_TBlock) * 2);
-    HVX_Vector block3 = Q6_V_vror_VR(blocks, sizeof(_TBlock) * 3);
+    HVX_Vector block3 = Q6_V_vror_VR(blocks, sizeof(_TBlock) * 2 + kSizeOfScale);
 
-    HVX_VectorPair qp0 = Q6_W_vshuff_VVR(block1, blocks, kSizeOfQs);
-    HVX_VectorPair qp1 = Q6_W_vshuff_VVR(block3, block2, kSizeOfQs);
-
-    return Q6_V_lo_W(Q6_W_vshuff_VVR(Q6_V_lo_W(qp1), Q6_V_lo_W(qp0), kSizeOfQs * 2));
+    HVX_Vector block01 = Q6_V_vmux_QVV(mask, blocks, block1);
+    HVX_Vector block23 = Q6_V_vmux_QVV(mask, block2, block3);
+    return Q6_V_lo_W(Q6_W_vshuff_VVR(block23, block01, kSizeOfQs * 2));
 }
 
 inline void get_scale_min_k4(int j, const uint8_t * q, uint8_t * d, uint8_t * m) {
