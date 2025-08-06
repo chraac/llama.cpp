@@ -31,10 +31,10 @@ class tensor {
                         (long) _info.ne[1],
                         (long) _info.ne[2],
                         (long) _info.ne[3],
-                        _info.buffer_fd,
-                        _info.offset,
+                        (int) _info.buffer_fd,
+                        (size_t) _info.offset,
                         (void *) mmap_address,
-                        phy_address);
+                        (long) phy_address);
     }
 
     ~tensor() noexcept {
