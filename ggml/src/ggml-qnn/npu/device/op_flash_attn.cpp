@@ -128,6 +128,12 @@ void flash_attn_impl(hexagon::tensor *         out,
                                                                    (iq3 % mask->get_ne(3)) * mask->get_nb(3)) :
                        nullptr;
 
+        q_to_vec_dot(reinterpret_cast<const float *>(q_data), Q_q, DK);
+
+        if (mp) {
+            hexagon::l2fetch_row(reinterpret_cast<const uint8_t *>(mp), mask->get_nb(1));
+        }
+
         // k indices
         const int ik3 = iq3 / rk3;
         const int ik2 = iq2 / rk2;
@@ -135,8 +141,6 @@ void flash_attn_impl(hexagon::tensor *         out,
         // v indices
         const int iv3 = iq3 / rv3;
         const int iv2 = iq2 / rv2;
-
-        q_to_vec_dot(reinterpret_cast<const float *>(q_data), Q_q, DK);
 
         // online softmax / attention
         // loop over n_kv and n_head_kv
