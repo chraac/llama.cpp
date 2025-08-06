@@ -331,7 +331,7 @@ inline void glu_vec_op_f32_f32(const float *              src0,
                                size_t                     count,
                                hexagon::HVX_VectorPair_x4 coeff) {
     using namespace hexagon::vec;
-    vec_trans_with_param_impl<hexagon::vec_swiglu_f32_f32, float, hexagon::HVX_VectorPair_x4>(
+    vec_trans_with_param_impl<float, hexagon::HVX_VectorPair_x4, hexagon::vec_swiglu_f32_f32>(
         src0, src1, dst, count, coeff);
 }
 
@@ -341,7 +341,7 @@ inline void glu_vec_op_f16_f16(const npu_device_fp16_t *  src0,
                                size_t                     count,
                                hexagon::HVX_VectorPair_x4 coeff) {
     using namespace hexagon::vec;
-    vec_trans_with_param_impl<hexagon::vec_swiglu_f16_f16, npu_device_fp16_t, hexagon::HVX_VectorPair_x4>(
+    vec_trans_with_param_impl<npu_device_fp16_t, hexagon::HVX_VectorPair_x4, hexagon::vec_swiglu_f16_f16>(
         src0, src1, dst, count, coeff);
 }
 

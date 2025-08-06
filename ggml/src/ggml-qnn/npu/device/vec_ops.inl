@@ -511,7 +511,7 @@ inline void vec_trans_impl(const _TyData * src0, const _TyData * src1, _TyData *
     }
 }
 
-template <auto _OpBinaryTransform, typename _TyData, typename _TyParam>
+template <typename _TyData, typename _TyParam, HVX_Vector (*_OpBinaryTransform)(HVX_Vector, HVX_Vector, _TyParam)>
 inline void vec_trans_with_param_impl(const _TyData * src0,
                                       const _TyData * src1,
                                       _TyData *       dst,
