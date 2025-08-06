@@ -59,15 +59,16 @@ template <typename _TyData> struct get_data_type<void (*)(const _TyData *, const
     using type = _TyData;
 };
 
-template <typename _TyData>
-struct get_data_type<void (*)(const _TyData *, const _TyData *, _TyData *, size_t, hexagon::HVX_VectorPair_x4)> {
-    using type = _TyData;
+template <typename _TyData, typename _TyParam>
+struct get_data_type<void (*)(const _TyData *, const _TyData *, _TyData *, size_t, _TyParam)> {
+    using type       = _TyData;
+    using param_type = typename std::remove_cv<typename std::remove_reference<_TyParam>::type>::type;
 };
 
 template <typename _TyData, typename _TyParam>
 struct get_data_type<void (*)(const _TyData *, _TyData *, size_t, _TyParam)> {
     using type       = _TyData;
-    using param_type = typename std::remove_cv<typename std::remove_reference<_TyData>::type>::type;
+    using param_type = typename std::remove_cv<typename std::remove_reference<_TyParam>::type>::type;
 };
 
 template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::compute_params * params) {
@@ -345,10 +346,13 @@ inline void glu_vec_op_f16_f16(const npu_device_fp16_t *  src0,
         src0, src1, dst, count, coeff);
 }
 
-template <auto _GluRowFunc, hexagon::HVX_VectorPair_x4 (*_CoeffLoadFunc)()>
+template <auto _GluRowFunc, auto _CoeffLoadFunc>
 bool glu_impl(hexagon::tensor * out, hexagon::compute_params * params) {
-    using data_type = typename get_data_type<decltype(_GluRowFunc)>::type;
+    using data_type  = typename get_data_type<decltype(_GluRowFunc)>::type;
+    using param_type = typename get_data_type<decltype(_GluRowFunc)>::param_type;
     static_assert(DEVICE_TENSOR_MAX_DIMS == 4, "element_wise_op requires max dims 4");
+    static_assert(std::is_same_v<param_type, decltype(_CoeffLoadFunc())>,
+                  "GluRowFunc must have the same param type as CoeffLoadFunc");
 
     if (!out) {
         return false;
