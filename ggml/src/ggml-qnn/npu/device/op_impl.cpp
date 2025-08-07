@@ -8,6 +8,7 @@
 #include "type_traits.hpp"
 #include "vec_ops.hpp"
 
+#include <cmath>
 #include <type_traits>
 
 namespace {
@@ -326,24 +327,22 @@ bool is_unary_op_supported(const npu_device_tensor_op_spec * op_spec,
     return true;
 }
 
-inline void glu_vec_op_f32_f32(const float *              src0,
-                               const float *              src1,
-                               float *                    dst,
-                               size_t                     count,
-                               hexagon::HVX_VectorPair_x4 coeff) {
-    using namespace hexagon::vec;
-    vec_trans_with_param_impl<float, hexagon::HVX_VectorPair_x4, hexagon::vec_swiglu_f32_f32>(
-        src0, src1, dst, count, coeff);
+inline float dummy_load_coeff() {
+    // This is a dummy function to satisfy the template requirements.
+    // In practice, this should be replaced with a proper coefficient loading function.
+    return 0;
 }
 
-inline void glu_vec_op_f16_f16(const npu_device_fp16_t *  src0,
-                               const npu_device_fp16_t *  src1,
-                               npu_device_fp16_t *        dst,
-                               size_t                     count,
-                               hexagon::HVX_VectorPair_x4 coeff) {
-    using namespace hexagon::vec;
-    vec_trans_with_param_impl<npu_device_fp16_t, hexagon::HVX_VectorPair_x4, hexagon::vec_swiglu_f16_f16>(
-        src0, src1, dst, count, coeff);
+template <typename _TyData>
+inline void glu_vec_op_impl(const _TyData * src0, const _TyData * src1, _TyData * dst, size_t count, float coeff) {
+    // TODO: use simd version, for some input hexagon intrinsics will generate nan instead of inf.
+    for (uint32_t i = 0; i < count; ++i) {
+        float x = src0[i];
+        float g = src1[i];
+
+        // TODO: figure out why the expf will produce wrong results
+        dst[i] = (x / (1.0f + std::exp(static_cast<double>(-x)))) * g;
+    }
 }
 
 template <auto _GluRowFunc, auto _CoeffLoadFunc>
@@ -367,7 +366,8 @@ bool glu_impl(hexagon::tensor * out, hexagon::compute_params * params) {
 
     const auto total_cols = has_src1 ? src0->get_ne(0) : src0->get_ne(0) / 2;
     if (out->get_ne(0) != total_cols) {
-        DEVICE_LOG_ERROR("out.ne[0] (%ld) != total_cols (%d)\n", (long) out->get_ne(0), (int) total_cols);
+        DEVICE_LOG_ERROR(
+            "[hexagon-npu][GLU]out.ne[0] (%ld) != total_cols (%d)\n", (long) out->get_ne(0), (int) total_cols);
         return false;
     }
 
@@ -380,7 +380,7 @@ bool glu_impl(hexagon::tensor * out, hexagon::compute_params * params) {
 
     uint8_t * dst_ptr = out->get_write_buffer();
     if (!dst_ptr) {
-        DEVICE_LOG_ERROR("element_wise_op: dst_ptr is not writable, tensor: %p, type: %s\n",
+        DEVICE_LOG_ERROR("[hexagon-npu][GLU]glu_impl: dst_ptr is not writable, tensor: %p, type: %s\n",
                          (void *) out,
                          hexagon::get_type_name(out->get_type()));
         return false;
@@ -442,9 +442,9 @@ bool glu_compute(hexagon::tensor * out, hexagon::compute_params * params) {
     }
 
     if constexpr (_DataType == NPU_DATA_TYPE_F32) {
-        return glu_impl<glu_vec_op_f32_f32, qhmath_load_div_sf_ltu>(out, params);
+        return glu_impl<glu_vec_op_impl<float>, dummy_load_coeff>(out, params);
     } else if constexpr (_DataType == NPU_DATA_TYPE_F16) {
-        return glu_impl<glu_vec_op_f16_f16, qhmath_load_div_hf_ltu>(out, params);
+        return glu_impl<glu_vec_op_impl<__fp16>, dummy_load_coeff>(out, params);
     }
 
     DEVICE_LOG_ERROR("Unsupported GLU data type: %s\n", hexagon::get_type_name(out->get_type()));
@@ -491,7 +491,7 @@ bool is_glu_op_supported(const npu_device_tensor_op_spec * op_spec,
         return false;
     }
 
-    return false;  // TODO: fix: for some input hexagon intrinsics will generate nan instead of inf.
+    return true;
 }
 
 struct op_capabilities {
