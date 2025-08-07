@@ -498,9 +498,21 @@ bool is_glu_op_supported(const npu_device_tensor_op_spec * op_spec,
         return false;
     }
 
-    if (!hexagon::is_same_shape(src0, *dst)) {
-        DEVICE_LOG_DEBUG("[%s]src0 and dst have different shape\n", hexagon::op_get_name(op));
-        return false;
+    if (src_len > 1) {
+        if (!hexagon::is_same_shape(src0, *dst) || !hexagon::is_same_shape(srcs[1], *dst)) {
+            DEVICE_LOG_DEBUG("[%s]src0, src1 and dst have different shape\n", hexagon::op_get_name(op));
+            return false;  // src0 and src1 have the same shape as dst
+        }
+    } else {
+        static_assert(DEVICE_TENSOR_MAX_DIMS == 4, "GLU requires max dims 4");
+        if (src0.ne[0] / 2 != dst->ne[0] || src0.ne[1] != dst->ne[1] || src0.ne[2] != dst->ne[2] ||
+            src0.ne[3] != dst->ne[3]) {
+            DEVICE_LOG_DEBUG("[%s]src0 and dst have different shape: src0.ne[0]: %ld, dst.ne[0]: %ld\n",
+                             hexagon::op_get_name(op),
+                             (long) src0.ne[0],
+                             (long) dst->ne[0]);
+            return false;
+        }
     }
 
     return true;
