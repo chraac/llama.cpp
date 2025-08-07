@@ -335,7 +335,7 @@ inline float dummy_load_coeff() {
 
 template <typename _TyData> inline float expf_fix(float x) {
     // Avoid overflow for large values, f32: log(3.4028234664e+38), f16: log(65504)
-    constexpr float kMaxExp = std::is_same_v<_TyData, float> ? 88.0f : 11.0898664f;
+    constexpr float kMaxExp = std::is_same_v<_TyData, float> ? 88.03f : 11.0898664f;
 
     if (x >= kMaxExp) {
         // Avoid overflow for large values
