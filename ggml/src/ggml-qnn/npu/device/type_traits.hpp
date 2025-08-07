@@ -53,7 +53,7 @@ namespace hexagon {
 inline auto make_scoped_op_perf_timer(tensor * op, size_t tidx) {
     auto * src0 = op->get_src(0);
     auto * src1 = op->get_src(1);
-    char   buffer[1024];
+    char   buffer[512];
     if (src1 == nullptr) {
         snprintf(buffer,
                  sizeof(buffer),
