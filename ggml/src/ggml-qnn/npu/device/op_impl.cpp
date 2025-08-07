@@ -333,6 +333,11 @@ inline float dummy_load_coeff() {
     return 0;
 }
 
+inline float expf_fix(float x) {
+    // TODO: figure out why the expf will produce wrong results
+    return static_cast<float>(std::exp(static_cast<double>(x)));
+}
+
 template <typename _TyData>
 inline void glu_vec_op_impl(const _TyData * src0, const _TyData * src1, _TyData * dst, size_t count, float coeff) {
     // TODO: use simd version, for some input hexagon intrinsics will generate nan instead of inf.
@@ -340,8 +345,7 @@ inline void glu_vec_op_impl(const _TyData * src0, const _TyData * src1, _TyData 
         float x = src0[i];
         float g = src1[i];
 
-        // TODO: figure out why the expf will produce wrong results
-        dst[i] = (x / (1.0f + std::exp(static_cast<double>(-x)))) * g;
+        dst[i] = (x / (1.0f + expf_fix(-x))) * g;
     }
 }
 
