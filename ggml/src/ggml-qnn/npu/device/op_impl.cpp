@@ -333,9 +333,17 @@ inline float dummy_load_coeff() {
     return 0;
 }
 
-inline float expf_fix(float x) {
+template <typename _TyData> inline float expf_fix(float x) {
+    // Avoid overflow for large values, f32: log(3.4028234664e+38), f16: log(65504)
+    constexpr float kMaxExp = std::is_same_v<_TyData, float> ? 88.0f : 11.0898664f;
+
+    if (x >= kMaxExp) {
+        // Avoid overflow for large values
+        return std::numeric_limits<float>::infinity();
+    }
+
     // TODO: figure out why the expf will produce wrong results
-    return static_cast<float>(std::exp(static_cast<double>(x)));
+    return std::expf(x);
 }
 
 template <typename _TyData>
@@ -345,7 +353,7 @@ inline void glu_vec_op_impl(const _TyData * src0, const _TyData * src1, _TyData 
         float x = src0[i];
         float g = src1[i];
 
-        dst[i] = (x / (1.0f + expf_fix(-x))) * g;
+        dst[i] = (x / (1.0f + expf_fix<_TyData>(-x))) * g;
     }
 }
 
