@@ -324,8 +324,8 @@ bool is_flash_attn_supported(const npu_device_tensor_op_spec * op_spec,
 
     if (dst->ne[0] != v->ne[0] || dst->ne[2] != q->ne[1]) {
         DEVICE_LOG_DEBUG(
-            "[%s]dst shape does not match q and v: dst ne: %ld, %ld, %ld, %ld, q ne: %ld, %ld, %ld, %ld, "
-            "v ne: %ld, %ld, %ld, %ld\n",
+            "[%s]dst shape does not match q and v: dst ne: %lld, %lld, %lld, %lld, q ne: %lld, %lld, %lld, %lld, "
+            "v ne: %lld, %lld, %lld, %lld\n",
             op_get_name(op),
             dst->ne[0],
             dst->ne[1],
@@ -345,24 +345,25 @@ bool is_flash_attn_supported(const npu_device_tensor_op_spec * op_spec,
     if (is_transposed_or_permuted(dst->nb)) {
         DEVICE_LOG_DEBUG("[%s]dst cannot be transposed or permuted, nb: %zu, %zu, %zu, %zu\n",
                          op_get_name(op),
-                         dst->nb[0],
-                         dst->nb[1],
-                         dst->nb[2],
-                         dst->nb[3]);
+                         (size_t) dst->nb[0],
+                         (size_t) dst->nb[1],
+                         (size_t) dst->nb[2],
+                         (size_t) dst->nb[3]);
         return false;
     }
 
     if (q->ne[0] != k->ne[0]) {
-        DEVICE_LOG_DEBUG("[%s]q and k shapes do not match: q ne: %ld, %ld, %ld, %ld, k ne: %ld, %ld, %ld, %ld\n",
-                         op_get_name(op),
-                         q->ne[0],
-                         q->ne[1],
-                         q->ne[2],
-                         q->ne[3],
-                         k->ne[0],
-                         k->ne[1],
-                         k->ne[2],
-                         k->ne[3]);
+        DEVICE_LOG_DEBUG(
+            "[%s]q and k shapes do not match: q ne: %lld, %lld, %lld, %lld, k ne: %lld, %lld, %lld, %lld\n",
+            op_get_name(op),
+            q->ne[0],
+            q->ne[1],
+            q->ne[2],
+            q->ne[3],
+            k->ne[0],
+            k->ne[1],
+            k->ne[2],
+            k->ne[3]);
         return false;
     }
 

@@ -442,7 +442,7 @@ bool glu_compute(hexagon::tensor * out, hexagon::compute_params * params) {
     using namespace hexagon::vec::math;
 
     if (out->get_op_param<int32_t>(0) != NPU_GLU_OP_SWIGLU) {
-        DEVICE_LOG_ERROR("Invalid GLU op type: %d\n", out->get_op_param<int32_t>(0));
+        DEVICE_LOG_ERROR("Invalid GLU op type: %d\n", (int) out->get_op_param<int32_t>(0));
         return false;
     }
 
@@ -474,7 +474,7 @@ bool is_glu_op_supported(const npu_device_tensor_op_spec * op_spec,
     }
 
     if (op_spec->params[0] != NPU_GLU_OP_SWIGLU) {
-        DEVICE_LOG_DEBUG("[%s]unsupported GLU op type: %d\n", hexagon::op_get_name(op), op_spec->params[0]);
+        DEVICE_LOG_DEBUG("[%s]unsupported GLU op type: %d\n", hexagon::op_get_name(op), (int) op_spec->params[0]);
         return false;
     }
 

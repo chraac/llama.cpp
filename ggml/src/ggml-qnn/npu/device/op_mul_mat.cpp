@@ -63,8 +63,8 @@ void mul_mat_impl(hexagon::tensor *         src0,
     if (start_end_plane.second <= start_end_plane.first || start_end_row.second <= start_end_row.first ||
         start_end_element.second <= start_end_element.first) {
         DEVICE_LOG_DEBUG(
-            "mul_mat_impl: no work to do, start_end_plane: (%ld, %ld), start_end_row: (%ld, %ld), "
-            "start_end_element: (%ld, %ld)\n",
+            "mul_mat_impl: no work to do, start_end_plane: (%lld, %lld), start_end_row: (%lld, %lld), "
+            "start_end_element: (%lld, %lld)\n",
             start_end_plane.first,
             start_end_plane.second,
             start_end_row.first,
@@ -233,7 +233,7 @@ void mul_mat_gemv_impl(hexagon::tensor *         src0,
     if (dst->get_ne(0) >= params->get_thread_count()) {
         start_end_element = params->get_work_slice(dst->get_ne(0));
     } else {
-        DEVICE_LOG_ERROR("Unsupported src1 tensor shape for gemv: %s, ne: %ldx%ldx%ldx%ld\n",
+        DEVICE_LOG_ERROR("Unsupported src1 tensor shape for gemv: %s, ne: %lldx%lldx%lldx%lld\n",
                          hexagon::get_type_name(src1->get_type()),
                          src1->get_ne(0),
                          src1->get_ne(1),
@@ -245,7 +245,7 @@ void mul_mat_gemv_impl(hexagon::tensor *         src0,
     if (start_end_element.second <= start_end_element.first) {
         DEVICE_LOG_DEBUG(
             "mul_mat_impl: no work to do, start_end_plane: [0, 1), start_end_row: [0, 1), "
-            "start_end_element: [%ld, %ld)\n",
+            "start_end_element: [%lld, %lld)\n",
             start_end_element.first,
             start_end_element.second);
         return;
