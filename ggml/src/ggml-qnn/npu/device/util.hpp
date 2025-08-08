@@ -8,17 +8,16 @@
 #include <HAP_power.h>
 
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <utility>
 
-#define DEVICE_LOG_ERROR(...) FARF(FATAL, __VA_ARGS__)
-#define DEVICE_LOG_WARN(...)  FARF(ERROR, __VA_ARGS__)
-#define DEVICE_LOG_INFO(...)  FARF(HIGH, __VA_ARGS__)
+#define DEVICE_LOG_ERROR(...) hexagon::log_error(__VA_ARGS__)
+#define DEVICE_LOG_WARN(...)  hexagon::log_message(__VA_ARGS__)
+#define DEVICE_LOG_INFO(...)  hexagon::log_message(__VA_ARGS__)
 
 #ifdef _DEBUG
-#    undef FARF_LOW
-#    define FARF_LOW              1
-#    define DEVICE_LOG_DEBUG(...) FARF(LOW, __VA_ARGS__)
+#    define DEVICE_LOG_DEBUG(...) hexagon::log_message(__VA_ARGS__)
 #else
 #    define DEVICE_LOG_DEBUG(...) (void) 0
 #endif
@@ -39,6 +38,20 @@
 #define NPU_UNUSED(x) (void) (x)
 
 namespace hexagon {
+
+__attribute__((format(printf, 1, 2))) inline void log_error(const char * format, ...) {
+    va_list args;
+    va_start(args, format);
+    std::vfprintf(stderr, format, args);
+    va_end(args);
+}
+
+__attribute__((format(printf, 1, 2))) inline void log_message(const char * format, ...) {
+    va_list args;
+    va_start(args, format);
+    std::vprintf(format, args);
+    va_end(args);
+}
 
 inline constexpr const char * op_get_name(npu_device_tensor_op op) {
     switch (op) {
