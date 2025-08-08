@@ -50,7 +50,7 @@ template <typename _TBlock> inline HVX_Vector load_dual_block_generic(const _TBl
     return Q6_V_vmux_QVV(mask, blocks, block1);
 }
 
-template <typename _TBlock> hexagon::HVX_VectorPred_x3 get_quad_load_mask() {
+template <typename _TBlock> hexagon::HVX_VectorPred_x3 make_quad_block_mask() {
     static_assert(hexagon::kBytesPerVector >= sizeof(_TBlock) * 4, "wrong block size/padding");
     constexpr const uint32_t kSizeOfQs = sizeof(_TBlock::qs);
 
@@ -386,7 +386,7 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_output_type * d
     const auto *                   src_ptr    = reinterpret_cast<const npu_device_block_q4_0 *>(src);
     const HVX_Vector               mask       = Q6_Vb_vsplat_R(0x0F);
     hexagon::dequant_output_type * dst_ptr    = dst;  // TODO: opt for aligned access
-    auto                           load_masks = get_quad_load_mask<npu_device_block_q4_0>();
+    auto                           load_masks = make_quad_block_mask<npu_device_block_q4_0>();
 
     int i = 0;
     for (; i + 3 < nb; i += 4) {
