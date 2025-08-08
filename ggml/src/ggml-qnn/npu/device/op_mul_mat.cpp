@@ -302,16 +302,7 @@ void mul_mat_gemv_impl(hexagon::tensor *         src0,
     const uint8_t * src1_ptr              = src1->get_read_buffer();
 
     {
-        if constexpr (std::is_same_v<data_type1, float>) {
-            hexagon::vec_cpy_f32(reinterpret_cast<const data_type1 *>(src1_ptr),
-                                 reinterpret_cast<data_type1 *>(src1_row_cache_ptr),
-                                 src1->get_ne(0));
-        } else {
-            hexagon::vec_cpy_f16(reinterpret_cast<const data_type1 *>(src1_ptr),
-                                 reinterpret_cast<data_type1 *>(src1_row_cache_ptr),
-                                 src1->get_ne(0));
-        }
-
+        memcpy(src1_row_cache_ptr, src1_ptr, src1->get_ne(0) * sizeof(data_type1));
         src1_ptr = src1_row_cache_ptr;
     }
 
