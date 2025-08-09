@@ -31,7 +31,7 @@ template <typename _TStruct, size_t _Count, auto _MemberPtr> inline HVX_Vector l
 
     const HVX_Vector * qs0  = reinterpret_cast<const HVX_Vector *>(&(src->*_MemberPtr));
     HVX_Vector         prev = *qs0;
-    HVX_Vector         curr = hexagon::is_addr_aligned(qs0) ? Q6_V_vzero() : *(qs0 + 1);
+    HVX_Vector         curr = hexagon::is_addr_aligned(qs0) ? prev : *(qs0 + 1);
     return Q6_V_valign_VVR(curr, prev, (size_t) qs0);
 }
 
