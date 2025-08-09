@@ -16,16 +16,18 @@ template <typename _TElem,
 inline _TRet vec_dot_product_impl(const _TElem * src0, const _TElem * src1, size_t count) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TElem);
 
+    const HVX_Vector kZeroV = Q6_V_vzero();
+
     HVX_Vector *       src0_vec_ptr     = ((HVX_Vector *) src0);
     HVX_Vector * const src0_vec_ptr_end = ((HVX_Vector *) src0) + count / kElementsPerVector;
     HVX_Vector *       src1_vec_ptr     = ((HVX_Vector *) src1);
     HVX_Vector         prev0            = *src0_vec_ptr++;
     HVX_Vector         prev1            = *src1_vec_ptr++;
-    HVX_Vector         sum              = Q6_V_vzero();
+    HVX_Vector         sum              = kZeroV;
 
     if (src0_vec_ptr_end - src0_vec_ptr > 1) {
-        HVX_Vector sum0 = Q6_V_vzero();
-        HVX_Vector sum1 = Q6_V_vzero();
+        HVX_Vector sum0 = kZeroV;
+        HVX_Vector sum1 = kZeroV;
 
         do {
             HVX_VectorPair curr0 = reinterpret_cast<HVX_VectorPair *>(src0_vec_ptr)[0];
@@ -97,7 +99,7 @@ inline _TRet vec_dot_product_impl(const _TElem * src0, const _TElem * src1, size
                                prev1;
         curr1            = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
 
-        sum = _AddFunc(Q6_V_valign_VVR(_MpyFunc(curr0, curr1), Q6_V_vzero(), leftover_bytes), sum);
+        sum = _AddFunc(Q6_V_valign_VVR(_MpyFunc(curr0, curr1), kZeroV, leftover_bytes), sum);
     }
 
     return _ReduceFunc(sum);
@@ -111,17 +113,19 @@ template <typename _TElem,
 inline _TRet vec_dot_product_aligned_impl(const _TElem * src0, const _TElem * src1, size_t count) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TElem);
 
+    const HVX_Vector kZeroV = Q6_V_vzero();
+
     HVX_Vector *       src0_vec_ptr     = ((HVX_Vector *) src0);
     HVX_Vector * const src0_vec_ptr_end = ((HVX_Vector *) src0) + count / kElementsPerVector;
     HVX_Vector *       src1_vec_ptr     = ((HVX_Vector *) src1);
-    HVX_Vector         sum              = Q6_V_vzero();
+    HVX_Vector         sum              = kZeroV;
 
     {
-        HVX_Vector sum0 = Q6_V_vzero();
-        HVX_Vector sum1 = Q6_V_vzero();
+        HVX_Vector sum0 = kZeroV;
+        HVX_Vector sum1 = kZeroV;
         if (src0_vec_ptr_end - src0_vec_ptr > 3) {
-            HVX_Vector sum2 = Q6_V_vzero();
-            HVX_Vector sum3 = Q6_V_vzero();
+            HVX_Vector sum2 = kZeroV;
+            HVX_Vector sum3 = kZeroV;
 
             do {
                 HVX_VectorPair curr00 = reinterpret_cast<HVX_VectorPair *>(src0_vec_ptr)[0];
@@ -208,6 +212,7 @@ inline _TRet vec_dot_product_mixed_impl(const _TElem0 * src0, const _TElem1 * sr
 
     constexpr const __fp16 kOne = 1.0f;
     const HVX_Vector kOneV      = Q6_Vh_vsplat_R(reinterpret_cast<const uint16_t &>(kOne));
+    const HVX_Vector kZeroV     = Q6_V_vzero();
 
     const _TElem0 * const src0_ptr_end     = src0 + count;
     HVX_Vector *          src0_vec_ptr     = ((HVX_Vector *) src0);
@@ -215,11 +220,11 @@ inline _TRet vec_dot_product_mixed_impl(const _TElem0 * src0, const _TElem1 * sr
     HVX_Vector * const    src1_vec_ptr_end = ((HVX_Vector *) src1) + count / kElementsPerVector1;
     HVX_Vector            prev0            = *src0_vec_ptr++;
     HVX_Vector            prev1            = *src1_vec_ptr++;
-    HVX_Vector            sum              = Q6_V_vzero();
+    HVX_Vector            sum              = kZeroV;
 
     if (src1_vec_ptr_end - src1_vec_ptr > 1) {
-        HVX_Vector sum0 = Q6_V_vzero();
-        HVX_Vector sum1 = Q6_V_vzero();
+        HVX_Vector sum0 = kZeroV;
+        HVX_Vector sum1 = kZeroV;
 
         do {
             HVX_Vector     curr0 = src0_vec_ptr[0];
@@ -291,7 +296,7 @@ inline _TRet vec_dot_product_mixed_impl(const _TElem0 * src0, const _TElem1 * sr
         HVX_Vector_x2 curr0_pair = _ExpandFunc(curr0, kOneV);
 
         curr0 = leftover1 == leftover0 ? curr0_pair.first : curr0_pair.second;
-        sum   = _AddFunc(Q6_V_valign_VVR(_MpyFunc(curr0, curr1), Q6_V_vzero(), leftover_bytes1), sum);
+        sum   = _AddFunc(Q6_V_valign_VVR(_MpyFunc(curr0, curr1), kZeroV, leftover_bytes1), sum);
     }
 
     return _ReduceFunc(sum);
@@ -315,16 +320,17 @@ inline _TRet vec_dot_product_mix_aligned_impl(const _TElem0 * src0, const _TElem
 
     constexpr const __fp16 kOne = 1.0f;
     const HVX_Vector kOneV      = Q6_Vh_vsplat_R(reinterpret_cast<const uint16_t &>(kOne));
+    const HVX_Vector kZeroV     = Q6_V_vzero();
 
     HVX_Vector *       src0_vec_ptr     = ((HVX_Vector *) src0);
     HVX_Vector *       src1_vec_ptr     = ((HVX_Vector *) src1);
     HVX_Vector * const src1_vec_ptr_end = ((HVX_Vector *) src1) + count / kElementsPerVector1;
-    HVX_Vector         sum0             = Q6_V_vzero();
-    HVX_Vector         sum1             = Q6_V_vzero();
+    HVX_Vector         sum0             = kZeroV;
+    HVX_Vector         sum1             = kZeroV;
 
     if (src1_vec_ptr_end - src1_vec_ptr > 3) {
-        HVX_Vector sum2 = Q6_V_vzero();
-        HVX_Vector sum3 = Q6_V_vzero();
+        HVX_Vector sum2 = kZeroV;
+        HVX_Vector sum3 = kZeroV;
 
         do {
             HVX_VectorPair curr0 = reinterpret_cast<HVX_VectorPair *>(src0_vec_ptr)[0];
@@ -356,12 +362,15 @@ inline _TRet vec_dot_product_mix_aligned_impl(const _TElem0 * src0, const _TElem
     }
 
     if (src1_vec_ptr_end - src1_vec_ptr > 1) {
-        HVX_Vector    curr0   = src0_vec_ptr[0];
-        HVX_Vector_x2 s0_pair = _ExpandFunc(curr0, kOneV);
+        HVX_Vector     curr0   = src0_vec_ptr[0];
+        HVX_VectorPair curr1   = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[0];
+        HVX_Vector_x2  s0_pair = _ExpandFunc(curr0, kOneV);
 
-        HVX_VectorPair curr1 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[0];
-        sum0                 = _AddFunc(_MpyFunc(s0_pair.first, Q6_V_lo_W(curr1)), sum0);
-        sum1                 = _AddFunc(_MpyFunc(s0_pair.second, Q6_V_hi_W(curr1)), sum1);
+        HVX_Vector mpy0 = _MpyFunc(s0_pair.first, Q6_V_lo_W(curr1));
+        HVX_Vector mpy1 = _MpyFunc(s0_pair.second, Q6_V_hi_W(curr1));
+
+        sum0 = _AddFunc(mpy0, sum0);
+        sum1 = _AddFunc(mpy1, sum1);
     }
 
     return _ReduceFunc(_AddFunc(sum0, sum1));
@@ -430,16 +439,16 @@ template <typename _TData> inline void vec_zero_impl(_TData * src, size_t count)
     HVX_UVector *       src_vec_ptr = ((HVX_UVector *) src);
     HVX_UVector * const src_vec_end = ((HVX_UVector *) src) + (count / kElementsPerVector);
 
-    const HVX_Vector zero_vec = Q6_V_vzero();
+    const HVX_Vector kZeroV = Q6_V_vzero();
 
     while (src_vec_end - src_vec_ptr > 1) {
-        src_vec_ptr[0] = zero_vec;
-        src_vec_ptr[1] = zero_vec;
+        src_vec_ptr[0] = kZeroV;
+        src_vec_ptr[1] = kZeroV;
         src_vec_ptr += 2;
     }
 
     if (src_vec_end - src_vec_ptr > 0) {
-        src_vec_ptr[0] = zero_vec;
+        src_vec_ptr[0] = kZeroV;
         src_vec_ptr++;
     }
 
@@ -447,7 +456,7 @@ template <typename _TData> inline void vec_zero_impl(_TData * src, size_t count)
     if (leftover > 0) {
         // handle the leftover elements
         const size_t leftover_bytes = leftover * sizeof(_TData);
-        q6op_vstu_variable_ARV(src_vec_ptr, leftover_bytes, zero_vec);
+        q6op_vstu_variable_ARV(src_vec_ptr, leftover_bytes, kZeroV);
     }
 }
 
