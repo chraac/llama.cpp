@@ -475,7 +475,8 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_output_type * d
 }
 
 HVX_Vector load_dequant_table_q4_0() {
-    constexpr const int kTableSize = 1 << 4;  // 4 bits per value, 16 values
+    constexpr const int kTableSize   = 1 << 4;  // 4 bits per value, 16 values
+    constexpr const int kQ4ZeroPoint = 8;       // zero point for q4_0 quantization
     static_assert(kTableSize <= hexagon::kBytesPerVector / sizeof(__fp16), "table too large");
 
     const static HVX_Vector result = []() -> HVX_Vector {
@@ -486,7 +487,7 @@ HVX_Vector load_dequant_table_q4_0() {
 
         table.v = Q6_V_vzero();
         for (int i = 0; i < kTableSize; ++i) {
-            table.f16[i * 2] = i - 8;  // TODO: vectorize this?
+            table.f16[i * 2] = i - kQ4ZeroPoint;  // TODO: vectorize this?
         }
         return table.v;
     }();
