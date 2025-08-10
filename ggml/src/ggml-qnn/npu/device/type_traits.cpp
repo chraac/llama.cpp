@@ -509,14 +509,50 @@ void dequantize_row_q4_0(const void * src, hexagon::dequant_output_type * dst, s
     }
 }
 
-void dequantize_row_q4_K(const void * src, hexagon::dequant_output_type * dst, size_t count, HVX_Vector) {
+HVX_Vector load_dequant_table_q4_k() {
+    constexpr const int kTableSize = 1 << 4;  // 4 bits per value, 16 values
+    static_assert(kTableSize <= hexagon::kBytesPerVector / sizeof(__fp16), "table too large");
+
+    const static HVX_Vector result = []() -> HVX_Vector {
+        union {
+            HVX_Vector v;
+            __fp16 f16[sizeof(HVX_Vector) / sizeof(__fp16)];
+        } table __attribute__((aligned(hexagon::kBytesPerVector)));
+
+        table.v = Q6_V_vzero();
+        for (int i = 0; i < kTableSize; ++i) {
+            table.f16[i * 2] = i;  // TODO: vectorize this?
+        }
+        return table.v;
+    }();
+
+    return result;
+}
+
+void dequantize_row_q4_K(const void * src, hexagon::dequant_output_type * dst, size_t count, HVX_Vector table) {
     const int    nb      = count / QUANT_K_BLOCK_SIZE;
     const auto * src_ptr = reinterpret_cast<const npu_device_block_q4_k *>(src);
-    auto *       dst_ptr = reinterpret_cast<__fp16 *>(dst);
+    auto *       dst_ptr = reinterpret_cast<npu_device_fp16_t *>(dst);
+
+    const HVX_Vector quant_mask = Q6_Vb_vsplat_R(0x0F);
+
+    union {
+        HVX_VectorPair p[2];
+        HVX_Vector     v[4];
+    } dual_pair __attribute__((aligned(hexagon::kBytesPerVector * 4)));
 
     // TODO: use intrinsics
     for (int i = 0; i < nb; i++) {
         const uint8_t * q = src_ptr[i].qs;
+
+        HVX_Vector qv = *reinterpret_cast<const HVX_UVector *>(q);
+
+        HVX_Vector     q_lo = Q6_V_vand_VV(qv, quant_mask);
+        HVX_Vector     q_hi = Q6_Vub_vlsr_VubR(qv, 4);
+        HVX_VectorPair qp   = Q6_W_vshuff_VVR(q_hi, q_lo, 32 + 64);
+
+        dual_pair.p[0] = Q6_Wh_vlut16_VbVhI(Q6_Vb_vshuff_Vb(Q6_V_lo_W(qp)), table, 0);
+        dual_pair.p[1] = Q6_Wh_vlut16_VbVhI(Q6_Vb_vshuff_Vb(Q6_V_hi_W(qp)), table, 0);
 
         const __fp16 d   = reinterpret_cast<const __fp16 &>(src_ptr[i].d);
         const __fp16 min = reinterpret_cast<const __fp16 &>(src_ptr[i].dmin);
@@ -527,18 +563,32 @@ void dequantize_row_q4_K(const void * src, hexagon::dequant_output_type * dst, s
         const auto * scales = src_ptr[i].scales;
         for (int j = 0; j < QUANT_K_BLOCK_SIZE; j += 64) {
             get_scale_min_k4(is + 0, scales, &sc, &m);
-            const __fp16 d1 = d * sc;
-            const __fp16 m1 = min * m;
+            const __fp16 d1    = d * sc;
+            const uint16_t di1 = reinterpret_cast<const uint16_t &>(d1);
+            const __fp16 m1    = min * m;
+            const uint16_t mi1 = reinterpret_cast<const uint16_t &>(m1);
+
+            HVX_Vector dv1 = Q6_Vh_vsplat_R(di1);
+            HVX_Vector dm1 = Q6_Vh_vsplat_R(mi1);
+
             get_scale_min_k4(is + 1, scales, &sc, &m);
-            const __fp16 d2 = d * sc;
-            const __fp16 m2 = min * m;
-            for (int l = 0; l < 32; ++l) {
-                dst_ptr[0]  = d1 * (q[l] & 0xF) - m1;
-                dst_ptr[32] = d2 * ((q[l] >> 4) & 0xF) - m2;
-                dst_ptr++;
-            }
-            dst_ptr += 32;
-            q += 32;
+            const __fp16 d2    = d * sc;
+            const uint16_t di2 = reinterpret_cast<const uint16_t &>(d2);
+            const __fp16 m2    = min * m;
+            const uint16_t mi2 = reinterpret_cast<const uint16_t &>(m2);
+
+            HVX_Vector dv2 = Q6_Vh_vsplat_R(di2);
+            HVX_Vector dm2 = Q6_Vh_vsplat_R(mi2);
+
+            HVX_Vector dv = Q6_V_valign_VVR(dv2, dv1, hexagon::kBytesPerVector / 2);
+            HVX_Vector dm = Q6_V_valign_VVR(dm2, dm1, hexagon::kBytesPerVector / 2);
+
+            q_lo = Q6_Vqf16_vmpy_VhfVhf(dual_pair.v[j / 64], dv);
+            q_lo = Q6_Vqf16_vsub_Vqf16Vhf(q_lo, dm);
+
+            reinterpret_cast<HVX_UVector *>(dst_ptr)[0] = Q6_Vhf_equals_Vqf16(q_lo);
+
+            dst_ptr += 64;
             is += 2;
         }
     }
@@ -584,7 +634,9 @@ constexpr const hexagon::device_type_traits kDeviceTypeTraits[] = {
      "Q4_K", QUANT_K_BLOCK_SIZE,
      sizeof(npu_device_block_q4_k),
      true, dequantize_row_q4_K,
-     quantize_row_q4_K },
+     quantize_row_q4_K, nullptr,
+     nullptr, nullptr,
+     load_dequant_table_q4_k },
 };
 
 static_assert(std::size(kDeviceTypeTraits) == NPU_DATA_TYPE_COUNT,
