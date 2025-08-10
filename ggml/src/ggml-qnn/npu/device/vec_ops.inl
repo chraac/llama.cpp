@@ -123,36 +123,28 @@ inline _TRet vec_dot_product_aligned_impl(const _TElem * src0, const _TElem * sr
     {
         HVX_Vector sum0 = kZeroV;
         HVX_Vector sum1 = kZeroV;
-        if (src0_vec_ptr_end - src0_vec_ptr > 3) {
-            HVX_Vector sum2 = kZeroV;
-            HVX_Vector sum3 = kZeroV;
+        while (src0_vec_ptr_end - src0_vec_ptr > 3) {
+            HVX_VectorPair curr00 = reinterpret_cast<HVX_VectorPair *>(src0_vec_ptr)[0];
+            HVX_VectorPair curr10 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[0];
 
-            do {
-                HVX_VectorPair curr00 = reinterpret_cast<HVX_VectorPair *>(src0_vec_ptr)[0];
-                HVX_VectorPair curr10 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[0];
+            HVX_VectorPair curr01 = reinterpret_cast<HVX_VectorPair *>(src0_vec_ptr)[1];
+            HVX_VectorPair curr11 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[1];
 
-                HVX_VectorPair curr01 = reinterpret_cast<HVX_VectorPair *>(src0_vec_ptr)[1];
-                HVX_VectorPair curr11 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[1];
+            HVX_Vector mpy0 = _MpyFunc(Q6_V_lo_W(curr00), Q6_V_lo_W(curr10));
+            HVX_Vector mpy1 = _MpyFunc(Q6_V_hi_W(curr00), Q6_V_hi_W(curr10));
 
-                HVX_Vector mpy0 = _MpyFunc(Q6_V_lo_W(curr00), Q6_V_lo_W(curr10));
-                HVX_Vector mpy1 = _MpyFunc(Q6_V_hi_W(curr00), Q6_V_hi_W(curr10));
+            sum0 = _AddFunc(mpy0, sum0);
+            sum1 = _AddFunc(mpy1, sum1);
 
-                sum0 = _AddFunc(mpy0, sum0);
-                sum1 = _AddFunc(mpy1, sum1);
+            HVX_Vector mpy2 = _MpyFunc(Q6_V_lo_W(curr01), Q6_V_lo_W(curr11));
+            HVX_Vector mpy3 = _MpyFunc(Q6_V_hi_W(curr01), Q6_V_hi_W(curr11));
 
-                HVX_Vector mpy2 = _MpyFunc(Q6_V_lo_W(curr01), Q6_V_lo_W(curr11));
-                HVX_Vector mpy3 = _MpyFunc(Q6_V_hi_W(curr01), Q6_V_hi_W(curr11));
+            sum0 = _AddFunc(mpy2, sum0);
+            sum1 = _AddFunc(mpy3, sum1);
 
-                sum2 = _AddFunc(mpy2, sum2);
-                sum3 = _AddFunc(mpy3, sum3);
-
-                src0_vec_ptr += 4;
-                src1_vec_ptr += 4;
-            } while (src0_vec_ptr_end - src0_vec_ptr > 3);
-
-            sum0 = _AddFunc(sum2, sum0);
-            sum1 = _AddFunc(sum3, sum1);
-        }
+            src0_vec_ptr += 4;
+            src1_vec_ptr += 4;
+        };
 
         if (src0_vec_ptr_end - src0_vec_ptr > 1) {
             HVX_VectorPair curr0 = reinterpret_cast<HVX_VectorPair *>(src0_vec_ptr)[0];
@@ -328,38 +320,30 @@ inline _TRet vec_dot_product_mix_aligned_impl(const _TElem0 * src0, const _TElem
     HVX_Vector         sum0             = kZeroV;
     HVX_Vector         sum1             = kZeroV;
 
-    if (src1_vec_ptr_end - src1_vec_ptr > 3) {
-        HVX_Vector sum2 = kZeroV;
-        HVX_Vector sum3 = kZeroV;
+    while (src1_vec_ptr_end - src1_vec_ptr > 3) {
+        HVX_VectorPair curr0 = reinterpret_cast<HVX_VectorPair *>(src0_vec_ptr)[0];
 
-        do {
-            HVX_VectorPair curr0 = reinterpret_cast<HVX_VectorPair *>(src0_vec_ptr)[0];
+        HVX_Vector_x2  curr00 = _ExpandFunc(Q6_V_lo_W(curr0), kOneV);
+        HVX_VectorPair curr10 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[0];
 
-            HVX_Vector_x2  curr00 = _ExpandFunc(Q6_V_lo_W(curr0), kOneV);
-            HVX_VectorPair curr10 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[0];
+        HVX_Vector_x2  curr01 = _ExpandFunc(Q6_V_hi_W(curr0), kOneV);
+        HVX_VectorPair curr11 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[1];
 
-            HVX_Vector_x2  curr01 = _ExpandFunc(Q6_V_hi_W(curr0), kOneV);
-            HVX_VectorPair curr11 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[1];
+        HVX_Vector mpy0 = _MpyFunc(curr00.first, Q6_V_lo_W(curr10));
+        HVX_Vector mpy1 = _MpyFunc(curr00.second, Q6_V_hi_W(curr10));
 
-            HVX_Vector mpy0 = _MpyFunc(curr00.first, Q6_V_lo_W(curr10));
-            HVX_Vector mpy1 = _MpyFunc(curr00.second, Q6_V_hi_W(curr10));
+        sum0 = _AddFunc(mpy0, sum0);
+        sum1 = _AddFunc(mpy1, sum1);
 
-            sum0 = _AddFunc(mpy0, sum0);
-            sum1 = _AddFunc(mpy1, sum1);
+        HVX_Vector mpy2 = _MpyFunc(curr01.first, Q6_V_lo_W(curr11));
+        HVX_Vector mpy3 = _MpyFunc(curr01.second, Q6_V_hi_W(curr11));
 
-            HVX_Vector mpy2 = _MpyFunc(curr01.first, Q6_V_lo_W(curr11));
-            HVX_Vector mpy3 = _MpyFunc(curr01.second, Q6_V_hi_W(curr11));
+        sum0 = _AddFunc(mpy2, sum0);
+        sum1 = _AddFunc(mpy3, sum1);
 
-            sum2 = _AddFunc(mpy2, sum2);
-            sum3 = _AddFunc(mpy3, sum3);
-
-            src0_vec_ptr += 2;
-            src1_vec_ptr += 4;
-        } while (src1_vec_ptr_end - src1_vec_ptr > 3);
-
-        sum0 = _AddFunc(sum0, sum2);
-        sum1 = _AddFunc(sum1, sum3);
-    }
+        src0_vec_ptr += 2;
+        src1_vec_ptr += 4;
+    };
 
     if (src1_vec_ptr_end - src1_vec_ptr > 1) {
         HVX_Vector     curr0   = src0_vec_ptr[0];
