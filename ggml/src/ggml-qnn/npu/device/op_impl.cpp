@@ -331,60 +331,60 @@ struct op_capabilities {
 
 constexpr const op_capabilities kOpCapabilities[] = {
     {
-     NPU_OP_MUL_MAT,                                                           hexagon::is_mul_mat_supported,
+     NPU_OP_MUL_MAT, hexagon::is_mul_mat_supported,
      {
             hexagon::mul_mat_f32,  // NPU_DATA_TYPE_F32
             nullptr,               // NPU_DATA_TYPE_F16
-        },                                                                                                             true, // requires_thread_barrier
+        }, true,                      // requires_thread_barrier
     },
     {
-     NPU_OP_ADD,                                                                         is_element_wise_op_supported,
+     NPU_OP_ADD, is_element_wise_op_supported,
      {
             element_wise_op<vec_op_f32_f32<vadd_f32_f32>>,  // NPU_DATA_TYPE_F32
             element_wise_op<vec_op_f16_f16<vadd_f16_f16>>,  // NPU_DATA_TYPE_F16
-        },                                                                                                                   false,                                                                               // requires_thread_barrier
-    },
+        }, false,
+     },
     {
      NPU_OP_SUB, is_element_wise_op_supported,
      {
             element_wise_op<vec_op_f32_f32<vsub_f32_f32>>,  // NPU_DATA_TYPE_F32
             element_wise_op<vec_op_f16_f16<vsub_f16_f16>>,  // NPU_DATA_TYPE_F16
-        },                                                                                                             false,                                                                                                                       // requires_thread_barrier
-    },
+        }, false,
+     },
     {
-     NPU_OP_MUL,                                                                   is_element_wise_op_supported,
+     NPU_OP_MUL, is_element_wise_op_supported,
      {
             element_wise_op<vec_op_f32_f32<vmul_f32_f32>>,  // NPU_DATA_TYPE_F32
             element_wise_op<vec_op_f16_f16<vmul_f16_f16>>,  // NPU_DATA_TYPE_F16
-        },                                                      false,                                                                                                             // requires_thread_barrier
-    },
+        }, false,
+     },
     {
-     NPU_OP_RMS_NORM,                                                                     is_unary_op_supported,
+     NPU_OP_RMS_NORM, is_unary_op_supported,
      {
             unary_op<rms_norm_vec_f32>,  // NPU_DATA_TYPE_F32
             nullptr,                     // NPU_DATA_TYPE_F16
-        },                                                                                                                   false,                           // requires_thread_barrier
-    },
+        }, false,
+     },
     {
-     NPU_OP_FLASH_ATTN,hexagon::is_flash_attn_supported,
+     NPU_OP_FLASH_ATTN, hexagon::is_flash_attn_supported,
      {
             hexagon::flash_attn_f32,  // NPU_DATA_TYPE_F32
             nullptr,                  // NPU_DATA_TYPE_F16
         }, true,                         // requires_thread_barrier
     },
     {
-     NPU_OP_ROPE,                                                        hexagon::is_rope_supported,
+     NPU_OP_ROPE, hexagon::is_rope_supported,
      {
             hexagon::rope_f32,  // NPU_DATA_TYPE_F32
             nullptr,            // NPU_DATA_TYPE_F16
-        }, false,                  // requires_thread_barrier
-    },
+        }, false,
+     },
     {
-     NPU_OP_GLU,                                                                         hexagon::is_glu_op_supported,
+     NPU_OP_GLU, hexagon::is_glu_op_supported,
      {
             hexagon::glu_f32,  // NPU_DATA_TYPE_F32
             hexagon::glu_f16,  // NPU_DATA_TYPE_F16
-        }, false,                 // requires_thread_barrier
+        }, true,                  // TODO: fix this
     },
 };
 
