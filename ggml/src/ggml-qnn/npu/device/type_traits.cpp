@@ -530,11 +530,14 @@ HVX_Vector load_dequant_table_q4_k() {
 }
 
 void dequantize_row_q4_K(const void * src, hexagon::dequant_output_type * dst, size_t count, HVX_Vector table) {
+    constexpr const int kQuantSubBlockSize = 32;
+
     const int    nb      = count / QUANT_K_BLOCK_SIZE;
     const auto * src_ptr = reinterpret_cast<const npu_device_block_q4_k *>(src);
     auto *       dst_ptr = reinterpret_cast<npu_device_fp16_t *>(dst);
 
-    const HVX_Vector quant_mask = Q6_Vb_vsplat_R(0x0F);
+    const HVX_Vector     quant_mask = Q6_Vb_vsplat_R(0x0F);
+    const HVX_VectorPred block_mask = Q6_Q_vsetq_R(kQuantSubBlockSize * sizeof(npu_device_fp16_t));
 
     union {
         HVX_VectorPair p[2];
@@ -549,7 +552,7 @@ void dequantize_row_q4_K(const void * src, hexagon::dequant_output_type * dst, s
 
         HVX_Vector     q_lo = Q6_V_vand_VV(qv, quant_mask);
         HVX_Vector     q_hi = Q6_Vub_vlsr_VubR(qv, 4);
-        HVX_VectorPair qp   = Q6_W_vshuff_VVR(q_hi, q_lo, 32 + 64);
+        HVX_VectorPair qp   = Q6_W_vshuff_VVR(q_hi, q_lo, kQuantSubBlockSize * 3);
 
         dual_pair.p[0] = Q6_Wh_vlut16_VbVhI(Q6_Vb_vshuff_Vb(Q6_V_lo_W(qp)), table, 0);
         dual_pair.p[1] = Q6_Wh_vlut16_VbVhI(Q6_Vb_vshuff_Vb(Q6_V_hi_W(qp)), table, 0);
@@ -563,25 +566,21 @@ void dequantize_row_q4_K(const void * src, hexagon::dequant_output_type * dst, s
         const auto * scales = src_ptr[i].scales;
         for (int j = 0; j < QUANT_K_BLOCK_SIZE; j += 64) {
             get_scale_min_k4(is + 0, scales, &sc, &m);
-            const __fp16 d1    = d * sc;
-            const uint16_t di1 = reinterpret_cast<const uint16_t &>(d1);
-            const __fp16 m1    = min * m;
-            const uint16_t mi1 = reinterpret_cast<const uint16_t &>(m1);
+            const __fp16 d1 = d * sc;
+            const __fp16 m1 = min * m;
 
-            HVX_Vector dv1 = Q6_Vh_vsplat_R(di1);
-            HVX_Vector dm1 = Q6_Vh_vsplat_R(mi1);
+            HVX_Vector dv1 = Q6_Vh_vsplat_R(reinterpret_cast<const uint16_t &>(d1));
+            HVX_Vector dm1 = Q6_Vh_vsplat_R(reinterpret_cast<const uint16_t &>(m1));
 
             get_scale_min_k4(is + 1, scales, &sc, &m);
-            const __fp16 d2    = d * sc;
-            const uint16_t di2 = reinterpret_cast<const uint16_t &>(d2);
-            const __fp16 m2    = min * m;
-            const uint16_t mi2 = reinterpret_cast<const uint16_t &>(m2);
+            const __fp16 d2 = d * sc;
+            const __fp16 m2 = min * m;
 
-            HVX_Vector dv2 = Q6_Vh_vsplat_R(di2);
-            HVX_Vector dm2 = Q6_Vh_vsplat_R(mi2);
+            HVX_Vector dv2 = Q6_Vh_vsplat_R(reinterpret_cast<const uint16_t &>(d2));
+            HVX_Vector dm2 = Q6_Vh_vsplat_R(reinterpret_cast<const uint16_t &>(m2));
 
-            HVX_Vector dv = Q6_V_valign_VVR(dv2, dv1, hexagon::kBytesPerVector / 2);
-            HVX_Vector dm = Q6_V_valign_VVR(dm2, dm1, hexagon::kBytesPerVector / 2);
+            HVX_Vector dv = Q6_V_vmux_QVV(block_mask, dv1, dv2);
+            HVX_Vector dm = Q6_V_vmux_QVV(block_mask, dm1, dm2);
 
             q_lo = Q6_Vqf16_vmpy_VhfVhf(dual_pair.v[j / 64], dv);
             q_lo = Q6_Vqf16_vsub_Vqf16Vhf(q_lo, dm);
