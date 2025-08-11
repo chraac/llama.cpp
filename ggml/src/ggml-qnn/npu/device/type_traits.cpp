@@ -345,18 +345,18 @@ void dequantize_row_q8_0(const void * src, hexagon::dequant_output_type * dst, s
     constexpr const int qk = QUANT_BLOCK_SIZE;
     static_assert(QUANT_BLOCK_SIZE == hexagon::kBytesPerVector / sizeof(float));
 
-    const int      nb      = count / qk;
-    const auto *   src_ptr = reinterpret_cast<const npu_device_block_q8_0 *>(src);
-    auto *         dst_ptr = ((hexagon::dequant_output_type *) dst);  // TODO: opt for aligned access
-    HVX_VectorPred mask    = Q6_Q_vsetq_R(sizeof(npu_device_block_q8_0::qs));
+    const int            nb         = count / qk;
+    const auto *         src_ptr    = reinterpret_cast<const npu_device_block_q8_0 *>(src);
+    auto *               dst_ptr    = ((hexagon::dequant_output_type *) dst);  // TODO: opt for aligned access
+    const HVX_VectorPred mask       = Q6_Q_vsetq_R(sizeof(npu_device_block_q8_0::qs));
+    const HVX_VectorPred scale_mask = Q6_Q_vsetq_R(hexagon::kBytesPerVector / 2);
 
     int i = 0;
     for (; i + 1 < nb; i += 2) {
         const auto & src0 = src_ptr[i];
         const auto & src1 = src_ptr[i + 1];
 
-        HVX_Vector scales01 =
-            Q6_V_valign_VVR(Q6_Vh_vsplat_R(src1.d), Q6_Vh_vsplat_R(src0.d), hexagon::kBytesPerVector / 2);
+        HVX_Vector scales01 = Q6_V_vmux_QVV(scale_mask, Q6_Vh_vsplat_R(src0.d), Q6_Vh_vsplat_R(src1.d));
 
         HVX_Vector qs     = load_dual_block_generic(src_ptr + i, mask);
         HVX_Vector q_lo   = Q6_Vhf_equals_Vh(Q6_V_lo_W(Q6_Wh_vunpack_Vb(qs)));
@@ -391,7 +391,8 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_output_type * d
     const auto *                   src_ptr    = reinterpret_cast<const npu_device_block_q4_0 *>(src);
     const HVX_Vector               mask       = Q6_Vb_vsplat_R(0x0F);
     hexagon::dequant_output_type * dst_ptr    = dst;  // TODO: opt for aligned access
-    auto                           load_masks = make_quad_block_mask<npu_device_block_q4_0>();
+    const auto                     load_masks = make_quad_block_mask<npu_device_block_q4_0>();
+    const HVX_VectorPred           scale_mask = Q6_Q_vsetq_R(hexagon::kBytesPerVector / 2);
 
     int i = 0;
     for (; i + 3 < nb; i += 4) {
@@ -400,10 +401,8 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_output_type * d
         const auto & src2 = src_ptr[i + 2];
         const auto & src3 = src_ptr[i + 3];
 
-        HVX_Vector scales01 =
-            Q6_V_valign_VVR(Q6_Vh_vsplat_R(src1.d), Q6_Vh_vsplat_R(src0.d), hexagon::kBytesPerVector / 2);
-        HVX_Vector scales23 =
-            Q6_V_valign_VVR(Q6_Vh_vsplat_R(src3.d), Q6_Vh_vsplat_R(src2.d), hexagon::kBytesPerVector / 2);
+        HVX_Vector scales01 = Q6_V_vmux_QVV(scale_mask, Q6_Vh_vsplat_R(src0.d), Q6_Vh_vsplat_R(src1.d));
+        HVX_Vector scales23 = Q6_V_vmux_QVV(scale_mask, Q6_Vh_vsplat_R(src2.d), Q6_Vh_vsplat_R(src3.d));
 
         HVX_Vector     qs   = load_qual_block_generic(src_ptr + i, load_masks);
         HVX_Vector     q_lo = Q6_V_vand_VV(qs, mask);
@@ -433,8 +432,7 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_output_type * d
         const auto & src0 = src_ptr[i];
         const auto & src1 = src_ptr[i + 1];
 
-        HVX_Vector scales01 =
-            Q6_V_valign_VVR(Q6_Vh_vsplat_R(src1.d), Q6_Vh_vsplat_R(src0.d), hexagon::kBytesPerVector / 2);
+        HVX_Vector scales01 = Q6_V_vmux_QVV(scale_mask, Q6_Vh_vsplat_R(src0.d), Q6_Vh_vsplat_R(src1.d));
 
         HVX_Vector     qs   = load_dual_block_generic(src_ptr + i, load_masks.val[0]);
         HVX_Vector     q_lo = Q6_V_vand_VV(qs, mask);
@@ -537,7 +535,7 @@ void dequantize_row_q4_K(const void * src, hexagon::dequant_output_type * dst, s
     auto *       dst_ptr = reinterpret_cast<npu_device_fp16_t *>(dst);
 
     const HVX_Vector     quant_mask = Q6_Vb_vsplat_R(0x0F);
-    const HVX_VectorPred block_mask = Q6_Q_vsetq_R(kQuantSubBlockSize * sizeof(npu_device_fp16_t));
+    const HVX_VectorPred scale_mask = Q6_Q_vsetq_R(hexagon::kBytesPerVector / 2);
 
     union {
         HVX_VectorPair p[2];
@@ -579,8 +577,8 @@ void dequantize_row_q4_K(const void * src, hexagon::dequant_output_type * dst, s
             HVX_Vector dv2 = Q6_Vh_vsplat_R(reinterpret_cast<const uint16_t &>(d2));
             HVX_Vector dm2 = Q6_Vh_vsplat_R(reinterpret_cast<const uint16_t &>(m2));
 
-            HVX_Vector dv = Q6_V_vmux_QVV(block_mask, dv1, dv2);
-            HVX_Vector dm = Q6_V_vmux_QVV(block_mask, dm1, dm2);
+            HVX_Vector dv = Q6_V_vmux_QVV(scale_mask, dv1, dv2);
+            HVX_Vector dm = Q6_V_vmux_QVV(scale_mask, dm1, dm2);
 
             q_lo = Q6_Vqf16_vmpy_VhfVhf(dual_pair.v[j / 64], dv);
             q_lo = Q6_Vqf16_vsub_Vqf16Vhf(q_lo, dm);
