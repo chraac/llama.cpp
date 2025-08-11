@@ -84,6 +84,7 @@ inline HVX_Vector load_qual_block_generic(const _TBlock * srcs, hexagon::HVX_Vec
 }
 
 inline void get_scale_min_k4(int j, const uint8_t * q, uint8_t * d, uint8_t * m) {
+    // TODO: use intrinsics
     if (j < 4) {
         *d = q[j] & 63;
         *m = q[j + 4] & 63;
@@ -542,7 +543,6 @@ void dequantize_row_q4_K(const void * src, hexagon::dequant_output_type * dst, s
         HVX_Vector     v[4];
     } dual_pair __attribute__((aligned(hexagon::kBytesPerVector * 4)));
 
-    // TODO: use intrinsics
     for (int i = 0; i < nb; i++) {
         const uint8_t * q = src_ptr[i].qs;
 
@@ -562,31 +562,52 @@ void dequantize_row_q4_K(const void * src, hexagon::dequant_output_type * dst, s
         uint8_t      sc     = 0;
         uint8_t      m      = 0;
         const auto * scales = src_ptr[i].scales;
-        for (int j = 0; j < QUANT_K_BLOCK_SIZE; j += 64) {
+        for (int j = 0; j < QUANT_K_BLOCK_SIZE; j += 128) {
             get_scale_min_k4(is + 0, scales, &sc, &m);
+            const __fp16 d0 = d * sc;
+            const __fp16 m0 = min * m;
+
+            HVX_Vector dv0 = Q6_Vh_vsplat_R(reinterpret_cast<const uint16_t &>(d0));
+            HVX_Vector dm0 = Q6_Vh_vsplat_R(reinterpret_cast<const uint16_t &>(m0));
+
+            get_scale_min_k4(is + 1, scales, &sc, &m);
             const __fp16 d1 = d * sc;
             const __fp16 m1 = min * m;
 
             HVX_Vector dv1 = Q6_Vh_vsplat_R(reinterpret_cast<const uint16_t &>(d1));
             HVX_Vector dm1 = Q6_Vh_vsplat_R(reinterpret_cast<const uint16_t &>(m1));
 
-            get_scale_min_k4(is + 1, scales, &sc, &m);
+            get_scale_min_k4(is + 2, scales, &sc, &m);
             const __fp16 d2 = d * sc;
             const __fp16 m2 = min * m;
 
             HVX_Vector dv2 = Q6_Vh_vsplat_R(reinterpret_cast<const uint16_t &>(d2));
             HVX_Vector dm2 = Q6_Vh_vsplat_R(reinterpret_cast<const uint16_t &>(m2));
 
-            HVX_Vector dv = Q6_V_vmux_QVV(scale_mask, dv1, dv2);
-            HVX_Vector dm = Q6_V_vmux_QVV(scale_mask, dm1, dm2);
+            get_scale_min_k4(is + 3, scales, &sc, &m);
+            const __fp16 d3 = d * sc;
+            const __fp16 m3 = min * m;
 
-            q_lo = Q6_Vqf16_vmpy_VhfVhf(dual_pair.v[j / 64], dv);
-            q_lo = Q6_Vqf16_vsub_Vqf16Vhf(q_lo, dm);
+            HVX_Vector dv3 = Q6_Vh_vsplat_R(reinterpret_cast<const uint16_t &>(d3));
+            HVX_Vector dm3 = Q6_Vh_vsplat_R(reinterpret_cast<const uint16_t &>(m3));
+
+            HVX_Vector dv01 = Q6_V_vmux_QVV(scale_mask, dv0, dv1);
+            HVX_Vector dm01 = Q6_V_vmux_QVV(scale_mask, dm0, dm1);
+
+            HVX_Vector dv23 = Q6_V_vmux_QVV(scale_mask, dv2, dv3);
+            HVX_Vector dm23 = Q6_V_vmux_QVV(scale_mask, dm2, dm3);
+
+            q_lo = Q6_Vqf16_vmpy_VhfVhf(dual_pair.v[j / 64], dv01);
+            q_lo = Q6_Vqf16_vsub_Vqf16Vhf(q_lo, dm01);
+
+            q_hi = Q6_Vqf16_vmpy_VhfVhf(dual_pair.v[j / 64 + 1], dv23);
+            q_hi = Q6_Vqf16_vsub_Vqf16Vhf(q_hi, dm23);
 
             reinterpret_cast<HVX_UVector *>(dst_ptr)[0] = Q6_Vhf_equals_Vqf16(q_lo);
+            reinterpret_cast<HVX_UVector *>(dst_ptr)[1] = Q6_Vhf_equals_Vqf16(q_hi);
 
-            dst_ptr += 64;
-            is += 2;
+            dst_ptr += 128;
+            is += 4;
         }
     }
 }
