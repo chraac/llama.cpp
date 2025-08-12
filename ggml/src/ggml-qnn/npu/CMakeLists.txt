@@ -220,7 +220,7 @@ else()
         target_compile_options(hexagon_npu_skel_OBJS PUBLIC
             -fsanitize=address -fno-omit-frame-pointer
         )
-        target_link_libraries(hexagon_npu_skel_OBJS PUBLIC
+        target_link_options(hexagon_npu_skel_OBJS PUBLIC
             -fsanitize=address
         )
     endif()
