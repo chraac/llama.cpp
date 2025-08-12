@@ -14,7 +14,7 @@
 namespace hexagon {
 
 constexpr const size_t kMaxThreadCount   = 4;
-constexpr const size_t kDefaultStackSize = 1024 * 64;  // 64KB
+constexpr const size_t kDefaultStackSize = NPU_THREAD_STACK_SIZE;  // 64KB
 
 template <size_t _stack_size> class qurt_thread {
   public:
