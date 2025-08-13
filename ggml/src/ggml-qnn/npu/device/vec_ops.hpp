@@ -411,13 +411,13 @@ inline HVX_Vector qhmath_hvx_exp_vf_cpu(HVX_Vector sline) {
     return out.v;
 }
 
-inline HVX_Vector qhmath_hvx_div_vf_fix(HVX_Vector num, HVX_Vector denom, HVX_VectorPair_x4 coeffs) {
+inline HVX_Vector qhmath_hvx_div_vf_fix(HVX_Vector        num,
+                                        HVX_Vector        denom,
+                                        HVX_VectorPair_x4 coeffs,
+                                        const HVX_Vector  inf) {
     using namespace hexagon::vec::math;
 
-    constexpr const float kInfVal = std::numeric_limits<float>::infinity();
-
-    const HVX_Vector inf   = Q6_V_vsplat_R(reinterpret_cast<const uint32_t &>(kInfVal));
-    HVX_VectorPred   pred0 = Q6_Q_vcmp_eq_VwVw(denom, inf);
+    HVX_VectorPred pred0 = Q6_Q_vcmp_eq_VwVw(denom, inf);
 
     // TODO: fix the inf in div
     HVX_Vector out = qhmath_hvx_div_vf(num, denom, coeffs);
@@ -426,11 +426,8 @@ inline HVX_Vector qhmath_hvx_div_vf_fix(HVX_Vector num, HVX_Vector denom, HVX_Ve
     return out;
 }
 
-inline HVX_Vector Q6_Vsf_vadd_VsfVsf_fix(HVX_Vector num0, HVX_Vector num1) {
-    constexpr const float kInfVal = std::numeric_limits<float>::infinity();
-
-    const HVX_Vector inf   = Q6_V_vsplat_R(reinterpret_cast<const uint32_t &>(kInfVal));
-    HVX_VectorPred   pred0 = Q6_Q_vcmp_eq_VwVw(num0, inf);
+inline HVX_Vector Q6_Vsf_vadd_VsfVsf_fix(HVX_Vector num0, HVX_Vector num1, const HVX_Vector inf) {
+    HVX_VectorPred pred0 = Q6_Q_vcmp_eq_VwVw(num0, inf);
 
     HVX_Vector out = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vadd_VsfVsf(num0, num1));
 
@@ -441,12 +438,15 @@ inline HVX_Vector Q6_Vsf_vadd_VsfVsf_fix(HVX_Vector num0, HVX_Vector num1) {
 inline HVX_Vector vec_silu_f32_f32(HVX_Vector x, HVX_VectorPair_x4 coeff) {
     using namespace hexagon::vec::math;
 
-    HVX_Vector one = Q6_V_vsplat_R(0x3F800000);
+    constexpr const float kInfVal = std::numeric_limits<float>::infinity();
+
+    const HVX_Vector inf = Q6_V_vsplat_R(reinterpret_cast<const uint32_t &>(kInfVal));
+    HVX_Vector       one = Q6_V_vsplat_R(0x3F800000);
 
     // x/(1.0f + expf(-x));
     HVX_Vector exp_neg_x = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vsub_VsfVsf(Q6_V_vzero(), x));
-    HVX_Vector denom     = Q6_Vsf_vadd_VsfVsf_fix(qhmath_hvx_exp_vf_cpu(exp_neg_x), one);
-    return qhmath_hvx_div_vf_fix(x, denom, coeff);
+    HVX_Vector denom     = Q6_Vsf_vadd_VsfVsf_fix(qhmath_hvx_exp_vf_cpu(exp_neg_x), one, inf);
+    return qhmath_hvx_div_vf_fix(x, denom, coeff, inf);
 }
 
 inline HVX_Vector vec_silu_f16_f16(HVX_Vector x, HVX_VectorPair_x4 coeff) {
