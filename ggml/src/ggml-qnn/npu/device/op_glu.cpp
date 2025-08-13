@@ -44,6 +44,16 @@ inline void glu_vec_op_impl(const _TyData * src0, const _TyData * src1, _TyData 
     }
 }
 
+inline void glu_vec_op_f32_f32(const float *              src0,
+                               const float *              src1,
+                               float *                    dst,
+                               size_t                     count,
+                               hexagon::HVX_VectorPair_x4 coeff) {
+    using namespace hexagon::vec;
+    vec_trans_with_param_impl<float, hexagon::HVX_VectorPair_x4, hexagon::vec_swiglu_f32_f32>(
+        src0, src1, dst, count, coeff);
+}
+
 template <auto _GluRowFunc, auto _CoeffLoadFunc>
 bool glu_impl(hexagon::tensor * out, hexagon::compute_params * params) {
     using data_type  = typename get_data_type<decltype(_GluRowFunc)>::type;
@@ -141,7 +151,7 @@ bool glu_compute(hexagon::tensor * out, hexagon::compute_params * params) {
     }
 
     if constexpr (_DataType == NPU_DATA_TYPE_F32) {
-        return glu_impl<glu_vec_op_impl<float>, dummy_load_coeff>(out, params);
+        return glu_impl<glu_vec_op_f32_f32, qhmath_load_div_sf_ltu>(out, params);
     } else if constexpr (_DataType == NPU_DATA_TYPE_F16) {
         return glu_impl<glu_vec_op_impl<__fp16>, dummy_load_coeff>(out, params);
     }
