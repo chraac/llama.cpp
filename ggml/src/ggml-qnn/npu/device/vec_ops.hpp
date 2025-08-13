@@ -25,6 +25,12 @@ typedef union {
     } V;
 } HVX_DV;
 
+typedef union {
+    HVX_Vector v;
+    float      f32[32];
+    __fp16 f16[64];
+} HVX_VectorAlias;
+
 constexpr const size_t kBytesPerVector = sizeof(HVX_Vector);  // 128 for v73
 constexpr const size_t kAlignMask      = kBytesPerVector - 1;
 
