@@ -1126,4 +1126,38 @@ inline HVX_Vector_x2 hvx_vsf_convert_vhf(HVX_Vector vxl, HVX_Vector one) {
     };
 }
 
+inline HVX_Vector qhmath_hvx_exp_vf_guard_inf(HVX_Vector sline, const HVX_Vector inf) {
+    constexpr float  kMaxExp = 88.02f;
+    const HVX_Vector max_exp = Q6_V_vsplat_R(reinterpret_cast<const uint32_t &>(kMaxExp));
+
+    HVX_VectorPred pred0 = Q6_Q_vcmp_gt_VsfVsf(sline, max_exp);
+
+    HVX_Vector out = qhmath_hvx_exp_vf(sline);
+
+    out = Q6_V_vmux_QVV(pred0, inf, out);
+    return out;
+}
+
+inline HVX_Vector qhmath_hvx_div_vf_guard_inf(HVX_Vector        num,
+                                              HVX_Vector        denom,
+                                              HVX_VectorPair_x4 coeffs,
+                                              const HVX_Vector  inf) {
+    HVX_VectorPred pred0 = Q6_Q_vcmp_eq_VwVw(denom, inf);
+
+    // TODO: fix the inf in div
+    HVX_Vector out = qhmath_hvx_div_vf(num, denom, coeffs);
+
+    out = Q6_V_vmux_QVV(pred0, Q6_V_vzero(), out);
+    return out;
+}
+
+inline HVX_Vector Q6_Vsf_vadd_VsfVsf_guard_inf(HVX_Vector num0, HVX_Vector num1, const HVX_Vector inf) {
+    HVX_VectorPred pred0 = Q6_Q_vcmp_eq_VwVw(num0, inf);
+
+    HVX_Vector out = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vadd_VsfVsf(num0, num1));
+
+    out = Q6_V_vmux_QVV(pred0, inf, out);
+    return out;
+}
+
 }  // namespace hexagon::vec::math

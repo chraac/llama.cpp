@@ -483,7 +483,7 @@ HVX_Vector load_dequant_table_q4_0() {
     constexpr const int kQ4ZeroPoint = 8;       // zero point for q4_0 quantization
     static_assert(kTableSize <= hexagon::kBytesPerVector / sizeof(__fp16), "table too large");
 
-    const static HVX_Vector result = []() -> HVX_Vector {
+    static const HVX_Vector result = []() -> HVX_Vector {
         union {
             HVX_Vector v;
             __fp16 f16[sizeof(HVX_Vector) / sizeof(__fp16)];
