@@ -387,28 +387,18 @@ _TReturn type_erase_dot_func(const void * src0, const void * src1, size_t count)
     return _DotFunc(src0_typed, src1_typed, count);
 }
 
-inline HVX_Vector qhmath_hvx_exp_vf_cpu(HVX_Vector sline) {
-    constexpr float kMaxExp = 88.02f;
+inline HVX_Vector qhmath_hvx_exp_vf_fix(HVX_Vector sline, const HVX_Vector inf) {
+    using namespace hexagon::vec::math;
 
-    HVX_VectorAlias in;
-    in.v = sline;
+    constexpr float  kMaxExp = 88.02f;
+    const HVX_Vector max_exp = Q6_V_vsplat_R(reinterpret_cast<const uint32_t &>(kMaxExp));
 
-    HVX_VectorAlias out;
-    for (int i = 0; i < 32; i++) {
-        float x = in.f32[i];
-        if (x >= kMaxExp) {
-            // Avoid overflow for large values
-            out.f32[i] = std::numeric_limits<float>::infinity();
-        } else if (x <= -kMaxExp) {
-            // Avoid underflow for small values
-            out.f32[i] = 0.0f;
-        } else {
-            // Normal case
-            out.f32[i] = std::expf(x);
-        }
-    }
+    HVX_VectorPred pred0 = Q6_Q_vcmp_gt_VsfVsf(sline, max_exp);
 
-    return out.v;
+    HVX_Vector out = qhmath_hvx_exp_vf(sline);
+
+    out = Q6_V_vmux_QVV(pred0, inf, out);
+    return out;
 }
 
 inline HVX_Vector qhmath_hvx_div_vf_fix(HVX_Vector        num,
@@ -445,7 +435,7 @@ inline HVX_Vector vec_silu_f32_f32(HVX_Vector x, HVX_VectorPair_x4 coeff) {
 
     // x/(1.0f + expf(-x));
     HVX_Vector exp_neg_x = Q6_Vsf_equals_Vqf32(Q6_Vqf32_vsub_VsfVsf(Q6_V_vzero(), x));
-    HVX_Vector denom     = Q6_Vsf_vadd_VsfVsf_fix(qhmath_hvx_exp_vf_cpu(exp_neg_x), one, inf);
+    HVX_Vector denom     = Q6_Vsf_vadd_VsfVsf_fix(qhmath_hvx_exp_vf_fix(exp_neg_x, inf), one, inf);
     return qhmath_hvx_div_vf_fix(x, denom, coeff, inf);
 }
 
