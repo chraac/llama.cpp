@@ -81,8 +81,10 @@ template <typename _TBlock> inline hexagon::HVX_VectorPred_x3 make_quad_block_ma
 }
 
 template <typename _TBlock> inline HVX_Vector make_scale_load_mask() {
-    hexagon::HVX_VectorAlias ret;
+    static_assert(sizeof(_TBlock) < 32, "wrong block size/padding");
 
+    // TODO: handle the case that scale not at the start of struct
+    hexagon::HVX_VectorAlias ret;
     for (size_t i = 0; i < 32; ++i) {
         size_t base      = i * 2;
         ret.u8[base]     = 0;
@@ -103,23 +105,32 @@ inline hexagon::HVX_Vector_x3 load_qual_block_generic(const _TBlock *           
     constexpr const uint32_t kSizeOfQs    = sizeof(_TBlock::qs);
     constexpr const uint32_t kSizeOfScale = sizeof(_TBlock) - kSizeOfQs;
 
-    HVX_Vector blocks = load_struct_into_vector<_TBlock, 4>(srcs);
-    HVX_Vector block0 = Q6_V_vror_VR(blocks, kSizeOfScale);
-    HVX_Vector block1 = Q6_V_vror_VR(blocks, kSizeOfScale * 2);
-
-    HVX_Vector block2 = Q6_V_vror_VR(blocks, kSizeOfScale * 3);
-    HVX_Vector block3 = Q6_V_vror_VR(blocks, kSizeOfScale * 4);
-
-    HVX_Vector block01 = Q6_V_vmux_QVV(mask.val[0], block0, block1);
-    HVX_Vector block23 = Q6_V_vmux_QVV(mask.val[1], block2, block3);
-
-    HVX_Vector scale01 = Q6_Vb_vshuff_Vb(blocks);
-    HVX_Vector scale23 = Q6_Vb_vshuff_Vb(Q6_V_vror_VR(blocks, sizeof(_TBlock) * 2));
-
     hexagon::HVX_Vector_x3 result;
-    result.val[0] = Q6_V_vmux_QVV(mask.val[2], block01, block23);
-    result.val[1] = Q6_Vb_vlut32_VbVbR_nomatch(scale_indices, scale01, 0);
-    result.val[2] = Q6_Vb_vlut32_VbVbR_nomatch(scale_indices, scale23, 0);
+
+    HVX_Vector blocks = load_struct_into_vector<_TBlock, 4>(srcs);
+
+    {
+        HVX_Vector scale23 = Q6_V_vror_VR(blocks, sizeof(_TBlock) * 2);
+        HVX_Vector scale01 = Q6_Vb_vshuff_Vb(blocks);
+        scale23            = Q6_Vb_vshuff_Vb(scale23);
+
+        result.val[1] = Q6_Vb_vlut32_VbVbR_nomatch(scale_indices, scale01, 0);
+        result.val[2] = Q6_Vb_vlut32_VbVbR_nomatch(scale_indices, scale23, 0);
+    }
+
+    {
+        HVX_Vector block0 = Q6_V_vror_VR(blocks, kSizeOfScale);
+        HVX_Vector block1 = Q6_V_vror_VR(blocks, kSizeOfScale * 2);
+
+        HVX_Vector block2 = Q6_V_vror_VR(blocks, kSizeOfScale * 3);
+        HVX_Vector block3 = Q6_V_vror_VR(blocks, kSizeOfScale * 4);
+
+        HVX_Vector block01 = Q6_V_vmux_QVV(mask.val[0], block0, block1);
+        HVX_Vector block23 = Q6_V_vmux_QVV(mask.val[1], block2, block3);
+
+        result.val[0] = Q6_V_vmux_QVV(mask.val[2], block01, block23);
+    }
+
     return result;
 }
 
