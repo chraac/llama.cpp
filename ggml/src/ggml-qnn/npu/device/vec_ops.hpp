@@ -8,11 +8,15 @@
 
 namespace hexagon {
 
+constexpr const size_t kBytesPerVector = sizeof(HVX_Vector);  // 128 for v73
+constexpr const size_t kAlignMask      = kBytesPerVector - 1;
+
 template <typename T, int N> struct HEXAGON_pack {
     T val[N];
 };
 
 using HVX_Vector_x2     = std::pair<HVX_Vector, HVX_Vector>;
+using HVX_Vector_x3     = HEXAGON_pack<HVX_Vector, 3>;
 using HVX_VectorPair_x4 = HEXAGON_pack<HVX_VectorPair, 4>;
 using HVX_VectorPred_x3 = HEXAGON_pack<HVX_VectorPred, 3>;
 
@@ -27,12 +31,12 @@ typedef union {
 
 typedef union {
     HVX_Vector v;
-    float      f32[32];
-    __fp16 f16[64];
+    float      f32[kBytesPerVector / sizeof(float)];
+    uint32_t   u32[kBytesPerVector / sizeof(uint32_t)];
+    __fp16 f16[kBytesPerVector / sizeof(__fp16)];
+    uint16_t u16[kBytesPerVector / sizeof(uint16_t)];
+    uint8_t  u8[kBytesPerVector];
 } HVX_VectorAlias;
-
-constexpr const size_t kBytesPerVector = sizeof(HVX_Vector);  // 128 for v73
-constexpr const size_t kAlignMask      = kBytesPerVector - 1;
 
 inline size_t get_aligned_size(size_t size) {
     return (size + kAlignMask) & ~kAlignMask;
