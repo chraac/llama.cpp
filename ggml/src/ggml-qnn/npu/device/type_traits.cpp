@@ -84,8 +84,12 @@ template <typename _TBlock> inline HVX_Vector make_scale_load_mask() {
     hexagon::HVX_VectorAlias ret;
 
     for (size_t i = 0; i < 32; ++i) {
-        ret.u16[i]      = 0;
-        ret.u16[i + 32] = sizeof(_TBlock) / sizeof(npu_device_fp16_t);
+        size_t base      = i * 2;
+        ret.u8[base]     = 0;
+        ret.u8[base + 1] = 1;
+
+        ret.u8[base + 64] = sizeof(_TBlock);
+        ret.u8[base + 65] = sizeof(_TBlock) + 1;
     }
 
     return ret.v;
@@ -109,16 +113,13 @@ inline hexagon::HVX_Vector_x3 load_qual_block_generic(const _TBlock *           
     HVX_Vector block01 = Q6_V_vmux_QVV(mask.val[0], block0, block1);
     HVX_Vector block23 = Q6_V_vmux_QVV(mask.val[1], block2, block3);
 
-    HVX_Vector scale01 = Q6_Vh_vshuff_Vh(blocks);
-    HVX_Vector scale23 = Q6_Vh_vshuff_Vh(Q6_V_vror_VR(blocks, sizeof(_TBlock) * 2));
-
-    HVX_VectorPair qp0 = Q6_Wh_vlut16_VbVhI(scale_indices, scale01, 0);
-    HVX_VectorPair qp1 = Q6_Wh_vlut16_VbVhI(scale_indices, scale23, 0);
+    HVX_Vector scale01 = Q6_Vb_vshuff_Vb(blocks);
+    HVX_Vector scale23 = Q6_Vb_vshuff_Vb(Q6_V_vror_VR(blocks, sizeof(_TBlock) * 2));
 
     hexagon::HVX_Vector_x3 result;
     result.val[0] = Q6_V_vmux_QVV(mask.val[2], block01, block23);
-    result.val[1] = Q6_V_lo_W(qp0);
-    result.val[2] = Q6_V_lo_W(qp1);
+    result.val[1] = Q6_Vb_vlut32_VbVbR_nomatch(scale_indices, scale01, 0);
+    result.val[2] = Q6_Vb_vlut32_VbVbR_nomatch(scale_indices, scale23, 0);
     return result;
 }
 
