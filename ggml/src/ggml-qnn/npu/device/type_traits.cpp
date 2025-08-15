@@ -92,9 +92,9 @@ template <typename _TBlock> inline HVX_Vector make_scale_load_mask() {
 }
 
 template <typename _TBlock>
-inline hexagon::HVX_Vector_x3 load_qual_block_generic(const _TBlock *            srcs,
-                                                      hexagon::HVX_VectorPred_x3 mask,
-                                                      const HVX_Vector           scale_indices) {
+inline hexagon::HVX_Vector_x3 load_qual_block_generic(const _TBlock *                  srcs,
+                                                      const hexagon::HVX_VectorPred_x3 mask,
+                                                      const HVX_Vector                 scale_indices) {
     static_assert(hexagon::kBytesPerVector >= sizeof(_TBlock) * 4, "wrong block size/padding");
     constexpr const uint32_t kSizeOfQs    = sizeof(_TBlock::qs);
     constexpr const uint32_t kSizeOfScale = sizeof(_TBlock) - kSizeOfQs;
@@ -425,8 +425,9 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_output_type * d
     static_assert(QUANT_BLOCK_SIZE == hexagon::kBytesPerVector / sizeof(float));
     constexpr const uint32_t kSizeOfQs = sizeof(npu_device_block_q4_0::qs);
 
-    static const auto load_masks    = make_quad_block_mask<npu_device_block_q4_0>();
-    static const auto scale_indices = make_scale_load_mask<npu_device_block_q4_0>();
+    static const auto       load_masks = make_quad_block_mask<npu_device_block_q4_0>();
+    static const HVX_Vector scale_indices __attribute__((aligned(hexagon::kBytesPerVector))) =
+        make_scale_load_mask<npu_device_block_q4_0>();
 
     const int                      nb         = count / qk;
     const auto *                   src_ptr    = reinterpret_cast<const npu_device_block_q4_0 *>(src);
