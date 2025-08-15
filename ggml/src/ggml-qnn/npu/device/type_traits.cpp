@@ -109,9 +109,11 @@ inline hexagon::HVX_Vector_x3 load_qual_block_generic(const _TBlock *           
     HVX_Vector block01 = Q6_V_vmux_QVV(mask.val[0], block0, block1);
     HVX_Vector block23 = Q6_V_vmux_QVV(mask.val[1], block2, block3);
 
-    HVX_VectorPair qp0 = Q6_Wh_vlut16_VbVhI(scale_indices, Q6_Vh_vshuff_Vh(blocks), 0);
-    HVX_VectorPair qp1 =
-        Q6_Wh_vlut16_VbVhI(scale_indices, Q6_Vh_vshuff_Vh(Q6_V_vror_VR(blocks, sizeof(_TBlock) * 2)), 0);
+    HVX_Vector scale01 = Q6_Vh_vshuff_Vh(blocks);
+    HVX_Vector scale23 = Q6_Vh_vshuff_Vh(Q6_V_vror_VR(blocks, sizeof(_TBlock) * 2));
+
+    HVX_VectorPair qp0 = Q6_Wh_vlut16_VbVhI(scale_indices, scale01, 0);
+    HVX_VectorPair qp1 = Q6_Wh_vlut16_VbVhI(scale_indices, scale23, 0);
 
     hexagon::HVX_Vector_x3 result;
     result.val[0] = Q6_V_vmux_QVV(mask.val[2], block01, block23);
