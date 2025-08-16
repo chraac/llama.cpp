@@ -42,11 +42,11 @@ inline _TRet vec_dot_product_impl(const _TElem * src0, const _TElem * src1, size
             HVX_Vector mpy0 = _MpyFunc(l0, l1);
             HVX_Vector mpy1 = _MpyFunc(h0, h1);
 
-            sum0 = _AddFunc(mpy0, sum0);
-            sum1 = _AddFunc(mpy1, sum1);
-
             prev0 = Q6_V_hi_W(curr0);
             prev1 = Q6_V_hi_W(curr1);
+
+            sum0 = _AddFunc(mpy0, sum0);
+            sum1 = _AddFunc(mpy1, sum1);
 
             src0_vec_ptr += 2;
             src1_vec_ptr += 2;
@@ -80,10 +80,11 @@ inline _TRet vec_dot_product_impl(const _TElem * src0, const _TElem * src1, size
         src1_vec_ptr += should_fetch_src1 ? 1 : 0;
         HVX_Vector s0 = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
         HVX_Vector s1 = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-        prev0         = curr0;
-        prev1         = curr1;
 
-        sum = _AddFunc(_MpyFunc(s0, s1), sum);
+        HVX_Vector mpy0 = _MpyFunc(s0, s1);
+        prev0           = curr0;
+        prev1           = curr1;
+        sum             = _AddFunc(mpy0, sum);
     }
 
     if (leftover > 0) {
@@ -133,11 +134,11 @@ inline _TRet vec_dot_product_aligned_impl(const _TElem * src0, const _TElem * sr
             HVX_Vector mpy0 = _MpyFunc(Q6_V_lo_W(curr00), Q6_V_lo_W(curr10));
             HVX_Vector mpy1 = _MpyFunc(Q6_V_hi_W(curr00), Q6_V_hi_W(curr10));
 
-            sum0 = _AddFunc(mpy0, sum0);
-            sum1 = _AddFunc(mpy1, sum1);
-
             HVX_Vector mpy2 = _MpyFunc(Q6_V_lo_W(curr01), Q6_V_lo_W(curr11));
             HVX_Vector mpy3 = _MpyFunc(Q6_V_hi_W(curr01), Q6_V_hi_W(curr11));
+
+            sum0 = _AddFunc(mpy0, sum0);
+            sum1 = _AddFunc(mpy1, sum1);
 
             sum0 = _AddFunc(mpy2, sum0);
             sum1 = _AddFunc(mpy3, sum1);
@@ -152,8 +153,11 @@ inline _TRet vec_dot_product_aligned_impl(const _TElem * src0, const _TElem * sr
             src0_vec_ptr += 2;
             src1_vec_ptr += 2;
 
-            sum0 = _AddFunc(_MpyFunc(Q6_V_lo_W(curr0), Q6_V_lo_W(curr1)), sum0);
-            sum1 = _AddFunc(_MpyFunc(Q6_V_hi_W(curr0), Q6_V_hi_W(curr1)), sum1);
+            HVX_Vector mpy0 = _MpyFunc(Q6_V_lo_W(curr0), Q6_V_lo_W(curr1));
+            HVX_Vector mpy1 = _MpyFunc(Q6_V_hi_W(curr0), Q6_V_hi_W(curr1));
+
+            sum0 = _AddFunc(mpy0, sum0);
+            sum1 = _AddFunc(mpy1, sum1);
         }
 
         sum = _AddFunc(sum0, sum1);
