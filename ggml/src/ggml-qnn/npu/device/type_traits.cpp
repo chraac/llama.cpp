@@ -107,16 +107,7 @@ inline hexagon::HVX_Vector_x3 load_qual_block_generic(const _TBlock *           
 
     hexagon::HVX_Vector_x3 result;
 
-    HVX_Vector blocks = load_struct_into_vector<_TBlock, 4>(srcs);
-
-    {
-        HVX_Vector scale23 = Q6_V_vror_VR(blocks, sizeof(_TBlock) * 2);
-        HVX_Vector scale01 = Q6_Vb_vshuff_Vb(blocks);
-        scale23            = Q6_Vb_vshuff_Vb(scale23);
-
-        result.val[1] = Q6_Vb_vlut32_VbVbR_nomatch(scale_indices, scale01, 0);
-        result.val[2] = Q6_Vb_vlut32_VbVbR_nomatch(scale_indices, scale23, 0);
-    }
+    const HVX_Vector blocks = load_struct_into_vector<_TBlock, 4>(srcs);
 
     {
         HVX_Vector block0 = Q6_V_vror_VR(blocks, kSizeOfScale);
@@ -129,6 +120,15 @@ inline hexagon::HVX_Vector_x3 load_qual_block_generic(const _TBlock *           
         HVX_Vector block23 = Q6_V_vmux_QVV(mask.val[1], block2, block3);
 
         result.val[0] = Q6_V_vmux_QVV(mask.val[2], block01, block23);
+    }
+
+    {
+        HVX_Vector scale23 = Q6_V_vror_VR(blocks, sizeof(_TBlock) * 2);
+        HVX_Vector scale01 = Q6_Vb_vshuff_Vb(blocks);
+        scale23            = Q6_Vb_vshuff_Vb(scale23);
+
+        result.val[1] = Q6_Vb_vlut32_VbVbR_nomatch(scale_indices, scale01, 0);
+        result.val[2] = Q6_Vb_vlut32_VbVbR_nomatch(scale_indices, scale23, 0);
     }
 
     return result;
