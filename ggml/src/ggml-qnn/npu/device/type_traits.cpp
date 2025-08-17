@@ -454,20 +454,19 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_output_type * d
 
     const int                      nb      = count / qk;
     const auto *                   src_ptr = reinterpret_cast<const npu_device_block_q4_0 *>(src);
-    const HVX_Vector               mask    = Q6_Vb_vsplat_R(0x0F);
     hexagon::dequant_output_type * dst_ptr = dst;  // TODO: opt for aligned access
 
     int i = 0;
     for (; i + 3 < nb; i += 4) {
         auto qs = load_qual_block_generic(src_ptr + i, load_masks, scale_indices);
 
-        HVX_Vector q_lo = Q6_V_vand_VV(qs.val[0], mask);
+        HVX_Vector q_lo = qs.val[0];
         HVX_Vector q_hi = Q6_Vub_vlsr_VubR(qs.val[0], 4);
 
         HVX_VectorPair qp0 = Q6_W_vshuff_VVR(q_hi, q_lo, kSizeOfQs * (1 + 2 + 4));
 
         q_lo = Q6_Vb_vshuff_Vb(Q6_V_lo_W(qp0));
-        qp0  = Q6_Wh_vlut16_VbVhI(q_lo, table, 0);
+        qp0  = Q6_Wh_vlut16_VbVhR_nomatch(q_lo, table, 0);
 
         q_lo = Q6_V_lo_W(qp0);
         q_hi = Q6_V_hi_W(qp0);
@@ -491,12 +490,12 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_output_type * d
 
     for (; i + 1 < nb; i += 2) {
         auto           qs   = load_dual_block_generic(src_ptr + i, load_masks.val[0], scale_indices);
-        HVX_Vector     q_lo = Q6_V_vand_VV(qs.val[0], mask);
+        HVX_Vector     q_lo = qs.val[0];
         HVX_Vector     q_hi = Q6_Vub_vlsr_VubR(qs.val[0], 4);
         HVX_VectorPair qp0  = Q6_W_vshuff_VVR(q_hi, q_lo, kSizeOfQs * (1 + 2));
 
         q_lo = Q6_Vb_vshuff_Vb(Q6_V_lo_W(qp0));
-        qp0  = Q6_Wh_vlut16_VbVhI(q_lo, table, 0);
+        qp0  = Q6_Wh_vlut16_VbVhR_nomatch(q_lo, table, 0);
 
         q_lo = Q6_Vqf16_vmpy_VhfVhf(Q6_V_lo_W(qp0), qs.val[1]);
         q_lo = Q6_Vhf_equals_Vqf16(q_lo);
@@ -515,12 +514,12 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_output_type * d
         HVX_Vector   scales   = Q6_Vh_vsplat_R(curr_blk.d);
 
         HVX_Vector     qs   = load_block_generic(curr_blk);
-        HVX_Vector     q_lo = Q6_V_vand_VV(qs, mask);
+        HVX_Vector     q_lo = qs;
         HVX_Vector     q_hi = Q6_Vub_vlsr_VubR(qs, 4);
         HVX_VectorPair qp0  = Q6_W_vshuff_VVR(q_hi, q_lo, kSizeOfQs);
 
         q_lo = Q6_Vb_vshuff_Vb(Q6_V_lo_W(qp0));
-        qp0  = Q6_Wh_vlut16_VbVhI(q_lo, table, 0);
+        qp0  = Q6_Wh_vlut16_VbVhR_nomatch(q_lo, table, 0);
 
         q_lo = Q6_Vqf16_vmpy_VhfVhf(Q6_V_lo_W(qp0), scales);
         q_lo = Q6_Vhf_equals_Vqf16(q_lo);
@@ -590,7 +589,6 @@ void dequantize_row_q4_K(const void * src, hexagon::dequant_output_type * dst, s
     const auto * src_ptr = reinterpret_cast<const npu_device_block_q4_k *>(src);
     auto *       dst_ptr = reinterpret_cast<npu_device_fp16_t *>(dst);
 
-    const HVX_Vector     quant_mask = Q6_Vb_vsplat_R(0x0F);
     const HVX_VectorPred scale_mask = Q6_Q_vsetq_R(hexagon::kBytesPerVector / 2);
 
     union {
@@ -603,12 +601,12 @@ void dequantize_row_q4_K(const void * src, hexagon::dequant_output_type * dst, s
 
         HVX_Vector qv = *reinterpret_cast<const HVX_UVector *>(q);
 
-        HVX_Vector     q_lo = Q6_V_vand_VV(qv, quant_mask);
+        HVX_Vector     q_lo = qv;
         HVX_Vector     q_hi = Q6_Vub_vlsr_VubR(qv, 4);
         HVX_VectorPair qp   = Q6_W_vshuff_VVR(q_hi, q_lo, kQuantSubBlockSize * 3);
 
-        dual_pair.p[0] = Q6_Wh_vlut16_VbVhI(Q6_Vb_vshuff_Vb(Q6_V_lo_W(qp)), table, 0);
-        dual_pair.p[1] = Q6_Wh_vlut16_VbVhI(Q6_Vb_vshuff_Vb(Q6_V_hi_W(qp)), table, 0);
+        dual_pair.p[0] = Q6_Wh_vlut16_VbVhR_nomatch(Q6_Vb_vshuff_Vb(Q6_V_lo_W(qp)), table, 0);
+        dual_pair.p[1] = Q6_Wh_vlut16_VbVhR_nomatch(Q6_Vb_vshuff_Vb(Q6_V_hi_W(qp)), table, 0);
 
         const __fp16 d   = reinterpret_cast<const __fp16 &>(src_ptr[i].d);
         const __fp16 min = reinterpret_cast<const __fp16 &>(src_ptr[i].dmin);
