@@ -29,29 +29,13 @@ inline npu_device_fp16_t to_fp16(const float src) {
 template <typename _TStruct, size_t _Count, auto _MemberPtr> inline HVX_Vector load_into_vector(const _TStruct * src) {
     static_assert(hexagon::kBytesPerVector >= sizeof(_TStruct) * _Count, "_TStruct too large for vector load");
 
-    const HVX_Vector * qs0  = reinterpret_cast<const HVX_Vector *>(&(src->*_MemberPtr));
-    HVX_Vector         prev = *qs0;
-
-    if (hexagon::is_addr_aligned(qs0)) {
-        return prev;
-    }
-
-    HVX_Vector curr = *(qs0 + 1);
-    return Q6_V_valign_VVR(curr, prev, (size_t) qs0);
+    return *reinterpret_cast<const HVX_UVector *>(src);
 }
 
 template <typename _TStruct, size_t _Count> inline HVX_Vector load_struct_into_vector(const _TStruct * src) {
     static_assert(hexagon::kBytesPerVector >= sizeof(_TStruct) * _Count, "_TStruct too large for vector load");
 
-    const HVX_Vector * qs0  = reinterpret_cast<const HVX_Vector *>(src);
-    HVX_Vector         prev = *qs0;
-
-    if (hexagon::is_addr_aligned(qs0)) {
-        return prev;
-    }
-
-    HVX_Vector curr = *(qs0 + 1);
-    return Q6_V_valign_VVR(curr, prev, (size_t) qs0);
+    return *reinterpret_cast<const HVX_UVector *>(src);
 }
 
 template <typename _TBlock> inline HVX_Vector load_block_generic(const _TBlock & src) {
@@ -124,6 +108,7 @@ inline hexagon::HVX_Vector_x3 load_qual_block_generic(const _TBlock *           
 
     {
         HVX_Vector scale23 = Q6_V_vror_VR(blocks, sizeof(_TBlock) * 2);
+
         HVX_Vector scale01 = Q6_Vb_vshuff_Vb(blocks);
         scale23            = Q6_Vb_vshuff_Vb(scale23);
 
