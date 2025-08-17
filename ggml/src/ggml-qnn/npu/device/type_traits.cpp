@@ -459,17 +459,23 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_output_type * d
 
     int i = 0;
     for (; i + 3 < nb; i += 4) {
-        auto           qs   = load_qual_block_generic(src_ptr + i, load_masks, scale_indices);
-        HVX_Vector     q_lo = Q6_V_vand_VV(qs.val[0], mask);
-        HVX_Vector     q_hi = Q6_Vub_vlsr_VubR(qs.val[0], 4);
-        HVX_VectorPair qp0  = Q6_W_vshuff_VVR(q_hi, q_lo, kSizeOfQs * (1 + 2 + 4));
-        q_lo                = Q6_Vb_vshuff_Vb(Q6_V_lo_W(qp0));
-        qp0                 = Q6_Wh_vlut16_VbVhI(q_lo, table, 0);
+        auto qs = load_qual_block_generic(src_ptr + i, load_masks, scale_indices);
 
-        q_lo = Q6_Vqf16_vmpy_VhfVhf(Q6_V_lo_W(qp0), qs.val[1]);
+        HVX_Vector q_lo = Q6_V_vand_VV(qs.val[0], mask);
+        HVX_Vector q_hi = Q6_Vub_vlsr_VubR(qs.val[0], 4);
+
+        HVX_VectorPair qp0 = Q6_W_vshuff_VVR(q_hi, q_lo, kSizeOfQs * (1 + 2 + 4));
+
+        q_lo = Q6_Vb_vshuff_Vb(Q6_V_lo_W(qp0));
+        qp0  = Q6_Wh_vlut16_VbVhI(q_lo, table, 0);
+
+        q_lo = Q6_V_lo_W(qp0);
+        q_hi = Q6_V_hi_W(qp0);
+
+        q_lo = Q6_Vqf16_vmpy_VhfVhf(q_lo, qs.val[1]);
+        q_hi = Q6_Vqf16_vmpy_VhfVhf(q_hi, qs.val[2]);
+
         q_lo = Q6_Vhf_equals_Vqf16(q_lo);
-
-        q_hi = Q6_Vqf16_vmpy_VhfVhf(Q6_V_hi_W(qp0), qs.val[2]);
         q_hi = Q6_Vhf_equals_Vqf16(q_hi);
 
         if constexpr (_IsDstAligned) {
