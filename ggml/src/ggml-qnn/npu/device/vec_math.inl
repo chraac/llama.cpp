@@ -1120,10 +1120,11 @@ inline HVX_VectorPair hvx_vqf32_convert_vhf(HVX_Vector vxl) {
 
 inline HVX_Vector_x2 hvx_vsf_convert_vhf(HVX_Vector vxl, HVX_Vector one) {
     HVX_VectorPair res = Q6_Wqf32_vmpy_VhfVhf(Q6_Vh_vshuff_Vh(vxl), one);
-    return {
-        Q6_Vsf_equals_Vqf32(Q6_V_lo_W(res)),
-        Q6_Vsf_equals_Vqf32(Q6_V_hi_W(res)),
-    };
+
+    HVX_Vector_x2 ret;
+    ret.val[0] = Q6_Vsf_equals_Vqf32(Q6_V_lo_W(res));
+    ret.val[1] = Q6_Vsf_equals_Vqf32(Q6_V_hi_W(res));
+    return ret;
 }
 
 inline HVX_Vector qhmath_hvx_exp_vf_guard_inf(HVX_Vector sline, const HVX_Vector inf) {

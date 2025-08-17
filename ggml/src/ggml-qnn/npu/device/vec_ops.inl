@@ -234,8 +234,8 @@ inline _TRet vec_dot_product_mixed_impl(const _TElem0 * src0, const _TElem1 * sr
             HVX_Vector l1 = Q6_V_valign_VVR(curr10, prev1, (size_t) src1);
             HVX_Vector h1 = Q6_V_valign_VVR(curr11, curr10, (size_t) src1);
 
-            HVX_Vector mpy0 = _MpyFunc(s0_pair.first, l1);
-            HVX_Vector mpy1 = _MpyFunc(s0_pair.second, h1);
+            HVX_Vector mpy0 = _MpyFunc(s0_pair.val[0], l1);
+            HVX_Vector mpy1 = _MpyFunc(s0_pair.val[1], h1);
 
             prev0 = curr0;
             prev1 = curr11;
@@ -266,7 +266,7 @@ inline _TRet vec_dot_product_mixed_impl(const _TElem0 * src0, const _TElem1 * sr
             HVX_Vector curr1 = *src1_vec_ptr++;
             HVX_Vector s1    = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
 
-            HVX_Vector mpy0 = _MpyFunc(s0_pair.first, s1);
+            HVX_Vector mpy0 = _MpyFunc(s0_pair.val[0], s1);
             prev1           = curr1;
 
             sum = _AddFunc(mpy0, sum);
@@ -278,7 +278,7 @@ inline _TRet vec_dot_product_mixed_impl(const _TElem0 * src0, const _TElem1 * sr
         HVX_Vector s1 = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
         prev0         = curr0;
 
-        HVX_Vector mpy1 = _MpyFunc(has_remaining_src1_vector ? s0_pair.second : s0_pair.first, s1);
+        HVX_Vector mpy1 = _MpyFunc(has_remaining_src1_vector ? s0_pair.val[1] : s0_pair.val[0], s1);
         prev1           = curr1;
 
         sum = _AddFunc(mpy1, sum);
@@ -299,7 +299,7 @@ inline _TRet vec_dot_product_mixed_impl(const _TElem0 * src0, const _TElem1 * sr
 
         HVX_Vector_x2 curr0_pair = _ExpandFunc(curr0, kOneV);
 
-        curr0 = leftover1 == leftover0 ? curr0_pair.first : curr0_pair.second;
+        curr0 = leftover1 == leftover0 ? curr0_pair.val[0] : curr0_pair.val[1];
         sum   = _AddFunc(Q6_V_valign_VVR(_MpyFunc(curr0, curr1), kZeroV, leftover_bytes1), sum);
     }
 
@@ -342,8 +342,8 @@ inline _TRet vec_dot_product_mix_aligned_impl(const _TElem0 * src0, const _TElem
         HVX_Vector    curr10_hi = src1_vec_ptr[1];
         HVX_Vector_x2 curr01    = _ExpandFunc(curr0_hi, kOneV);
 
-        HVX_Vector mpy0 = _MpyFunc(curr00.first, curr10_lo);
-        HVX_Vector mpy1 = _MpyFunc(curr00.second, curr10_hi);
+        HVX_Vector mpy0 = _MpyFunc(curr00.val[0], curr10_lo);
+        HVX_Vector mpy1 = _MpyFunc(curr00.val[1], curr10_hi);
 
         HVX_Vector curr11_lo = src1_vec_ptr[2];
         HVX_Vector curr11_hi = src1_vec_ptr[3];
@@ -351,8 +351,8 @@ inline _TRet vec_dot_product_mix_aligned_impl(const _TElem0 * src0, const _TElem
         sum0 = _AddFunc(mpy0, sum0);
         sum1 = _AddFunc(mpy1, sum1);
 
-        HVX_Vector mpy2 = _MpyFunc(curr01.first, curr11_lo);
-        HVX_Vector mpy3 = _MpyFunc(curr01.second, curr11_hi);
+        HVX_Vector mpy2 = _MpyFunc(curr01.val[0], curr11_lo);
+        HVX_Vector mpy3 = _MpyFunc(curr01.val[1], curr11_hi);
 
         sum0 = _AddFunc(mpy2, sum0);
         sum1 = _AddFunc(mpy3, sum1);
@@ -368,8 +368,8 @@ inline _TRet vec_dot_product_mix_aligned_impl(const _TElem0 * src0, const _TElem
         HVX_Vector_x2 s0_pair  = _ExpandFunc(curr0, kOneV);
         HVX_Vector    curr1_hi = src1_vec_ptr[1];
 
-        HVX_Vector mpy0 = _MpyFunc(s0_pair.first, curr1_lo);
-        HVX_Vector mpy1 = _MpyFunc(s0_pair.second, curr1_hi);
+        HVX_Vector mpy0 = _MpyFunc(s0_pair.val[0], curr1_lo);
+        HVX_Vector mpy1 = _MpyFunc(s0_pair.val[1], curr1_hi);
 
         sum0 = _AddFunc(mpy0, sum0);
         sum1 = _AddFunc(mpy1, sum1);
