@@ -67,16 +67,19 @@ template <typename _TBlock> inline hexagon::HVX_VectorPred_x3 make_quad_block_ma
 
 template <typename _TBlock> inline HVX_Vector make_scale_load_mask() {
     static_assert(sizeof(_TBlock) < 32, "wrong block size/padding");
+    static_assert(sizeof(_TBlock::qs) == 16 || sizeof(_TBlock::qs) == 32, "wrong quantization block size");
+
+    constexpr const size_t kScaleBlockSize = QUANT_BLOCK_SIZE * sizeof(hexagon::dequant_output_type);
 
     // TODO: handle the case that scale not at the start of struct
     hexagon::HVX_VectorAlias ret;
-    for (size_t i = 0; i < 32; ++i) {
+    for (size_t i = 0; i < QUANT_BLOCK_SIZE; ++i) {
         size_t base      = i * 2;
         ret.u8[base]     = 0;
         ret.u8[base + 1] = 1;
 
-        ret.u8[base + 64] = sizeof(_TBlock);
-        ret.u8[base + 65] = sizeof(_TBlock) + 1;
+        ret.u8[base + kScaleBlockSize]     = sizeof(_TBlock);
+        ret.u8[base + kScaleBlockSize + 1] = sizeof(_TBlock) + 1;
     }
 
     return ret.v;
