@@ -29,7 +29,8 @@ inline npu_device_fp16_t to_fp16(const float src) {
 template <typename _TStruct, size_t _Count, auto _MemberPtr> inline HVX_Vector load_into_vector(const _TStruct * src) {
     static_assert(hexagon::kBytesPerVector >= sizeof(_TStruct) * _Count, "_TStruct too large for vector load");
 
-    return *reinterpret_cast<const HVX_UVector *>(src);
+    const HVX_UVector * ret = reinterpret_cast<const HVX_UVector *>(&(src->*_MemberPtr));
+    return *ret;
 }
 
 template <typename _TStruct, size_t _Count> inline HVX_Vector load_struct_into_vector(const _TStruct * src) {
