@@ -1127,28 +1127,58 @@ inline HVX_Vector_x2 hvx_vsf_convert_vhf(HVX_Vector vxl, HVX_Vector one) {
     return ret;
 }
 
+/**
+ * @brief Calculates exponential (e^x) for vector elements with infinity guard
+ *
+ * This function computes the exponential value for each element in the input vector.
+ * For input values greater than kMaxExp (88.02f), the function returns the provided
+ * infinity value instead of attempting to calculate an exponential that would overflow.
+ *
+ * @param sline The input vector containing values to compute exponential for
+ * @param inf The vector containing the infinity representation to use for guarded values
+ * @return HVX_Vector containing exponential values, with values > kMaxExp replaced by inf
+ *
+ * @note Input values greater than 88.02f will return the specified infinity value
+ */
 inline HVX_Vector qhmath_hvx_exp_vf_guard_inf(HVX_Vector sline, const HVX_Vector inf) {
     constexpr float  kMaxExp = 88.02f;
     const HVX_Vector max_exp = Q6_V_vsplat_R(reinterpret_cast<const uint32_t &>(kMaxExp));
 
-    HVX_VectorPred pred0 = Q6_Q_vcmp_gt_VsfVsf(sline, max_exp);
+    HVX_VectorPred pred_gt_max_exp = Q6_Q_vcmp_gt_VsfVsf(sline, max_exp);
 
     HVX_Vector out = qhmath_hvx_exp_vf(sline);
 
-    out = Q6_V_vmux_QVV(pred0, inf, out);
+    out = Q6_V_vmux_QVV(pred_gt_max_exp, inf, out);
     return out;
 }
 
+/**
+ * @brief Vectorized division with guard for infinite denominators on HVX.
+ *
+ * Performs element-wise division num/denom using qhmath_hvx_div_vf and then
+ * masks out lanes where denom equals the provided inf value, forcing those
+ * lanes of the result to zero. This is a temporary guard until proper INF
+ * handling is implemented in the underlying division routine.
+ *
+ * @param num    Numerator vector (per-lane).
+ * @param denom  Denominator vector (per-lane); lanes equal to inf are zeroed in the output.
+ * @param coeffs Coefficients used by qhmath_hvx_div_vf for the reciprocal/division approximation.
+ * @param inf    Lane value representing +INF to compare against denom.
+ * @return       Vector of num/denom with lanes set to zero where denom == inf.
+ *
+ * @note NaNs, negative infinity, zero denominators, and subnormals are not explicitly handled.
+ * @see qhmath_hvx_div_vf
+ */
 inline HVX_Vector qhmath_hvx_div_vf_guard_inf(HVX_Vector        num,
                                               HVX_Vector        denom,
                                               HVX_VectorPair_x4 coeffs,
                                               const HVX_Vector  inf) {
-    HVX_VectorPred pred0 = Q6_Q_vcmp_eq_VwVw(denom, inf);
+    HVX_VectorPred pred_inf = Q6_Q_vcmp_eq_VwVw(denom, inf);
 
     // TODO: fix the inf in div
     HVX_Vector out = qhmath_hvx_div_vf(num, denom, coeffs);
 
-    out = Q6_V_vmux_QVV(pred0, Q6_V_vzero(), out);
+    out = Q6_V_vmux_QVV(pred_inf, Q6_V_vzero(), out);
     return out;
 }
 

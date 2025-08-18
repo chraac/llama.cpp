@@ -20,9 +20,9 @@ inline float dummy_load_coeff() {
     return 0;
 }
 
-template <typename _TyData> inline float expf_fix(float x) {
-    // Avoid overflow for large values, f32: log(3.4028234664e+38), f16: log(65504)
-    constexpr float kMaxExp = std::is_same_v<_TyData, float> ? 88.02f : 11.0898664f;
+inline float expf_f16_guard_inf(float x) {
+    // Avoid overflow for large values, f16: log(65504)
+    constexpr float kMaxExp = 11.0898664f;
 
     if (x >= kMaxExp) {
         // Avoid overflow for large values
@@ -33,14 +33,13 @@ template <typename _TyData> inline float expf_fix(float x) {
     return std::expf(x);
 }
 
-template <typename _TyData>
-inline void glu_vec_op_impl(const _TyData * src0, const _TyData * src1, _TyData * dst, size_t count, float coeff) {
+inline void glu_vec_op_f16_f16(const __fp16 * src0, const __fp16 * src1, __fp16 * dst, size_t count, float coeff) {
     // TODO: use simd version, for some input hexagon intrinsics will generate nan instead of inf.
     for (uint32_t i = 0; i < count; ++i) {
         float x = src0[i];
         float g = src1[i];
 
-        dst[i] = (x / (1.0f + expf_fix<_TyData>(-x))) * g;
+        dst[i] = (x / (1.0f + expf_f16_guard_inf(-x))) * g;
     }
 }
 
@@ -153,7 +152,7 @@ bool glu_compute(hexagon::tensor * out, hexagon::compute_params * params) {
     if constexpr (_DataType == NPU_DATA_TYPE_F32) {
         return glu_impl<glu_vec_op_f32_f32, qhmath_load_div_sf_ltu>(out, params);
     } else if constexpr (_DataType == NPU_DATA_TYPE_F16) {
-        return glu_impl<glu_vec_op_impl<__fp16>, dummy_load_coeff>(out, params);
+        return glu_impl<glu_vec_op_f16_f16, dummy_load_coeff>(out, params);
     }
 
     DEVICE_LOG_ERROR("Unsupported GLU data type: %s\n", hexagon::get_type_name(out->get_type()));
