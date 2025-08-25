@@ -1,5 +1,6 @@
 #pragma once
 
+#include "dma_transfer.hpp"
 #include "util.hpp"
 #include "vtcm_mem.hpp"
 
@@ -97,6 +98,8 @@ template <size_t _ThreadCount> class thread_pool {
         size_t                         vtcm_quota_size;
 
         std::unique_ptr<vtcm_mem> vtcm_cache;
+
+        hexagon::dma::dma_transfer dma;
 
         void init_vtcm_cache() { vtcm_cache = std::make_unique<vtcm_mem>(vtcm_quota_size, false); }
 

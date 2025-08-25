@@ -187,11 +187,13 @@ else()
 
     file(GLOB common_srcs "${CMAKE_CURRENT_LIST_DIR}/common/*.cpp")
     file(GLOB device_srcs "${CMAKE_CURRENT_LIST_DIR}/device/*.cpp")
+    file(GLOB dma_srcs "${HEXAGON_SDK_ROOT}/addons/compute/libs/userdma/utils_lib/src/*.c")
     set(skel_srcs "${CMAKE_CURRENT_BINARY_DIR}/npu_device_skel.c")
     add_library(hexagon_npu_skel_OBJS OBJECT
         ${common_srcs}
         ${device_srcs}
         ${skel_srcs}
+        ${dma_srcs}
     )
 
     if(CMAKE_BUILD_TYPE MATCHES "Debug|Dbg")
@@ -237,6 +239,10 @@ else()
     add_subdirectory(${HEXAGON_SDK_ROOT}/libs/qprintf qprintf_dir)
     target_include_directories(hexagon_npu_skel_OBJS PUBLIC
         ${HEXAGON_SDK_ROOT}/libs/qprintf/inc/
+
+        # TODO: find a better way to include these
+        ${HEXAGON_SDK_ROOT}/addons/compute/libs/userdma/utils_lib/api/
+        ${HEXAGON_SDK_ROOT}/addons/compute/libs/userdma/utils_lib/inc/
     )
 
     # disable warnings for the skel
