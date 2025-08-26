@@ -93,7 +93,7 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
         return true;
     }
 
-    const auto src_row_bytes = src0->get_ne(0) * sizeof(data_type);
+    const auto src_row_bytes = hexagon::get_aligned_size(src0->get_ne(0) * sizeof(data_type));
     uint8_t *  src_cache_ptr = params->get_vtcm_cache(src_row_bytes * 4);
     if (!src_cache_ptr) {
         DEVICE_LOG_ERROR("element_wise_op: failed to get VTCM cache, size: %zu\n", size_t(src_row_bytes * 4));
@@ -138,19 +138,23 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
         const auto i12 = i02 % src1->get_ne(2);
         const auto i11 = i01 % src1->get_ne(1);
 
-        auto * src0_row = src0_ptr + i03 * src0->get_nb(3) + i02 * src0->get_nb(2) + i01 * src0->get_nb(1);
-        auto * src1_row = src1_ptr + i13 * src1->get_nb(3) + i12 * src1->get_nb(2) + i11 * src1->get_nb(1);
-        auto * dst_row  = dst_ptr + i03 * out->get_nb(3) + i02 * out->get_nb(2) + i01 * out->get_nb(1);
-        if (ir + 1 < start_end.second) {
+        {
+            params->wait_for_dma();
             std::swap(src0_read_cache_ptr, src0_write_cache_ptr);
             std::swap(src1_read_cache_ptr, src1_write_cache_ptr);
+        }
+
+        auto * dst_row = dst_ptr + i03 * out->get_nb(3) + i02 * out->get_nb(2) + i01 * out->get_nb(1);
+        if (ir + 1 < start_end.second) {
+            auto * src0_row = src0_ptr + i03 * src0->get_nb(3) + i02 * src0->get_nb(2) + i01 * src0->get_nb(1);
+            auto * src1_row = src1_ptr + i13 * src1->get_nb(3) + i12 * src1->get_nb(2) + i11 * src1->get_nb(1);
 
             if (!params->initiate_dma_transfer(src0_row + src0->get_nb(1),
                                                src0_write_cache_ptr,
                                                src1_row + src1->get_nb(1),
                                                src1_write_cache_ptr,
                                                src_row_bytes)) {
-                DEVICE_LOG_ERROR("element_wise_op: failed to initiate dma transfer\n");
+                DEVICE_LOG_ERROR("element_wise_op: failed to continue DMA transfer\n");
                 return false;
             }
         }

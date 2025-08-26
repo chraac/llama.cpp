@@ -65,6 +65,8 @@ struct compute_params {
                                size_t          size) {
         return thread_params->initiate_dma_transfer(src0, dst0, src1, dst1, size);
     }
+
+    void wait_for_dma() { thread_params->wait_for_dma(); }
 };
 
 typedef bool (*compute_func_type)(tensor * dst, compute_params * params);

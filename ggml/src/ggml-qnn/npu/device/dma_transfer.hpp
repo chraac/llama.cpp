@@ -9,18 +9,17 @@ namespace hexagon::dma {
 class dma_transfer {
   public:
     dma_transfer();
-
-    ~dma_transfer() { wait(); }
+    ~dma_transfer();
 
     bool submit(const uint8_t * src, uint8_t * dst, size_t size);
-
     bool submit(const uint8_t * src0, uint8_t * dst0, const uint8_t * src1, uint8_t * dst1, size_t size);
-
     void wait();
 
   private:
-    uint8_t _dma_desc0[DMA_DESC_SIZE_1D] __attribute__((aligned(16))) = {};
-    uint8_t _dma_desc1[DMA_DESC_SIZE_1D] __attribute__((aligned(16))) = {};
+    static bool is_desc_done(uint8_t * desc);  // TODO: should we use void * here?
+
+    alignas(16) uint8_t _dma_desc0[DMA_DESC_SIZE_1D] = {};
+    alignas(16) uint8_t _dma_desc1[DMA_DESC_SIZE_1D] = {};
 
     static qurt_mutex _dma_desc_mutex;
 

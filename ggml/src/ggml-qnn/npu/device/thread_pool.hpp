@@ -128,6 +128,8 @@ template <size_t _ThreadCount> class thread_pool {
                                    size_t          size) {
             return dma.submit(src0, dst0, src1, dst1, size);
         }
+
+        void wait_for_dma() { dma.wait(); }
     };
 
     typedef void (*task_type)(thread_pool * pool, thread_params * param, void * arg);
