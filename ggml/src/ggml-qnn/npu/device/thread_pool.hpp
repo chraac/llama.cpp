@@ -116,6 +116,18 @@ template <size_t _ThreadCount> class thread_pool {
 
             return vtcm_cache->get_mem();
         }
+
+        bool initiate_dma_transfer(const uint8_t * src, uint8_t * dst, size_t size) {
+            return dma.submit(src, dst, size);
+        }
+
+        bool initiate_dma_transfer(const uint8_t * src0,
+                                   uint8_t *       dst0,
+                                   const uint8_t * src1,
+                                   uint8_t *       dst1,
+                                   size_t          size) {
+            return dma.submit(src0, dst0, src1, dst1, size);
+        }
     };
 
     typedef void (*task_type)(thread_pool * pool, thread_params * param, void * arg);

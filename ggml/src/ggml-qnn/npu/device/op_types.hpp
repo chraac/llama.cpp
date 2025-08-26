@@ -53,6 +53,18 @@ struct compute_params {
     size_t get_thread_count() const { return thread_params->tcnt; }
 
     size_t get_thread_index() const { return thread_params->tidx; }
+
+    bool initiate_dma_transfer(const uint8_t * src, uint8_t * dst, size_t size) {
+        return thread_params->initiate_dma_transfer(src, dst, size);
+    }
+
+    bool initiate_dma_transfer(const uint8_t * src0,
+                               uint8_t *       dst0,
+                               const uint8_t * src1,
+                               uint8_t *       dst1,
+                               size_t          size) {
+        return thread_params->initiate_dma_transfer(src0, dst0, src1, dst1, size);
+    }
 };
 
 typedef bool (*compute_func_type)(tensor * dst, compute_params * params);

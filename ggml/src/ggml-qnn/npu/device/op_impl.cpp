@@ -87,6 +87,19 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
         return false;
     }
 
+    const auto total_rows = out->get_ne(3) * out->get_ne(2) * out->get_ne(1);
+    const auto start_end  = params->get_work_slice(total_rows);
+    if (start_end.first >= start_end.second) {
+        return true;
+    }
+
+    const auto src_row_bytes = src0->get_ne(0) * sizeof(data_type);
+    uint8_t *  src_cache_ptr = params->get_vtcm_cache(src_row_bytes * 4);
+    if (!src_cache_ptr) {
+        DEVICE_LOG_ERROR("element_wise_op: failed to get VTCM cache, size: %zu\n", size_t(src_row_bytes * 4));
+        return false;
+    }
+
     uint8_t * dst_ptr = out->get_write_buffer();
     if (!dst_ptr) {
         DEVICE_LOG_ERROR("element_wise_op: dst_ptr is not writable, tensor: %p, type: %s\n",
@@ -97,16 +110,26 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
 
     const uint8_t * src0_ptr      = src0->get_read_buffer();
     const uint8_t * src1_ptr      = src1->get_read_buffer();
-    auto            total_rows    = out->get_ne(3) * out->get_ne(2) * out->get_ne(1);
     const auto      rows_per_cube = out->get_ne(2) * out->get_ne(1);
-    const auto      start_end     = params->get_work_slice(total_rows);
-    if (start_end.first >= start_end.second) {
-        return true;
+
+    uint8_t * src0_read_cache_ptr  = src_cache_ptr;
+    uint8_t * src0_write_cache_ptr = src_cache_ptr + src_row_bytes;
+    uint8_t * src1_read_cache_ptr  = src_cache_ptr + src_row_bytes * 2;
+    uint8_t * src1_write_cache_ptr = src_cache_ptr + src_row_bytes * 3;
+
+    {
+        if (!params->initiate_dma_transfer(src0_ptr + start_end.first * src0->get_nb(1),
+                                           src0_write_cache_ptr,
+                                           src1_ptr + start_end.first * src1->get_nb(1),
+                                           src1_write_cache_ptr,
+                                           src_row_bytes)) {
+            DEVICE_LOG_ERROR("element_wise_op: failed to initiate dma transfer\n");
+            return false;
+        }
     }
 
     DEVICE_SCOPED_OP_PERFORMANCE_TRACKER(out, params->get_thread_index());
 
-    const size_t valid_row_bytes = src0->get_ne(0) * sizeof(data_type);
     for (int64_t ir = start_end.first; ir < start_end.second; ++ir) {
         const auto i03 = ir / rows_per_cube;
         const auto i02 = ir / out->get_ne(1) - i03 * out->get_ne(2);
@@ -115,17 +138,25 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
         const auto i12 = i02 % src1->get_ne(2);
         const auto i11 = i01 % src1->get_ne(1);
 
-        auto * src1_plane = src1_ptr + i13 * src1->get_nb(3) + i12 * src1->get_nb(2);
-        auto * src0_row   = src0_ptr + i03 * src0->get_nb(3) + i02 * src0->get_nb(2) + i01 * src0->get_nb(1);
-        auto * src1_row   = src1_plane + i11 * src1->get_nb(1);
-        auto * dst_row    = dst_ptr + i03 * out->get_nb(3) + i02 * out->get_nb(2) + i01 * out->get_nb(1);
+        auto * src0_row = src0_ptr + i03 * src0->get_nb(3) + i02 * src0->get_nb(2) + i01 * src0->get_nb(1);
+        auto * src1_row = src1_ptr + i13 * src1->get_nb(3) + i12 * src1->get_nb(2) + i11 * src1->get_nb(1);
+        auto * dst_row  = dst_ptr + i03 * out->get_nb(3) + i02 * out->get_nb(2) + i01 * out->get_nb(1);
         if (ir + 1 < start_end.second) {
-            hexagon::l2fetch_row(src0_row + src0->get_nb(1), valid_row_bytes);
-            hexagon::l2fetch_row(src1_row + src1->get_nb(1), valid_row_bytes);
+            std::swap(src0_read_cache_ptr, src0_write_cache_ptr);
+            std::swap(src1_read_cache_ptr, src1_write_cache_ptr);
+
+            if (!params->initiate_dma_transfer(src0_row + src0->get_nb(1),
+                                               src0_write_cache_ptr,
+                                               src1_row + src1->get_nb(1),
+                                               src1_write_cache_ptr,
+                                               src_row_bytes)) {
+                DEVICE_LOG_ERROR("element_wise_op: failed to initiate dma transfer\n");
+                return false;
+            }
         }
 
-        _RowFunc(reinterpret_cast<const data_type *>(src0_row),
-                 reinterpret_cast<const data_type *>(src1_row),
+        _RowFunc(reinterpret_cast<const data_type *>(src0_read_cache_ptr),
+                 reinterpret_cast<const data_type *>(src1_read_cache_ptr),
                  reinterpret_cast<data_type *>(dst_row),
                  static_cast<size_t>(out->get_ne(0)));
     }
