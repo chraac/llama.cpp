@@ -93,10 +93,11 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
         return true;
     }
 
-    const auto src_row_bytes = hexagon::get_aligned_size(src0->get_ne(0) * sizeof(data_type));
-    uint8_t *  src_cache_ptr = params->get_vtcm_cache(src_row_bytes * 4);
+    const auto src_row_bytes         = src0->get_ne(0) * sizeof(data_type);
+    const auto src_row_bytes_aligned = hexagon::get_aligned_size(src_row_bytes);
+    uint8_t *  src_cache_ptr         = params->get_vtcm_cache(src_row_bytes_aligned * 4);
     if (!src_cache_ptr) {
-        DEVICE_LOG_ERROR("element_wise_op: failed to get VTCM cache, size: %zu\n", size_t(src_row_bytes * 4));
+        DEVICE_LOG_ERROR("element_wise_op: failed to get VTCM cache, size: %zu\n", size_t(src_row_bytes_aligned * 4));
         return false;
     }
 
@@ -113,9 +114,9 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
     const auto      rows_per_cube = out->get_ne(2) * out->get_ne(1);
 
     uint8_t * src0_read_cache_ptr  = src_cache_ptr;
-    uint8_t * src0_write_cache_ptr = src_cache_ptr + src_row_bytes;
-    uint8_t * src1_read_cache_ptr  = src_cache_ptr + src_row_bytes * 2;
-    uint8_t * src1_write_cache_ptr = src_cache_ptr + src_row_bytes * 3;
+    uint8_t * src0_write_cache_ptr = src_cache_ptr + src_row_bytes_aligned;
+    uint8_t * src1_read_cache_ptr  = src_cache_ptr + src_row_bytes_aligned * 2;
+    uint8_t * src1_write_cache_ptr = src_cache_ptr + src_row_bytes_aligned * 3;
 
     {
         const auto i03 = start_end.first / rows_per_cube;
