@@ -128,6 +128,8 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
 
         auto * src0_row = src0_ptr + i03 * src0->get_nb(3) + i02 * src0->get_nb(2) + i01 * src0->get_nb(1);
         auto * src1_row = src1_ptr + i13 * src1->get_nb(3) + i12 * src1->get_nb(2) + i11 * src1->get_nb(1);
+        qurt_mem_cache_clean((qurt_addr_t) src0_row, src_row_bytes, QURT_MEM_CACHE_FLUSH_INVALIDATE, QURT_MEM_DCACHE);
+        qurt_mem_cache_clean((qurt_addr_t) src1_row, src_row_bytes, QURT_MEM_CACHE_FLUSH_INVALIDATE, QURT_MEM_DCACHE);
         if (!params->initiate_dma_transfer(
                 src0_row, src0_write_cache_ptr, src1_row, src1_write_cache_ptr, src_row_bytes)) {
             DEVICE_LOG_ERROR("element_wise_op: failed to initiate dma transfer\n");
@@ -162,6 +164,10 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
                 src0_ptr + i03_next * src0->get_nb(3) + i02_next * src0->get_nb(2) + i01_next * src0->get_nb(1);
             auto * src1_next_row =
                 src1_ptr + i13_next * src1->get_nb(3) + i12_next * src1->get_nb(2) + i11_next * src1->get_nb(1);
+            qurt_mem_cache_clean(
+                (qurt_addr_t) src0_next_row, src_row_bytes, QURT_MEM_CACHE_FLUSH_INVALIDATE, QURT_MEM_DCACHE);
+            qurt_mem_cache_clean(
+                (qurt_addr_t) src1_next_row, src_row_bytes, QURT_MEM_CACHE_FLUSH_INVALIDATE, QURT_MEM_DCACHE);
             if (!params->initiate_dma_transfer(
                     src0_next_row, src0_write_cache_ptr, src1_next_row, src1_write_cache_ptr, src_row_bytes)) {
                 DEVICE_LOG_ERROR("element_wise_op: failed to continue DMA transfer\n");
