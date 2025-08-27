@@ -137,13 +137,12 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
     DEVICE_SCOPED_OP_PERFORMANCE_TRACKER(out, params->get_thread_index());
 
     for (int64_t ir = start_end.first; ir < start_end.second; ++ir) {
-        const auto i03 = ir / rows_per_cube;
-        const auto i02 = ir / out->get_ne(1) - i03 * out->get_ne(2);
-        const auto i01 = ir % out->get_ne(1);  // TODO: should we use divide instead of mod?
+        const auto i03     = ir / rows_per_cube;
+        const auto i02     = ir / out->get_ne(1) - i03 * out->get_ne(2);
+        const auto i01     = ir % out->get_ne(1);  // TODO: should we use divide instead of mod?
+        const auto ir_next = ir + 1;
 
         auto * dst_row = dst_ptr + i03 * out->get_nb(3) + i02 * out->get_nb(2) + i01 * out->get_nb(1);
-
-        const auto ir_next = ir + 1;
         {
             std::swap(src0_read_cache_ptr, src0_write_cache_ptr);
             std::swap(src1_read_cache_ptr, src1_write_cache_ptr);
