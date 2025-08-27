@@ -18,8 +18,8 @@ class dma_transfer {
   private:
     static bool is_desc_done(uint8_t * desc);  // TODO: should we use void * here?
 
-    alignas(16) uint8_t _dma_desc0[DMA_DESC_SIZE_1D] = {};
-    alignas(16) uint8_t _dma_desc1[DMA_DESC_SIZE_1D] = {};
+    alignas(DMA_DESC_SIZE_1D) uint8_t _dma_desc0[DMA_DESC_SIZE_1D] = {};
+    alignas(DMA_DESC_SIZE_1D) uint8_t _dma_desc1[DMA_DESC_SIZE_1D] = {};
 
     static qurt_mutex _dma_desc_mutex;
 
