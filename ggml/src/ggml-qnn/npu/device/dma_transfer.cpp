@@ -87,11 +87,14 @@ bool dma_transfer::submit(const uint8_t * src0, uint8_t * dst0, const uint8_t * 
 }
 
 void dma_transfer::wait() {
-    dma_wait_for_idle();
+    auto ret = dma_wait_for_idle();
+    if (ret != DMA_SUCCESS) {
+        DEVICE_LOG_ERROR("dma_transfer: failed to wait for DMA idle: %d\n", ret);
+    }
 }
 
 bool dma_transfer::is_desc_done(uint8_t * desc) {
-    return !dma_desc_get_next(desc) || dma_desc_is_done(desc) == DMA_COMPLETE;
+    return !dma_desc_get_src(desc) || dma_desc_is_done(desc) == DMA_COMPLETE;
 }
 
 qurt_mutex dma_transfer::_dma_desc_mutex = {};
