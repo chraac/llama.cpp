@@ -118,11 +118,17 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
     uint8_t * src1_write_cache_ptr = src_cache_ptr + src_row_bytes * 3;
 
     {
-        if (!params->initiate_dma_transfer(src0_ptr + start_end.first * src0->get_nb(1),
-                                           src0_write_cache_ptr,
-                                           src1_ptr + start_end.first * src1->get_nb(1),
-                                           src1_write_cache_ptr,
-                                           src_row_bytes)) {
+        const auto i03 = start_end.first / rows_per_cube;
+        const auto i02 = start_end.first / out->get_ne(1) - i03 * out->get_ne(2);
+        const auto i01 = start_end.first % out->get_ne(1);  // TODO: should we use divide instead of mod?
+        const auto i13 = i03 % src1->get_ne(3);
+        const auto i12 = i02 % src1->get_ne(2);
+        const auto i11 = i01 % src1->get_ne(1);
+
+        auto * src0_row = src0_ptr + i03 * src0->get_nb(3) + i02 * src0->get_nb(2) + i01 * src0->get_nb(1);
+        auto * src1_row = src1_ptr + i13 * src1->get_nb(3) + i12 * src1->get_nb(2) + i11 * src1->get_nb(1);
+        if (!params->initiate_dma_transfer(
+                src0_row, src0_write_cache_ptr, src1_row, src1_write_cache_ptr, src_row_bytes)) {
             DEVICE_LOG_ERROR("element_wise_op: failed to initiate dma transfer\n");
             return false;
         }
@@ -134,26 +140,30 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
         const auto i03 = ir / rows_per_cube;
         const auto i02 = ir / out->get_ne(1) - i03 * out->get_ne(2);
         const auto i01 = ir % out->get_ne(1);  // TODO: should we use divide instead of mod?
-        const auto i13 = i03 % src1->get_ne(3);
-        const auto i12 = i02 % src1->get_ne(2);
-        const auto i11 = i01 % src1->get_ne(1);
-
-        {
-            params->wait_for_dma();
-            std::swap(src0_read_cache_ptr, src0_write_cache_ptr);
-            std::swap(src1_read_cache_ptr, src1_write_cache_ptr);
-        }
 
         auto * dst_row = dst_ptr + i03 * out->get_nb(3) + i02 * out->get_nb(2) + i01 * out->get_nb(1);
-        if (ir + 1 < start_end.second) {
-            auto * src0_row = src0_ptr + i03 * src0->get_nb(3) + i02 * src0->get_nb(2) + i01 * src0->get_nb(1);
-            auto * src1_row = src1_ptr + i13 * src1->get_nb(3) + i12 * src1->get_nb(2) + i11 * src1->get_nb(1);
 
-            if (!params->initiate_dma_transfer(src0_row + src0->get_nb(1),
-                                               src0_write_cache_ptr,
-                                               src1_row + src1->get_nb(1),
-                                               src1_write_cache_ptr,
-                                               src_row_bytes)) {
+        const auto ir_next = ir + 1;
+        {
+            std::swap(src0_read_cache_ptr, src0_write_cache_ptr);
+            std::swap(src1_read_cache_ptr, src1_write_cache_ptr);
+            params->wait_for_dma();
+        }
+
+        if (ir_next < start_end.second) {
+            const auto i03_next = ir_next / rows_per_cube;
+            const auto i02_next = ir_next / out->get_ne(1) - i03_next * out->get_ne(2);
+            const auto i01_next = ir_next % out->get_ne(1);
+            const auto i13_next = i03_next % src1->get_ne(3);
+            const auto i12_next = i02_next % src1->get_ne(2);
+            const auto i11_next = i01_next % src1->get_ne(1);
+
+            auto * src0_next_row =
+                src0_ptr + i03_next * src0->get_nb(3) + i02_next * src0->get_nb(2) + i01_next * src0->get_nb(1);
+            auto * src1_next_row =
+                src1_ptr + i13_next * src1->get_nb(3) + i12_next * src1->get_nb(2) + i11_next * src1->get_nb(1);
+            if (!params->initiate_dma_transfer(
+                    src0_next_row, src0_write_cache_ptr, src1_next_row, src1_write_cache_ptr, src_row_bytes)) {
                 DEVICE_LOG_ERROR("element_wise_op: failed to continue DMA transfer\n");
                 return false;
             }
