@@ -384,7 +384,7 @@ constexpr const op_capabilities kOpCapabilities[] = {
      {
             hexagon::glu_f32,  // NPU_DATA_TYPE_F32
             hexagon::glu_f16,  // NPU_DATA_TYPE_F16
-        }, true,                  // TODO: fix this
+        }, true,                  // TODO: should we avoid using thread barrier?
     },
 };
 

@@ -29,7 +29,6 @@ inline float expf_f16_guard_inf(float x) {
         return std::numeric_limits<float>::infinity();
     }
 
-    // TODO: figure out why the expf will produce wrong results
     return std::expf(x);
 }
 
