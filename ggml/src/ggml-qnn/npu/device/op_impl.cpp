@@ -109,8 +109,8 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
         return false;
     }
 
-    const uint8_t * src0_ptr      = src0->get_read_buffer();
-    const uint8_t * src1_ptr      = src1->get_read_buffer();
+    const uint8_t * src0_ptr      = src0->get_read_buffer(true);  // TODO: avoid invalidation
+    const uint8_t * src1_ptr      = src1->get_read_buffer(true);  // TODO: avoid invalidation
     const auto      rows_per_cube = out->get_ne(2) * out->get_ne(1);
 
     uint8_t * src0_read_cache_ptr  = src_cache_ptr;
@@ -126,8 +126,6 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
         const auto i12 = i02 % src1->get_ne(2);
         const auto i11 = i01 % src1->get_ne(1);
 
-        src0->invalidate();  // TODO: avoid invalidation
-        src1->invalidate();
         auto * src0_row = src0_ptr + i03 * src0->get_nb(3) + i02 * src0->get_nb(2) + i01 * src0->get_nb(1);
         auto * src1_row = src1_ptr + i13 * src1->get_nb(3) + i12 * src1->get_nb(2) + i11 * src1->get_nb(1);
         if (!params->initiate_dma_row_transfer(
