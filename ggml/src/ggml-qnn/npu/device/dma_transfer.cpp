@@ -111,7 +111,7 @@ bool dma_transfer::submit2d(const uint8_t * src,
     dma_desc_set_srcstride(_dma_2d_desc0, src_stride);
     dma_desc_set_dststride(_dma_2d_desc0, dst_stride);
 
-    void * buffs[] = { _dma_1d_desc0 };
+    void * buffs[] = { _dma_2d_desc0 };
     if (!submit_impl(buffs, std::size(buffs))) {
         DEVICE_LOG_ERROR("Failed to submit DMA descriptor\n");
         return false;
