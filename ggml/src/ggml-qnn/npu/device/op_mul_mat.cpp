@@ -307,8 +307,10 @@ void mul_mat_gemv_impl(hexagon::tensor *         src0,
     const uint8_t * src1_ptr              = src1->get_read_buffer();
 
     {
-        memcpy(src1_row_cache_ptr, src1_ptr, src1->get_ne(0) * sizeof(data_type1));
-        src1_ptr = src1_row_cache_ptr;
+        if (!params->initiate_dma_row_transfer(src1_ptr, src1_row_cache_ptr, src1->get_ne(0) * sizeof(data_type1))) {
+            DEVICE_LOG_ERROR("mul_mat_impl: failed to initiate dma transfer for src1\n");
+            return;
+        }
     }
 
     {
@@ -341,6 +343,11 @@ void mul_mat_gemv_impl(hexagon::tensor *         src0,
 
             {
                 DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 1, vec_dot);
+                if (src1_ptr != src1_row_cache_ptr) {
+                    src1_ptr = src1_row_cache_ptr;
+                    params->wait_for_dma();
+                }
+
                 auto *  dst_row = reinterpret_cast<float *>(dst_ptr) + col_idx;
                 int64_t i0      = 0;
                 for (; i0 + 1 < actual_row_count; i0 += 2) {
