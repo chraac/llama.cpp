@@ -114,15 +114,15 @@ void flash_attn_impl(hexagon::tensor *         out,
         const auto iq2 = (ir - iq3 * rows_per_batch) / q->get_ne(1);
         const auto iq1 = (ir - iq3 * rows_per_batch - iq2 * q->get_ne(1));
 
+        const auto * q_data = q_ptr + (iq1 * q->get_nb(1) + iq2 * q->get_nb(2) + iq3 * q->get_nb(3));
+        hexagon::l2fetch_row(q_data, row_bytes_q);
+
         const uint32_t h = iq2;  // head index
         const float    slope =
             (max_bias > 0.0f) ? h < n_head_log2 ? powf(m0, h + 1) : powf(m1, 2 * (h - n_head_log2) + 1) : 1.0f;
 
         float S = 0.0f;       // sum
         float M = -INFINITY;  // maximum KQ value
-
-        const auto * q_data = q_ptr + (iq1 * q->get_nb(1) + iq2 * q->get_nb(2) + iq3 * q->get_nb(3));
-        hexagon::l2fetch_row(q_data, row_bytes_q);
 
         if constexpr (is_v_f16) {
             memset(VKQ16, 0, DV * sizeof(npu_device_fp16_t));
