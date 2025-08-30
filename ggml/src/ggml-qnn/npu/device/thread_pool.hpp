@@ -144,10 +144,11 @@ template <size_t _ThreadCount> class thread_pool {
     typedef void (*task_type)(thread_pool * pool, thread_params * param, void * arg);
 
     thread_pool() {
+        const auto quota_size = hexagon::vtcm_mem::get_avail_block_size() / kMaxThreadCount;
         for (size_t i = 0; i < kMaxThreadCount; ++i) {
             auto & thread_param          = _thread_params[i];
             thread_param.tidx            = i;
-            thread_param.vtcm_quota_size = hexagon::vtcm_mem::get_avail_block_size() / kMaxThreadCount;
+            thread_param.vtcm_quota_size = quota_size;
             thread_param.pool            = this;
 
             thread_param.init_vtcm_cache();
@@ -169,7 +170,7 @@ template <size_t _ThreadCount> class thread_pool {
             _threads[i] = std::move(thread);
         }
 
-        DEVICE_LOG_DEBUG("thread_pool.created: %zu\n", kMaxSubThreadCount);
+        DEVICE_LOG_DEBUG("thread_pool.created: %zu, vtcm_quota_size: %zu\n", kMaxSubThreadCount, quota_size);
     }
 
     ~thread_pool() {
