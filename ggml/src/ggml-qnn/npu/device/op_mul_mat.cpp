@@ -155,7 +155,7 @@ void mul_mat_impl(hexagon::tensor *         src0,
     }
 
     auto            dequant_table         = load_dequant_table_func ? load_dequant_table_func() : HVX_Vector();
-    constexpr bool  should_fetch_src0_row = !_IsSrcQuantized;
+    constexpr bool  should_fetch_src0_row = false;
     const uint8_t * src1_ptr              = src1->get_read_buffer();
     for (int64_t ip = start_end_plane.first; ip < start_end_plane.second; ip++) {
         const auto   i3         = ip / dst->get_ne(2);
