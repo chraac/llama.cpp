@@ -200,13 +200,13 @@ void mul_mat_impl(hexagon::tensor *         src0,
                     const auto next_col_idx = col_idx + src0_plane_slice_row_count;
                     if (next_col_idx < start_end_element.second) {
                         const uint8_t * src0_next_plane = src0_plane_base + next_col_idx * src0->get_nb(1);
-                        const int64_t   actual_row_count =
+                        const int64_t   next_row_count =
                             std::min<int64_t>(src0_plane_slice_row_count,
                                               start_end_element.second - next_col_idx);  // number of rows in this slice
                         if (!params->initiate_dma_plane_transfer(src0_next_plane,
                                                                  src0_plane_write_cache_ptr,
                                                                  valid_row0_bytes,
-                                                                 actual_row_count,
+                                                                 next_row_count,
                                                                  src0->get_nb(1),
                                                                  src0_actual_row_size)) {
                             DEVICE_LOG_ERROR("mul_mat_impl: failed to continue dma transfer for src0 plane\n");
