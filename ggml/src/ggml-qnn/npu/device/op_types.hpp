@@ -66,6 +66,15 @@ struct compute_params {
         return thread_params->initiate_dma_row_transfer(src0, dst0, src1, dst1, size);
     }
 
+    bool initiate_dma_plane_transfer(const uint8_t * src,
+                                     uint8_t *       dst,
+                                     size_t          width,
+                                     size_t          height,
+                                     size_t          src_stride,
+                                     size_t          dst_stride) {
+        return thread_params->initiate_dma_plane_transfer(src, dst, width, height, src_stride, dst_stride);
+    }
+
     void wait_for_dma() { thread_params->wait_for_dma(); }
 };
 

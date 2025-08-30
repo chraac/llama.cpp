@@ -30,7 +30,7 @@ dma_transfer::dma_transfer() {
     dma_desc_set_order(_dma_2d_desc0, DESC_ORDER_ORDER);
     dma_desc_set_bypasssrc(_dma_2d_desc0, DESC_BYPASS_ON);   // for dram
     dma_desc_set_bypassdst(_dma_2d_desc0, DESC_BYPASS_OFF);  // for vtcm
-    dma_desc_set_cachealloc(_dma_2d_desc0, 0);
+    dma_desc_set_cachealloc(_dma_2d_desc0, DESC_CACHEALLOC_NONE);
     dma_desc_set_roiwidth(_dma_2d_desc0, 0);
     dma_desc_set_roiheight(_dma_2d_desc0, 0);
     dma_desc_set_srcstride(_dma_2d_desc0, 0);
