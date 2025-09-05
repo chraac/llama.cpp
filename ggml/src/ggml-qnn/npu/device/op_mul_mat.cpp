@@ -29,15 +29,15 @@ template <> struct convert_vector<npu_device_fp16_t> {
 };
 
 template <auto _DotFunc>
-inline void batch_vec_dot(const uint8_t * src0_plane,
-                          const size_t    src0_ne0,
-                          const size_t    src0_actual_row_bytes,
-                          const uint8_t * src1_row,
-                          const size_t    src1_nb1,
-                          const size_t    src1_actual_row_bytes,
-                          float *         dst_row,
-                          const size_t    actual_row_count,
-                          const bool      fetch_src1) {
+inline void batched_row_dot(const uint8_t * src0_plane,
+                            const size_t    src0_ne0,
+                            const size_t    src0_actual_row_bytes,
+                            const uint8_t * src1_row,
+                            const size_t    src1_nb1,
+                            const size_t    src1_actual_row_bytes,
+                            float *         dst_row,
+                            const size_t    actual_row_count,
+                            const bool      fetch_src1) {
     using data_type0 = typename get_data_type<decltype(_DotFunc)>::data_type0;
     using data_type1 = typename get_data_type<decltype(_DotFunc)>::data_type1;
 
@@ -277,15 +277,15 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
                 DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 1, vec_dot);
                 auto * src1_row = src1_plane + i1 * src1->get_nb(1);
                 auto * dst_row  = reinterpret_cast<float *>(dst_plane + i1 * dst->get_nb(1)) + col_idx;
-                batch_vec_dot<_DotFunc>(src0_plane_read_cache_ptr,
-                                        src0->get_ne(0),
-                                        src0_actual_row_size,
-                                        src1_row,
-                                        src1->get_nb(1),
-                                        valid_row0_bytes,
-                                        dst_row,
-                                        actual_row_count,
-                                        ip + 1 < start_end_plane.second);
+                batched_row_dot<_DotFunc>(src0_plane_read_cache_ptr,
+                                          src0->get_ne(0),
+                                          src0_actual_row_size,
+                                          src1_row,
+                                          src1->get_nb(1),
+                                          valid_row0_bytes,
+                                          dst_row,
+                                          actual_row_count,
+                                          ip + 1 < start_end_plane.second);
             }
         }
     }
@@ -457,15 +457,15 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
                 }
 
                 auto * dst_row = reinterpret_cast<float *>(dst_ptr) + col_idx;
-                batch_vec_dot<_DotFunc>(src0_plane,
-                                        src0->get_ne(0),
-                                        src0_actual_row_size,
-                                        src1_ptr,
-                                        src1->get_nb(1),
-                                        valid_row0_bytes,
-                                        dst_row,
-                                        actual_row_count,
-                                        false);
+                batched_row_dot<_DotFunc>(src0_plane,
+                                          src0->get_ne(0),
+                                          src0_actual_row_size,
+                                          src1_ptr,
+                                          src1->get_nb(1),
+                                          valid_row0_bytes,
+                                          dst_row,
+                                          actual_row_count,
+                                          false);
             }
         }
     }
