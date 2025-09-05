@@ -122,11 +122,12 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
     const size_t    valid_row0_bytes = src0->get_ne(0) * sizeof(data_type0);
 
     // cache the src0 plane in VTCM
-    size_t          src0_plane_slice_row_count = start_end_element.second - start_end_element.first;
-    size_t          src0_plane_cache_size      = 0;
-    uint8_t *       src0_plane_read_cache_ptr  = nullptr;
-    uint8_t *       src0_plane_write_cache_ptr = nullptr;
-    const uint8_t * last_cached_plane_ptr      = nullptr;
+    size_t          src0_plane_slice_row_count  = start_end_element.second - start_end_element.first;
+    size_t          src0_plane_cache_size       = 0;
+    uint8_t *       src0_plane_read_cache_ptr   = nullptr;
+    uint8_t *       src0_plane_write_cache_ptr  = nullptr;
+    const uint8_t * last_write_cached_plane_ptr = nullptr;
+    const uint8_t * last_read_cached_plane_ptr  = nullptr;
     if constexpr (_IsSrcQuantized) {
         src0_plane_slice_row_count =
             std::min(params->get_vtcm_quota_size() / src0_actual_row_size, src0_plane_slice_row_count);
@@ -167,11 +168,14 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
                               start_end_element.second - start_end_element.first);  // number of rows in this slice
 
         memcpy(src0_plane_write_cache_ptr, src0_plane, src0_actual_row_size * actual_row_count);
+        last_write_cached_plane_ptr = src0_plane;
     }
 
     DEVICE_LOG_DEBUG(
-        "mul_mat_impl src0_actual_row_size: %zu, src0_plane_slice_row_count: %zu, total_planes: %lld, start_end_plane: "
+        "[%d]mul_mat_impl src0_actual_row_size: %zu, src0_plane_slice_row_count: %zu, total_planes: %lld, "
+        "start_end_plane: "
         "[%d,%d), start_end_row: [%d,%d), start_end_element: [%d,%d), is_quantized: %d, vtcm_mem: %p(%zu)\n",
+        (int) params->get_thread_index(),
         src0_actual_row_size,
         src0_plane_slice_row_count,
         total_planes,
@@ -191,7 +195,8 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
 
     uint8_t * dst_ptr = dst->get_write_buffer();
     if (!dst_ptr) {
-        DEVICE_LOG_ERROR("mul_mat_impl: dst_ptr is not writable, tensor: %p, type: %s\n",
+        DEVICE_LOG_ERROR("[%d]mul_mat_impl: dst_ptr is not writable, tensor: %p, type: %s\n",
+                         (int) params->get_thread_index(),
                          (void *) dst,
                          hexagon::get_type_name(dst->get_type()));
         return;
@@ -212,7 +217,7 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
                 std::min<int64_t>(src0_plane_slice_row_count,
                                   start_end_element.second - col_idx);  // number of rows in this slice
             if constexpr (_IsSrcQuantized) {
-                if (last_cached_plane_ptr != src0_plane) {
+                if (last_write_cached_plane_ptr != src0_plane) {
                     DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 0, dequant);
 
                     for (int64_t ir = 0; ir < actual_row_count; ir++) {
@@ -228,73 +233,83 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
                                             dequant_table);
                     }
 
-                    last_cached_plane_ptr = src0_plane;
+                    last_write_cached_plane_ptr = src0_plane;
                 }
 
                 src0_plane = src0_plane_read_cache_ptr;
             } else {
                 DEVICE_LOG_DEBUG(
-                    "mul_mat_impl: start dma src0 plane to vtcm cache, src0_plane: %p, src0_plane_base: %p, "
-                    "last_cached_plane_ptr: %p, tidx: %d\n",
+                    "[%d]mul_mat_impl: start dma src0 plane to vtcm cache, src0_plane: %p, src0_plane_base: %p, "
+                    "last_read_cached_plane_ptr: %p\n",
+                    (int) params->get_thread_index(),
                     (void *) src0_plane,
                     (void *) src0_plane_base,
-                    (void *) last_cached_plane_ptr,
-                    (int) params->get_thread_index());
+                    (void *) last_read_cached_plane_ptr);
 
-                if (last_cached_plane_ptr != src0_plane) {
-                    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 0, dma);
+                if (last_read_cached_plane_ptr != src0_plane) {
                     std::swap(src0_plane_read_cache_ptr, src0_plane_write_cache_ptr);
+                    last_read_cached_plane_ptr = src0_plane;
+                }
 
+                const uint8_t * src0_next_plane = last_write_cached_plane_ptr;
+                int64_t         next_row_count  = 0;
+                if (col_idx + src0_plane_slice_row_count < start_end_element.second) {
                     const auto next_col_idx = col_idx + src0_plane_slice_row_count;
-                    if (next_col_idx < start_end_element.second) {
-                        const uint8_t * src0_next_plane = src0_plane_base + next_col_idx * src0_actual_row_size;
-                        const int64_t   next_row_count =
-                            std::min<int64_t>(src0_plane_slice_row_count,
-                                              start_end_element.second - next_col_idx);  // number of rows in this slice
-
-                        memcpy(src0_plane_write_cache_ptr, src0_next_plane, src0_actual_row_size * next_row_count);
-
-                        DEVICE_LOG_DEBUG(
-                            "mul_mat_impl: dma next src0 col plane to vtcm cache, src0_plane: %p, src0_plane_base: %p, "
-                            "next_col_idx: %d, tidx: %d\n",
-                            (void *) src0_next_plane,
-                            (void *) src0_plane_base,
-                            (int) next_col_idx,
-                            (int) params->get_thread_index());
-                    } else if (ip + r02 < start_end_plane.second) {
-                        // prefetch the next plane's first slice
-                        const auto      ip_next = ip + r02;
-                        const auto      i3_next = ip_next / dst->get_ne(2);
-                        const auto      i2_next = ip_next - i3_next * dst->get_ne(2);
-                        const uint8_t * src0_next_plane_base =
-                            src0_ptr + i3_next / r03 * src0->get_nb(3) + i2_next / r02 * src0->get_nb(2);
-                        const uint8_t * src0_next_plane =
-                            src0_next_plane_base + start_end_element.first * src0_actual_row_size;
-                        const int64_t next_row_count = std::min<int64_t>(
-                            src0_plane_slice_row_count,
-                            start_end_element.second - start_end_element.first);  // number of rows in this slice
-
-                        memcpy(src0_plane_write_cache_ptr, src0_next_plane, src0_actual_row_size * next_row_count);
-
-                        DEVICE_LOG_DEBUG(
-                            "mul_mat_impl: dma next src0 plane to vtcm cache, src0_next_plane: %p, "
-                            "src0_next_plane_base: %p, "
-                            "next_col_idx: %d, tidx: %d\n",
-                            (void *) src0_next_plane,
-                            (void *) src0_next_plane_base,
-                            (int) start_end_element.first,
-                            (int) params->get_thread_index());
-                    }
+                    src0_next_plane         = src0_plane_base + next_col_idx * src0_actual_row_size;
+                    next_row_count =
+                        std::min<int64_t>(src0_plane_slice_row_count,
+                                          start_end_element.second - next_col_idx);  // number of rows in this slice
 
                     DEVICE_LOG_DEBUG(
-                        "mul_mat_impl: outer dma src0 plane to vtcm cache, src0_plane: %p, src0_plane_base: %p, vtcm: "
-                        "%p, tidx: %d\n",
+                        "[%d]mul_mat_impl: dma next src0 col to vtcm cache, src0_plane: %p, src0_next_plane: %p, "
+                        "src0_plane_base: %p, "
+                        "next_col_idx: %d, src0_actual_row_size: %d, next_row_count: %d\n",
+                        (int) params->get_thread_index(),
                         (void *) src0_plane,
+                        (void *) src0_next_plane,
                         (void *) src0_plane_base,
-                        (void *) src0_plane_read_cache_ptr,
-                        (int) params->get_thread_index());
+                        (int) next_col_idx,
+                        (int) src0_actual_row_size,
+                        (int) next_row_count);
+                } else if (ip + 1 < start_end_plane.second) {
+                    // prefetch the next plane's first slice
+                    const auto      ip_next = ip + 1;
+                    const auto      i3_next = ip_next / dst->get_ne(2);
+                    const auto      i2_next = ip_next - i3_next * dst->get_ne(2);
+                    const uint8_t * src0_next_plane_base =
+                        src0_ptr + i3_next / r03 * src0->get_nb(3) + i2_next / r02 * src0->get_nb(2);
+                    src0_next_plane = src0_next_plane_base + start_end_element.first * src0_actual_row_size;
+                    next_row_count  = std::min<int64_t>(
+                        src0_plane_slice_row_count,
+                        start_end_element.second - start_end_element.first);  // number of rows in this slice
 
-                    last_cached_plane_ptr = src0_plane;
+                    DEVICE_LOG_DEBUG(
+                        "[%d]mul_mat_impl: dma next src0 plane to vtcm cache, src0_plane: %p, src0_next_plane: %p, "
+                        "src0_next_plane_base: %p, next_col_idx: %d, src0_actual_row_size: %d, next_row_count: "
+                        "%d\n",
+                        (int) params->get_thread_index(),
+                        (void *) src0_plane,
+                        (void *) src0_next_plane,
+                        (void *) src0_next_plane_base,
+                        (int) start_end_element.first,
+                        (int) src0_actual_row_size,
+                        (int) next_row_count);
+                }
+
+                if (last_write_cached_plane_ptr != src0_next_plane) {
+                    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 0, dma);
+
+                    memcpy(src0_plane_write_cache_ptr, src0_next_plane, src0_actual_row_size * next_row_count);
+
+                    DEVICE_LOG_DEBUG(
+                        "[%d]mul_mat_impl: outer dma src0 plane to vtcm cache, src0_next_plane: %p, "
+                        "last_write_cached_plane_ptr: %p, next_row_count: %d\n",
+                        (int) params->get_thread_index(),
+                        (void *) src0_next_plane,
+                        (void *) last_write_cached_plane_ptr,
+                        (int) next_row_count);
+
+                    last_write_cached_plane_ptr = src0_next_plane;
                 }
 
                 src0_plane = src0_plane_read_cache_ptr;
