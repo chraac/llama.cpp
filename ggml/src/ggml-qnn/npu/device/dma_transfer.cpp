@@ -12,7 +12,6 @@ dma_transfer::dma_transfer() {
     dma_desc_set_next(_dma_1d_desc0, 0);
     dma_desc_set_dstate(_dma_1d_desc0, DESC_DSTATE_INCOMPLETE);
     dma_desc_set_desctype(_dma_1d_desc0, DMA_DESC_TYPE_1D);
-
     dma_desc_set_order(_dma_1d_desc0, DESC_ORDER_ORDER);
     dma_desc_set_bypasssrc(_dma_1d_desc0, DESC_BYPASS_ON);   // for dram
     dma_desc_set_bypassdst(_dma_1d_desc0, DESC_BYPASS_OFF);  // for vtcm
@@ -21,12 +20,14 @@ dma_transfer::dma_transfer() {
     dma_desc_set_next(_dma_1d_desc1, 0);
     dma_desc_set_dstate(_dma_1d_desc1, DESC_DSTATE_INCOMPLETE);
     dma_desc_set_desctype(_dma_1d_desc1, DMA_DESC_TYPE_1D);
-
     dma_desc_set_order(_dma_1d_desc1, DESC_ORDER_ORDER);
     dma_desc_set_bypasssrc(_dma_1d_desc1, DESC_BYPASS_ON);   // for dram
     dma_desc_set_bypassdst(_dma_1d_desc1, DESC_BYPASS_OFF);  // for vtcm
     dma_desc_set_length(_dma_1d_desc1, 0);
 
+    dma_desc_set_next(_dma_2d_desc0, 0);
+    dma_desc_set_dstate(_dma_2d_desc0, DESC_DSTATE_INCOMPLETE);
+    dma_desc_set_desctype(_dma_2d_desc0, DMA_DESC_TYPE_2D);
     dma_desc_set_order(_dma_2d_desc0, DESC_ORDER_ORDER);
     dma_desc_set_bypasssrc(_dma_2d_desc0, DESC_BYPASS_ON);   // for dram
     dma_desc_set_bypassdst(_dma_2d_desc0, DESC_BYPASS_OFF);  // for vtcm
