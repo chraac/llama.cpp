@@ -331,7 +331,7 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
         return;
     }
 
-    const uint8_t * src0_ptr         = src0->get_read_buffer();
+    const uint8_t * src0_ptr         = src0->get_read_buffer(true);
     const size_t    valid_row0_bytes = src0->get_ne(0) * sizeof(data_type0);
 
     // cache the src0 plane in VTCM
@@ -371,15 +371,23 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
         src0_plane_write_cache_ptr = src0_plane_read_cache_ptr + src0_plane_cache_size;
         src1_row_cache_ptr         = src0_plane_write_cache_ptr + src0_plane_cache_size;
 
-        const uint8_t * src0_plane = src0_ptr + start_end_element.first * src0->get_nb(1);
-        const int64_t   actual_row_count =
+        const uint8_t * src0_plane = src0_ptr + start_end_element.first * src0_actual_row_size;
+        const int64_t   next_row_count =
             std::min<int64_t>(src0_plane_slice_row_count,
                               start_end_element.second - start_end_element.first);  // number of rows in this slice
-        memcpy(src0_plane_write_cache_ptr, src0_plane, actual_row_count * src0_actual_row_size);
+        if (!params->initiate_dma_plane_transfer(src0_plane,
+                                                 src0_plane_write_cache_ptr,
+                                                 valid_row0_bytes,
+                                                 next_row_count,
+                                                 src0_actual_row_size,
+                                                 src0_actual_row_size)) {
+            DEVICE_LOG_ERROR("mul_mat_impl: failed to initiate dma transfer for src0 plane\n");
+            return;
+        }
     }
 
     DEVICE_LOG_DEBUG(
-        "mul_mat_gemv_impl src0_actual_row_size: %zu, src0_plane_slice_row_count: %zu, is_quantized: %d, vtcm_mem: "
+        "mul_mat_gemv_impl: src0_actual_row_size: %zu, src0_plane_slice_row_count: %zu, is_quantized: %d, vtcm_mem: "
         "%p(%zu)\n",
         src0_actual_row_size,
         src0_plane_slice_row_count,
@@ -411,9 +419,7 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
         for (int64_t col_idx = start_end_element.first; col_idx < start_end_element.second;
              col_idx += src0_plane_slice_row_count) {
             const uint8_t * src0_plane = src0_ptr + col_idx * src0->get_nb(1);
-            hexagon::l2fetch_row(src0_plane, src0->get_nb(1));
-
-            const int64_t actual_row_count =
+            const int64_t   actual_row_count =
                 std::min<int64_t>(src0_plane_slice_row_count,
                                   start_end_element.second - col_idx);  // number of rows in this slice
             if constexpr (_IsSrcQuantized) {
@@ -432,35 +438,37 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
                                         dequant_table);
                 }
 
-                src0_plane = src0_plane_read_cache_ptr;
+                params->wait_for_dma();
             } else {
                 DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 0, dma);
                 std::swap(src0_plane_read_cache_ptr, src0_plane_write_cache_ptr);
+                params->wait_for_dma();
 
                 const auto next_col_idx = col_idx + src0_plane_slice_row_count;
                 if (next_col_idx < start_end_element.second) {
-                    const uint8_t * src0_next_plane = src0_plane + next_col_idx * src0->get_nb(1);
+                    const uint8_t * src0_next_plane = src0_plane + next_col_idx * src0_actual_row_size;
                     const int64_t   next_row_count =
                         std::min<int64_t>(src0_plane_slice_row_count,
                                           start_end_element.second - next_col_idx);  // number of rows in this slice
-                    memcpy(src0_plane_write_cache_ptr, src0_next_plane, next_row_count * src0_actual_row_size);
+                    if (!params->initiate_dma_plane_transfer(src0_next_plane,
+                                                             src0_plane_write_cache_ptr,
+                                                             valid_row0_bytes,
+                                                             next_row_count,
+                                                             src0_actual_row_size,
+                                                             src0_actual_row_size)) {
+                        DEVICE_LOG_ERROR("mul_mat_impl: failed to continue dma transfer for src0 plane\n");
+                        return;
+                    }
                 }
-
-                src0_plane = src0_plane_read_cache_ptr;
             }
 
             {
                 DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 1, vec_dot);
-                if (src1_ptr != src1_row_cache_ptr) {
-                    src1_ptr = src1_row_cache_ptr;
-                    params->wait_for_dma();
-                }
-
                 auto * dst_row = reinterpret_cast<float *>(dst_ptr) + col_idx;
-                batched_row_dot<_DotFunc>(src0_plane,
+                batched_row_dot<_DotFunc>(src0_plane_read_cache_ptr,
                                           src0->get_ne(0),
                                           src0_actual_row_size,
-                                          src1_ptr,
+                                          src1_row_cache_ptr,
                                           src1->get_nb(1),
                                           valid_row0_bytes,
                                           dst_row,

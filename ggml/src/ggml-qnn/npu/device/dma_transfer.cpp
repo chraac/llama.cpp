@@ -122,6 +122,12 @@ bool dma_transfer::submit2d(const uint8_t * src,
 }
 
 void dma_transfer::wait() {
+    if (dma_transfer::is_desc_done(_dma_1d_desc0) && dma_transfer::is_desc_done(_dma_1d_desc1) &&
+        dma_transfer::is_desc_done(_dma_2d_desc0)) {
+        DEVICE_LOG_DEBUG("dma_transfer: No pending DMA transfers to wait for\n");
+        return;
+    }
+
     auto ret = dma_wait_for_idle();
     if (ret != DMA_SUCCESS) {
         DEVICE_LOG_ERROR("dma_transfer: failed to wait for DMA idle: %d\n", ret);
