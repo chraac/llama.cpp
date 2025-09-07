@@ -370,20 +370,6 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
 
         src0_plane_write_cache_ptr = src0_plane_read_cache_ptr + src0_plane_cache_size;
         src1_row_cache_ptr         = src0_plane_write_cache_ptr + src0_plane_cache_size;
-
-        const uint8_t * src0_plane = src0_ptr + start_end_element.first * src0_actual_row_size;
-        const int64_t   next_row_count =
-            std::min<int64_t>(src0_plane_slice_row_count,
-                              start_end_element.second - start_end_element.first);  // number of rows in this slice
-        if (!params->initiate_dma_plane_transfer(src0_plane,
-                                                 src0_plane_write_cache_ptr,
-                                                 valid_row0_bytes,
-                                                 next_row_count,
-                                                 src0_actual_row_size,
-                                                 src0_actual_row_size)) {
-            DEVICE_LOG_ERROR("mul_mat_impl: failed to initiate dma transfer for src0 plane\n");
-            return;
-        }
     }
 
     DEVICE_LOG_DEBUG(
@@ -412,6 +398,23 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
         if (!params->initiate_dma_row_transfer(src1_ptr, src1_row_cache_ptr, src1->get_ne(0) * sizeof(data_type1))) {
             DEVICE_LOG_ERROR("mul_mat_gemv_impl: failed to initiate dma transfer for src1\n");
             return;
+        }
+
+        if constexpr (!_IsSrcQuantized) {
+            const uint8_t * src0_plane = src0_ptr + start_end_element.first * src0_actual_row_size;
+            const int64_t   next_row_count =
+                std::min<int64_t>(src0_plane_slice_row_count,
+                                  start_end_element.second - start_end_element.first);  // number of rows in this slice
+            params->wait_for_dma();
+            if (!params->initiate_dma_plane_transfer(src0_plane,
+                                                     src0_plane_write_cache_ptr,
+                                                     valid_row0_bytes,
+                                                     next_row_count,
+                                                     src0_actual_row_size,
+                                                     src0_actual_row_size)) {
+                DEVICE_LOG_ERROR("mul_mat_impl: failed to initiate dma transfer for src0 plane\n");
+                return;
+            }
         }
     }
 

@@ -122,13 +122,9 @@ bool dma_transfer::submit2d(const uint8_t * src,
 }
 
 void dma_transfer::wait() {
-    if (dma_transfer::is_desc_done(_dma_1d_desc0) && dma_transfer::is_desc_done(_dma_1d_desc1) &&
-        dma_transfer::is_desc_done(_dma_2d_desc0)) {
-        DEVICE_LOG_DEBUG("dma_transfer: No pending DMA transfers to wait for\n");
-        return;
-    }
-
+    _dma_desc_mutex.lock();
     auto ret = dma_wait_for_idle();
+    _dma_desc_mutex.unlock();
     if (ret != DMA_SUCCESS) {
         DEVICE_LOG_ERROR("dma_transfer: failed to wait for DMA idle: %d\n", ret);
     }
@@ -138,13 +134,13 @@ bool dma_transfer::is_desc_done(uint8_t * desc) {
     return !dma_desc_get_src(desc) || dma_desc_is_done(desc) == DMA_COMPLETE;
 }
 
-qurt_mutex dma_transfer::_dma_desc_mutex = {};
-
 bool dma_transfer::submit_impl(void ** desc_batch, int batch_len) {
     _dma_desc_mutex.lock();
     const bool succ = dma_desc_submit(desc_batch, batch_len) == DMA_SUCCESS;
     _dma_desc_mutex.unlock();
     return succ;
 }
+
+qurt_mutex dma_transfer::_dma_desc_mutex = {};
 
 }  // namespace hexagon::dma
