@@ -415,6 +415,8 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
                 DEVICE_LOG_ERROR("mul_mat_impl: failed to initiate dma transfer for src0 plane\n");
                 return;
             }
+        } else {
+            params->wait_for_dma();
         }
     }
 
@@ -440,8 +442,6 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
                                         src0->get_ne(0),
                                         dequant_table);
                 }
-
-                params->wait_for_dma();
             } else {
                 DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 0, dma);
                 std::swap(src0_plane_read_cache_ptr, src0_plane_write_cache_ptr);

@@ -122,9 +122,7 @@ bool dma_transfer::submit2d(const uint8_t * src,
 }
 
 void dma_transfer::wait() {
-    _dma_desc_mutex.lock();
     auto ret = dma_wait_for_idle();
-    _dma_desc_mutex.unlock();
     if (ret != DMA_SUCCESS) {
         DEVICE_LOG_ERROR("dma_transfer: failed to wait for DMA idle: %d\n", ret);
     }
