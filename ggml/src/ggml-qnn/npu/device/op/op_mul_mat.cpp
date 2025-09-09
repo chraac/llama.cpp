@@ -449,7 +449,7 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
 
                 const auto next_col_idx = col_idx + src0_plane_slice_row_count;
                 if (next_col_idx < start_end_element.second) {
-                    const uint8_t * src0_next_plane = src0_plane + next_col_idx * src0_actual_row_size;
+                    const uint8_t * src0_next_plane = src0_ptr + next_col_idx * src0_actual_row_size;
                     const int64_t   next_row_count =
                         std::min<int64_t>(src0_plane_slice_row_count,
                                           start_end_element.second - next_col_idx);  // number of rows in this slice
