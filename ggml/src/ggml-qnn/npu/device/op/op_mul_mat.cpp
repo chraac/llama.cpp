@@ -34,9 +34,9 @@ inline void batched_row_dot(const uint8_t * src0_plane,
                             const size_t    src0_nb1,
                             const uint8_t * src1_row,
                             const size_t    src1_nb1,
-                            const size_t    src1_actual_row_bytes,
                             float *         dst_row,
                             const size_t    actual_row_count,
+                            const size_t    src1_fetch_row_bytes,
                             const bool      fetch_src1) {
     using data_type0 = typename get_data_type<decltype(_DotFunc)>::data_type0;
     using data_type1 = typename get_data_type<decltype(_DotFunc)>::data_type1;
@@ -61,7 +61,7 @@ inline void batched_row_dot(const uint8_t * src0_plane,
     }
 
     if (fetch_src1) {
-        hexagon::l2fetch_row(src1_row + src1_nb1, src1_actual_row_bytes);
+        hexagon::l2fetch_row(src1_row + src1_nb1, src1_fetch_row_bytes);
     }
 
     if (i0 < actual_row_count) {
@@ -168,7 +168,7 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
                               start_end_element.second - start_end_element.first);  // number of rows in this slice
         if (!params->initiate_dma_plane_transfer(src0_plane,
                                                  src0_plane_write_cache_ptr,
-                                                 src0_actual_row_size,
+                                                 src0_actual_row_size,  // TODO: reduce to aligned valid_row0_bytes?
                                                  next_row_count,
                                                  src0_actual_row_size,
                                                  src0_actual_row_size)) {
@@ -273,12 +273,13 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
 
                 if (last_write_cached_plane_ptr != src0_next_plane) {
                     DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 0, dma);
-                    if (!params->initiate_dma_plane_transfer(src0_next_plane,
-                                                             src0_plane_write_cache_ptr,
-                                                             src0_actual_row_size,
-                                                             next_row_count,
-                                                             src0_actual_row_size,
-                                                             src0_actual_row_size)) {
+                    if (!params->initiate_dma_plane_transfer(
+                            src0_next_plane,
+                            src0_plane_write_cache_ptr,
+                            src0_actual_row_size,  // TODO: reduce to aligned valid_row0_bytes?
+                            next_row_count,
+                            src0_actual_row_size,
+                            src0_actual_row_size)) {
                         DEVICE_LOG_ERROR("mul_mat_impl: failed to continue dma transfer for src0 plane\n");
                         return;
                     }
@@ -300,9 +301,9 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
                                           src0_actual_row_size,
                                           src1_row,
                                           src1->get_nb(1),
-                                          valid_row0_bytes,
                                           dst_row,
                                           actual_row_count,
+                                          valid_row0_bytes,
                                           ip + 1 < start_end_plane.second);
             }
         }
@@ -491,9 +492,9 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
                                           src0_actual_row_size,
                                           src1_row_cache_ptr,
                                           src1->get_nb(1),
-                                          valid_row0_bytes,
                                           dst_row,
                                           actual_row_count,
+                                          valid_row0_bytes,
                                           false);
             }
         }
