@@ -31,7 +31,7 @@ template <> struct convert_vector<npu_device_fp16_t> {
 template <auto _DotFunc>
 inline void batched_row_dot(const uint8_t * src0_plane,
                             const size_t    src0_ne0,
-                            const size_t    src0_actual_row_bytes,
+                            const size_t    src0_nb1,
                             const uint8_t * src1_row,
                             const size_t    src1_nb1,
                             const size_t    src1_actual_row_bytes,
@@ -43,14 +43,14 @@ inline void batched_row_dot(const uint8_t * src0_plane,
 
     size_t i0 = 0;
     for (; i0 + 1 < actual_row_count; i0 += 2) {
-        auto * src0_row = src0_plane + i0 * src0_actual_row_bytes;
+        auto * src0_row = src0_plane + i0 * src0_nb1;
 
         // TODO: figure dst how to handle a entire row
         auto res0 = _DotFunc(
             reinterpret_cast<const data_type0 *>(src0_row), reinterpret_cast<const data_type1 *>(src1_row), src0_ne0);
 
         // TODO: figure dst how to handle a entire row
-        auto res1 = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row + src0_actual_row_bytes),
+        auto res1 = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row + src0_nb1),
                              reinterpret_cast<const data_type1 *>(src1_row),
                              src0_ne0);
 
@@ -65,7 +65,7 @@ inline void batched_row_dot(const uint8_t * src0_plane,
     }
 
     if (i0 < actual_row_count) {
-        auto * src0_row = src0_plane + i0 * src0_actual_row_bytes;
+        auto * src0_row = src0_plane + i0 * src0_nb1;
         auto   res      = _DotFunc(
             reinterpret_cast<const data_type0 *>(src0_row), reinterpret_cast<const data_type1 *>(src1_row), src0_ne0);
         dst_row[i0] = convert_vector<data_type1>::convert(res);
@@ -168,7 +168,7 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
                               start_end_element.second - start_end_element.first);  // number of rows in this slice
         if (!params->initiate_dma_plane_transfer(src0_plane,
                                                  src0_plane_write_cache_ptr,
-                                                 valid_row0_bytes,
+                                                 src0_actual_row_size,
                                                  next_row_count,
                                                  src0_actual_row_size,
                                                  src0_actual_row_size)) {
@@ -275,7 +275,7 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
                     DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 0, dma);
                     if (!params->initiate_dma_plane_transfer(src0_next_plane,
                                                              src0_plane_write_cache_ptr,
-                                                             valid_row0_bytes,
+                                                             src0_actual_row_size,
                                                              next_row_count,
                                                              src0_actual_row_size,
                                                              src0_actual_row_size)) {
