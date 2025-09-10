@@ -36,8 +36,7 @@ inline void batched_row_dot(const uint8_t * src0_plane,
                             const size_t    src1_nb1,
                             float *         dst_row,
                             const size_t    actual_row_count,
-                            const size_t    src1_fetch_row_bytes,
-                            const bool      fetch_src1) {
+                            const size_t    src1_fetch_row_bytes) {
     using data_type0 = typename get_data_type<decltype(_DotFunc)>::data_type0;
     using data_type1 = typename get_data_type<decltype(_DotFunc)>::data_type1;
 
@@ -60,7 +59,7 @@ inline void batched_row_dot(const uint8_t * src0_plane,
         }
     }
 
-    if (fetch_src1) {
+    if (src1_fetch_row_bytes > 0) {
         hexagon::l2fetch_row(src1_row + src1_nb1, src1_fetch_row_bytes);
     }
 
@@ -77,7 +76,6 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
                          hexagon::tensor *         src1,
                          hexagon::tensor *         dst,
                          hexagon::compute_params * params) {
-    using data_type0 = typename get_data_type<decltype(_DotFunc)>::data_type0;
     using data_type1 = typename get_data_type<decltype(_DotFunc)>::data_type1;
 
     const auto src0_actual_row_size    = hexagon::get_dequantized_row_size(src0);
@@ -118,8 +116,7 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
         return;
     }
 
-    const uint8_t * src0_ptr         = src0->get_read_buffer(true);
-    const size_t    valid_row0_bytes = src0->get_ne(0) * sizeof(data_type0);
+    const uint8_t * src0_ptr = src0->get_read_buffer(true);
 
     // cache the src0 plane in VTCM
     size_t          src0_plane_slice_row_count  = start_end_element.second - start_end_element.first;
@@ -303,8 +300,7 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
                                           src1->get_nb(1),
                                           dst_row,
                                           actual_row_count,
-                                          valid_row0_bytes,
-                                          ip + 1 < start_end_plane.second);
+                                          (ip + 1 < start_end_plane.second) ? valid_row1_bytes : 0);
             }
         }
     }
@@ -494,8 +490,7 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
                                           src1->get_nb(1),
                                           dst_row,
                                           actual_row_count,
-                                          valid_row0_bytes,
-                                          false);
+                                          0);
             }
         }
     }
@@ -569,11 +564,11 @@ bool is_mul_mat_f16_f32_src_tensors_aligned(hexagon::tensor * src0,
     const auto * src0_ptr = is_src0_cached ? nullptr : src0->get_read_buffer_as<npu_device_fp16_t>();
 
     if (!hexagon::is_f16_f32_dot_product_aligned(src0_ptr, src1_ptr, src0->get_ne(0))) {
-        DEVICE_LOG_DEBUG("[MUL_MAT]src_tensors_unaligned: ne[0]: %ld\n", (long) src0->get_ne(0));
+        DEVICE_LOG_DEBUG("[MUL_MAT][f16_f32]src_tensors_unaligned: ne[0]: %ld\n", (long) src0->get_ne(0));
         return false;
     }
 
-    DEVICE_LOG_DEBUG("[MUL_MAT]src_tensors_aligned: ne[0]: %ld\n", (long) src0->get_ne(0));
+    DEVICE_LOG_DEBUG("[MUL_MAT][f16_f32]src_tensors_aligned: ne[0]: %ld\n", (long) src0->get_ne(0));
     return true;
 }
 
@@ -582,7 +577,7 @@ bool is_mul_mat_f16_f16_src_tensors_aligned(hexagon::tensor * src0, hexagon::ten
     const auto * src0_ptr = is_src0_quantized ? nullptr : src0->get_read_buffer_as<npu_device_fp16_t>();
 
     if (!hexagon::is_f16_f16_dot_product_aligned(src0_ptr, src1_ptr, src0->get_ne(0))) {
-        DEVICE_LOG_DEBUG("[MUL_MAT]src_tensors_unaligned: ne[0]: %ld\n", (long) src0->get_ne(0));
+        DEVICE_LOG_DEBUG("[MUL_MAT][f16_f16]src_tensors_unaligned: ne[0]: %ld\n", (long) src0->get_ne(0));
         return false;
     }
 
@@ -605,7 +600,7 @@ bool is_mul_mat_f32_f32_src_tensors_aligned(hexagon::tensor * src0, hexagon::ten
     const auto * src0_ptr = src0->get_read_buffer_as<float>();
 
     if (!hexagon::is_f32_f32_dot_product_aligned(src0_ptr, src1_ptr, src0->get_ne(0))) {
-        DEVICE_LOG_DEBUG("[MUL_MAT]src_tensors_unaligned: ne[0]: %ld\n", (long) src0->get_ne(0));
+        DEVICE_LOG_DEBUG("[MUL_MAT][f32_f32]src_tensors_unaligned: ne[0]: %ld\n", (long) src0->get_ne(0));
         return false;
     }
 
