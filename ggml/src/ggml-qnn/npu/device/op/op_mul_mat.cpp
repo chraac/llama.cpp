@@ -796,6 +796,12 @@ bool is_mul_mat_supported(const npu_device_tensor_op_spec * op_spec,
         return false;
     }
 
+    if (src1.ne[1] == 1 && src1.ne[2] == 1 && src1.ne[3] == 1 && dst->ne[0] < hexagon::kMaxThreadCount) {
+        DEVICE_LOG_DEBUG(
+            "[%s]src1 is scalar and dst cannot be parallelized: %ld\n", op_get_name(op), (long) dst->ne[0]);
+        return false;
+    }
+
     return true;
 }
 
