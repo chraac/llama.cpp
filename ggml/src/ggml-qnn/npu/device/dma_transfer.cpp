@@ -112,6 +112,21 @@ bool dma_transfer::submit2d(const uint8_t * src,
                             size_t          height,
                             size_t          src_stride,
                             size_t          dst_stride) {
+    // Note that the dma only supports 16-bit width and height for 2D transfer, see also: DESC_ROIWIDTH_MASK
+    constexpr size_t kMaxDmaTransferDimension = DESC_ROIWIDTH_MASK;
+    if (width > kMaxDmaTransferDimension || height > kMaxDmaTransferDimension ||
+        src_stride > kMaxDmaTransferDimension || dst_stride > kMaxDmaTransferDimension) {
+        if (src_stride != dst_stride) {
+            DEVICE_LOG_ERROR(
+                "dma_transfer::submit2d, src_stride(%zu) or dst_stride(%zu) is too large\n", src_stride, dst_stride);
+            return false;
+        }
+
+        DEVICE_LOG_DEBUG(
+            "dma_transfer::submit2d, width(%zu) or height(%zu) is too large, fallback to 1D transfer\n", width, height);
+        return submit1d(src, dst, src_stride * height);
+    }
+
     if (!dma_transfer::is_desc_done(_dma_2d_desc0)) {
         DEVICE_LOG_ERROR("Failed to initiate DMA transfer for one or more descriptors\n");
         return false;
