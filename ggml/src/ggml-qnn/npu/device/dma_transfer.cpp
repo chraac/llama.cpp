@@ -45,6 +45,13 @@ dma_transfer::~dma_transfer() {
 }
 
 bool dma_transfer::submit1d(const uint8_t * src, uint8_t * dst, size_t size) {
+    constexpr size_t kMaxDmaTransferSize = DESC_LENGTH_MASK;
+    if (size > kMaxDmaTransferSize) {
+        // TODO: support chained descriptors for large transfers
+        DEVICE_LOG_ERROR("dma_transfer::submit1d, size(%zu) is too large\n", size);
+        return false;
+    }
+
     if (!dma_transfer::is_desc_done(_dma_1d_desc0)) {
         DEVICE_LOG_ERROR("Failed to initiate DMA transfer for one or more descriptors\n");
         return false;
@@ -71,6 +78,13 @@ bool dma_transfer::submit1d(const uint8_t * src, uint8_t * dst, size_t size) {
 }
 
 bool dma_transfer::submit1d(const uint8_t * src0, uint8_t * dst0, const uint8_t * src1, uint8_t * dst1, size_t size) {
+    constexpr size_t kMaxDmaTransferSize = DESC_LENGTH_MASK;
+    if (size > kMaxDmaTransferSize) {
+        // TODO: support chained descriptors for large transfers
+        DEVICE_LOG_ERROR("dma_transfer::submit1d, size(%zu) is too large\n", size);
+        return false;
+    }
+
     if (!dma_transfer::is_desc_done(_dma_1d_desc0) || !dma_transfer::is_desc_done(_dma_1d_desc1)) {
         DEVICE_LOG_ERROR("Failed to initiate DMA transfer for one or more descriptors\n");
         return false;
@@ -113,10 +127,11 @@ bool dma_transfer::submit2d(const uint8_t * src,
                             size_t          src_stride,
                             size_t          dst_stride) {
     // Note that the dma only supports 16-bit width and height for 2D transfer, see also: DESC_ROIWIDTH_MASK
-    constexpr size_t kMaxDmaTransferDimension = DESC_ROIWIDTH_MASK;
-    if (width > kMaxDmaTransferDimension || height > kMaxDmaTransferDimension ||
-        src_stride > kMaxDmaTransferDimension || dst_stride > kMaxDmaTransferDimension) {
+    constexpr size_t kMaxDmaTransferSize = DESC_ROIWIDTH_MASK;
+    if (width > kMaxDmaTransferSize || height > kMaxDmaTransferSize || src_stride > kMaxDmaTransferSize ||
+        dst_stride > kMaxDmaTransferSize) {
         if (src_stride != dst_stride) {
+            // TODO: support chained descriptors for large transfers
             DEVICE_LOG_ERROR(
                 "dma_transfer::submit2d, src_stride(%zu) or dst_stride(%zu) is too large\n", src_stride, dst_stride);
             return false;
