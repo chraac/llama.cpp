@@ -69,11 +69,8 @@ bool dma_transfer::submit1d(const uint8_t * src, uint8_t * dst, size_t size) {
         return false;
     }
 
-    DEVICE_LOG_DEBUG("dma_transfer::submit1d, src(%p), dst(%p), size(%zu), desc(%p)\n",
-                     (void *) src,
-                     (void *) dst,
-                     size,
-                     (void *) _dma_1d_desc0);
+    DEVICE_LOG_DEBUG("dma_transfer::submit1d, src(%p), dst(%p), size(%zu), desc(%p)\n", (void *) src, (void *) dst,
+                     size, (void *) _dma_1d_desc0);
     return true;
 }
 
@@ -110,12 +107,7 @@ bool dma_transfer::submit1d(const uint8_t * src0, uint8_t * dst0, const uint8_t 
 
     DEVICE_LOG_DEBUG(
         "dma_transfer::submit1d, src0(%p), dst0(%p), src1(%p), dst1(%p), size(%zu), desc0(%p), desc1(%p)\n",
-        (void *) src0,
-        (void *) dst0,
-        (void *) src1,
-        (void *) dst1,
-        size,
-        (void *) _dma_1d_desc0,
+        (void *) src0, (void *) dst0, (void *) src1, (void *) dst1, size, (void *) _dma_1d_desc0,
         (void *) _dma_1d_desc1);
     return true;
 }
@@ -132,13 +124,13 @@ bool dma_transfer::submit2d(const uint8_t * src,
         dst_stride > kMaxDmaTransferSize) {
         if (src_stride != dst_stride) {
             // TODO: support chained descriptors for large transfers
-            DEVICE_LOG_ERROR(
-                "dma_transfer::submit2d, src_stride(%zu) or dst_stride(%zu) is too large\n", src_stride, dst_stride);
+            DEVICE_LOG_ERROR("dma_transfer::submit2d, src_stride(%zu) or dst_stride(%zu) is too large\n", src_stride,
+                             dst_stride);
             return false;
         }
 
-        DEVICE_LOG_DEBUG(
-            "dma_transfer::submit2d, width(%zu) or height(%zu) is too large, fallback to 1D transfer\n", width, height);
+        DEVICE_LOG_DEBUG("dma_transfer::submit2d, width(%zu) or height(%zu) is too large, fallback to 1D transfer\n",
+                         width, height);
         return submit1d(src, dst, src_stride * height);
     }
 
@@ -165,13 +157,7 @@ bool dma_transfer::submit2d(const uint8_t * src,
     DEVICE_LOG_DEBUG(
         "dma_transfer::submit2d, src(%p), dst(%p), width(%zu), height(%zu), src_stride(%zu), dst_stride(%zu), "
         "desc(%p)\n",
-        (void *) src,
-        (void *) dst,
-        width,
-        height,
-        src_stride,
-        dst_stride,
-        (void *) _dma_2d_desc0);
+        (void *) src, (void *) dst, width, height, src_stride, dst_stride, (void *) _dma_2d_desc0);
     return true;
 }
 

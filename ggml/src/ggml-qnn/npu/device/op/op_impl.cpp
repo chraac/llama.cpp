@@ -103,8 +103,7 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
 
     uint8_t * dst_ptr = out->get_write_buffer();
     if (!dst_ptr) {
-        DEVICE_LOG_ERROR("element_wise_op: dst_ptr is not writable, tensor: %p, type: %s\n",
-                         (void *) out,
+        DEVICE_LOG_ERROR("element_wise_op: dst_ptr is not writable, tensor: %p, type: %s\n", (void *) out,
                          hexagon::get_type_name(out->get_type()));
         return false;
     }
@@ -128,8 +127,8 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
 
         auto * src0_row = src0_ptr + i03 * src0->get_nb(3) + i02 * src0->get_nb(2) + i01 * src0->get_nb(1);
         auto * src1_row = src1_ptr + i13 * src1->get_nb(3) + i12 * src1->get_nb(2) + i11 * src1->get_nb(1);
-        if (!params->initiate_dma_row_transfer(
-                src0_row, src0_write_cache_ptr, src1_row, src1_write_cache_ptr, src_row_bytes)) {
+        if (!params->initiate_dma_row_transfer(src0_row, src0_write_cache_ptr, src1_row, src1_write_cache_ptr,
+                                               src_row_bytes)) {
             DEVICE_LOG_ERROR("element_wise_op: failed to initiate dma transfer\n");
             return false;
         }
@@ -162,16 +161,15 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
                 src0_ptr + i03_next * src0->get_nb(3) + i02_next * src0->get_nb(2) + i01_next * src0->get_nb(1);
             auto * src1_next_row =
                 src1_ptr + i13_next * src1->get_nb(3) + i12_next * src1->get_nb(2) + i11_next * src1->get_nb(1);
-            if (!params->initiate_dma_row_transfer(
-                    src0_next_row, src0_write_cache_ptr, src1_next_row, src1_write_cache_ptr, src_row_bytes)) {
+            if (!params->initiate_dma_row_transfer(src0_next_row, src0_write_cache_ptr, src1_next_row,
+                                                   src1_write_cache_ptr, src_row_bytes)) {
                 DEVICE_LOG_ERROR("element_wise_op: failed to continue DMA transfer\n");
                 return false;
             }
         }
 
         _RowFunc(reinterpret_cast<const data_type *>(src0_read_cache_ptr),
-                 reinterpret_cast<const data_type *>(src1_read_cache_ptr),
-                 reinterpret_cast<data_type *>(dst_row),
+                 reinterpret_cast<const data_type *>(src1_read_cache_ptr), reinterpret_cast<data_type *>(dst_row),
                  static_cast<size_t>(out->get_ne(0)));
     }
 
@@ -197,31 +195,27 @@ bool is_element_wise_op_supported(const npu_device_tensor_op_spec * op_spec,
     const auto & src0 = srcs[0];
     const auto & src1 = srcs[1];
     if (dst->type != src0.type || dst->type != src1.type) {
-        DEVICE_LOG_DEBUG("[%s]src0.type and dst.type mismatch: %s vs %s\n",
-                         hexagon::op_get_name(op),
-                         hexagon::get_type_name(src0.type),
-                         hexagon::get_type_name(dst->type));
+        DEVICE_LOG_DEBUG("[%s]src0.type and dst.type mismatch: %s vs %s\n", hexagon::op_get_name(op),
+                         hexagon::get_type_name(src0.type), hexagon::get_type_name(dst->type));
         return false;
     }
 
     if (dst->type != NPU_DATA_TYPE_F32 && dst->type != NPU_DATA_TYPE_F16) {
-        DEVICE_LOG_DEBUG(
-            "[%s]unsupported data type: %s\n", hexagon::op_get_name(op), hexagon::get_type_name(dst->type));
+        DEVICE_LOG_DEBUG("[%s]unsupported data type: %s\n", hexagon::op_get_name(op),
+                         hexagon::get_type_name(dst->type));
         return false;
     }
 
     // TODO: fix FP16 add/sub
     if (dst->type == NPU_DATA_TYPE_F16 && op != NPU_OP_MUL) {
-        DEVICE_LOG_DEBUG(
-            "[%s]unsupported data type: %s\n", hexagon::op_get_name(op), hexagon::get_type_name(dst->type));
+        DEVICE_LOG_DEBUG("[%s]unsupported data type: %s\n", hexagon::op_get_name(op),
+                         hexagon::get_type_name(dst->type));
         return false;
     }
 
     if (src0.ne[0] != src1.ne[0]) {
-        DEVICE_LOG_DEBUG("[%s]src0.ne[0] and src1.ne[0] not match: %ld vs %ld\n",
-                         hexagon::op_get_name(op),
-                         (long) src0.ne[0],
-                         (long) src1.ne[0]);
+        DEVICE_LOG_DEBUG("[%s]src0.ne[0] and src1.ne[0] not match: %ld vs %ld\n", hexagon::op_get_name(op),
+                         (long) src0.ne[0], (long) src1.ne[0]);
         return false;
     }
 
@@ -270,7 +264,7 @@ void rms_norm_vec_f32(const float * src, float * dst, size_t count, float eps) {
             (leftover_bytes + hexagon::unaligned_bytes(src_vec_ptr) > hexagon::kBytesPerVector) ? *src_vec_ptr : prev;
         curr = Q6_V_valign_VVR(curr, prev, (size_t) src);
         sum  = Q6_Vqf32_vadd_Vqf32Vqf32(sum,
-                                       Q6_V_valign_VVR(Q6_Vqf32_vmpy_VsfVsf(curr, curr), Q6_V_vzero(), leftover_bytes));
+                                        Q6_V_valign_VVR(Q6_Vqf32_vmpy_VsfVsf(curr, curr), Q6_V_vzero(), leftover_bytes));
     }
 
     const float mean  = hexagon::vec_reduction_f32_qf32(sum) / count;  // TODO: figure out how to do division in vector
@@ -295,8 +289,7 @@ template <auto _RowFunc> bool unary_op(hexagon::tensor * out, hexagon::compute_p
 
     auto * dst_ptr = out->get_write_buffer();
     if (!dst_ptr) {
-        DEVICE_LOG_ERROR("unary_op: dst_ptr is not writable, tensor: %p, type: %s\n",
-                         (void *) out,
+        DEVICE_LOG_ERROR("unary_op: dst_ptr is not writable, tensor: %p, type: %s\n", (void *) out,
                          hexagon::get_type_name(out->get_type()));
         return false;
     }
@@ -324,10 +317,8 @@ template <auto _RowFunc> bool unary_op(hexagon::tensor * out, hexagon::compute_p
             hexagon::l2fetch_row(src0_row + src0->get_nb(1), valid_row_bytes);
         }
 
-        _RowFunc(reinterpret_cast<const data_type *>(src0_row),
-                 reinterpret_cast<data_type *>(dst_row),
-                 static_cast<size_t>(out->get_ne(0)),
-                 param);
+        _RowFunc(reinterpret_cast<const data_type *>(src0_row), reinterpret_cast<data_type *>(dst_row),
+                 static_cast<size_t>(out->get_ne(0)), param);
     }
 
     out->release_write_buffer();  // mark the output tensor as modified
@@ -351,16 +342,14 @@ bool is_unary_op_supported(const npu_device_tensor_op_spec * op_spec,
 
     const auto & src0 = srcs[0];
     if (dst->type != src0.type) {
-        DEVICE_LOG_DEBUG("[%s]src0.type and dst.type mismatch: %s vs %s\n",
-                         hexagon::op_get_name(op),
-                         hexagon::get_type_name(src0.type),
-                         hexagon::get_type_name(dst->type));
+        DEVICE_LOG_DEBUG("[%s]src0.type and dst.type mismatch: %s vs %s\n", hexagon::op_get_name(op),
+                         hexagon::get_type_name(src0.type), hexagon::get_type_name(dst->type));
         return false;
     }
 
     if (dst->type != NPU_DATA_TYPE_F32) {
-        DEVICE_LOG_DEBUG(
-            "[%s]unsupported data type: %s\n", hexagon::op_get_name(op), hexagon::get_type_name(dst->type));
+        DEVICE_LOG_DEBUG("[%s]unsupported data type: %s\n", hexagon::op_get_name(op),
+                         hexagon::get_type_name(dst->type));
         return false;
     }
 
@@ -469,7 +458,7 @@ compute_func_type get_compute_func(tensor * dst) {
 }
 
 bool requires_thread_barrier(npu_device_tensor_op op, npu_device_tensor_op next_op) {
-    if (op >= NPU_OP_COUNT || next_op >= NPU_OP_COUNT) {
+    if (op >= NPU_OP_COUNT) {
         return false;
     }
 
@@ -494,8 +483,8 @@ bool support_op(const npu_device_tensor_op_spec * op_spec,
     }
 
     if (get_compute_func_impl(op, dst->type) == nullptr) {
-        DEVICE_LOG_DEBUG(
-            "[%s]unsupported, get_compute_func failed, type: %s\n", op_get_name(op), get_type_name(dst->type));
+        DEVICE_LOG_DEBUG("[%s]unsupported, get_compute_func failed, type: %s\n", op_get_name(op),
+                         get_type_name(dst->type));
         return false;
     }
 

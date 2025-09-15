@@ -45,13 +45,12 @@ inline void batched_row_dot(const uint8_t * src0_plane,
         auto * src0_row = src0_plane + i0 * src0_nb1;
 
         // TODO: figure dst how to handle a entire row
-        auto res0 = _DotFunc(
-            reinterpret_cast<const data_type0 *>(src0_row), reinterpret_cast<const data_type1 *>(src1_row), src0_ne0);
+        auto res0 = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row),
+                             reinterpret_cast<const data_type1 *>(src1_row), src0_ne0);
 
         // TODO: figure dst how to handle a entire row
         auto res1 = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row + src0_nb1),
-                             reinterpret_cast<const data_type1 *>(src1_row),
-                             src0_ne0);
+                             reinterpret_cast<const data_type1 *>(src1_row), src0_ne0);
 
         {
             dst_row[i0]     = convert_vector<data_type1>::convert(res0);
@@ -65,9 +64,9 @@ inline void batched_row_dot(const uint8_t * src0_plane,
 
     if (i0 < actual_row_count) {
         auto * src0_row = src0_plane + i0 * src0_nb1;
-        auto   res      = _DotFunc(
-            reinterpret_cast<const data_type0 *>(src0_row), reinterpret_cast<const data_type1 *>(src1_row), src0_ne0);
-        dst_row[i0] = convert_vector<data_type1>::convert(res);
+        auto   res      = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row),
+                                   reinterpret_cast<const data_type1 *>(src1_row), src0_ne0);
+        dst_row[i0]     = convert_vector<data_type1>::convert(res);
     }
 }
 
@@ -107,12 +106,8 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
         DEVICE_LOG_DEBUG(
             "mul_mat_impl: no work to do, start_end_plane: (%lld, %lld), start_end_row: (%lld, %lld), "
             "start_end_element: (%lld, %lld)\n",
-            start_end_plane.first,
-            start_end_plane.second,
-            start_end_row.first,
-            start_end_row.second,
-            start_end_element.first,
-            start_end_element.second);
+            start_end_plane.first, start_end_plane.second, start_end_row.first, start_end_row.second,
+            start_end_element.first, start_end_element.second);
         return;
     }
 
@@ -134,9 +129,7 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
             DEVICE_LOG_ERROR(
                 "mul_mat_impl: failed to get VTCM cache for src0, size: %zu, src0_plane_slice_row_count: %zu, "
                 "src0_actual_row_size: %zu, will fallback to mem cache\n",
-                src0_plane_cache_size,
-                src0_plane_slice_row_count,
-                src0_actual_row_size);
+                src0_plane_cache_size, src0_plane_slice_row_count, src0_actual_row_size);
             return;
         }
     } else {
@@ -148,9 +141,7 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
             DEVICE_LOG_ERROR(
                 "mul_mat_impl: failed to get VTCM cache for src0, size: %zu, src0_plane_slice_row_count: %zu, "
                 "src0_actual_row_size: %zu, will fallback to mem cache\n",
-                src0_plane_cache_size,
-                src0_plane_slice_row_count,
-                src0_actual_row_size);
+                src0_plane_cache_size, src0_plane_slice_row_count, src0_actual_row_size);
             return;
         }
 
@@ -163,12 +154,9 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
         const int64_t next_row_count =
             std::min<int64_t>(src0_plane_slice_row_count,
                               start_end_element.second - start_end_element.first);  // number of rows in this slice
-        if (!params->initiate_dma_plane_transfer(src0_plane,
-                                                 src0_plane_write_cache_ptr,
+        if (!params->initiate_dma_plane_transfer(src0_plane, src0_plane_write_cache_ptr,
                                                  src0_actual_row_size,  // TODO: reduce to aligned valid_row0_bytes?
-                                                 next_row_count,
-                                                 src0_actual_row_size,
-                                                 src0_actual_row_size)) {
+                                                 next_row_count, src0_actual_row_size, src0_actual_row_size)) {
             DEVICE_LOG_ERROR("mul_mat_impl: failed to continue dma transfer for src0 plane\n");
             return;
         }
@@ -180,19 +168,10 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
         "[%d]mul_mat_impl src0_actual_row_size: %zu, src0_plane_slice_row_count: %zu, total_planes: %lld, "
         "start_end_plane: "
         "[%d,%d), start_end_row: [%d,%d), start_end_element: [%d,%d), is_quantized: %d, vtcm_mem: %p(%zu)\n",
-        (int) params->get_thread_index(),
-        src0_actual_row_size,
-        src0_plane_slice_row_count,
-        total_planes,
-        (int) start_end_plane.first,
-        (int) start_end_plane.second,
-        (int) start_end_row.first,
-        (int) start_end_row.second,
-        (int) start_end_element.first,
-        (int) start_end_element.second,
-        _IsSrcQuantized,
-        (void *) src0_plane_read_cache_ptr,
-        params->get_vtcm_quota_size());
+        (int) params->get_thread_index(), src0_actual_row_size, src0_plane_slice_row_count, total_planes,
+        (int) start_end_plane.first, (int) start_end_plane.second, (int) start_end_row.first,
+        (int) start_end_row.second, (int) start_end_element.first, (int) start_end_element.second, _IsSrcQuantized,
+        (void *) src0_plane_read_cache_ptr, params->get_vtcm_quota_size());
 
     const size_t valid_row1_bytes =
         src0->get_ne(0) * sizeof(data_type1);  // src0 and src1 should have the same element count in the 1st dimension
@@ -201,9 +180,7 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
     uint8_t * dst_ptr = dst->get_write_buffer();
     if (!dst_ptr) {
         DEVICE_LOG_ERROR("[%d]mul_mat_impl: dst_ptr is not writable, tensor: %p, type: %s\n",
-                         (int) params->get_thread_index(),
-                         (void *) dst,
-                         hexagon::get_type_name(dst->get_type()));
+                         (int) params->get_thread_index(), (void *) dst, hexagon::get_type_name(dst->get_type()));
         return;
     }
 
@@ -232,10 +209,8 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
                         }
 
                         auto * cached_row_ptr = src0_plane_read_cache_ptr + ir * src0_actual_row_size;
-                        dequantize_row_func(src0_row,
-                                            reinterpret_cast<hexagon::dequant_output_type *>(cached_row_ptr),
-                                            src0->get_ne(0),
-                                            dequant_table);
+                        dequantize_row_func(src0_row, reinterpret_cast<hexagon::dequant_output_type *>(cached_row_ptr),
+                                            src0->get_ne(0), dequant_table);
                     }
 
                     last_write_cached_plane_ptr = src0_plane;
@@ -271,12 +246,9 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
                 if (last_write_cached_plane_ptr != src0_next_plane) {
                     DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 0, dma);
                     if (!params->initiate_dma_plane_transfer(
-                            src0_next_plane,
-                            src0_plane_write_cache_ptr,
+                            src0_next_plane, src0_plane_write_cache_ptr,
                             src0_actual_row_size,  // TODO: reduce to aligned valid_row0_bytes?
-                            next_row_count,
-                            src0_actual_row_size,
-                            src0_actual_row_size)) {
+                            next_row_count, src0_actual_row_size, src0_actual_row_size)) {
                         DEVICE_LOG_ERROR("mul_mat_impl: failed to continue dma transfer for src0 plane\n");
                         return;
                     }
@@ -293,13 +265,8 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
                 DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 1, vec_dot);
                 auto * src1_row = src1_plane + i1 * src1->get_nb(1);
                 auto * dst_row  = reinterpret_cast<float *>(dst_plane + i1 * dst->get_nb(1)) + col_idx;
-                batched_row_dot<_DotFunc>(src0_plane_read_cache_ptr,
-                                          src0->get_ne(0),
-                                          src0_actual_row_size,
-                                          src1_row,
-                                          src1->get_nb(1),
-                                          dst_row,
-                                          actual_row_count,
+                batched_row_dot<_DotFunc>(src0_plane_read_cache_ptr, src0->get_ne(0), src0_actual_row_size, src1_row,
+                                          src1->get_nb(1), dst_row, actual_row_count,
                                           (ip + 1 < start_end_plane.second) ? valid_row1_bytes : 0);
             }
         }
@@ -329,10 +296,7 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
         start_end_element = params->get_work_slice(dst->get_ne(0));
     } else {
         DEVICE_LOG_ERROR("Unsupported src1 tensor shape for gemv: %s, ne: %lldx%lldx%lldx%lld\n",
-                         hexagon::get_type_name(src1->get_type()),
-                         src1->get_ne(0),
-                         src1->get_ne(1),
-                         src1->get_ne(2),
+                         hexagon::get_type_name(src1->get_type()), src1->get_ne(0), src1->get_ne(1), src1->get_ne(2),
                          src1->get_ne(3));
         return;
     }
@@ -341,8 +305,7 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
         DEVICE_LOG_DEBUG(
             "mul_mat_gemv_impl: no work to do, start_end_plane: [0, 1), start_end_row: [0, 1), "
             "start_end_element: [%lld, %lld)\n",
-            start_end_element.first,
-            start_end_element.second);
+            start_end_element.first, start_end_element.second);
         return;
     }
 
@@ -365,9 +328,7 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
             DEVICE_LOG_ERROR(
                 "mul_mat_gemv_impl: failed to get VTCM cache for src0, size: %zu, src0_plane_slice_row_count: %zu, "
                 "src0_actual_row_size: %zu, will fallback to mem cache\n",
-                src0_plane_cache_size,
-                src0_plane_slice_row_count,
-                src0_actual_row_size);
+                src0_plane_cache_size, src0_plane_slice_row_count, src0_actual_row_size);
             return;
         }
 
@@ -390,18 +351,14 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
     DEVICE_LOG_DEBUG(
         "mul_mat_gemv_impl: src0_actual_row_size: %zu, src0_plane_slice_row_count: %zu, is_quantized: %d, vtcm_mem: "
         "%p(%zu)\n",
-        src0_actual_row_size,
-        src0_plane_slice_row_count,
-        _IsSrcQuantized,
-        (void *) src0_plane_read_cache_ptr,
+        src0_actual_row_size, src0_plane_slice_row_count, _IsSrcQuantized, (void *) src0_plane_read_cache_ptr,
         src0_plane_cache_size);
 
     DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_WITH_MULTI_SUB_PROC(dst, params->get_thread_index(), mul_mat);
 
     uint8_t * dst_ptr = dst->get_write_buffer();
     if (!dst_ptr) {
-        DEVICE_LOG_ERROR("mul_mat_gemv_impl: dst_ptr is not writable, tensor: %p, type: %s\n",
-                         (void *) dst,
+        DEVICE_LOG_ERROR("mul_mat_gemv_impl: dst_ptr is not writable, tensor: %p, type: %s\n", (void *) dst,
                          hexagon::get_type_name(dst->get_type()));
         return;
     }
@@ -421,12 +378,8 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
                 std::min<int64_t>(src0_plane_slice_row_count,
                                   start_end_element.second - start_end_element.first);  // number of rows in this slice
             params->wait_for_dma();
-            if (!params->initiate_dma_plane_transfer(src0_plane,
-                                                     src0_plane_write_cache_ptr,
-                                                     valid_row0_bytes,
-                                                     next_row_count,
-                                                     src0_actual_row_size,
-                                                     src0_actual_row_size)) {
+            if (!params->initiate_dma_plane_transfer(src0_plane, src0_plane_write_cache_ptr, valid_row0_bytes,
+                                                     next_row_count, src0_actual_row_size, src0_actual_row_size)) {
                 DEVICE_LOG_ERROR("mul_mat_gemv_impl: failed to initiate dma transfer for src0 plane\n");
                 return;
             }
@@ -452,10 +405,8 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
                     }
 
                     auto * cached_row_ptr = src0_plane_read_cache_ptr + ir * src0_actual_row_size;
-                    dequantize_row_func(src0_row,
-                                        reinterpret_cast<hexagon::dequant_output_type *>(cached_row_ptr),
-                                        src0->get_ne(0),
-                                        dequant_table);
+                    dequantize_row_func(src0_row, reinterpret_cast<hexagon::dequant_output_type *>(cached_row_ptr),
+                                        src0->get_ne(0), dequant_table);
                 }
             } else {
                 DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 0, dma);
@@ -468,11 +419,8 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
                     const int64_t   next_row_count =
                         std::min<int64_t>(src0_plane_slice_row_count,
                                           start_end_element.second - next_col_idx);  // number of rows in this slice
-                    if (!params->initiate_dma_plane_transfer(src0_next_plane,
-                                                             src0_plane_write_cache_ptr,
-                                                             valid_row0_bytes,
-                                                             next_row_count,
-                                                             src0_actual_row_size,
+                    if (!params->initiate_dma_plane_transfer(src0_next_plane, src0_plane_write_cache_ptr,
+                                                             valid_row0_bytes, next_row_count, src0_actual_row_size,
                                                              src0_actual_row_size)) {
                         DEVICE_LOG_ERROR("mul_mat_gemv_impl: failed to continue dma transfer for src0 plane\n");
                         return;
@@ -483,14 +431,8 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
             {
                 DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 1, vec_dot);
                 auto * dst_row = reinterpret_cast<float *>(dst_ptr) + col_idx;
-                batched_row_dot<_DotFunc>(src0_plane_read_cache_ptr,
-                                          src0->get_ne(0),
-                                          src0_actual_row_size,
-                                          src1_row_cache_ptr,
-                                          src1->get_nb(1),
-                                          dst_row,
-                                          actual_row_count,
-                                          0);
+                batched_row_dot<_DotFunc>(src0_plane_read_cache_ptr, src0->get_ne(0), src0_actual_row_size,
+                                          src1_row_cache_ptr, src1->get_nb(1), dst_row, actual_row_count, 0);
             }
         }
     }
@@ -515,9 +457,7 @@ bool is_src_cacheable(const npu_device_tensor_spec & src0, const npu_device_tens
     min_cache_size += src0.ne[0] * src0_type_size;
     if (min_cache_size > vtcm_thread_quota_size) {
         DEVICE_LOG_DEBUG("[MUL_MAT]src0.type(%s) min_cache_size is too large: %ld, vtcm_thread_quota_size: %zu\n",
-                         hexagon::get_type_name(src0.type),
-                         (long) min_cache_size,
-                         vtcm_thread_quota_size);
+                         hexagon::get_type_name(src0.type), (long) min_cache_size, vtcm_thread_quota_size);
         return false;
     }
 
@@ -527,22 +467,20 @@ bool is_src_cacheable(const npu_device_tensor_spec & src0, const npu_device_tens
 bool is_quantized_mul_mat_supported(const npu_device_tensor_spec & src0, const npu_device_tensor_spec & src1) {
     if (src1.type != NPU_DATA_TYPE_F32 && src1.type != NPU_DATA_TYPE_F16) {
         DEVICE_LOG_DEBUG("[MUL_MAT]src0.type(%s) and src1.type(%s) mismatch and src1 is not F32\n",
-                         hexagon::get_type_name(src0.type),
-                         hexagon::get_type_name(src1.type));
+                         hexagon::get_type_name(src0.type), hexagon::get_type_name(src1.type));
         return false;
     }
 
     const auto type_traits = hexagon::get_type_traits(src0.type);
     if (!type_traits.is_quantized || type_traits.to_float == nullptr) {
         DEVICE_LOG_DEBUG("[MUL_MAT]src0.type(%s) and src1.type(%s) mismatch and src0 is not quantized\n",
-                         hexagon::get_type_name(src0.type),
-                         hexagon::get_type_name(src1.type));
+                         hexagon::get_type_name(src0.type), hexagon::get_type_name(src1.type));
         return false;
     }
 
     if (src0.ne[0] % type_traits.blck_size) {
-        DEVICE_LOG_DEBUG(
-            "[MUL_MAT]src0.type(%s) ne[0] is not aligned: %ld\n", hexagon::get_type_name(src0.type), (long) src0.ne[0]);
+        DEVICE_LOG_DEBUG("[MUL_MAT]src0.type(%s) ne[0] is not aligned: %ld\n", hexagon::get_type_name(src0.type),
+                         (long) src0.ne[0]);
         return false;
     }
 
@@ -551,8 +489,7 @@ bool is_quantized_mul_mat_supported(const npu_device_tensor_spec & src0, const n
     }
 
     DEVICE_LOG_DEBUG("[MUL_MAT]supported quantized src0.type(%s) and src1.type(%s)\n",
-                     hexagon::get_type_name(src0.type),
-                     hexagon::get_type_name(src1.type));
+                     hexagon::get_type_name(src0.type), hexagon::get_type_name(src1.type));
     return true;
 }
 
@@ -695,8 +632,8 @@ bool mul_mat_f32(hexagon::tensor * out, compute_params * params) {
                 kMulMatF16F32Funcs[is_mul_mat_f16_f32_src_tensors_aligned(src0, src1, true, is_gemv) + base_index](
                     src0, src1, out, params);
             } else {
-                kMulMatF32F32Funcs[is_mul_mat_f32_f32_src_tensors_aligned(src0, src1) + base_index](
-                    src0, src1, out, params);
+                kMulMatF32F32Funcs[is_mul_mat_f32_f32_src_tensors_aligned(src0, src1) + base_index](src0, src1, out,
+                                                                                                    params);
             }
             return true;
         case NPU_DATA_TYPE_F16:
@@ -742,9 +679,7 @@ bool is_mul_mat_supported(const npu_device_tensor_op_spec * op_spec,
         if (src1.type == NPU_DATA_TYPE_F32 && src0.type == NPU_DATA_TYPE_F16) {
             // F16 * F32 is supported
             DEVICE_LOG_DEBUG("[%s]src0.type(%s) and src1.type(%s) mismatch, but src0 is F16 and src1 is F32\n",
-                             op_get_name(op),
-                             get_type_name(src0.type),
-                             get_type_name(src1.type));
+                             op_get_name(op), get_type_name(src0.type), get_type_name(src1.type));
         } else {
 #ifdef GGML_HEXAGON_ENABLE_QUANTIZED_TENSORS
             if (!is_quantized_mul_mat_supported(src0, src1)) {
@@ -752,9 +687,7 @@ bool is_mul_mat_supported(const npu_device_tensor_op_spec * op_spec,
             }
 #else
             DEVICE_LOG_DEBUG("[%s]src0.type(%s) and src1.type(%s) mismatch and quantized tensors are not supported\n",
-                             op_get_name(op),
-                             get_type_name(src0.type),
-                             get_type_name(src1.type));
+                             op_get_name(op), get_type_name(src0.type), get_type_name(src1.type));
             return false;
 #endif
         }
@@ -767,38 +700,26 @@ bool is_mul_mat_supported(const npu_device_tensor_op_spec * op_spec,
     }
 
     if (src0.ne[0] != src1.ne[0] || src0.ne[1] != dst->ne[0]) {
-        DEVICE_LOG_DEBUG("[%s]src0 and src1 cannot multiply: %ldx%ld vs %ldx%ld\n",
-                         op_get_name(op),
-                         (long) src0.ne[0],
-                         (long) src0.ne[1],
-                         (long) src1.ne[0],
-                         (long) src1.ne[1]);
+        DEVICE_LOG_DEBUG("[%s]src0 and src1 cannot multiply: %ldx%ld vs %ldx%ld\n", op_get_name(op), (long) src0.ne[0],
+                         (long) src0.ne[1], (long) src1.ne[0], (long) src1.ne[1]);
         return false;
     }
 
     if (src1.ne[1] != dst->ne[1] || src1.ne[2] != dst->ne[2] || src1.ne[3] != dst->ne[3]) {
-        DEVICE_LOG_DEBUG("[%s]src1 and dst dimensions not match: %ldx%ld vs %ldx%ld\n",
-                         op_get_name(op),
-                         (long) src1.ne[2],
-                         (long) src1.ne[3],
-                         (long) dst->ne[2],
-                         (long) dst->ne[3]);
+        DEVICE_LOG_DEBUG("[%s]src1 and dst dimensions not match: %ldx%ld vs %ldx%ld\n", op_get_name(op),
+                         (long) src1.ne[2], (long) src1.ne[3], (long) dst->ne[2], (long) dst->ne[3]);
         return false;
     }
 
     if (src1.ne[2] % src0.ne[2] || src1.ne[3] % src0.ne[3]) {
-        DEVICE_LOG_DEBUG("[%s]src0 cannot broadcast to src1: %ldx%ld vs %ldx%ld\n",
-                         op_get_name(op),
-                         (long) src0.ne[2],
-                         (long) src0.ne[3],
-                         (long) src1.ne[2],
-                         (long) src1.ne[3]);
+        DEVICE_LOG_DEBUG("[%s]src0 cannot broadcast to src1: %ldx%ld vs %ldx%ld\n", op_get_name(op), (long) src0.ne[2],
+                         (long) src0.ne[3], (long) src1.ne[2], (long) src1.ne[3]);
         return false;
     }
 
     if (src1.ne[1] == 1 && src1.ne[2] == 1 && src1.ne[3] == 1 && dst->ne[0] < hexagon::kMaxThreadCount) {
-        DEVICE_LOG_DEBUG(
-            "[%s]src1 is scalar and dst cannot be parallelized: %ld\n", op_get_name(op), (long) dst->ne[0]);
+        DEVICE_LOG_DEBUG("[%s]src1 is scalar and dst cannot be parallelized: %ld\n", op_get_name(op),
+                         (long) dst->ne[0]);
         return false;
     }
 
