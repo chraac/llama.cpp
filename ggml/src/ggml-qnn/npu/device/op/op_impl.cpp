@@ -233,6 +233,11 @@ bool is_element_wise_op_supported(const npu_device_tensor_op_spec * op_spec,
     return true;
 }
 
+bool is_element_wise_op_required_sync(const npu_device_tensor_op op, const npu_device_tensor_op next_op) {
+    NPU_UNUSED(op);
+    return next_op == NPU_OP_MUL_MAT;
+}
+
 void rms_norm_vec_f32(const float * src, float * dst, size_t count, float eps) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(float);
 
@@ -367,70 +372,71 @@ bool is_unary_op_supported(const npu_device_tensor_op_spec * op_spec,
     return true;
 }
 
+bool is_unary_op_required_sync(const npu_device_tensor_op op, const npu_device_tensor_op next_op) {
+    NPU_UNUSED(op);
+    return next_op == NPU_OP_MUL_MAT;
+}
+
 struct op_capabilities {
-    npu_device_tensor_op               op;
-    hexagon::op_is_supported_func_type is_supported;
-    hexagon::compute_func_type         compute_funcs[NPU_DATA_TYPE_COUNT];
-    bool                               requires_thread_barrier = false;
+    npu_device_tensor_op                op;
+    hexagon::op_is_supported_func_type  is_supported;
+    hexagon::op_required_sync_func_type requires_thread_barrier_func;
+    hexagon::compute_func_type          compute_funcs[NPU_DATA_TYPE_COUNT];
 };
 
 constexpr const op_capabilities kOpCapabilities[] = {
     {
-     NPU_OP_MUL_MAT, hexagon::is_mul_mat_supported,
+     NPU_OP_MUL_MAT,                   hexagon::is_mul_mat_supported,
+     hexagon::is_mul_mat_required_sync,
      {
             hexagon::mul_mat_f32,  // NPU_DATA_TYPE_F32
             nullptr,               // NPU_DATA_TYPE_F16
-        }, true,                      // requires_thread_barrier
-    },
+        }, },
     {
-     NPU_OP_ADD, is_element_wise_op_supported,
-     {
+     NPU_OP_ADD,                               is_element_wise_op_supported,
+     is_element_wise_op_required_sync,                                     {
             element_wise_op<vec_op_f32_f32<vadd_f32_f32>>,  // NPU_DATA_TYPE_F32
             element_wise_op<vec_op_f16_f16<vadd_f16_f16>>,  // NPU_DATA_TYPE_F16
-        }, false,
-     },
+        }, },
     {
      NPU_OP_SUB, is_element_wise_op_supported,
-     {
+     is_element_wise_op_required_sync, {
             element_wise_op<vec_op_f32_f32<vsub_f32_f32>>,  // NPU_DATA_TYPE_F32
             element_wise_op<vec_op_f16_f16<vsub_f16_f16>>,  // NPU_DATA_TYPE_F16
-        }, false,
-     },
+        }, },
     {
-     NPU_OP_MUL, is_element_wise_op_supported,
-     {
+     NPU_OP_MUL,                       is_element_wise_op_supported,
+     is_element_wise_op_required_sync,               {
             element_wise_op<vec_op_f32_f32<vmul_f32_f32>>,  // NPU_DATA_TYPE_F32
             element_wise_op<vec_op_f16_f16<vmul_f16_f16>>,  // NPU_DATA_TYPE_F16
-        }, true,                                               // TODO: should we avoid using thread barrier?
-    },
+        }, },
     {
-     NPU_OP_RMS_NORM, is_unary_op_supported,
-     {
+     NPU_OP_RMS_NORM,                               is_unary_op_supported,
+     is_unary_op_required_sync,                                     {
             unary_op<rms_norm_vec_f32>,  // NPU_DATA_TYPE_F32
             nullptr,                     // NPU_DATA_TYPE_F16
-        }, false,
-     },
+        }, },
     {
      NPU_OP_FLASH_ATTN, hexagon::is_flash_attn_supported,
+     hexagon::is_flash_attn_required_sync,
      {
             hexagon::flash_attn_f32,  // NPU_DATA_TYPE_F32
             nullptr,                  // NPU_DATA_TYPE_F16
-        }, true,                         // requires_thread_barrier
-    },
+        }, },
     {
-     NPU_OP_ROPE, hexagon::is_rope_supported,
+     NPU_OP_ROPE,                  hexagon::is_rope_supported,
+     hexagon::is_rope_required_sync,
      {
             hexagon::rope_f32,  // NPU_DATA_TYPE_F32
             nullptr,            // NPU_DATA_TYPE_F16
-        }, false,
-     },
+        }, },
     {
-     NPU_OP_GLU, hexagon::is_glu_op_supported,
+     NPU_OP_GLU,                               hexagon::is_glu_op_supported,
+     hexagon::is_glu_required_sync,
      {
             hexagon::glu_f32,  // NPU_DATA_TYPE_F32
             hexagon::glu_f16,  // NPU_DATA_TYPE_F16
-        }, true,                  // TODO: should we avoid using thread barrier?
-    },
+        }, },
 };
 
 static_assert(kOpCapabilities[NPU_OP_MUL_MAT].compute_funcs[NPU_DATA_TYPE_F32] == hexagon::mul_mat_f32,
@@ -462,12 +468,13 @@ compute_func_type get_compute_func(tensor * dst) {
     return get_compute_func_impl(dst->get_op(), dst->get_type());
 }
 
-bool requires_thread_barrier(npu_device_tensor_op op) {
-    if (op >= NPU_OP_COUNT) {
+bool requires_thread_barrier(npu_device_tensor_op op, npu_device_tensor_op next_op) {
+    if (op >= NPU_OP_COUNT || next_op >= NPU_OP_COUNT) {
         return false;
     }
 
-    return kOpCapabilities[op].requires_thread_barrier;
+    auto requires_thread_barrier_func = kOpCapabilities[op].requires_thread_barrier_func;
+    return requires_thread_barrier_func && requires_thread_barrier_func(op, next_op);
 }
 
 bool support_op(const npu_device_tensor_op_spec * op_spec,

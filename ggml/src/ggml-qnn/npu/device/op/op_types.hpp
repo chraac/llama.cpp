@@ -83,5 +83,6 @@ typedef bool (*op_is_supported_func_type)(const npu_device_tensor_op_spec * op_s
                                           const npu_device_tensor_spec *    dst,
                                           const npu_device_tensor_spec *    srcs,
                                           size_t                            src_len);
+typedef bool (*op_required_sync_func_type)(const npu_device_tensor_op op, const npu_device_tensor_op next_op);
 
 }  // namespace hexagon
