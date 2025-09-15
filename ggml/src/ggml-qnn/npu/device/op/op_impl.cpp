@@ -108,8 +108,8 @@ template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::co
         return false;
     }
 
-    const uint8_t * src0_ptr      = src0->get_read_buffer();
-    const uint8_t * src1_ptr      = src1->get_read_buffer();
+    const uint8_t * src0_ptr      = src0->get_read_buffer(true);  // TODO: avoid invalidation
+    const uint8_t * src1_ptr      = src1->get_read_buffer(true);  // TODO: avoid invalidation
     const auto      rows_per_cube = out->get_ne(2) * out->get_ne(1);
 
     uint8_t * src0_read_cache_ptr  = src_cache_ptr;
