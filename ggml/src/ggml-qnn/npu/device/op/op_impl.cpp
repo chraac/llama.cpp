@@ -401,8 +401,8 @@ constexpr const op_capabilities kOpCapabilities[] = {
      {
             element_wise_op<vec_op_f32_f32<vmul_f32_f32>>,  // NPU_DATA_TYPE_F32
             element_wise_op<vec_op_f16_f16<vmul_f16_f16>>,  // NPU_DATA_TYPE_F16
-        }, false,
-     },
+        }, true,                                               // TODO: should we avoid using thread barrier?
+    },
     {
      NPU_OP_RMS_NORM, is_unary_op_supported,
      {
