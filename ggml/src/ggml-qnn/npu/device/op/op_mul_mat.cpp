@@ -111,7 +111,7 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
         return;
     }
 
-    const uint8_t * src0_ptr = src0->get_read_buffer(true);
+    const uint8_t * src0_ptr = src0->get_read_buffer(true);  // TODO: avoid invalidation
 
     // cache the src0 plane in VTCM
     size_t          src0_plane_slice_row_count  = start_end_element.second - start_end_element.first;
@@ -309,7 +309,7 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
         return;
     }
 
-    const uint8_t * src0_ptr         = src0->get_read_buffer(true);
+    const uint8_t * src0_ptr         = src0->get_read_buffer(true);  // TODO: avoid invalidation
     const size_t    valid_row0_bytes = src0->get_ne(0) * sizeof(data_type0);
 
     // cache the src0 plane in VTCM
