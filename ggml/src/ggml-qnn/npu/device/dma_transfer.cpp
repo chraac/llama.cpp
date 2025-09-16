@@ -179,6 +179,6 @@ bool dma_transfer::submit_impl(void ** desc_batch, int batch_len) {
     return succ;
 }
 
-qurt_mutex dma_transfer::_dma_desc_mutex = {};
+qurt_mutex dma_transfer::_dma_desc_mutex;
 
 }  // namespace hexagon::dma
