@@ -11,6 +11,14 @@ class dma_transfer {
     dma_transfer();
     ~dma_transfer();
 
+    /**
+     * Submits a 1D DMA transfer.
+     *
+     * Limitations:
+     *   - The maximum supported transfer size is kMaxDmaTransferSize (DESC_LENGTH_MASK, 24bit).
+     *   - Transfers larger than this size are not supported and will fail.
+     *   - Large transfers must be split into multiple smaller transfers by the caller.
+     */
     bool submit1d(const uint8_t * src, uint8_t * dst, size_t size);
     bool submit1d(const uint8_t * src0, uint8_t * dst0, const uint8_t * src1, uint8_t * dst1, size_t size);
     bool submit2d(const uint8_t * src,
