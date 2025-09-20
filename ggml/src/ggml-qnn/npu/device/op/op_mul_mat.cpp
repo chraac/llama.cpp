@@ -313,18 +313,16 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
     const size_t    valid_src0_row_bytes = _IsSrcQuantized ? src0->get_ne(1) : (src0->get_ne(0) * sizeof(data_type0));
 
     // cache the src0 plane in VTCM
-    size_t     src0_plane_slice_row_count    = start_end_element.second - start_end_element.first;
-    size_t     src0_plane_cache_size         = 0;
-    uint8_t *  src0_plane_read_cache_ptr     = nullptr;
-    uint8_t *  src0_plane_write_cache_ptr    = nullptr;
-    size_t     src0_plane_write_cache_offset = 0;
-    const auto src1_actual_row_size          = hexagon::get_aligned_size(src1->get_nb(1));
-    uint8_t *  src1_row_cache_ptr            = nullptr;
+    const size_t src1_actual_row_size = hexagon::get_aligned_size(src1->get_nb(1));
+    const size_t src0_plane_slice_row_count =
+        std::min((params->get_vtcm_quota_size() - src1_actual_row_size) / (src0_actual_row_size * 2),
+                 size_t(start_end_element.second - start_end_element.first));
+    const size_t src0_plane_cache_size         = src0_actual_row_size * src0_plane_slice_row_count;
+    uint8_t *    src0_plane_read_cache_ptr     = nullptr;
+    uint8_t *    src0_plane_write_cache_ptr    = nullptr;
+    size_t       src0_plane_write_cache_offset = 0;
+    uint8_t *    src1_row_cache_ptr            = nullptr;
     if constexpr (_IsSrcQuantized) {
-        src0_plane_slice_row_count =
-            std::min((params->get_vtcm_quota_size() - src1_actual_row_size) / (src0_actual_row_size * 2),
-                     src0_plane_slice_row_count);
-        src0_plane_cache_size     = src0_actual_row_size * src0_plane_slice_row_count;
         src0_plane_read_cache_ptr = params->get_vtcm_cache(src0_plane_cache_size * 2 + src1_actual_row_size);
         if (src0_plane_read_cache_ptr == nullptr) {
             DEVICE_LOG_ERROR(
@@ -339,10 +337,6 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
         src0_plane_write_cache_offset =
             src0_plane_cache_size - hexagon::get_aligned_size(src0->get_nb(1) * src0_plane_slice_row_count);
     } else {
-        src0_plane_slice_row_count =
-            std::min((params->get_vtcm_quota_size() - src1_actual_row_size) / (src0_actual_row_size * 2),
-                     src0_plane_slice_row_count);
-        src0_plane_cache_size     = src0_actual_row_size * src0_plane_slice_row_count;
         src0_plane_read_cache_ptr = params->get_vtcm_cache(src0_plane_cache_size * 2 + src1_actual_row_size);
         if (src0_plane_read_cache_ptr == nullptr) {
             DEVICE_LOG_ERROR("mul_mat_gemv_impl: failed to get VTCM cache for src1, size: %zu\n", src1_actual_row_size);
@@ -378,7 +372,7 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
             return;
         }
 
-        const uint8_t * src0_plane = src0_ptr + start_end_element.first * src0_actual_row_size;
+        const uint8_t * src0_plane = src0_ptr + start_end_element.first * src0->get_nb(1);
         const int64_t   next_row_count =
             std::min<int64_t>(src0_plane_slice_row_count,
                               start_end_element.second - start_end_element.first);  // number of rows in this slice
