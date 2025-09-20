@@ -354,10 +354,11 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
     }
 
     DEVICE_LOG_DEBUG(
-        "mul_mat_gemv_impl: src0_actual_row_size: %zu, src0_plane_slice_row_count: %zu, is_quantized: %d, vtcm_mem: "
+        "mul_mat_gemv_impl: src0_actual_row_size: %zu, src0_plane_slice_row_count: %zu, src0_plane_write_cache_offset: "
+        "%zu, is_quantized: %d, vtcm_mem: "
         "%p(%zu)\n",
-        src0_actual_row_size, src0_plane_slice_row_count, _IsSrcQuantized, (void *) src0_plane_read_cache_ptr,
-        src0_plane_cache_size);
+        src0_actual_row_size, src0_plane_slice_row_count, src0_plane_write_cache_offset, _IsSrcQuantized,
+        (void *) src0_plane_read_cache_ptr, src0_plane_cache_size);
 
     DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_WITH_MULTI_SUB_PROC(dst, params->get_thread_index(), mul_mat);
 
