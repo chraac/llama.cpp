@@ -309,21 +309,23 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
         return;
     }
 
-    const uint8_t * src0_ptr         = src0->get_read_buffer(true);  // TODO: avoid invalidation
-    const size_t    valid_row0_bytes = src0->get_ne(0) * sizeof(data_type0);
+    const uint8_t * src0_ptr             = src0->get_read_buffer(true);  // TODO: avoid invalidation
+    const size_t    valid_src0_row_bytes = _IsSrcQuantized ? src0->get_ne(1) : (src0->get_ne(0) * sizeof(data_type0));
 
     // cache the src0 plane in VTCM
-    size_t     src0_plane_slice_row_count = start_end_element.second - start_end_element.first;
-    size_t     src0_plane_cache_size      = 0;
-    uint8_t *  src0_plane_read_cache_ptr  = nullptr;
-    uint8_t *  src0_plane_write_cache_ptr = nullptr;
-    const auto src1_actual_row_size       = hexagon::get_aligned_size(src1->get_nb(1));
-    uint8_t *  src1_row_cache_ptr         = nullptr;
+    size_t     src0_plane_slice_row_count    = start_end_element.second - start_end_element.first;
+    size_t     src0_plane_cache_size         = 0;
+    uint8_t *  src0_plane_read_cache_ptr     = nullptr;
+    uint8_t *  src0_plane_write_cache_ptr    = nullptr;
+    size_t     src0_plane_write_cache_offset = 0;
+    const auto src1_actual_row_size          = hexagon::get_aligned_size(src1->get_nb(1));
+    uint8_t *  src1_row_cache_ptr            = nullptr;
     if constexpr (_IsSrcQuantized) {
-        src0_plane_slice_row_count = std::min(
-            (params->get_vtcm_quota_size() - src1_actual_row_size) / src0_actual_row_size, src0_plane_slice_row_count);
+        src0_plane_slice_row_count =
+            std::min((params->get_vtcm_quota_size() - src1_actual_row_size) / (src0_actual_row_size * 2),
+                     src0_plane_slice_row_count);
         src0_plane_cache_size     = src0_actual_row_size * src0_plane_slice_row_count;
-        src0_plane_read_cache_ptr = params->get_vtcm_cache(src0_plane_cache_size + src1_actual_row_size);
+        src0_plane_read_cache_ptr = params->get_vtcm_cache(src0_plane_cache_size * 2 + src1_actual_row_size);
         if (src0_plane_read_cache_ptr == nullptr) {
             DEVICE_LOG_ERROR(
                 "mul_mat_gemv_impl: failed to get VTCM cache for src0, size: %zu, src0_plane_slice_row_count: %zu, "
@@ -332,7 +334,10 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
             return;
         }
 
-        src1_row_cache_ptr = src0_plane_read_cache_ptr + src0_plane_cache_size;
+        src0_plane_write_cache_ptr = src0_plane_read_cache_ptr + src0_plane_cache_size;
+        src1_row_cache_ptr         = src0_plane_write_cache_ptr + src0_plane_cache_size;
+        src0_plane_write_cache_offset =
+            src0_plane_cache_size - hexagon::get_aligned_size(src0->get_nb(1) * src0_plane_slice_row_count);
     } else {
         src0_plane_slice_row_count =
             std::min((params->get_vtcm_quota_size() - src1_actual_row_size) / (src0_actual_row_size * 2),
@@ -372,38 +377,46 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
             return;
         }
 
-        if constexpr (!_IsSrcQuantized) {
-            const uint8_t * src0_plane = src0_ptr + start_end_element.first * src0_actual_row_size;
-            const int64_t   next_row_count =
-                std::min<int64_t>(src0_plane_slice_row_count,
-                                  start_end_element.second - start_end_element.first);  // number of rows in this slice
-            params->wait_for_dma();
-            if (!params->initiate_dma_plane_transfer(src0_plane, src0_plane_write_cache_ptr, valid_row0_bytes,
-                                                     next_row_count, src0_actual_row_size, src0_actual_row_size)) {
-                DEVICE_LOG_ERROR("mul_mat_gemv_impl: failed to initiate dma transfer for src0 plane\n");
-                return;
-            }
-        } else {
-            params->wait_for_dma();
+        const uint8_t * src0_plane = src0_ptr + start_end_element.first * src0_actual_row_size;
+        const int64_t   next_row_count =
+            std::min<int64_t>(src0_plane_slice_row_count,
+                              start_end_element.second - start_end_element.first);  // number of rows in this slice
+        params->wait_for_dma();
+        if (!params->initiate_dma_plane_transfer(src0_plane, src0_plane_write_cache_ptr + src0_plane_write_cache_offset,
+                                                 valid_src0_row_bytes, next_row_count, src0->get_nb(1),
+                                                 src0->get_nb(1))) {
+            DEVICE_LOG_ERROR("mul_mat_gemv_impl: failed to initiate dma transfer for src0 plane\n");
+            return;
         }
     }
 
     {
         for (int64_t col_idx = start_end_element.first; col_idx < start_end_element.second;
              col_idx += src0_plane_slice_row_count) {
-            const uint8_t * src0_plane = src0_ptr + col_idx * src0->get_nb(1);
-            const int64_t   actual_row_count =
+            const int64_t actual_row_count =
                 std::min<int64_t>(src0_plane_slice_row_count,
                                   start_end_element.second - col_idx);  // number of rows in this slice
             if constexpr (_IsSrcQuantized) {
                 DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 0, dequant);
+                std::swap(src0_plane_read_cache_ptr, src0_plane_write_cache_ptr);
+                params->wait_for_dma();
+
+                const auto next_col_idx = col_idx + src0_plane_slice_row_count;
+                if (next_col_idx < start_end_element.second) {
+                    const uint8_t * src0_next_plane = src0_ptr + next_col_idx * src0->get_nb(1);
+                    const int64_t   next_row_count =
+                        std::min<int64_t>(src0_plane_slice_row_count,
+                                          start_end_element.second - next_col_idx);  // number of rows in this slice
+                    if (!params->initiate_dma_plane_transfer(
+                            src0_next_plane, src0_plane_write_cache_ptr + src0_plane_write_cache_offset,
+                            valid_src0_row_bytes, next_row_count, src0->get_nb(1), src0->get_nb(1))) {
+                        DEVICE_LOG_ERROR("mul_mat_gemv_impl: failed to continue dma transfer for src0 plane\n");
+                        return;
+                    }
+                }
 
                 for (int64_t ir = 0; ir < actual_row_count; ir++) {
-                    auto * src0_row = src0_plane + ir * src0->get_nb(1);
-                    if (ir + 1 < actual_row_count) {
-                        hexagon::l2fetch_row(src0_row + src0->get_nb(1), src0->get_nb(1));
-                    }
-
+                    auto * src0_row = src0_plane_read_cache_ptr + src0_plane_write_cache_offset + ir * src0->get_nb(1);
                     auto * cached_row_ptr = src0_plane_read_cache_ptr + ir * src0_actual_row_size;
                     dequantize_row_func(src0_row, reinterpret_cast<hexagon::dequant_output_type *>(cached_row_ptr),
                                         src0->get_ne(0), dequant_table);
@@ -419,9 +432,9 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
                     const int64_t   next_row_count =
                         std::min<int64_t>(src0_plane_slice_row_count,
                                           start_end_element.second - next_col_idx);  // number of rows in this slice
-                    if (!params->initiate_dma_plane_transfer(src0_next_plane, src0_plane_write_cache_ptr,
-                                                             valid_row0_bytes, next_row_count, src0_actual_row_size,
-                                                             src0_actual_row_size)) {
+                    if (!params->initiate_dma_plane_transfer(
+                            src0_next_plane, src0_plane_write_cache_ptr + src0_plane_write_cache_offset,
+                            valid_src0_row_bytes, next_row_count, src0_actual_row_size, src0_actual_row_size)) {
                         DEVICE_LOG_ERROR("mul_mat_gemv_impl: failed to continue dma transfer for src0 plane\n");
                         return;
                     }
