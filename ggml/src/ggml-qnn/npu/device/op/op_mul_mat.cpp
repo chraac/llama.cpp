@@ -317,14 +317,17 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
     const size_t src0_plane_slice_row_count =
         std::min((params->get_vtcm_quota_size() - src1_actual_row_size) / (src0_actual_row_size * 2),
                  size_t(start_end_element.second - start_end_element.first));
-    const size_t src0_plane_cache_size         = src0_actual_row_size * src0_plane_slice_row_count;
-    uint8_t *    src0_plane_read_cache_ptr     = nullptr;
-    uint8_t *    src0_plane_write_cache_ptr    = nullptr;
-    size_t       src0_plane_write_cache_offset = 0;
-    uint8_t *    src1_row_cache_ptr            = nullptr;
-    if constexpr (_IsSrcQuantized) {
-        src0_plane_read_cache_ptr = params->get_vtcm_cache(src0_plane_cache_size * 2 + src1_actual_row_size);
-        if (src0_plane_read_cache_ptr == nullptr) {
+
+    uint8_t * src0_plane_read_cache_ptr     = nullptr;
+    uint8_t * src0_plane_write_cache_ptr    = nullptr;
+    size_t    src0_plane_write_cache_offset = 0;
+    uint8_t * src1_row_cache_ptr            = nullptr;
+
+    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_WITH_MULTI_SUB_PROC(dst, params->get_thread_index(), mul_mat);
+    {
+        const size_t src0_plane_cache_size = src0_actual_row_size * src0_plane_slice_row_count;
+        src0_plane_read_cache_ptr          = params->get_vtcm_cache(src0_plane_cache_size * 2 + src1_actual_row_size);
+        if (!src0_plane_read_cache_ptr) {
             DEVICE_LOG_ERROR(
                 "mul_mat_gemv_impl: failed to get VTCM cache for src0, size: %zu, src0_plane_slice_row_count: %zu, "
                 "src0_actual_row_size: %zu, will fallback to mem cache\n",
@@ -334,27 +337,20 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
 
         src0_plane_write_cache_ptr = src0_plane_read_cache_ptr + src0_plane_cache_size;
         src1_row_cache_ptr         = src0_plane_write_cache_ptr + src0_plane_cache_size;
-        src0_plane_write_cache_offset =
-            src0_plane_cache_size - hexagon::get_aligned_size(src0->get_nb(1) * src0_plane_slice_row_count);
-    } else {
-        src0_plane_read_cache_ptr = params->get_vtcm_cache(src0_plane_cache_size * 2 + src1_actual_row_size);
-        if (src0_plane_read_cache_ptr == nullptr) {
-            DEVICE_LOG_ERROR("mul_mat_gemv_impl: failed to get VTCM cache for src1, size: %zu\n", src1_actual_row_size);
-            return;
+
+        if constexpr (_IsSrcQuantized) {
+            src0_plane_write_cache_offset =
+                src0_plane_cache_size - hexagon::get_aligned_size(src0->get_nb(1) * src0_plane_slice_row_count);
         }
 
-        src0_plane_write_cache_ptr = src0_plane_read_cache_ptr + src0_plane_cache_size;
-        src1_row_cache_ptr         = src0_plane_write_cache_ptr + src0_plane_cache_size;
+        DEVICE_LOG_DEBUG(
+            "mul_mat_gemv_impl: src0_actual_row_size: %zu, src0_plane_slice_row_count: %zu, "
+            "src0_plane_write_cache_offset: "
+            "%zu, is_quantized: %d, vtcm_mem: "
+            "%p(%zu)\n",
+            src0_actual_row_size, src0_plane_slice_row_count, src0_plane_write_cache_offset, _IsSrcQuantized,
+            (void *) src0_plane_read_cache_ptr, src0_plane_cache_size);
     }
-
-    DEVICE_LOG_DEBUG(
-        "mul_mat_gemv_impl: src0_actual_row_size: %zu, src0_plane_slice_row_count: %zu, src0_plane_write_cache_offset: "
-        "%zu, is_quantized: %d, vtcm_mem: "
-        "%p(%zu)\n",
-        src0_actual_row_size, src0_plane_slice_row_count, src0_plane_write_cache_offset, _IsSrcQuantized,
-        (void *) src0_plane_read_cache_ptr, src0_plane_cache_size);
-
-    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_WITH_MULTI_SUB_PROC(dst, params->get_thread_index(), mul_mat);
 
     uint8_t * dst_ptr = dst->get_write_buffer();
     if (!dst_ptr) {
