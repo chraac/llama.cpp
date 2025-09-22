@@ -339,8 +339,7 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
         src1_row_cache_ptr         = src0_plane_write_cache_ptr + src0_plane_cache_size;
 
         if constexpr (_IsSrcQuantized) {
-            src0_plane_write_cache_offset =
-                src0_plane_cache_size - hexagon::get_aligned_size(src0->get_nb(1) * src0_plane_slice_row_count);
+            src0_plane_write_cache_offset = src0_plane_cache_size - (src0->get_nb(1) * src0_plane_slice_row_count);
         }
 
         DEVICE_LOG_DEBUG(
@@ -396,17 +395,16 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
                 std::min<int64_t>(src0_plane_slice_row_count,
                                   start_end_element.second - col_idx);  // number of rows in this slice
             const auto next_col_idx = col_idx + src0_plane_slice_row_count;
+            std::swap(src0_plane_read_cache_ptr, src0_plane_write_cache_ptr);
             params->wait_for_dma();
 
             if constexpr (_IsSrcQuantized) {
                 DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 0, dequant);
-                std::swap(src0_plane_read_cache_ptr, src0_plane_write_cache_ptr);
                 if (next_col_idx < start_end_element.second) {
                     const uint8_t * src0_next_plane = src0_ptr + next_col_idx * src0->get_nb(1);
-                    const int64_t   next_row_count  = std::min<int64_t>(
-                        src0_plane_slice_row_count,
-                        start_end_element.second -
-                            next_col_idx);  // number of rows in this slice// number of rows in this slice
+                    const int64_t   next_row_count =
+                        std::min<int64_t>(src0_plane_slice_row_count,
+                                          start_end_element.second - next_col_idx);  // number of rows in this slice
                     if (!params->initiate_dma_row_transfer(src0_next_plane,
                                                            src0_plane_write_cache_ptr + src0_plane_write_cache_offset,
                                                            src0->get_nb(1) * next_row_count)) {
@@ -423,7 +421,6 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
                 }
             } else {
                 DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 0, dma);
-                std::swap(src0_plane_read_cache_ptr, src0_plane_write_cache_ptr);
                 if (next_col_idx < start_end_element.second) {
                     const uint8_t * src0_next_plane = src0_ptr + next_col_idx * src0_actual_row_size;
                     const int64_t   next_row_count =
