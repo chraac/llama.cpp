@@ -413,9 +413,8 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
 
             if (next_col_idx < start_end_element.second) {
                 DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 2, dma);
-                const uint8_t * src0_next_plane =
-                    src0_ptr + next_col_idx * (_IsSrcQuantized ? src0->get_nb(1) : src0_actual_row_size);
-                const int64_t next_row_count =
+                const uint8_t * src0_next_plane = src0_ptr + next_col_idx * src0->get_nb(1);
+                const int64_t   next_row_count =
                     std::min<int64_t>(src0_plane_slice_row_count,
                                       start_end_element.second - next_col_idx);  // number of rows in this slice
                 if (!init_dma_transfer<_IsSrcQuantized>(
