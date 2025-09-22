@@ -283,7 +283,7 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
             }
 
             for (int64_t i1 = start_end_row.first; i1 < start_end_row.second; i1++) {
-                DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 1, vec_dot);
+                DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 1, dot);
                 auto * src1_row = src1_plane + i1 * src1->get_nb(1);
                 auto * dst_row  = reinterpret_cast<float *>(dst_plane + i1 * dst->get_nb(1)) + col_idx;
                 batched_row_dot<_DotFunc>(src0_plane_read_cache_ptr, src0->get_ne(0), src0_actual_row_size, src1_row,
@@ -438,7 +438,7 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
             }
 
             {
-                DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 1, vec_dot);
+                DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 1, dot);
                 auto * dst_row = reinterpret_cast<float *>(dst_ptr) + col_idx;
                 batched_row_dot<_DotFunc>(src0_plane_read_cache_ptr, src0->get_ne(0), src0_actual_row_size,
                                           src1_row_cache_ptr, src1->get_nb(1), dst_row, actual_row_count, 0);
