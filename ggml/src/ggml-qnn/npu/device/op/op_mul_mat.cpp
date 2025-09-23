@@ -227,11 +227,6 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
                 std::min<int64_t>(src0_plane_slice_row_count,
                                   start_end_element.second - col_idx);  // number of rows in this slice
 
-            if (last_read_cached_plane_ptr != src0_plane) {
-                std::swap(src0_plane_read_cache_ptr, src0_plane_write_cache_ptr);
-                params->wait_for_dma();
-            }
-
             {
                 const uint8_t * src0_next_plane = last_write_cached_plane_ptr;
                 size_t          next_row_count  = 0;
@@ -250,6 +245,11 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
                     next_row_count  = std::min<size_t>(
                         src0_plane_slice_row_count,
                         start_end_element.second - start_end_element.first);  // number of rows in this slice
+                }
+
+                if (last_read_cached_plane_ptr != src0_plane) {
+                    std::swap(src0_plane_read_cache_ptr, src0_plane_write_cache_ptr);
+                    params->wait_for_dma();
                 }
 
                 if (last_write_cached_plane_ptr != src0_next_plane) {
