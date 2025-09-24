@@ -267,5 +267,3 @@ else()
 
     copy_binaries(hexagon_npu_skel)
 endif()
-
-# vim: set noet fenc=utf-8 ff=unix ft=cmake :
