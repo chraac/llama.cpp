@@ -143,8 +143,12 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
 
                                                              // cache the src0 plane in VTCM
     const size_t valid_src0_row_bytes = _IsSrcQuantized ? src0->get_nb(1) : (src0->get_ne(0) * sizeof(data_type0));
-    const size_t src0_plane_slice_row_count = std::min<size_t>(
-        params->get_vtcm_quota_size() / (src0_actual_row_size * 2), start_end_element.second - start_end_element.first);
+    const size_t src1_actual_row_size = hexagon::get_aligned_size(src1->get_nb(1));
+
+    // TODO: figure out why we have to add padding after src0 plane cache
+    const size_t src0_plane_slice_row_count =
+        std::min<size_t>((params->get_vtcm_quota_size() - src1_actual_row_size) / (src0_actual_row_size * 2),
+                         start_end_element.second - start_end_element.first);
     uint8_t *       src0_plane_read_cache_ptr     = nullptr;
     uint8_t *       src0_plane_write_cache_ptr    = nullptr;
     size_t          src0_plane_write_cache_offset = 0;
@@ -170,15 +174,14 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
 
         DEVICE_LOG_DEBUG(
             "[%d]mul_mat_impl, src0_actual_row_size:%zu, valid_src0_row_bytes:%zu, src_nb0:%zu, "
-            "src0_plane_slice_row_count:%zu, "
-            "total_planes:%lld, "
-            "start_end_plane:[%d,%d), start_end_row:[%d,%d), start_end_elem:[%d,%d), is_quant:%d, "
+            "slice_row_count:%zu, write_cache_offset: %zu, "
+            "total_planes:%lld, planes:[%d,%d), rows:[%d,%d), elems:[%d,%d), is_quant:%d, "
             "vtcm_mem:%p(%zu)\n",
             (int) params->get_thread_index(), src0_actual_row_size, valid_src0_row_bytes, (size_t) src0->get_nb(1),
-            src0_plane_slice_row_count, total_planes, (int) start_end_plane.first, (int) start_end_plane.second,
-            (int) start_end_row.first, (int) start_end_row.second, (int) start_end_element.first,
-            (int) start_end_element.second, _IsSrcQuantized, (void *) src0_plane_read_cache_ptr,
-            params->get_vtcm_quota_size());
+            src0_plane_slice_row_count, src0_plane_write_cache_offset, total_planes, (int) start_end_plane.first,
+            (int) start_end_plane.second, (int) start_end_row.first, (int) start_end_row.second,
+            (int) start_end_element.first, (int) start_end_element.second, _IsSrcQuantized,
+            (void *) src0_plane_read_cache_ptr, params->get_vtcm_quota_size());
     }
 
     {
@@ -338,8 +341,8 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
     // cache the src0 plane in VTCM
     const size_t src1_actual_row_size = hexagon::get_aligned_size(src1->get_nb(1));
     const size_t src0_plane_slice_row_count =
-        std::min((params->get_vtcm_quota_size() - src1_actual_row_size) / (src0_actual_row_size * 2),
-                 size_t(start_end_element.second - start_end_element.first));
+        std::min<size_t>((params->get_vtcm_quota_size() - src1_actual_row_size) / (src0_actual_row_size * 2),
+                         start_end_element.second - start_end_element.first);
 
     uint8_t * src0_plane_read_cache_ptr     = nullptr;
     uint8_t * src0_plane_write_cache_ptr    = nullptr;
