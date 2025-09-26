@@ -44,7 +44,7 @@ template <typename _TBlock> inline HVX_Vector load_block_generic(const _TBlock &
 }
 
 template <typename _TBlock> inline HVX_Vector make_scale_load_mask() {
-    static_assert(sizeof(_TBlock) < 32, "wrong block size/padding");
+    static_assert(sizeof(_TBlock) + sizeof(npu_device_fp16_t) < 32, "wrong block size/padding");
     static_assert(sizeof(_TBlock::qs) == 16 || sizeof(_TBlock::qs) == 32, "wrong quantization block size");
 
     constexpr const size_t kScaleBlockSize = QUANT_BLOCK_SIZE * sizeof(hexagon::dequant_output_type);
@@ -102,10 +102,9 @@ inline hexagon::HVX_Vector_x5 load_hexa_block_generic(const _TBlock *           
     constexpr const uint32_t kSizeOfQs    = sizeof(_TBlock::qs);
     constexpr const uint32_t kSizeOfScale = sizeof(_TBlock) - kSizeOfQs;
 
-    hexagon::HVX_Vector_x5 result;
-
     const HVX_Vector blocks = load_struct_into_vector<_TBlock, 6>(srcs);
 
+    hexagon::HVX_Vector_x5 result;
     {
         HVX_Vector block0 = Q6_V_vror_VR(blocks, kSizeOfScale);
         HVX_Vector block1 = Q6_V_vror_VR(blocks, kSizeOfScale * 2);
@@ -529,7 +528,8 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_output_type * d
         q_lo = Q6_Vhf_equals_Vqf16(q_lo);
         q_hi = Q6_Vhf_equals_Vqf16(q_hi);
 
-        q_lo1 = Q6_Vqf16_vmpy_VhfVhf(Q6_V_lo_W(qp1), qs.val[4]);
+        q_hi1 = Q6_V_lo_W(qp1);
+        q_lo1 = Q6_Vqf16_vmpy_VhfVhf(q_hi1, qs.val[4]);
         q_lo1 = Q6_Vhf_equals_Vqf16(q_lo1);
 
         if constexpr (_IsDstAligned) {
