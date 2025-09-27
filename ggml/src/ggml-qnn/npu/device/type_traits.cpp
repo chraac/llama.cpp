@@ -83,12 +83,13 @@ inline hexagon::HVX_Vector_x2 load_dual_block_generic(const _TBlock *  srcs,
 
     hexagon::HVX_Vector_x2 result;
 
-    HVX_Vector blocks = load_into_vector<_TBlock, 2, &_TBlock::qs>(srcs);
+    const HVX_Vector blocks = load_struct_into_vector<_TBlock, 2>(srcs);
 
-    HVX_Vector block1  = Q6_V_vror_VR(blocks, kSizeOfScale);
+    HVX_Vector block0  = Q6_V_vror_VR(blocks, kSizeOfScale);
+    HVX_Vector block1  = Q6_V_vror_VR(blocks, kSizeOfScale * 2);
     HVX_Vector scale01 = Q6_Vb_vshuff_Vb(blocks);
 
-    result.val[0] = Q6_V_vmux_QVV(mask, blocks, block1);
+    result.val[0] = Q6_V_vmux_QVV(mask, block0, block1);
     result.val[1] = Q6_Vb_vlut32_VbVbR_nomatch(scale_indices, scale01, 0);
 
     return result;
@@ -545,11 +546,11 @@ inline void dequant_row_q4_0_block2(HVX_Vector                     qs,
 
 template <bool _IsDstAligned>
 void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_output_type * dst, size_t count, HVX_Vector table) {
-    constexpr const size_t kElemsPerVec = hexagon::kBytesPerVector / sizeof(hexagon::dequant_output_type);
-    constexpr const int    qk           = QUANT_BLOCK_SIZE;
+    constexpr const size_t   kElemsPerVec = hexagon::kBytesPerVector / sizeof(hexagon::dequant_output_type);
+    constexpr const uint32_t kSizeOfQs    = sizeof(npu_device_block_q4_0::qs);
+    constexpr const int      qk           = QUANT_BLOCK_SIZE;
     static_assert(qk % 2 == 0, "qk must be even");
     static_assert(QUANT_BLOCK_SIZE == hexagon::kBytesPerVector / sizeof(float));
-    constexpr const uint32_t kSizeOfQs = sizeof(npu_device_block_q4_0::qs);
 
     static const auto load_masks = make_quad_block_mask<npu_device_block_q4_0>();
     alignas(hexagon::kBytesPerVector) static const HVX_Vector scale_indices =
