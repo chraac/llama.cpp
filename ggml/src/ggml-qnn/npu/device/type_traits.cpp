@@ -497,7 +497,8 @@ inline void dequantize_row_q4_0_2blocks(HVX_Vector                     qs,
     HVX_Vector     q_hi = Q6_Vub_vlsr_VubR(qs, 4);
     HVX_VectorPair qp0  = Q6_W_vshuff_VVR(q_hi, q_lo, kSizeOfQs * (1 + 2));
 
-    q_lo = Q6_Vb_vshuff_Vb(Q6_V_lo_W(qp0));
+    q_lo = Q6_V_lo_W(qp0);
+    q_lo = Q6_Vb_vshuff_Vb(q_lo);
     qp0  = Q6_Wh_vlut16_VbVhR_nomatch(q_lo, table, 0);
 
     q_lo = Q6_Vqf16_vmpy_VhfVhf(Q6_V_lo_W(qp0), scale01);
@@ -523,7 +524,8 @@ inline void dequantize_row_q4_0_4blocks(HVX_Vector                     qs,
 
     HVX_VectorPair qp0 = Q6_W_vshuff_VVR(q_hi, q_lo, kSizeOfQs * (1 + 2 + 4));
 
-    q_lo = Q6_Vb_vshuff_Vb(Q6_V_lo_W(qp0));
+    q_lo = Q6_V_lo_W(qp0);
+    q_lo = Q6_Vb_vshuff_Vb(q_lo);
     qp0  = Q6_Wh_vlut16_VbVhR_nomatch(q_lo, table, 0);
 
     q_lo = Q6_V_lo_W(qp0);
