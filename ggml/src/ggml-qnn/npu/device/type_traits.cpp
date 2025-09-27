@@ -489,6 +489,7 @@ template <bool _IsDstAligned>
 inline void dequant_row_q4_0_block4(HVX_Vector                     qs,
                                     HVX_Vector                     scale01,
                                     HVX_Vector                     scale23,
+                                    HVX_Vector                     table,
                                     hexagon::dequant_output_type * dst_ptr) {
     constexpr const uint32_t kSizeOfQs = sizeof(npu_device_block_q4_0::qs);
 
@@ -519,7 +520,10 @@ inline void dequant_row_q4_0_block4(HVX_Vector                     qs,
 }
 
 template <bool _IsDstAligned>
-inline void dequant_row_q4_0_block2(HVX_Vector qs, HVX_Vector scale01, hexagon::dequant_output_type * dst_ptr) {
+inline void dequant_row_q4_0_block2(HVX_Vector                     qs,
+                                    HVX_Vector                     scale01,
+                                    HVX_Vector                     table,
+                                    hexagon::dequant_output_type * dst_ptr) {
     constexpr const uint32_t kSizeOfQs = sizeof(npu_device_block_q4_0::qs);
 
     HVX_Vector     q_lo = qs;
@@ -541,7 +545,8 @@ inline void dequant_row_q4_0_block2(HVX_Vector qs, HVX_Vector scale01, hexagon::
 
 template <bool _IsDstAligned>
 void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_output_type * dst, size_t count, HVX_Vector table) {
-    constexpr const int qk = QUANT_BLOCK_SIZE;
+    constexpr const size_t kElemsPerVec = hexagon::kBytesPerVector / sizeof(hexagon::dequant_output_type);
+    constexpr const int    qk           = QUANT_BLOCK_SIZE;
     static_assert(qk % 2 == 0, "qk must be even");
     static_assert(QUANT_BLOCK_SIZE == hexagon::kBytesPerVector / sizeof(float));
     constexpr const uint32_t kSizeOfQs = sizeof(npu_device_block_q4_0::qs);
@@ -559,57 +564,22 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_output_type * d
     for (; i + 5 < nb; i += 6) {
         auto qs = load_hexa_block_generic(src_ptr + i, load_masks, scale_indices);
 
-        HVX_Vector q_hi  = Q6_Vub_vlsr_VubR(qs.val[0], 4);
-        HVX_Vector q_hi1 = Q6_Vub_vlsr_VubR(qs.val[3], 4);
+        dequant_row_q4_0_block4<_IsDstAligned>(qs.val[0], qs.val[1], qs.val[2], table, dst_ptr);
+        dequant_row_q4_0_block2<_IsDstAligned>(qs.val[3], qs.val[4], table, dst_ptr + kElemsPerVec * 2);
 
-        HVX_Vector q_lo  = qs.val[0];
-        HVX_Vector q_lo1 = qs.val[3];
-
-        HVX_VectorPair qp0 = Q6_W_vshuff_VVR(q_hi, q_lo, kSizeOfQs * (1 + 2 + 4));
-        HVX_VectorPair qp1 = Q6_W_vshuff_VVR(q_hi1, q_lo1, kSizeOfQs * (1 + 2));
-
-        q_lo = Q6_Vb_vshuff_Vb(Q6_V_lo_W(qp0));
-        qp0  = Q6_Wh_vlut16_VbVhR_nomatch(q_lo, table, 0);
-
-        q_lo1 = Q6_Vb_vshuff_Vb(Q6_V_lo_W(qp1));
-        qp1   = Q6_Wh_vlut16_VbVhR_nomatch(q_lo1, table, 0);
-
-        q_lo = Q6_V_lo_W(qp0);
-        q_hi = Q6_V_hi_W(qp0);
-
-        q_lo = Q6_Vqf16_vmpy_VhfVhf(q_lo, qs.val[1]);
-        q_hi = Q6_Vqf16_vmpy_VhfVhf(q_hi, qs.val[2]);
-
-        q_lo = Q6_Vhf_equals_Vqf16(q_lo);
-        q_hi = Q6_Vhf_equals_Vqf16(q_hi);
-
-        q_hi1 = Q6_V_lo_W(qp1);
-        q_lo1 = Q6_Vqf16_vmpy_VhfVhf(q_hi1, qs.val[4]);
-        q_lo1 = Q6_Vhf_equals_Vqf16(q_lo1);
-
-        if constexpr (_IsDstAligned) {
-            reinterpret_cast<HVX_Vector *>(dst_ptr)[0] = q_lo;
-            reinterpret_cast<HVX_Vector *>(dst_ptr)[1] = q_hi;
-            reinterpret_cast<HVX_Vector *>(dst_ptr)[2] = q_lo1;
-        } else {
-            reinterpret_cast<HVX_UVector *>(dst_ptr)[0] = q_lo;
-            reinterpret_cast<HVX_UVector *>(dst_ptr)[1] = q_hi;
-            reinterpret_cast<HVX_UVector *>(dst_ptr)[2] = q_lo1;
-        }
-
-        dst_ptr += hexagon::kBytesPerVector / sizeof(hexagon::dequant_output_type) * 3;
+        dst_ptr += kElemsPerVec * 3;
     }
 
     for (; i + 3 < nb; i += 4) {
         auto qs = load_qual_block_generic(src_ptr + i, load_masks, scale_indices);
         dequant_row_q4_0_block4<_IsDstAligned>(qs.val[0], qs.val[1], qs.val[2], table, dst_ptr);
-        dst_ptr += hexagon::kBytesPerVector / sizeof(hexagon::dequant_output_type) * 2;
+        dst_ptr += kElemsPerVec * 2;
     }
 
     for (; i + 1 < nb; i += 2) {
         auto qs = load_dual_block_generic(src_ptr + i, load_masks.val[0], scale_indices);
         dequant_row_q4_0_block2<_IsDstAligned>(qs.val[0], qs.val[1], table, dst_ptr);
-        dst_ptr += hexagon::kBytesPerVector / sizeof(hexagon::dequant_output_type);
+        dst_ptr += kElemsPerVec;
     }
 
     if (i < nb) {
