@@ -102,10 +102,10 @@ inline hexagon::HVX_Vector_x2 load_dual_block_generic(const _TBlock *  srcs,
     const HVX_Vector blocks = load_struct_into_vector<_TBlock, 2>(srcs);
 
     HVX_Vector block01 = Q6_Vb_vlut32_VbVbI(qs_indices, blocks, 0);
-    block01            = Q6_Vb_vlut32or_VbVbVbI(block01, qs_indices, blocks, 1);
     if constexpr (sizeof(_TBlock) * 2 > 64) {
-        block01 = Q6_Vb_vlut32or_VbVbVbI(block01, qs_indices, blocks, 2);
+        block01 = Q6_Vb_vlut32or_VbVbVbI(block01, qs_indices, blocks, 1);
     }
+    block01 = Q6_Vb_vlut32or_VbVbVbI(block01, qs_indices, blocks, 2);
 
     HVX_Vector scale01 = Q6_Vb_vshuff_Vb(blocks);
 
