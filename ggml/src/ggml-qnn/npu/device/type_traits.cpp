@@ -63,6 +63,24 @@ template <typename _TBlock> inline HVX_Vector make_scale_load_mask() {
     return ret.v;
 }
 
+template <typename _TBlock> inline HVX_Vector make_qs_load_mask() {
+    static_assert(sizeof(_TBlock) < hexagon::kBytesPerVector, "wrong block size/padding");
+
+    const size_t qs_start_offset = offsetof(_TBlock, qs);
+    const size_t qs_end_offset   = qs_start_offset + sizeof(_TBlock::qs);
+
+    hexagon::HVX_VectorAlias ret;
+    size_t                   ret_idx = 0;
+    for (size_t i = 0; i < hexagon::kBytesPerVector; ++i) {
+        auto offset = i % sizeof(_TBlock);
+        if (offset >= qs_start_offset && offset < qs_end_offset) {
+            ret.u8[ret_idx++] = (i & 1) ? (i / 2 + 64) : (i / 2);
+        }
+    }
+
+    return ret.v;
+}
+
 template <typename _TBlock> inline HVX_Vector load_dual_block_generic(const _TBlock * srcs, HVX_VectorPred mask) {
     static_assert(hexagon::kBytesPerVector >= sizeof(_TBlock) * 2, "wrong block size/padding");
     constexpr const uint32_t kSizeOfQs    = sizeof(_TBlock::qs);
@@ -75,21 +93,23 @@ template <typename _TBlock> inline HVX_Vector load_dual_block_generic(const _TBl
 
 template <typename _TBlock>
 inline hexagon::HVX_Vector_x2 load_dual_block_generic(const _TBlock *  srcs,
-                                                      HVX_VectorPred   mask,
+                                                      const HVX_Vector qs_indices,
                                                       const HVX_Vector scale_indices) {
     static_assert(hexagon::kBytesPerVector >= sizeof(_TBlock) * 2, "wrong block size/padding");
-    constexpr const uint32_t kSizeOfQs    = sizeof(_TBlock::qs);
-    constexpr const uint32_t kSizeOfScale = sizeof(_TBlock) - kSizeOfQs;
 
     hexagon::HVX_Vector_x2 result;
 
     const HVX_Vector blocks = load_struct_into_vector<_TBlock, 2>(srcs);
 
-    HVX_Vector block0  = Q6_V_vror_VR(blocks, kSizeOfScale);
-    HVX_Vector block1  = Q6_V_vror_VR(blocks, kSizeOfScale * 2);
+    HVX_Vector block01 = Q6_Vb_vlut32_VbVbI(qs_indices, blocks, 0);
+    block01            = Q6_Vb_vlut32or_VbVbVbI(block01, qs_indices, blocks, 1);
+    if constexpr (sizeof(_TBlock) * 2 > 64) {
+        block01 = Q6_Vb_vlut32or_VbVbVbI(block01, qs_indices, blocks, 2);
+    }
+
     HVX_Vector scale01 = Q6_Vb_vshuff_Vb(blocks);
 
-    result.val[0] = Q6_V_vmux_QVV(mask, block0, block1);
+    result.val[0] = block01;
     result.val[1] = Q6_Vb_vlut32_VbVbR_nomatch(scale_indices, scale01, 0);
 
     return result;
@@ -555,6 +575,7 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_output_type * d
     static_assert(QUANT_BLOCK_SIZE == hexagon::kBytesPerVector / sizeof(float));
 
     static const auto load_masks = make_quad_block_mask<npu_device_block_q4_0>();
+    alignas(hexagon::kBytesPerVector) static const HVX_Vector qs_indices = make_qs_load_mask<npu_device_block_q4_0>();
     alignas(hexagon::kBytesPerVector) static const HVX_Vector scale_indices =
         make_scale_load_mask<npu_device_block_q4_0>();
 
@@ -578,7 +599,7 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_output_type * d
     }
 
     for (; i + 1 < nb; i += 2) {
-        auto qs = load_dual_block_generic(src_ptr + i, load_masks.val[0], scale_indices);
+        auto qs = load_dual_block_generic(src_ptr + i, qs_indices, scale_indices);
         dequantize_row_q4_0_2blocks<_IsDstAligned>(qs.val[0], qs.val[1], table, dst_ptr);
         dst_ptr += kElemsPerVec;
     }
