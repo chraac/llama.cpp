@@ -116,17 +116,6 @@ inline hexagon::HVX_Vector_x2 load_dual_block_generic(const _TBlock *  srcs,
     return result;
 }
 
-template <typename _TBlock> inline hexagon::HVX_VectorPred_x3 make_quad_block_mask() {
-    static_assert(hexagon::kBytesPerVector >= sizeof(_TBlock) * 4, "wrong block size/padding");
-    constexpr const uint32_t kSizeOfQs = sizeof(_TBlock::qs);
-
-    hexagon::HVX_VectorPred_x3 mask;
-    mask.val[0] = Q6_Q_vsetq_R(kSizeOfQs);
-    mask.val[1] = Q6_Q_vsetq_R(kSizeOfQs * 3);
-    mask.val[2] = Q6_Q_vsetq_R(kSizeOfQs * 2);
-    return mask;
-}
-
 template <typename _TBlock>
 inline hexagon::HVX_Vector_x3 load_qual_block_generic(const _TBlock *  srcs,
                                                       const HVX_Vector qs_indices,
@@ -139,8 +128,8 @@ inline hexagon::HVX_Vector_x3 load_qual_block_generic(const _TBlock *  srcs,
 
     {
         HVX_Vector block0123 = Q6_Vb_vlut32_VbVbI(qs_indices, blocks, 0);
-        block0123            = Q6_Vb_vlut32or_VbVbVbI(block0123, qs_indices, blocks, 2);
         block0123            = Q6_Vb_vlut32or_VbVbVbI(block0123, qs_indices, blocks, 1);
+        block0123            = Q6_Vb_vlut32or_VbVbVbI(block0123, qs_indices, blocks, 2);
         block0123            = Q6_Vb_vlut32or_VbVbVbI(block0123, qs_indices, blocks, 3);
 
         result.val[0] = block0123;
@@ -171,8 +160,8 @@ inline hexagon::HVX_Vector_x5 load_hexa_block_generic(const _TBlock *  srcs,
     hexagon::HVX_Vector_x5 result;
     {
         HVX_Vector block012345 = Q6_Vb_vlut32_VbVbI(qs_indices, blocks, 0);
-        block012345            = Q6_Vb_vlut32or_VbVbVbI(block012345, qs_indices, blocks, 2);
         block012345            = Q6_Vb_vlut32or_VbVbVbI(block012345, qs_indices, blocks, 1);
+        block012345            = Q6_Vb_vlut32or_VbVbVbI(block012345, qs_indices, blocks, 2);
         block012345            = Q6_Vb_vlut32or_VbVbVbI(block012345, qs_indices, blocks, 3);
 
         result.val[0] = block012345;
