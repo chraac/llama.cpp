@@ -102,10 +102,11 @@ inline hexagon::HVX_Vector_x2 load_dual_block_generic(const _TBlock *  srcs,
     const HVX_Vector blocks = load_struct_into_vector<_TBlock, 2>(srcs);
 
     HVX_Vector block01 = Q6_Vb_vlut32_VbVbI(qs_indices, blocks, 0);
+    block01            = Q6_Vb_vlut32or_VbVbVbI(block01, qs_indices, blocks, 2);
     if constexpr (sizeof(_TBlock) * 2 > 64) {
         block01 = Q6_Vb_vlut32or_VbVbVbI(block01, qs_indices, blocks, 1);
+        block01 = Q6_Vb_vlut32or_VbVbVbI(block01, qs_indices, blocks, 3);
     }
-    block01 = Q6_Vb_vlut32or_VbVbVbI(block01, qs_indices, blocks, 2);
 
     HVX_Vector scale01 = Q6_Vb_vshuff_Vb(blocks);
 
@@ -127,28 +128,22 @@ template <typename _TBlock> inline hexagon::HVX_VectorPred_x3 make_quad_block_ma
 }
 
 template <typename _TBlock>
-inline hexagon::HVX_Vector_x3 load_qual_block_generic(const _TBlock *                  srcs,
-                                                      const hexagon::HVX_VectorPred_x3 mask,
-                                                      const HVX_Vector                 scale_indices) {
+inline hexagon::HVX_Vector_x3 load_qual_block_generic(const _TBlock *  srcs,
+                                                      const HVX_Vector qs_indices,
+                                                      const HVX_Vector scale_indices) {
     static_assert(hexagon::kBytesPerVector >= sizeof(_TBlock) * 4, "wrong block size/padding");
-    constexpr const uint32_t kSizeOfQs    = sizeof(_TBlock::qs);
-    constexpr const uint32_t kSizeOfScale = sizeof(_TBlock) - kSizeOfQs;
 
     hexagon::HVX_Vector_x3 result;
 
     const HVX_Vector blocks = load_struct_into_vector<_TBlock, 4>(srcs);
 
     {
-        HVX_Vector block0 = Q6_V_vror_VR(blocks, kSizeOfScale);
-        HVX_Vector block1 = Q6_V_vror_VR(blocks, kSizeOfScale * 2);
+        HVX_Vector block0123 = Q6_Vb_vlut32_VbVbI(qs_indices, blocks, 0);
+        block0123            = Q6_Vb_vlut32or_VbVbVbI(block0123, qs_indices, blocks, 2);
+        block0123            = Q6_Vb_vlut32or_VbVbVbI(block0123, qs_indices, blocks, 1);
+        block0123            = Q6_Vb_vlut32or_VbVbVbI(block0123, qs_indices, blocks, 3);
 
-        HVX_Vector block2 = Q6_V_vror_VR(blocks, kSizeOfScale * 3);
-        HVX_Vector block3 = Q6_V_vror_VR(blocks, kSizeOfScale * 4);
-
-        HVX_Vector block01 = Q6_V_vmux_QVV(mask.val[0], block0, block1);
-        HVX_Vector block23 = Q6_V_vmux_QVV(mask.val[1], block2, block3);
-
-        result.val[0] = Q6_V_vmux_QVV(mask.val[2], block01, block23);
+        result.val[0] = block0123;
     }
 
     {
@@ -165,31 +160,23 @@ inline hexagon::HVX_Vector_x3 load_qual_block_generic(const _TBlock *           
 }
 
 template <typename _TBlock>
-inline hexagon::HVX_Vector_x5 load_hexa_block_generic(const _TBlock *                  srcs,
-                                                      const hexagon::HVX_VectorPred_x3 mask,
-                                                      const HVX_Vector                 scale_indices) {
+inline hexagon::HVX_Vector_x5 load_hexa_block_generic(const _TBlock *  srcs,
+                                                      const HVX_Vector qs_indices,
+                                                      const HVX_Vector scale_indices) {
     static_assert(hexagon::kBytesPerVector >= sizeof(_TBlock) * 6, "wrong block size/padding");
-    constexpr const uint32_t kSizeOfQs    = sizeof(_TBlock::qs);
-    constexpr const uint32_t kSizeOfScale = sizeof(_TBlock) - kSizeOfQs;
+    constexpr const uint32_t kSizeOfQs = sizeof(_TBlock::qs);
 
     const HVX_Vector blocks = load_struct_into_vector<_TBlock, 6>(srcs);
 
     hexagon::HVX_Vector_x5 result;
     {
-        HVX_Vector block0 = Q6_V_vror_VR(blocks, kSizeOfScale);
-        HVX_Vector block1 = Q6_V_vror_VR(blocks, kSizeOfScale * 2);
+        HVX_Vector block012345 = Q6_Vb_vlut32_VbVbI(qs_indices, blocks, 0);
+        block012345            = Q6_Vb_vlut32or_VbVbVbI(block012345, qs_indices, blocks, 2);
+        block012345            = Q6_Vb_vlut32or_VbVbVbI(block012345, qs_indices, blocks, 1);
+        block012345            = Q6_Vb_vlut32or_VbVbVbI(block012345, qs_indices, blocks, 3);
 
-        HVX_Vector block2 = Q6_V_vror_VR(blocks, kSizeOfScale * 3);
-        HVX_Vector block3 = Q6_V_vror_VR(blocks, kSizeOfScale * 4);
-
-        HVX_Vector block4 = Q6_V_vror_VR(blocks, kSizeOfScale + sizeof(_TBlock) * 4);
-        HVX_Vector block5 = Q6_V_vror_VR(blocks, kSizeOfScale * 2 + sizeof(_TBlock) * 4);
-
-        HVX_Vector block01 = Q6_V_vmux_QVV(mask.val[0], block0, block1);
-        HVX_Vector block23 = Q6_V_vmux_QVV(mask.val[1], block2, block3);
-
-        result.val[0] = Q6_V_vmux_QVV(mask.val[2], block01, block23);
-        result.val[3] = Q6_V_vmux_QVV(mask.val[0], block4, block5);  // block45
+        result.val[0] = block012345;
+        result.val[3] = Q6_V_vror_VR(block012345, kSizeOfQs * 4);  // block45
     }
 
     {
@@ -574,7 +561,6 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_output_type * d
     static_assert(qk % 2 == 0, "qk must be even");
     static_assert(QUANT_BLOCK_SIZE == hexagon::kBytesPerVector / sizeof(float));
 
-    static const auto load_masks = make_quad_block_mask<npu_device_block_q4_0>();
     alignas(hexagon::kBytesPerVector) static const HVX_Vector qs_indices = make_qs_load_mask<npu_device_block_q4_0>();
     alignas(hexagon::kBytesPerVector) static const HVX_Vector scale_indices =
         make_scale_load_mask<npu_device_block_q4_0>();
@@ -586,14 +572,14 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_output_type * d
 
     int i = 0;
     for (; i + 5 < nb; i += 6) {
-        auto qs = load_hexa_block_generic(src_ptr + i, load_masks, scale_indices);
+        auto qs = load_hexa_block_generic(src_ptr + i, qs_indices, scale_indices);
         dequantize_row_q4_0_4blocks<_IsDstAligned>(qs.val[0], qs.val[1], qs.val[2], table, dst_ptr);
         dequantize_row_q4_0_2blocks<_IsDstAligned>(qs.val[3], qs.val[4], table, dst_ptr + kElemsPerVec * 2);
         dst_ptr += kElemsPerVec * 3;
     }
 
     for (; i + 3 < nb; i += 4) {
-        auto qs = load_qual_block_generic(src_ptr + i, load_masks, scale_indices);
+        auto qs = load_qual_block_generic(src_ptr + i, qs_indices, scale_indices);
         dequantize_row_q4_0_4blocks<_IsDstAligned>(qs.val[0], qs.val[1], qs.val[2], table, dst_ptr);
         dst_ptr += kElemsPerVec * 2;
     }
