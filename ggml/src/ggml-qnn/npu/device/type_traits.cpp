@@ -3,8 +3,6 @@
 #include "op_types.hpp"  // TODO: remove this include
 #include "vec_ops.hpp"
 
-#include <array>
-
 static_assert(sizeof(npu_device_block_q4_k) ==
                   2 * sizeof(npu_device_fp16_t) + QUANT_K_SCALE_SIZE + QUANT_K_BLOCK_SIZE / 2,
               "wrong q4_K block size/padding");
@@ -44,20 +42,21 @@ template <typename _TBlock> inline HVX_Vector load_block_generic(const _TBlock &
 }
 
 template <typename _TBlock> inline HVX_Vector make_scale_load_mask() {
-    static_assert(sizeof(_TBlock) + sizeof(npu_device_fp16_t) < 32, "wrong block size/padding");
-    static_assert(sizeof(_TBlock::qs) == 16 || sizeof(_TBlock::qs) == 32, "wrong quantization block size");
+    static_assert(sizeof(_TBlock) < hexagon::kBytesPerVector, "wrong block size/padding");
+    static_assert(std::is_same_v<decltype(_TBlock::d), npu_device_fp16_t>, "wrong d type");
 
-    constexpr const size_t kScaleBlockSize = QUANT_BLOCK_SIZE * sizeof(hexagon::dequant_output_type);
+    constexpr const size_t kBytesPerScale  = QUANT_BLOCK_SIZE * sizeof(_TBlock::d);
+    const size_t           qs_start_offset = offsetof(_TBlock, d);
 
-    // TODO: handle the case that scale not at the start of struct
     hexagon::HVX_VectorAlias ret;
-    for (size_t i = 0; i < QUANT_BLOCK_SIZE; ++i) {
-        size_t base      = i * 2;
-        ret.u8[base]     = 0;
-        ret.u8[base + 1] = 1;
-
-        ret.u8[base + kScaleBlockSize]     = sizeof(_TBlock);
-        ret.u8[base + kScaleBlockSize + 1] = sizeof(_TBlock) + 1;
+    size_t                   base_i = qs_start_offset;
+    for (size_t ret_idx = 0; ret_idx < hexagon::kBytesPerVector; ++ret_idx) {
+        const auto offset = ret_idx % kBytesPerScale;
+        const auto i      = base_i + (offset % sizeof(_TBlock::d));
+        ret.u8[ret_idx]   = (i & 1) ? (i / 2 + 64) : (i / 2);
+        if (offset == kBytesPerScale - 1) {
+            base_i += sizeof(_TBlock);
+        }
     }
 
     return ret.v;
@@ -103,15 +102,20 @@ inline hexagon::HVX_Vector_x2 load_dual_block_generic(const _TBlock *  srcs,
 
     HVX_Vector block01 = Q6_Vb_vlut32_VbVbI(qs_indices, blocks, 0);
     block01            = Q6_Vb_vlut32or_VbVbVbI(block01, qs_indices, blocks, 2);
-    if constexpr (sizeof(_TBlock) * 2 > 64) {
+
+    HVX_Vector scale01 = Q6_Vb_vlut32_VbVbI(scale_indices, blocks, 0);
+    scale01            = Q6_Vb_vlut32or_VbVbVbI(scale01, scale_indices, blocks, 2);
+
+    if constexpr (sizeof(_TBlock) * 4 > hexagon::kBytesPerVector) {
         block01 = Q6_Vb_vlut32or_VbVbVbI(block01, qs_indices, blocks, 1);
         block01 = Q6_Vb_vlut32or_VbVbVbI(block01, qs_indices, blocks, 3);
+
+        scale01 = Q6_Vb_vlut32or_VbVbVbI(scale01, scale_indices, blocks, 1);
+        scale01 = Q6_Vb_vlut32or_VbVbVbI(scale01, scale_indices, blocks, 3);
     }
 
-    HVX_Vector scale01 = Q6_Vb_vshuff_Vb(blocks);
-
     result.val[0] = block01;
-    result.val[1] = Q6_Vb_vlut32_VbVbR_nomatch(scale_indices, scale01, 0);
+    result.val[1] = scale01;
 
     return result;
 }
@@ -136,13 +140,16 @@ inline hexagon::HVX_Vector_x3 load_qual_block_generic(const _TBlock *  srcs,
     }
 
     {
-        HVX_Vector scale23 = Q6_V_vror_VR(blocks, sizeof(_TBlock) * 2);
+        HVX_Vector blocks23 = Q6_V_vror_VR(blocks, sizeof(_TBlock) * 2);
 
-        HVX_Vector scale01 = Q6_Vb_vshuff_Vb(blocks);
-        scale23            = Q6_Vb_vshuff_Vb(scale23);
+        HVX_Vector scale01 = Q6_Vb_vlut32_VbVbI(scale_indices, blocks, 0);
+        scale01            = Q6_Vb_vlut32or_VbVbVbI(scale01, scale_indices, blocks, 2);
 
-        result.val[1] = Q6_Vb_vlut32_VbVbR_nomatch(scale_indices, scale01, 0);
-        result.val[2] = Q6_Vb_vlut32_VbVbR_nomatch(scale_indices, scale23, 0);
+        HVX_Vector scale23 = Q6_Vb_vlut32_VbVbI(scale_indices, blocks23, 0);
+        scale23            = Q6_Vb_vlut32or_VbVbVbI(scale23, scale_indices, blocks23, 2);
+
+        result.val[1] = scale01;
+        result.val[2] = scale23;
     }
 
     return result;
@@ -169,16 +176,21 @@ inline hexagon::HVX_Vector_x5 load_hexa_block_generic(const _TBlock *  srcs,
     }
 
     {
-        HVX_Vector scale23 = Q6_V_vror_VR(blocks, sizeof(_TBlock) * 2);
-        HVX_Vector scale45 = Q6_V_vror_VR(blocks, sizeof(_TBlock) * 4);
+        HVX_Vector blocks23 = Q6_V_vror_VR(blocks, sizeof(_TBlock) * 2);
+        HVX_Vector blocks45 = Q6_V_vror_VR(blocks, sizeof(_TBlock) * 4);
 
-        HVX_Vector scale01 = Q6_Vb_vshuff_Vb(blocks);
-        scale23            = Q6_Vb_vshuff_Vb(scale23);
-        scale45            = Q6_Vb_vshuff_Vb(scale45);
+        HVX_Vector scale01 = Q6_Vb_vlut32_VbVbI(scale_indices, blocks, 0);
+        scale01            = Q6_Vb_vlut32or_VbVbVbI(scale01, scale_indices, blocks, 2);
 
-        result.val[1] = Q6_Vb_vlut32_VbVbR_nomatch(scale_indices, scale01, 0);
-        result.val[2] = Q6_Vb_vlut32_VbVbR_nomatch(scale_indices, scale23, 0);
-        result.val[4] = Q6_Vb_vlut32_VbVbR_nomatch(scale_indices, scale45, 0);
+        HVX_Vector scale23 = Q6_Vb_vlut32_VbVbI(scale_indices, blocks23, 0);
+        scale23            = Q6_Vb_vlut32or_VbVbVbI(scale23, scale_indices, blocks23, 2);
+
+        HVX_Vector scale45 = Q6_Vb_vlut32_VbVbI(scale_indices, blocks45, 0);
+        scale45            = Q6_Vb_vlut32or_VbVbVbI(scale45, scale_indices, blocks45, 2);
+
+        result.val[1] = scale01;
+        result.val[2] = scale23;
+        result.val[4] = scale45;
     }
 
     return result;
@@ -447,22 +459,20 @@ void dequantize_row_q8_0(const void * src, hexagon::dequant_output_type * dst, s
     constexpr const int qk = QUANT_BLOCK_SIZE;
     static_assert(QUANT_BLOCK_SIZE == hexagon::kBytesPerVector / sizeof(float));
 
-    const int            nb         = count / qk;
-    const auto *         src_ptr    = reinterpret_cast<const npu_device_block_q8_0 *>(src);
-    auto *               dst_ptr    = ((hexagon::dequant_output_type *) dst);  // TODO: opt for aligned access
-    const HVX_VectorPred mask       = Q6_Q_vsetq_R(sizeof(npu_device_block_q8_0::qs));
-    const HVX_VectorPred scale_mask = Q6_Q_vsetq_R(hexagon::kBytesPerVector / 2);
+    alignas(hexagon::kBytesPerVector) static const HVX_Vector qs_indices = make_qs_load_mask<npu_device_block_q8_0>();
+    alignas(hexagon::kBytesPerVector) static const HVX_Vector scale_indices =
+        make_scale_load_mask<npu_device_block_q8_0>();
+
+    const int    nb      = count / qk;
+    const auto * src_ptr = reinterpret_cast<const npu_device_block_q8_0 *>(src);
+    auto *       dst_ptr = ((hexagon::dequant_output_type *) dst);  // TODO: opt for aligned access
 
     int i = 0;
     for (; i + 1 < nb; i += 2) {
-        const auto & src0 = src_ptr[i];
-        const auto & src1 = src_ptr[i + 1];
+        auto qs = load_dual_block_generic(src_ptr + i, qs_indices, scale_indices);
 
-        HVX_Vector scales01 = Q6_V_vmux_QVV(scale_mask, Q6_Vh_vsplat_R(src0.d), Q6_Vh_vsplat_R(src1.d));
-
-        HVX_Vector qs     = load_dual_block_generic(src_ptr + i, mask);
-        HVX_Vector q_lo   = Q6_Vhf_equals_Vh(Q6_V_lo_W(Q6_Wh_vunpack_Vb(qs)));
-        HVX_Vector result = Q6_Vqf16_vmpy_VhfVhf(q_lo, scales01);
+        HVX_Vector q_lo   = Q6_Vhf_equals_Vh(Q6_V_lo_W(Q6_Wh_vunpack_Vb(qs.val[0])));
+        HVX_Vector result = Q6_Vqf16_vmpy_VhfVhf(q_lo, qs.val[1]);
 
         *reinterpret_cast<HVX_UVector *>(dst_ptr) = Q6_Vhf_equals_Vqf16(result);
         dst_ptr += qk * 2;
