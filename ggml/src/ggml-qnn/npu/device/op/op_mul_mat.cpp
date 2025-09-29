@@ -20,7 +20,7 @@ template <> struct convert_vector<float> {
     static float convert(HVX_Vector vec) { return hexagon::get_flt0_from_fltv(Q6_Vsf_equals_Vqf32(vec)); }
 };
 
-inline std::pair<int64_t, int64_t> unflatten_i3_i2(int64_t idx, const hexagon::tensor * t) {
+inline std::pair<size_t, size_t> unflatten_i3_i2(size_t idx, const hexagon::tensor * t) {
     const auto i3 = idx / t->get_ne(2);
     const auto i2 = idx - i3 * t->get_ne(2);
     return { i3, i2 };
@@ -130,7 +130,8 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
     }
 
     if (start_end_plane.second <= start_end_plane.first || start_end_row.second <= start_end_row.first ||
-        start_end_element.second <= start_end_element.first) {
+        start_end_element.second <= start_end_element.first || start_end_plane.first < 0 || start_end_row.first < 0 ||
+        start_end_element.first < 0) {
         DEVICE_LOG_DEBUG(
             "mul_mat_impl: no work to do, start_end_plane: (%lld, %lld), start_end_row: (%lld, %lld), "
             "start_end_element: (%lld, %lld)\n",
@@ -218,17 +219,17 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
 
     const auto      dequant_table = load_dequant_table_func ? load_dequant_table_func() : HVX_Vector();
     const uint8_t * src1_ptr      = src1->get_read_buffer();
-    for (int64_t ip = start_end_plane.first; ip < start_end_plane.second; ip++) {
+    for (size_t ip = start_end_plane.first; ip < size_t(start_end_plane.second); ip++) {
         const auto [i3, i2]             = unflatten_i3_i2(ip, dst);
         const auto *    src1_plane      = src1_ptr + i3 * src1->get_nb(3) + i2 * src1->get_nb(2);
         auto *          dst_plane       = dst_ptr + i3 * dst->get_nb(3) + i2 * dst->get_nb(2);
         const uint8_t * src0_plane_base = src0_ptr + i3 / r03 * src0->get_nb(3) + i2 / r02 * src0->get_nb(2);
-        for (int64_t col_idx = start_end_element.first; col_idx < start_end_element.second;
+        for (size_t col_idx = start_end_element.first; col_idx < size_t(start_end_element.second);
              col_idx += src0_plane_slice_row_count) {
             const uint8_t * src0_plane = src0_plane_base + col_idx * src0->get_nb(1);
-            const int64_t   slice_rows =
-                std::min<int64_t>(src0_plane_slice_row_count,
-                                  start_end_element.second - col_idx);  // number of rows in this slice
+            const size_t    slice_rows =
+                std::min<size_t>(src0_plane_slice_row_count,
+                                 start_end_element.second - col_idx);  // number of rows in this slice
 
             {
                 const uint8_t * src0_next_plane = last_write_cached_plane_ptr;
@@ -272,7 +273,7 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
                 if (last_read_cached_plane_ptr != src0_plane) {
                     DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 0, dequant);
                     const uint8_t * src0_quant_plane = src0_plane_read_cache_ptr + src0_plane_write_cache_offset;
-                    for (int64_t ir = 0; ir < slice_rows; ir++) {
+                    for (size_t ir = 0; ir < slice_rows; ir++) {
                         auto * src0_row       = src0_quant_plane + ir * src0->get_nb(1);
                         auto * cached_row_ptr = src0_plane_read_cache_ptr + ir * src0_row_stride;
                         dequantize_row_func(src0_row, reinterpret_cast<hexagon::dequant_output_type *>(cached_row_ptr),
@@ -287,7 +288,7 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
                 hexagon::l2fetch_row(src1_plane + start_end_row.first * src1->get_nb(1), valid_src1_row_bytes);
             }
 
-            for (int64_t i1 = start_end_row.first; i1 < start_end_row.second; i1++) {
+            for (size_t i1 = start_end_row.first; i1 < size_t(start_end_row.second); i1++) {
                 DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 1, dot);
                 auto * src1_row = src1_plane + i1 * src1->get_nb(1);
                 auto * dst_row  = reinterpret_cast<float *>(dst_plane + i1 * dst->get_nb(1)) + col_idx;
@@ -327,7 +328,7 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
         return;
     }
 
-    if (start_end_element.second <= start_end_element.first) {
+    if (start_end_element.second <= start_end_element.first || start_end_element.first < 0) {
         DEVICE_LOG_DEBUG(
             "mul_mat_gemv_impl: no work to do, start_end_plane: [0, 1), start_end_row: [0, 1), "
             "start_end_element: [%lld, %lld)\n",
@@ -392,9 +393,9 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
         }
 
         const uint8_t * src0_plane = src0_ptr + start_end_element.first * src0->get_nb(1);
-        const int64_t   next_row_count =
-            std::min<int64_t>(src0_plane_slice_row_count,
-                              start_end_element.second - start_end_element.first);  // number of rows in this slice
+        const size_t    next_row_count =
+            std::min<size_t>(src0_plane_slice_row_count,
+                             start_end_element.second - start_end_element.first);  // number of rows in this slice
         params->wait_for_dma();
 
         if (!init_dma_transfer<_IsSrcQuantized>(
@@ -407,11 +408,11 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
     }
 
     {
-        for (int64_t col_idx = start_end_element.first; col_idx < start_end_element.second;
+        for (size_t col_idx = start_end_element.first; col_idx < size_t(start_end_element.second);
              col_idx += src0_plane_slice_row_count) {
-            const int64_t slice_rows =
-                std::min<int64_t>(src0_plane_slice_row_count,
-                                  start_end_element.second - col_idx);  // number of rows in this slice
+            const size_t slice_rows =
+                std::min<size_t>(src0_plane_slice_row_count,
+                                 start_end_element.second - col_idx);  // number of rows in this slice
             const auto next_col_idx = col_idx + src0_plane_slice_row_count;
             std::swap(src0_plane_read_cache_ptr, src0_plane_write_cache_ptr);
             params->wait_for_dma();
@@ -419,9 +420,9 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
             if (next_col_idx < start_end_element.second) {
                 DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 2, dma);
                 const uint8_t * src0_next_plane = src0_ptr + next_col_idx * src0->get_nb(1);
-                const int64_t   next_row_count =
-                    std::min<int64_t>(src0_plane_slice_row_count,
-                                      start_end_element.second - next_col_idx);  // number of rows in this slice
+                const size_t    next_row_count =
+                    std::min<size_t>(src0_plane_slice_row_count,
+                                     start_end_element.second - next_col_idx);  // number of rows in this slice
                 if (!init_dma_transfer<_IsSrcQuantized>(
                         params, src0_next_plane, src0_plane_write_cache_ptr + src0_plane_write_cache_offset,
                         valid_src0_row_bytes, next_row_count, src0->get_nb(1), src0->get_nb(1))) {
@@ -435,7 +436,7 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
             if constexpr (_IsSrcQuantized) {
                 DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 0, dequant);
                 const uint8_t * src0_quant_plane = src0_plane_read_cache_ptr + src0_plane_write_cache_offset;
-                for (int64_t ir = 0; ir < slice_rows; ir++) {
+                for (size_t ir = 0; ir < slice_rows; ir++) {
                     auto * src0_row       = src0_quant_plane + ir * src0->get_nb(1);
                     auto * cached_row_ptr = src0_plane_read_cache_ptr + ir * src0_row_stride;
                     dequantize_row_func(src0_row, reinterpret_cast<hexagon::dequant_output_type *>(cached_row_ptr),
