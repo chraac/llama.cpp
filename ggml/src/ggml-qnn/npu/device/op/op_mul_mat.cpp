@@ -413,7 +413,7 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
             const size_t slice_rows =
                 std::min<size_t>(src0_plane_slice_row_count,
                                  start_end_element.second - col_idx);  // number of rows in this slice
-            const auto next_col_idx = col_idx + src0_plane_slice_row_count;
+            const size_t next_col_idx = col_idx + src0_plane_slice_row_count;
             std::swap(src0_plane_read_cache_ptr, src0_plane_write_cache_ptr);
             params->wait_for_dma();
 
