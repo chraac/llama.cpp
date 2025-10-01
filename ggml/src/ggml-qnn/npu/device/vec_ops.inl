@@ -434,8 +434,8 @@ inline _TRet vec_dot_product_quant_impl(const _TQuantElem0 * src0,
             HVX_Vector h0 = Q6_V_hi_W(s0);
             HVX_Vector h1 = Q6_V_valign_VVR(Q6_V_hi_W(curr1), Q6_V_lo_W(curr1), (size_t) src1);
 
-            HVX_Vector mpy0 = _MpyFunc(l0, l1);
-            HVX_Vector mpy1 = _MpyFunc(h0, h1);
+            HVX_Vector mpy0 = _MpyFunc(l0, l1);  // TODO: convert l1 to qf16/qf32
+            HVX_Vector mpy1 = _MpyFunc(h0, h1);  // TODO: convert h1 to qf16/qf32
 
             prev1 = Q6_V_hi_W(curr1);
 
