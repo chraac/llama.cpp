@@ -4,6 +4,7 @@
 
 #include <hexagon_types.h>
 
+#include <cassert>
 #include <cstdint>
 #include <type_traits>
 
@@ -382,99 +383,85 @@ inline _TRet vec_dot_product_mix_aligned_impl(const _TElem0 * src0, const _TElem
 template <typename _TQuantElem0,
           typename _TElem1,
           typename _TRet,
-          HVX_Vector_x2 (*_DequantFunc)(const _TQuantElem0 * src),
+          HVX_VectorPair (*_DequantDualFunc)(const _TQuantElem0 * src),
+          HVX_Vector (*_DequantFunc)(const _TQuantElem0 * src),
           HVX_Vector (*_MpyFunc)(HVX_Vector, HVX_Vector),
           HVX_Vector (*_AddFunc)(HVX_Vector, HVX_Vector),
           _TRet (*_ReduceFunc)(HVX_Vector)>
 inline _TRet vec_dot_product_quant_impl(const _TQuantElem0 * src0, const _TElem1 * src1, size_t count) {
+    constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TElem1);
+
     static_assert(std::is_same_v<_TQuantElem0, npu_device_block_q4_0>() ||
                       std::is_same_v<_TQuantElem0, npu_device_block_q4_k>() ||
                       std::is_same_v<_TQuantElem0, npu_device_block_q8_0>(),
                   "Element type mismatch: _TQuantElem0 must be npu_device_block_q4_0, npu_device_block_q4_k or "
                   "npu_device_block_q8_0");
+    static_assert(QUANT_BLOCK_SIZE == kElementsPerVector,
+                  "Quant block size mismatch: QUANT_BLOCK_SIZE must be equal to kElementsPerVector");
 
-    constexpr const size_t kElementsPerVector1 = hexagon::kBytesPerVector / sizeof(_TElem1);
+    assert(count % kElementsPerVector == 0 && "Count must be a multiple of kElementsPerVector");
 
     const HVX_Vector kZeroV = Q6_V_vzero();
 
-    const _TQuantElem0 * const src0_ptr_end     = src0 + count;
-    _TQuantElem0 *             src0_ptr         = src0;
-    HVX_Vector *               src1_vec_ptr     = ((HVX_Vector *) src1);
-    HVX_Vector * const         src1_vec_ptr_end = ((HVX_Vector *) src1) + count / kElementsPerVector1;
-    HVX_Vector                 prev1            = *src1_vec_ptr++;
-    HVX_Vector                 sum              = kZeroV;
+    _TQuantElem0 *       src0_ptr         = src0;
+    _TQuantElem0 * const src0_ptr_end     = src0 + count / QUANT_BLOCK_SIZE;
+    HVX_Vector *         src1_vec_ptr     = ((HVX_Vector *) src1);
+    HVX_Vector * const   src1_vec_ptr_end = ((HVX_Vector *) src1) + count / kElementsPerVector;
+    HVX_Vector           prev1            = *src1_vec_ptr++;
+    HVX_Vector           sum              = kZeroV;
 
     if (src1_vec_ptr_end - src1_vec_ptr > 1) {
         HVX_Vector sum0 = kZeroV;
         HVX_Vector sum1 = kZeroV;
 
         do {
-            auto           s0      = _DequantFunc(src0_ptr);
-            HVX_VectorPair s0_pair = Q6_Wqf32_vmpy_VhfVhf(s0.val[0], s0.val[1]);  // convert to qf32
+            HVX_VectorPair s0    = _DequantDualFunc(src0_ptr);
+            HVX_VectorPair curr1 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[0];
 
-            HVX_Vector curr10 = src1_vec_ptr[0];
-            HVX_Vector curr11 = src1_vec_ptr[1];
+            HVX_Vector l0 = Q6_V_lo_W(s0);
+            HVX_Vector l1 = Q6_V_valign_VVR(Q6_V_lo_W(curr1), prev1, (size_t) src1);
 
-            HVX_Vector l1 = Q6_V_valign_VVR(curr10, prev1, (size_t) src1);
-            HVX_Vector h1 = Q6_V_valign_VVR(curr11, curr10, (size_t) src1);
+            HVX_Vector h0 = Q6_V_hi_W(s0);
+            HVX_Vector h1 = Q6_V_valign_VVR(Q6_V_hi_W(curr1), Q6_V_lo_W(curr1), (size_t) src1);
 
-            HVX_Vector mpy0 = _MpyFunc(Q6_V_lo_W(s0_pair), l1);
-            HVX_Vector mpy1 = _MpyFunc(Q6_V_hi_W(s0_pair), h1);
+            HVX_Vector mpy0 = _MpyFunc(l0, l1);
+            HVX_Vector mpy1 = _MpyFunc(h0, h1);
 
-            prev1 = curr11;
+            prev1 = Q6_V_hi_W(curr1);
 
             sum0 = _AddFunc(mpy0, sum0);
             sum1 = _AddFunc(mpy1, sum1);
 
-            src0_ptr += 2;  // 2 quant blocks
+            src0_ptr += 2;
             src1_vec_ptr += 2;
         } while (src1_vec_ptr_end - src1_vec_ptr > 1);
 
         sum = _AddFunc(sum0, sum1);
     }
 
-    const size_t leftover1 = count % kElementsPerVector1;
-    if ((src1_vec_ptr_end - ((HVX_Vector *) src1)) > 0) {
-        // handle the last vector
-        auto           s0      = _DequantFunc(src0_ptr);
-        HVX_VectorPair s0_pair = Q6_Wqf32_vmpy_VhfVhf(s0.val[0], s0.val[1]);  // convert to qf32
-        src0_ptr += 2;
+    if (src1_vec_ptr_end - src1_vec_ptr > 0) {
+        HVX_Vector curr1 = *src1_vec_ptr++;
+        HVX_Vector s0    = _DequantFunc(src0_ptr++);
+        HVX_Vector s1    = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
+        prev1            = curr1;
 
-        const bool has_remaining_src1_vector = src1_vec_ptr_end - src1_vec_ptr > 0;
-        if (has_remaining_src1_vector) {
-            HVX_Vector curr1 = *src1_vec_ptr++;
-            HVX_Vector s1    = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-
-            HVX_Vector mpy0 = _MpyFunc(Q6_V_lo_W(s0_pair), s1);
-            prev1           = curr1;
-
-            sum = _AddFunc(mpy0, sum);
-        }
-
-        bool       should_fetch_src1 = leftover1 != 0 || !hexagon::is_addr_aligned(src1_vec_ptr);
-        HVX_Vector curr1             = should_fetch_src1 ? *src1_vec_ptr : prev1;
-        src1_vec_ptr += should_fetch_src1 ? 1 : 0;
-        HVX_Vector s1 = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-
-        HVX_Vector mpy1 = _MpyFunc(has_remaining_src1_vector ? Q6_V_hi_W(s0_pair) : Q6_V_lo_W(s0_pair), s1);
-        prev1           = curr1;
-
-        sum = _AddFunc(mpy1, sum);
+        sum = _AddFunc(_MpyFunc(s0, s1), sum);
     }
 
-    if (leftover1 > 0) {
-        // handle the leftover elements
-        const size_t leftover_bytes1 = leftover1 * sizeof(_TElem1);
+    if ((src1_vec_ptr_end - ((HVX_Vector *) src1)) > 0) {
+        // handle the last vector
+        // see also:
+        //   https://github.com/UbiquitousLearning/mllm/blob/babf4410352ce8730824c87699c025a0d4ce3a6f/src/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/src/ops/LLaMAMul.cpp#L147
+        //   or qualcomm sdk libs\qhl_hvx\src\qhblas_hvx\qhblas_hvx_aw_vector_add_ah.c
+        bool       should_fetch_src1 = !hexagon::is_addr_aligned(src1_vec_ptr);
+        HVX_Vector curr1             = should_fetch_src1 ? *src1_vec_ptr : prev1;
+        src1_vec_ptr += should_fetch_src1 ? 1 : 0;
+        HVX_Vector s0 = _DequantFunc(src0_ptr);
+        HVX_Vector s1 = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
 
-        auto           s0      = _DequantFunc(src0_ptr);
-        HVX_VectorPair s0_pair = Q6_Wqf32_vmpy_VhfVhf(s0.val[0], s0.val[1]);  // convert to qf32
-
-        HVX_Vector curr1 = (leftover_bytes1 + hexagon::unaligned_bytes(src1_vec_ptr) > hexagon::kBytesPerVector) ?
-                               *src1_vec_ptr :
-                               prev1;
-        curr1            = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-
-        sum = _AddFunc(Q6_V_valign_VVR(_MpyFunc(Q6_V_lo_W(s0_pair), curr1), kZeroV, leftover_bytes1), sum);
+        HVX_Vector mpy0 = _MpyFunc(s0, s1);
+        prev1           = curr1;
+        sum             = _AddFunc(mpy0, sum);
     }
 
     return _ReduceFunc(sum);
