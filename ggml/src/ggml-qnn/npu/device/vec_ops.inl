@@ -179,6 +179,10 @@ inline HVX_Vector vec_mpy_qf32(HVX_Vector src0, HVX_Vector src1) {
     return Q6_Vqf32_vmpy_VsfVsf(src0, src1);
 }
 
+inline HVX_Vector vec_mpy_qf32_qf32_qf32(HVX_Vector src0, HVX_Vector src1) {
+    return Q6_Vqf32_vmpy_Vqf32Vqf32(src0, src1);
+}
+
 inline HVX_Vector vec_add_qf32(HVX_Vector sum, HVX_Vector result) {
     return Q6_Vqf32_vadd_Vqf32Vqf32(sum, result);
 }
