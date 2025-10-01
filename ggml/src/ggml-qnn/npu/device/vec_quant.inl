@@ -178,7 +178,7 @@ inline hexagon::HVX_Vector_x5 load_hexa_block_generic(const _TBlock *  srcs,
     return result;
 }
 
-inline HVX_Vector dequantize_row_q4_0_2blocks(HVX_Vector qs, HVX_Vector scale01, HVX_Vector table) {
+inline HVX_Vector dequantize_row_q40_qf16_2blocks(HVX_Vector qs, HVX_Vector scale01, HVX_Vector table) {
     constexpr const uint32_t kSizeOfQs = sizeof(npu_device_block_q4_0::qs);
 
     HVX_Vector     q_lo = qs;
@@ -189,16 +189,13 @@ inline HVX_Vector dequantize_row_q4_0_2blocks(HVX_Vector qs, HVX_Vector scale01,
     q_lo = Q6_Vb_vshuff_Vb(q_lo);
     qp0  = Q6_Wh_vlut16_VbVhR_nomatch(q_lo, table, 0);
 
-    q_lo = Q6_Vqf16_vmpy_VhfVhf(Q6_V_lo_W(qp0), scale01);
-    q_lo = Q6_Vhf_equals_Vqf16(q_lo);
-
-    return q_lo;
+    return Q6_Vqf16_vmpy_VhfVhf(Q6_V_lo_W(qp0), scale01);
 }
 
-inline HVX_Vector_x2 dequantize_row_q4_0_4blocks(HVX_Vector qs,
-                                                 HVX_Vector scale01,
-                                                 HVX_Vector scale23,
-                                                 HVX_Vector table) {
+inline HVX_Vector_x2 dequantize_row_q40_qf16_4blocks(HVX_Vector qs,
+                                                     HVX_Vector scale01,
+                                                     HVX_Vector scale23,
+                                                     HVX_Vector table) {
     constexpr const uint32_t kSizeOfQs = sizeof(npu_device_block_q4_0::qs);
 
     HVX_Vector q_lo = qs;
@@ -215,9 +212,6 @@ inline HVX_Vector_x2 dequantize_row_q4_0_4blocks(HVX_Vector qs,
 
     q_lo = Q6_Vqf16_vmpy_VhfVhf(q_lo, scale01);
     q_hi = Q6_Vqf16_vmpy_VhfVhf(q_hi, scale23);
-
-    q_lo = Q6_Vhf_equals_Vqf16(q_lo);
-    q_hi = Q6_Vhf_equals_Vqf16(q_hi);
 
     hexagon::HVX_Vector_x2 result;
     result.val[0] = q_lo;
