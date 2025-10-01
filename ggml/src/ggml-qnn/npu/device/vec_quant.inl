@@ -192,6 +192,20 @@ inline HVX_Vector dequantize_row_q40_qf16_2blocks(HVX_Vector qs, HVX_Vector scal
     return Q6_Vqf16_vmpy_VhfVhf(Q6_V_lo_W(qp0), scale01);
 }
 
+inline HVX_VectorPair dequantize_row_q40_qf32_2blocks(HVX_Vector qs, HVX_Vector scale01, HVX_Vector table) {
+    constexpr const uint32_t kSizeOfQs = sizeof(npu_device_block_q4_0::qs);
+
+    HVX_Vector     q_lo = qs;
+    HVX_Vector     q_hi = Q6_Vub_vlsr_VubR(qs, 4);
+    HVX_VectorPair qp0  = Q6_W_vshuff_VVR(q_hi, q_lo, kSizeOfQs * (1 + 2));
+
+    q_lo = Q6_V_lo_W(qp0);
+    q_lo = Q6_Vb_vshuff_Vb(q_lo);
+    qp0  = Q6_Wh_vlut16_VbVhR_nomatch(q_lo, table, 0);
+
+    return Q6_Wqf32_vmpy_VhfVhf(Q6_V_lo_W(qp0), scale01);
+}
+
 inline HVX_Vector_x2 dequantize_row_q40_qf16_4blocks(HVX_Vector qs,
                                                      HVX_Vector scale01,
                                                      HVX_Vector scale23,
