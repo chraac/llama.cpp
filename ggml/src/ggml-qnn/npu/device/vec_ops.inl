@@ -434,8 +434,11 @@ inline _TRet vec_dot_product_quant_impl(const _TQuantElem0 * src0,
             HVX_Vector h0 = Q6_V_hi_W(s0);
             HVX_Vector h1 = Q6_V_valign_VVR(Q6_V_hi_W(curr1), Q6_V_lo_W(curr1), (size_t) src1);
 
-            HVX_Vector mpy0 = _MpyFunc(l0, l1);  // TODO: convert l1 to qf16/qf32
-            HVX_Vector mpy1 = _MpyFunc(h0, h1);  // TODO: convert h1 to qf16/qf32
+            l1 = Q6_Vqf32_vadd_Vqf32Vsf(kZeroV, l1);
+            h1 = Q6_Vqf32_vadd_Vqf32Vsf(kZeroV, h1);
+
+            HVX_Vector mpy0 = _MpyFunc(l0, l1);
+            HVX_Vector mpy1 = _MpyFunc(h0, h1);
 
             prev1 = Q6_V_hi_W(curr1);
 
@@ -451,9 +454,10 @@ inline _TRet vec_dot_product_quant_impl(const _TQuantElem0 * src0,
 
     if (src1_vec_ptr_end - src1_vec_ptr > 0) {
         HVX_Vector curr1 = *src1_vec_ptr++;
-        HVX_Vector s0    = _DequantFunc(src0_ptr++, qs_indices, scale_indices, table);
         HVX_Vector s1    = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
         prev1            = curr1;
+        HVX_Vector s0    = _DequantFunc(src0_ptr++, qs_indices, scale_indices, table);
+        s1               = Q6_Vqf32_vadd_Vqf32Vsf(kZeroV, s1);
 
         sum = _AddFunc(_MpyFunc(s0, s1), sum);
     }
@@ -466,8 +470,9 @@ inline _TRet vec_dot_product_quant_impl(const _TQuantElem0 * src0,
         bool       should_fetch_src1 = !hexagon::is_addr_aligned(src1_vec_ptr);
         HVX_Vector curr1             = should_fetch_src1 ? *src1_vec_ptr : prev1;
         src1_vec_ptr += should_fetch_src1 ? 1 : 0;
-        HVX_Vector s0 = _DequantFunc(src0_ptr++, qs_indices, scale_indices, table);
         HVX_Vector s1 = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
+        HVX_Vector s0 = _DequantFunc(src0_ptr++, qs_indices, scale_indices, table);
+        s1            = Q6_Vqf32_vadd_Vqf32Vsf(kZeroV, s1);
 
         HVX_Vector mpy0 = _MpyFunc(s0, s1);
         prev1           = curr1;
