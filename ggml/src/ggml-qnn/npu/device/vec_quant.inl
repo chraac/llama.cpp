@@ -178,7 +178,7 @@ inline hexagon::HVX_Vector_x5 load_hexa_block_generic(const _TBlock *  srcs,
     return result;
 }
 
-inline HVX_Vector dequantize_row_q40_qf16_2blocks(HVX_Vector qs, HVX_Vector scale01, HVX_Vector table) {
+inline HVX_Vector dequantize_vec_q40_qf16_2blocks(HVX_Vector qs, HVX_Vector scale01, HVX_Vector table) {
     constexpr const uint32_t kSizeOfQs = sizeof(npu_device_block_q4_0::qs);
 
     HVX_Vector     q_lo = qs;
@@ -192,7 +192,7 @@ inline HVX_Vector dequantize_row_q40_qf16_2blocks(HVX_Vector qs, HVX_Vector scal
     return Q6_Vqf16_vmpy_VhfVhf(Q6_V_lo_W(qp0), scale01);
 }
 
-inline HVX_VectorPair dequantize_row_q40_qf32_2blocks(HVX_Vector qs, HVX_Vector scale01, HVX_Vector table) {
+inline HVX_VectorPair dequantize_vec_q40_qf32_2blocks(HVX_Vector qs, HVX_Vector scale01, HVX_Vector table) {
     constexpr const uint32_t kSizeOfQs = sizeof(npu_device_block_q4_0::qs);
 
     HVX_Vector     q_lo = qs;
@@ -206,7 +206,7 @@ inline HVX_VectorPair dequantize_row_q40_qf32_2blocks(HVX_Vector qs, HVX_Vector 
     return Q6_Wqf32_vmpy_VhfVhf(Q6_V_lo_W(qp0), scale01);
 }
 
-inline HVX_Vector_x2 dequantize_row_q40_qf16_4blocks(HVX_Vector qs,
+inline HVX_Vector_x2 dequantize_vec_q40_qf16_4blocks(HVX_Vector qs,
                                                      HVX_Vector scale01,
                                                      HVX_Vector scale23,
                                                      HVX_Vector table) {
@@ -231,6 +231,31 @@ inline HVX_Vector_x2 dequantize_row_q40_qf16_4blocks(HVX_Vector qs,
     result.val[0] = q_lo;
     result.val[1] = q_hi;
     return result;
+}
+
+inline HVX_Vector load_dequant_vec_q40_qf32_1block(const npu_device_block_q4_0 * src,
+                                                   const HVX_Vector              qs_indices,
+                                                   const HVX_Vector              scale_indices,
+                                                   const HVX_Vector              table) {
+    // TODO: can we have a single-block version of load and dequantize?
+    auto qs = load_dual_block_generic(src, qs_indices, scale_indices);
+    return Q6_V_lo_W(dequantize_vec_q40_qf32_2blocks(qs.val[0], qs.val[1], table));
+}
+
+inline HVX_Vector load_dequant_vec_q40_qf16_2blocks(const npu_device_block_q4_0 * src,
+                                                    const HVX_Vector              qs_indices,
+                                                    const HVX_Vector              scale_indices,
+                                                    const HVX_Vector              table) {
+    auto qs = load_dual_block_generic(src, qs_indices, scale_indices);
+    return dequantize_vec_q40_qf16_2blocks(qs.val[0], qs.val[1], table);
+}
+
+inline HVX_VectorPair load_dequant_vec_q40_qf32_2blocks(const npu_device_block_q4_0 * src,
+                                                        const HVX_Vector              qs_indices,
+                                                        const HVX_Vector              scale_indices,
+                                                        const HVX_Vector              table) {
+    auto qs = load_dual_block_generic(src, qs_indices, scale_indices);
+    return dequantize_vec_q40_qf32_2blocks(qs.val[0], qs.val[1], table);
 }
 
 }  // namespace hexagon::vec::quant

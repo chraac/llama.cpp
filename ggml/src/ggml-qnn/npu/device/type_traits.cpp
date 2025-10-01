@@ -344,8 +344,8 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_output_type * d
     int i = 0;
     for (; i + 5 < nb; i += 6) {
         auto qs    = load_hexa_block_generic(src_ptr + i, qs_indices, scale_indices);
-        auto res01 = dequantize_row_q40_qf16_4blocks(qs.val[0], qs.val[1], qs.val[2], table);
-        auto res2  = dequantize_row_q40_qf16_2blocks(qs.val[3], qs.val[4], table);
+        auto res01 = dequantize_vec_q40_qf16_4blocks(qs.val[0], qs.val[1], qs.val[2], table);
+        auto res2  = dequantize_vec_q40_qf16_2blocks(qs.val[3], qs.val[4], table);
         if constexpr (_IsDstAligned) {
             reinterpret_cast<HVX_Vector *>(dst_ptr)[0] = Q6_Vhf_equals_Vqf16(res01.val[0]);
             reinterpret_cast<HVX_Vector *>(dst_ptr)[1] = Q6_Vhf_equals_Vqf16(res01.val[1]);
@@ -360,7 +360,7 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_output_type * d
 
     for (; i + 3 < nb; i += 4) {
         auto qs    = load_qual_block_generic(src_ptr + i, qs_indices, scale_indices);
-        auto res01 = dequantize_row_q40_qf16_4blocks(qs.val[0], qs.val[1], qs.val[2], table);
+        auto res01 = dequantize_vec_q40_qf16_4blocks(qs.val[0], qs.val[1], qs.val[2], table);
         if constexpr (_IsDstAligned) {
             reinterpret_cast<HVX_Vector *>(dst_ptr)[0] = Q6_Vhf_equals_Vqf16(res01.val[0]);
             reinterpret_cast<HVX_Vector *>(dst_ptr)[1] = Q6_Vhf_equals_Vqf16(res01.val[1]);
@@ -372,8 +372,7 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_output_type * d
     }
 
     for (; i + 1 < nb; i += 2) {
-        auto qs  = load_dual_block_generic(src_ptr + i, qs_indices, scale_indices);
-        auto res = dequantize_row_q40_qf16_2blocks(qs.val[0], qs.val[1], table);
+        auto res = load_dequant_vec_q40_qf16_2blocks(src_ptr + i, qs_indices, scale_indices, table);
         if constexpr (_IsDstAligned) {
             *reinterpret_cast<HVX_Vector *>(dst_ptr) = Q6_Vhf_equals_Vqf16(res);
         } else {

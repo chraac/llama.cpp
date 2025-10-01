@@ -354,6 +354,23 @@ inline float vec_dot_product_aligned_f16_f32(const npu_device_fp16_t * src0, con
                                             vec_add_qf32, vec_reduction_f32_qf32>(src0, src1, count);
 }
 
+inline HVX_Vector vec_dot_product_vqf32_q40_f32(const npu_device_block_q4_0 * src0,
+                                                const float *                 src1,
+                                                size_t                        count,
+                                                const HVX_Vector              table) {
+    using namespace hexagon::vec;
+    using namespace hexagon::vec::math;
+    using namespace hexagon::vec::quant;
+
+    alignas(hexagon::kBytesPerVector) static const HVX_Vector qs_indices = make_qs_load_mask<npu_device_block_q4_0>();
+    alignas(hexagon::kBytesPerVector) static const HVX_Vector scale_indices =
+        make_scale_load_mask<npu_device_block_q4_0>();
+
+    return vec_dot_product_quant_impl<npu_device_block_q4_0, float, HVX_Vector, load_dequant_vec_q40_qf32_2blocks,
+                                      load_dequant_vec_q40_qf32_1block, vec_mpy_qf32, vec_add_qf32, vec_reduction_qf32>(
+        src0, src1, count, qs_indices, scale_indices, table);
+}
+
 inline bool is_f16_f32_dot_product_aligned(const npu_device_fp16_t * src0, const float * src1, size_t count) {
     return is_dot_product_aligned<npu_device_fp16_t, float>(src0, src1, count);
 }

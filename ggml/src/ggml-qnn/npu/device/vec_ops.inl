@@ -383,17 +383,28 @@ inline _TRet vec_dot_product_mix_aligned_impl(const _TElem0 * src0, const _TElem
 template <typename _TQuantElem0,
           typename _TElem1,
           typename _TRet,
-          HVX_VectorPair (*_DequantDualFunc)(const _TQuantElem0 * src),
-          HVX_Vector (*_DequantFunc)(const _TQuantElem0 * src),
+          HVX_VectorPair (*_DequantDualFunc)(const _TQuantElem0 * src,
+                                             const HVX_Vector     qs_indices,
+                                             const HVX_Vector     scale_indices,
+                                             const HVX_Vector     table),
+          HVX_Vector (*_DequantFunc)(const _TQuantElem0 * src,
+                                     const HVX_Vector     qs_indices,
+                                     const HVX_Vector     scale_indices,
+                                     const HVX_Vector     table),
           HVX_Vector (*_MpyFunc)(HVX_Vector, HVX_Vector),
           HVX_Vector (*_AddFunc)(HVX_Vector, HVX_Vector),
           _TRet (*_ReduceFunc)(HVX_Vector)>
-inline _TRet vec_dot_product_quant_impl(const _TQuantElem0 * src0, const _TElem1 * src1, size_t count) {
+inline _TRet vec_dot_product_quant_impl(const _TQuantElem0 * src0,
+                                        const _TElem1 *      src1,
+                                        size_t               count,
+                                        const HVX_Vector     qs_indices,
+                                        const HVX_Vector     scale_indices,
+                                        const HVX_Vector     table) {
     constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TElem1);
 
-    static_assert(std::is_same_v<_TQuantElem0, npu_device_block_q4_0>() ||
-                      std::is_same_v<_TQuantElem0, npu_device_block_q4_k>() ||
-                      std::is_same_v<_TQuantElem0, npu_device_block_q8_0>(),
+    static_assert(std::is_same_v<_TQuantElem0, npu_device_block_q4_0> ||
+                      std::is_same_v<_TQuantElem0, npu_device_block_q4_k> ||
+                      std::is_same_v<_TQuantElem0, npu_device_block_q8_0>,
                   "Element type mismatch: _TQuantElem0 must be npu_device_block_q4_0, npu_device_block_q4_k or "
                   "npu_device_block_q8_0");
     static_assert(QUANT_BLOCK_SIZE == kElementsPerVector,
@@ -403,8 +414,7 @@ inline _TRet vec_dot_product_quant_impl(const _TQuantElem0 * src0, const _TElem1
 
     const HVX_Vector kZeroV = Q6_V_vzero();
 
-    _TQuantElem0 *       src0_ptr         = src0;
-    _TQuantElem0 * const src0_ptr_end     = src0 + count / QUANT_BLOCK_SIZE;
+    const _TQuantElem0 * src0_ptr         = src0;
     HVX_Vector *         src1_vec_ptr     = ((HVX_Vector *) src1);
     HVX_Vector * const   src1_vec_ptr_end = ((HVX_Vector *) src1) + count / kElementsPerVector;
     HVX_Vector           prev1            = *src1_vec_ptr++;
@@ -415,7 +425,7 @@ inline _TRet vec_dot_product_quant_impl(const _TQuantElem0 * src0, const _TElem1
         HVX_Vector sum1 = kZeroV;
 
         do {
-            HVX_VectorPair s0    = _DequantDualFunc(src0_ptr);
+            HVX_VectorPair s0    = _DequantDualFunc(src0_ptr, qs_indices, scale_indices, table);
             HVX_VectorPair curr1 = reinterpret_cast<HVX_VectorPair *>(src1_vec_ptr)[0];
 
             HVX_Vector l0 = Q6_V_lo_W(s0);
@@ -441,7 +451,7 @@ inline _TRet vec_dot_product_quant_impl(const _TQuantElem0 * src0, const _TElem1
 
     if (src1_vec_ptr_end - src1_vec_ptr > 0) {
         HVX_Vector curr1 = *src1_vec_ptr++;
-        HVX_Vector s0    = _DequantFunc(src0_ptr++);
+        HVX_Vector s0    = _DequantFunc(src0_ptr++, qs_indices, scale_indices, table);
         HVX_Vector s1    = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
         prev1            = curr1;
 
@@ -456,7 +466,7 @@ inline _TRet vec_dot_product_quant_impl(const _TQuantElem0 * src0, const _TElem1
         bool       should_fetch_src1 = !hexagon::is_addr_aligned(src1_vec_ptr);
         HVX_Vector curr1             = should_fetch_src1 ? *src1_vec_ptr : prev1;
         src1_vec_ptr += should_fetch_src1 ? 1 : 0;
-        HVX_Vector s0 = _DequantFunc(src0_ptr);
+        HVX_Vector s0 = _DequantFunc(src0_ptr++, qs_indices, scale_indices, table);
         HVX_Vector s1 = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
 
         HVX_Vector mpy0 = _MpyFunc(s0, s1);
