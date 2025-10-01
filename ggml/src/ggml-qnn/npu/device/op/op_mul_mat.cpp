@@ -14,17 +14,17 @@ struct get_data_type<HVX_Vector (*)(const _TData0 *, const _TData1 *, size_t)> {
     using data_type1 = _TData1;
 };
 
-template <typename _TRet> struct convert_vector {};
-
-template <> struct convert_vector<float> {
-    static float convert(HVX_Vector vec) { return hexagon::get_flt0_from_fltv(Q6_Vsf_equals_Vqf32(vec)); }
-};
-
 inline std::pair<size_t, size_t> unflatten_i3_i2(size_t idx, const hexagon::tensor * t) {
     const auto i3 = idx / t->get_ne(2);
     const auto i2 = idx - i3 * t->get_ne(2);
     return { i3, i2 };
 }
+
+template <typename _TRet> struct convert_vector {};
+
+template <> struct convert_vector<float> {
+    static float convert(HVX_Vector vec) { return hexagon::get_flt0_from_fltv(Q6_Vsf_equals_Vqf32(vec)); }
+};
 
 template <> struct convert_vector<npu_device_fp16_t> {
     static float convert(HVX_Vector vec) {
@@ -53,6 +53,49 @@ inline bool init_dma_transfer(hexagon::compute_params * params,
     }
 
     return true;
+}
+
+template <auto _DotFunc>
+inline void batched_row_dot_with_table(const uint8_t *  src0_plane,
+                                       const size_t     src0_ne0,
+                                       const size_t     src0_nb1,
+                                       const uint8_t *  src1_row,
+                                       const size_t     src1_nb1,
+                                       float *          dst_row,
+                                       const size_t     slice_rows,
+                                       const size_t     src1_fetch_row_bytes,
+                                       const HVX_Vector table) {
+    using data_type0 = typename get_data_type<decltype(_DotFunc)>::data_type0;
+    using data_type1 = typename get_data_type<decltype(_DotFunc)>::data_type1;
+
+    size_t i0 = 0;
+    for (; i0 + 1 < slice_rows; i0 += 2) {
+        auto * src0_row = src0_plane + i0 * src0_nb1;
+
+        // TODO: figure dst how to handle a entire row
+        auto res0 = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row),
+                             reinterpret_cast<const data_type1 *>(src1_row), src0_ne0);
+
+        // TODO: figure dst how to handle a entire row
+        auto res1 = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row + src0_nb1),
+                             reinterpret_cast<const data_type1 *>(src1_row), src0_ne0);
+
+        {
+            dst_row[i0]     = convert_vector<data_type1>::convert(res0);
+            dst_row[i0 + 1] = convert_vector<data_type1>::convert(res1);
+        }
+    }
+
+    if (src1_fetch_row_bytes > 0) {
+        hexagon::l2fetch_row(src1_row + src1_nb1, src1_fetch_row_bytes);
+    }
+
+    if (i0 < slice_rows) {
+        auto * src0_row = src0_plane + i0 * src0_nb1;
+        auto   res      = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row),
+                                   reinterpret_cast<const data_type1 *>(src1_row), src0_ne0, table);
+        dst_row[i0]     = convert_vector<data_type1>::convert(res);
+    }
 }
 
 template <auto _DotFunc>
@@ -447,6 +490,134 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
                 auto * dst_row = reinterpret_cast<float *>(dst_ptr) + col_idx;
                 batched_row_dot<_DotFunc>(src0_plane_read_cache_ptr, src0->get_ne(0), src0_row_stride,
                                           src1_row_cache_ptr, src1->get_nb(1), dst_row, slice_rows, 0);
+            }
+        }
+    }
+
+    dst->release_write_buffer();  // mark the output tensor as modified
+}
+
+template <auto _DotFunc>
+inline void mul_mat_gemv_quant_impl(hexagon::tensor *         src0,
+                                    hexagon::tensor *         src1,
+                                    hexagon::tensor *         dst,
+                                    hexagon::compute_params * params) {
+    // TODO: merge with mul_mat_gemv_impl?
+
+    using data_type1 = typename get_data_type<decltype(_DotFunc)>::data_type1;
+
+    if (dst->get_ne(0) < params->get_thread_count()) {
+        DEVICE_LOG_ERROR("Unsupported src1 tensor shape for gemv: %s, ne: %lldx%lldx%lldx%lld\n",
+                         hexagon::get_type_name(src1->get_type()), src1->get_ne(0), src1->get_ne(1), src1->get_ne(2),
+                         src1->get_ne(3));
+        return;
+    }
+
+    const auto src0_row_stride   = hexagon::get_dequantized_row_size(src0);
+    const auto start_end_element = params->get_work_slice(dst->get_ne(0));
+    if (start_end_element.second <= start_end_element.first || start_end_element.first < 0) {
+        DEVICE_LOG_DEBUG(
+            "mul_mat_gemv_quant_impl: no work to do, start_end_plane: [0, 1), start_end_row: [0, 1), "
+            "start_end_element: [%lld, %lld)\n",
+            start_end_element.first, start_end_element.second);
+        return;
+    }
+
+    const uint8_t * src0_ptr             = src0->get_read_buffer(true);  // TODO: avoid invalidation
+    const size_t    valid_src0_row_bytes = src0->get_nb(1);
+
+    // cache the src0 plane in VTCM
+    const size_t src1_row_stride = hexagon::get_aligned_size(src1->get_nb(1));
+    const size_t src0_plane_slice_row_count =
+        std::min<size_t>((params->get_vtcm_quota_size() - src1_row_stride) / (src0_row_stride * 2),
+                         start_end_element.second - start_end_element.first);
+
+    uint8_t * src0_plane_read_cache_ptr  = nullptr;
+    uint8_t * src0_plane_write_cache_ptr = nullptr;
+    uint8_t * src1_row_cache_ptr         = nullptr;
+
+    DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_WITH_MULTI_SUB_PROC(dst, params->get_thread_index(), mul_mat);
+    {
+        const size_t src0_plane_cache_size = src0_row_stride * src0_plane_slice_row_count;
+        src0_plane_read_cache_ptr          = params->get_vtcm_cache(src0_plane_cache_size * 2 + src1_row_stride);
+        if (!src0_plane_read_cache_ptr) {
+            DEVICE_LOG_ERROR(
+                "mul_mat_gemv_quant_impl: failed to get VTCM cache for src0, size: %zu, src0_plane_slice_row_count: "
+                "%zu, "
+                "src0_row_stride: %zu, will fallback to mem cache\n",
+                src0_plane_cache_size, src0_plane_slice_row_count, src0_row_stride);
+            return;
+        }
+
+        src0_plane_write_cache_ptr = src0_plane_read_cache_ptr + src0_plane_cache_size;
+        src1_row_cache_ptr         = src0_plane_write_cache_ptr + src0_plane_cache_size;
+
+        DEVICE_LOG_DEBUG(
+            "mul_mat_gemv_quant_impl: src0_row_stride: %zu, src0_plane_slice_row_count: %zu, src0.nb[1]: %d, vtcm_mem: "
+            "%p(%zu)\n",
+            src0_row_stride, src0_plane_slice_row_count, int(src0->get_nb(1)), (void *) src0_plane_read_cache_ptr,
+            src0_plane_cache_size);
+    }
+
+    uint8_t * dst_ptr = dst->get_write_buffer();
+    if (!dst_ptr) {
+        DEVICE_LOG_ERROR("mul_mat_gemv_quant_impl: dst_ptr is not writable, tensor: %p, type: %s\n", (void *) dst,
+                         hexagon::get_type_name(dst->get_type()));
+        return;
+    }
+
+    const uint8_t * src1_ptr = src1->get_read_buffer();
+
+    {
+        if (!params->initiate_dma_row_transfer(src1_ptr, src1_row_cache_ptr, src1->get_ne(0) * sizeof(data_type1))) {
+            DEVICE_LOG_ERROR("mul_mat_gemv_quant_impl: failed to initiate dma transfer for src1\n");
+            return;
+        }
+
+        const uint8_t * src0_plane = src0_ptr + start_end_element.first * src0->get_nb(1);
+        const size_t    next_row_count =
+            std::min<size_t>(src0_plane_slice_row_count,
+                             start_end_element.second - start_end_element.first);  // number of rows in this slice
+        params->wait_for_dma();
+
+        if (!init_dma_transfer<true>(params, src0_plane, src0_plane_write_cache_ptr, valid_src0_row_bytes,
+                                     next_row_count, src0->get_nb(1), src0->get_nb(1))) {
+            DEVICE_LOG_ERROR("mul_mat_gemv_quant_impl: failed to initiate dma plane transfer for src0 plane\n");
+            return;
+        }
+    }
+
+    auto *     load_dequant_table_func = hexagon::get_type_traits(src0->get_type()).load_dequant_table;
+    const auto dequant_table           = load_dequant_table_func ? load_dequant_table_func() : HVX_Vector();
+    {
+        for (size_t col_idx = start_end_element.first; col_idx < size_t(start_end_element.second);
+             col_idx += src0_plane_slice_row_count) {
+            const size_t slice_rows =
+                std::min<size_t>(src0_plane_slice_row_count,
+                                 start_end_element.second - col_idx);  // number of rows in this slice
+            const size_t next_col_idx = col_idx + src0_plane_slice_row_count;
+            std::swap(src0_plane_read_cache_ptr, src0_plane_write_cache_ptr);
+            params->wait_for_dma();
+
+            if (next_col_idx < start_end_element.second) {
+                DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 2, dma);
+                const uint8_t * src0_next_plane = src0_ptr + next_col_idx * src0->get_nb(1);
+                const size_t    next_row_count =
+                    std::min<size_t>(src0_plane_slice_row_count,
+                                     start_end_element.second - next_col_idx);  // number of rows in this slice
+                if (!init_dma_transfer<true>(params, src0_next_plane, src0_plane_write_cache_ptr, valid_src0_row_bytes,
+                                             next_row_count, src0->get_nb(1), src0->get_nb(1))) {
+                    DEVICE_LOG_ERROR("mul_mat_gemv_quant_impl: failed to continue dma plane transfer for src0 plane\n");
+                    return;
+                }
+            }
+
+            {
+                DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 1, dot);
+                auto * dst_row = reinterpret_cast<float *>(dst_ptr) + col_idx;
+                batched_row_dot_with_table<_DotFunc>(src0_plane_read_cache_ptr, src0->get_ne(0), src0_row_stride,
+                                                     src1_row_cache_ptr, src1->get_nb(1), dst_row, slice_rows, 0,
+                                                     dequant_table);
             }
         }
     }
