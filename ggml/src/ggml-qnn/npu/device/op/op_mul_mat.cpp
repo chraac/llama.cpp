@@ -217,8 +217,8 @@ inline void mul_mat_impl(hexagon::tensor *         src0,
         return;
     }
 
-    const auto      dequant_table = load_dequant_table_func ? load_dequant_table_func() : HVX_Vector();
     const uint8_t * src1_ptr      = src1->get_read_buffer();
+    const auto      dequant_table = load_dequant_table_func ? load_dequant_table_func() : HVX_Vector();
     for (size_t ip = start_end_plane.first; ip < size_t(start_end_plane.second); ip++) {
         const auto [i3, i2]             = unflatten_i3_i2(ip, dst);
         const auto *    src1_plane      = src1_ptr + i3 * src1->get_nb(3) + i2 * src1->get_nb(2);
@@ -383,8 +383,7 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
         return;
     }
 
-    auto            dequant_table = load_dequant_table_func ? load_dequant_table_func() : HVX_Vector();
-    const uint8_t * src1_ptr      = src1->get_read_buffer();
+    const uint8_t * src1_ptr = src1->get_read_buffer();
 
     {
         if (!params->initiate_dma_row_transfer(src1_ptr, src1_row_cache_ptr, src1->get_ne(0) * sizeof(data_type1))) {
@@ -407,6 +406,7 @@ inline void mul_mat_gemv_impl(hexagon::tensor *         src0,
         }
     }
 
+    const auto dequant_table = load_dequant_table_func ? load_dequant_table_func() : HVX_Vector();
     {
         for (size_t col_idx = start_end_element.first; col_idx < size_t(start_end_element.second);
              col_idx += src0_plane_slice_row_count) {
