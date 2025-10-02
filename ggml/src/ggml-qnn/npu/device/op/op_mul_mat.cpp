@@ -606,7 +606,7 @@ inline void mul_mat_gemv_quant_impl(hexagon::tensor *         src0,
             params->wait_for_dma();
 
             if (next_col_idx < start_end_element.second) {
-                DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 2, dma);
+                DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 1, dma);
                 const uint8_t * src0_next_plane = src0_ptr + next_col_idx * src0->get_nb(1);
                 const size_t    next_row_count =
                     std::min<size_t>(src0_plane_slice_row_count,
@@ -619,7 +619,7 @@ inline void mul_mat_gemv_quant_impl(hexagon::tensor *         src0,
             }
 
             {
-                DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 1, dot);
+                DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 0, dot);
                 auto * dst_row = reinterpret_cast<float *>(dst_ptr) + col_idx;
                 batched_row_dot_with_table<_DotFunc>(src0_plane_read_cache_ptr, src0->get_ne(0), src0_row_stride,
                                                      src1_row_cache_ptr, src1->get_nb(1), dst_row, slice_rows, 0,
@@ -817,8 +817,13 @@ bool mul_mat_f32(hexagon::tensor * out, compute_params * params) {
     switch (src1->get_type()) {
         case NPU_DATA_TYPE_F32:
             if (is_src0_quantized) {
-                kMulMatF16F32QuantizedFuncs[is_mul_mat_f16_f32_src_tensors_aligned(src0, src1, true, is_gemv) +
-                                            base_index](src0, src1, out, params);
+                if (src0->get_type() == NPU_DATA_TYPE_Q4_0) {
+                    // TODO: move to array
+                    mul_mat_gemv_quant_impl<hexagon::vec_dot_product_vqf32_q40_f32>(src0, src1, out, params);
+                } else {
+                    kMulMatF16F32QuantizedFuncs[is_mul_mat_f16_f32_src_tensors_aligned(src0, src1, true, is_gemv) +
+                                                base_index](src0, src1, out, params);
+                }
             } else if (src0->get_type() == NPU_DATA_TYPE_F16) {
                 kMulMatF16F32Funcs[is_mul_mat_f16_f32_src_tensors_aligned(src0, src1, true, is_gemv) + base_index](
                     src0, src1, out, params);
