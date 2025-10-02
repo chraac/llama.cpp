@@ -6,6 +6,12 @@
 
 namespace {
 
+inline std::pair<size_t, size_t> unflatten_i3_i2(size_t idx, const hexagon::tensor * t) {
+    const auto i3 = idx / t->get_ne(2);
+    const auto i2 = idx - i3 * t->get_ne(2);
+    return { i3, i2 };
+}
+
 template <typename _T> struct get_data_type {};
 
 template <typename _TData0, typename _TData1>
@@ -14,11 +20,11 @@ struct get_data_type<HVX_Vector (*)(const _TData0 *, const _TData1 *, size_t)> {
     using data_type1 = _TData1;
 };
 
-inline std::pair<size_t, size_t> unflatten_i3_i2(size_t idx, const hexagon::tensor * t) {
-    const auto i3 = idx / t->get_ne(2);
-    const auto i2 = idx - i3 * t->get_ne(2);
-    return { i3, i2 };
-}
+template <typename _TData0, typename _TData1>
+struct get_data_type<HVX_Vector (*)(const _TData0 *, const _TData1 *, size_t, const HVX_Vector)> {
+    using data_type0 = _TData0;
+    using data_type1 = _TData1;
+};
 
 template <typename _TRet> struct convert_vector {};
 
@@ -74,11 +80,11 @@ inline void batched_row_dot_with_table(const uint8_t *  src0_plane,
 
         // TODO: figure dst how to handle a entire row
         auto res0 = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row),
-                             reinterpret_cast<const data_type1 *>(src1_row), src0_ne0);
+                             reinterpret_cast<const data_type1 *>(src1_row), src0_ne0, table);
 
         // TODO: figure dst how to handle a entire row
         auto res1 = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row + src0_nb1),
-                             reinterpret_cast<const data_type1 *>(src1_row), src0_ne0);
+                             reinterpret_cast<const data_type1 *>(src1_row), src0_ne0, table);
 
         {
             dst_row[i0]     = convert_vector<data_type1>::convert(res0);
