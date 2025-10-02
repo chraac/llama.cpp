@@ -438,8 +438,8 @@ inline _TRet vec_dot_product_quant_impl(const _TQuantElem0 * src0,
             HVX_Vector h0 = Q6_V_hi_W(s0);
             HVX_Vector h1 = Q6_V_valign_VVR(Q6_V_hi_W(curr1), Q6_V_lo_W(curr1), (size_t) src1);
 
-            l1 = Q6_Vqf32_vadd_Vqf32Vsf(kZeroV, l1);
-            h1 = Q6_Vqf32_vadd_Vqf32Vsf(kZeroV, h1);
+            l1 = Q6_Vqf32_vadd_VsfVsf(kZeroV, l1);
+            h1 = Q6_Vqf32_vadd_VsfVsf(kZeroV, h1);
 
             HVX_Vector mpy0 = _MpyFunc(l0, l1);
             HVX_Vector mpy1 = _MpyFunc(h0, h1);
@@ -461,7 +461,7 @@ inline _TRet vec_dot_product_quant_impl(const _TQuantElem0 * src0,
         HVX_Vector s1    = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
         prev1            = curr1;
         HVX_Vector s0    = _DequantFunc(src0_ptr++, qs_indices, scale_indices, table);
-        s1               = Q6_Vqf32_vadd_Vqf32Vsf(kZeroV, s1);
+        s1               = Q6_Vqf32_vadd_VsfVsf(kZeroV, s1);
 
         sum = _AddFunc(_MpyFunc(s0, s1), sum);
     }
@@ -476,7 +476,7 @@ inline _TRet vec_dot_product_quant_impl(const _TQuantElem0 * src0,
         src1_vec_ptr += should_fetch_src1 ? 1 : 0;
         HVX_Vector s1 = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
         HVX_Vector s0 = _DequantFunc(src0_ptr++, qs_indices, scale_indices, table);
-        s1            = Q6_Vqf32_vadd_Vqf32Vsf(kZeroV, s1);
+        s1            = Q6_Vqf32_vadd_VsfVsf(kZeroV, s1);
 
         HVX_Vector mpy0 = _MpyFunc(s0, s1);
         prev1           = curr1;

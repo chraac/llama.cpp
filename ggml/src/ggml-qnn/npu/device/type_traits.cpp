@@ -584,6 +584,28 @@ bool init_f16_f32_table(float * table, size_t count) {
         table[i] = to_float(i);
     }
 
+    {
+        const auto table = load_dequant_table_q4_0();
+
+        npu_device_block_q4_0 src0[16] = {};
+        for (int i = 0; i < 8; ++i) {
+            auto & blk = src0[i];
+            for (int j = 0; j < QUANT_BLOCK_SIZE / 2; ++j) {
+                blk.qs[j] = 0x99;  // -7 in both 4-bit halves
+            }
+            blk.d = to_fp16(1.0f);
+        }
+
+        float src1[512] = {};
+        for (int i = 0; i < 256; ++i) {
+            src1[i] = 1.0f;
+        }
+
+        HVX_Vector rv  = vec_dot_product_vqf32_q40_f32(src0, src1, 256, table);
+        float      res = hexagon::get_flt0_from_fltv(Q6_Vsf_equals_Vqf32(rv));
+        DEVICE_LOG_DEBUG("vec_dot_product_vqf32_q40_f32 test: res: %.5f\n", res);
+    }
+
     return true;
 }
 
