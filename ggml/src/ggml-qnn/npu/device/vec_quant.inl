@@ -202,7 +202,12 @@ inline HVX_VectorPair dequantize_vec_q40_qf32_2blocks(HVX_Vector qs, HVX_Vector 
     q_lo = Q6_V_lo_W(qp0);
     q_lo = Q6_Vb_vshuff_Vb(q_lo);
     qp0  = Q6_Wh_vlut16_VbVhR_nomatch(q_lo, table, 0);
-    return Q6_Wqf32_vmpy_VhfVhf(Q6_Vh_vshuff_Vh(Q6_V_lo_W(qp0)), Q6_Vh_vshuff_Vh(scale01));  // TODO: avoid vshuff here
+
+    q_lo    = Q6_V_lo_W(qp0);
+    scale01 = Q6_Vh_vshuff_Vh(scale01);
+    q_lo    = Q6_Vh_vshuff_Vh(q_lo);
+
+    return Q6_Wqf32_vmpy_VhfVhf(q_lo, scale01);  // TODO: avoid vshuff here
 }
 
 inline HVX_Vector_x2 dequantize_vec_q40_qf16_4blocks(HVX_Vector qs,
@@ -232,6 +237,36 @@ inline HVX_Vector_x2 dequantize_vec_q40_qf16_4blocks(HVX_Vector qs,
     return result;
 }
 
+inline HVX_VectorPair_x2 dequantize_vec_q40_qf32_4blocks(HVX_Vector qs,
+                                                         HVX_Vector scale01,
+                                                         HVX_Vector scale23,
+                                                         HVX_Vector table) {
+    constexpr const uint32_t kSizeOfQs = sizeof(npu_device_block_q4_0::qs);
+
+    HVX_Vector q_lo = qs;
+    HVX_Vector q_hi = Q6_Vub_vlsr_VubR(qs, 4);
+
+    HVX_VectorPair qp0 = Q6_W_vshuff_VVR(q_hi, q_lo, kSizeOfQs * (1 + 2 + 4));
+
+    q_lo = Q6_V_lo_W(qp0);
+    q_lo = Q6_Vb_vshuff_Vb(q_lo);
+    qp0  = Q6_Wh_vlut16_VbVhR_nomatch(q_lo, table, 0);
+
+    q_lo = Q6_V_lo_W(qp0);
+    q_hi = Q6_V_hi_W(qp0);
+
+    q_lo    = Q6_Vh_vshuff_Vh(q_lo);
+    scale01 = Q6_Vh_vshuff_Vh(scale01);
+
+    q_hi    = Q6_Vh_vshuff_Vh(q_hi);
+    scale23 = Q6_Vh_vshuff_Vh(scale23);
+
+    hexagon::HVX_VectorPair_x2 result;
+    result.val[0] = Q6_Wqf32_vmpy_VhfVhf(q_lo, scale01);
+    result.val[1] = Q6_Wqf32_vmpy_VhfVhf(q_hi, scale23);
+    return result;
+}
+
 inline HVX_Vector load_dequant_vec_q40_qf32_1block(const npu_device_block_q4_0 * src,
                                                    const HVX_Vector              qs_indices,
                                                    const HVX_Vector              scale_indices,
@@ -255,6 +290,14 @@ inline HVX_VectorPair load_dequant_vec_q40_qf32_2blocks(const npu_device_block_q
                                                         const HVX_Vector              table) {
     auto qs = load_dual_block_generic(src, qs_indices, scale_indices);
     return dequantize_vec_q40_qf32_2blocks(qs.val[0], qs.val[1], table);
+}
+
+inline HVX_VectorPair_x2 load_dequant_vec_q40_qf32_4blocks(const npu_device_block_q4_0 * src,
+                                                           const HVX_Vector              qs_indices,
+                                                           const HVX_Vector              scale_indices,
+                                                           const HVX_Vector              table) {
+    auto qs = load_qual_block_generic(src, qs_indices, scale_indices);
+    return dequantize_vec_q40_qf32_4blocks(qs.val[0], qs.val[1], qs.val[2], table);
 }
 
 }  // namespace hexagon::vec::quant
