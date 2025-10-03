@@ -579,14 +579,14 @@ inline void mul_mat_gemv_quant_impl(hexagon::tensor *         src0,
             return;
         }
 
-        const uint8_t * src0_plane = src0_ptr + start_end_element.first * src0->get_nb(1);
+        const uint8_t * src0_plane = src0_ptr + start_end_element.first * src0_row_stride;
         const size_t    next_row_count =
             std::min<size_t>(src0_plane_slice_row_count,
                              start_end_element.second - start_end_element.first);  // number of rows in this slice
         params->wait_for_dma();
 
         if (!init_dma_transfer<true>(params, src0_plane, src0_plane_write_cache_ptr, src0_row_stride, next_row_count,
-                                     src0->get_nb(1), src0->get_nb(1))) {
+                                     src0_row_stride, src0_row_stride)) {
             DEVICE_LOG_ERROR("mul_mat_gemv_quant_impl: failed to initiate dma plane transfer for src0 plane\n");
             return;
         }
@@ -606,12 +606,12 @@ inline void mul_mat_gemv_quant_impl(hexagon::tensor *         src0,
 
             if (next_col_idx < start_end_element.second) {
                 DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 1, dma);
-                const uint8_t * src0_next_plane = src0_ptr + next_col_idx * src0->get_nb(1);
+                const uint8_t * src0_next_plane = src0_ptr + next_col_idx * src0_row_stride;
                 const size_t    next_row_count =
                     std::min<size_t>(src0_plane_slice_row_count,
                                      start_end_element.second - next_col_idx);  // number of rows in this slice
                 if (!init_dma_transfer<true>(params, src0_next_plane, src0_plane_write_cache_ptr, src0_row_stride,
-                                             next_row_count, src0->get_nb(1), src0->get_nb(1))) {
+                                             next_row_count, src0_row_stride, src0_row_stride)) {
                     DEVICE_LOG_ERROR("mul_mat_gemv_quant_impl: failed to continue dma plane transfer for src0 plane\n");
                     return;
                 }
