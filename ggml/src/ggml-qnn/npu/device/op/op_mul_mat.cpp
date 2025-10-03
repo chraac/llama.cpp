@@ -817,7 +817,7 @@ bool mul_mat_f32(hexagon::tensor * out, compute_params * params) {
     switch (src1->get_type()) {
         case NPU_DATA_TYPE_F32:
             if (is_src0_quantized) {
-                if (src0->get_type() == NPU_DATA_TYPE_Q4_0) {
+                if (is_gemv && src0->get_type() == NPU_DATA_TYPE_Q4_0) {
                     // TODO: move to array
                     mul_mat_gemv_quant_impl<hexagon::vec_dot_product_vqf32_q40_f32>(src0, src1, out, params);
                 } else {
