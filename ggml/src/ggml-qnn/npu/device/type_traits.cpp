@@ -584,26 +584,54 @@ bool init_f16_f32_table(float * table, size_t count) {
         table[i] = to_float(i);
     }
 
-    {
-        const auto table = load_dequant_table_q4_0();
+    {  // TODO: remove after proper testing
+        auto test_func = [](const size_t idx) {
+            const auto table = load_dequant_table_q4_0();
 
-        npu_device_block_q4_0 src0[16] = {};
-        for (int i = 0; i < 8; ++i) {
-            auto & blk = src0[i];
-            for (int j = 0; j < QUANT_BLOCK_SIZE / 2; ++j) {
-                blk.qs[j] = 0x99;  // -7 in both 4-bit halves
+            npu_device_block_q4_0 src0[16] = {};
+            for (int i = 0; i < 8; ++i) {
+                auto & blk = src0[i];
+                blk.qs[0]  = 0xf0;
+                blk.qs[1]  = 0xe1;
+                blk.qs[2]  = 0xd2;
+                blk.qs[3]  = 0xc3;
+                blk.qs[4]  = 0xb4;
+                blk.qs[5]  = 0xa5;
+                blk.qs[6]  = 0x96;
+                blk.qs[7]  = 0x87;
+                blk.qs[8]  = 0x78;
+                blk.qs[9]  = 0x69;
+                blk.qs[10] = 0x5a;
+                blk.qs[11] = 0x4b;
+                blk.qs[12] = 0x3c;
+                blk.qs[13] = 0x2d;
+                blk.qs[14] = 0x1e;
+                blk.qs[15] = 0x2f;
+                blk.d      = to_fp16(1.0f);
             }
-            blk.d = to_fp16(1.0f);
-        }
 
-        float src1[512] = {};
-        for (int i = 0; i < 256; ++i) {
-            src1[i] = 1.0f;
-        }
+            float src1[512] = {};
+            for (int i = 0; i < 256; ++i) {
+                src1[i] = 0.0f;
+            }
 
-        HVX_Vector rv  = vec_dot_product_vqf32_q40_f32(src0, src1, 256, table);
-        float      res = hexagon::get_flt0_from_fltv(Q6_Vsf_equals_Vqf32(rv));
-        DEVICE_LOG_DEBUG("vec_dot_product_vqf32_q40_f32 test: res: %.5f\n", res);
+            src1[idx] = 1.0f;
+
+            HVX_Vector rv  = vec_dot_product_vqf32_q40_f32(src0, src1, 256, table);
+            float      res = hexagon::get_flt0_from_fltv(Q6_Vsf_equals_Vqf32(rv));
+            DEVICE_LOG_INFO("vec_dot_product_vqf32_q40_f32.test.%zu.res: %.5f\n", idx, res);
+        };
+
+        test_func(0);
+        test_func(15);
+        test_func(16);
+        test_func(31);
+        test_func(32);
+        test_func(63);
+        test_func(64);
+        test_func(127);
+        test_func(128);
+        test_func(255);
     }
 
     return true;
