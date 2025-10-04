@@ -206,37 +206,16 @@ bool rope_impl(hexagon::tensor * out, hexagon::compute_params * params) {
         if constexpr (!_IsMrope) {
             DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(rope, 0, cache);
             const int64_t p = pos[i2];
-            rope_cache_init(p,
-                            freq_scale,
-                            freq_factors,
-                            corr_dims,
-                            out->get_ne(0),
-                            ext_factor,
-                            attn_factor,
-                            cache,
-                            sin_sign,
-                            theta_scale);
+            rope_cache_init(p, freq_scale, freq_factors, corr_dims, out->get_ne(0), ext_factor, attn_factor, cache,
+                            sin_sign, theta_scale);
         } else {
             DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(rope, 0, cache);
             const int64_t p_t = pos[i2];
             const int64_t p_h = pos[i2 + out->get_ne(2)];
             const int64_t p_w = pos[i2 + out->get_ne(2) * 2];
             const int64_t p_e = pos[i2 + out->get_ne(2) * 3];
-            mrope_cache_init(p_t,
-                             p_h,
-                             p_w,
-                             p_e,
-                             sections,
-                             _IsVision,
-                             freq_scale,
-                             freq_factors,
-                             corr_dims,
-                             out->get_ne(0),
-                             ext_factor,
-                             attn_factor,
-                             cache,
-                             sin_sign,
-                             theta_scale);
+            mrope_cache_init(p_t, p_h, p_w, p_e, sections, _IsVision, freq_scale, freq_factors, corr_dims,
+                             out->get_ne(0), ext_factor, attn_factor, cache, sin_sign, theta_scale);
         }
 
         DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(rope, 1, loop);
@@ -385,10 +364,8 @@ bool is_rope_supported(const npu_device_tensor_op_spec * op_spec,
 
     const auto & src0 = srcs[0];
     if (src0.type != dst->type) {
-        DEVICE_LOG_DEBUG("[%s]src0 type is not the same as dst type: %s vs %s\n",
-                         op_get_name(op),
-                         get_type_name(src0.type),
-                         get_type_name(dst->type));
+        DEVICE_LOG_DEBUG("[%s]src0 type is not the same as dst type: %s vs %s\n", op_get_name(op),
+                         get_type_name(src0.type), get_type_name(dst->type));
         return false;  // unsupported src0 type
     }
 
@@ -417,9 +394,14 @@ bool is_rope_supported(const npu_device_tensor_op_spec * op_spec,
     return true;  // ROPE operation is not supported yet
 }
 
-bool is_rope_required_sync(const npu_device_tensor_op op, const npu_device_tensor_op next_op) {
+bool is_rope_required_sync(npu_device_tensor_op       prev_op,
+                           const npu_device_ne_type & prev_ne,
+                           npu_device_tensor_op       op,
+                           const npu_device_ne_type & ne) {
+    NPU_UNUSED(prev_op);
+    NPU_UNUSED(prev_ne);
     NPU_UNUSED(op);
-    NPU_UNUSED(next_op);
+    NPU_UNUSED(ne);
     return false;
 }
 

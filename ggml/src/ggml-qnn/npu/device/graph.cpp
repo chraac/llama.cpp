@@ -74,10 +74,12 @@ void graph::compute_impl(default_thread_pool * pool, default_thread_pool::thread
     hexagon::compute_params params = { thread_params, _f16_to_f32_table };
 
     npu_device_tensor_op prev_op = NPU_OP_COUNT;
+    npu_device_ne_type   prev_ne = {};
 
     for (size_t i = 0; i < _tensor_count; ++i) {
         auto *       dst     = _tensors[i];
         auto         op      = dst->get_op();
+        const auto & ne      = dst->get_info().ne;
         const auto * op_name = op_get_name(op);
         auto *       func    = get_compute_func(dst);
         if (!func) {
@@ -85,7 +87,7 @@ void graph::compute_impl(default_thread_pool * pool, default_thread_pool::thread
             return;
         }
 
-        const bool should_sync = requires_thread_barrier(prev_op, op);
+        const bool should_sync = requires_thread_barrier(prev_op, prev_ne, op, ne);
         if (pool && should_sync) {
             // For the last tensor, the thread pool will handle synchronization
             DEVICE_SCOPED_PERFORMANCE_TRACKER("[%p][%s]sync_thread, tidx: %zu, tensor[%zu/%zu]", (void *) this, op_name,
@@ -94,6 +96,8 @@ void graph::compute_impl(default_thread_pool * pool, default_thread_pool::thread
         }
 
         prev_op = op;
+        memcpy(&prev_ne, &ne, sizeof(prev_ne));
+
         if (!func(dst, &params)) {
             DEVICE_LOG_ERROR("[%p][%s]graph tensor[%zu] op %d compute failed\n", (void *) this, op_name, i, op);
         }
