@@ -205,9 +205,9 @@ inline HVX_VectorPair dequantize_vec_q40_qf32_2blocks(HVX_Vector qs, HVX_Vector 
 
     q_lo    = Q6_V_lo_W(qp0);
     scale01 = Q6_Vh_vshuff_Vh(scale01);
-    q_lo    = Q6_Vh_vshuff_Vh(q_lo);
+    q_lo    = Q6_Vh_vshuff_Vh(q_lo);  // TODO: avoid vshuff here
 
-    return Q6_Wqf32_vmpy_VhfVhf(q_lo, scale01);  // TODO: avoid vshuff here
+    return Q6_Wqf32_vmpy_VhfVhf(q_lo, scale01);
 }
 
 inline HVX_Vector_x2 dequantize_vec_q40_qf16_4blocks(HVX_Vector qs,
@@ -259,7 +259,7 @@ inline HVX_VectorPair_x2 dequantize_vec_q40_qf32_4blocks(HVX_Vector qs,
     scale01 = Q6_Vh_vshuff_Vh(scale01);
 
     q_hi    = Q6_Vh_vshuff_Vh(q_hi);
-    scale23 = Q6_Vh_vshuff_Vh(scale23);
+    scale23 = Q6_Vh_vshuff_Vh(scale23);  // TODO: avoid vshuff here
 
     hexagon::HVX_VectorPair_x2 result;
     result.val[0] = Q6_Wqf32_vmpy_VhfVhf(q_lo, scale01);
