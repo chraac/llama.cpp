@@ -61,50 +61,7 @@ inline bool init_dma_transfer(hexagon::compute_params * params,
     return true;
 }
 
-template <auto _DotFunc>
-inline void batched_row_dot_with_table(const uint8_t *  src0_plane,
-                                       const size_t     src0_ne0,
-                                       const size_t     src0_nb1,
-                                       const uint8_t *  src1_row,
-                                       const size_t     src1_nb1,
-                                       float *          dst_row,
-                                       const size_t     slice_rows,
-                                       const size_t     src1_fetch_row_bytes,
-                                       const HVX_Vector table) {
-    using data_type0 = typename get_data_type<decltype(_DotFunc)>::data_type0;
-    using data_type1 = typename get_data_type<decltype(_DotFunc)>::data_type1;
-
-    size_t i0 = 0;
-    for (; i0 + 1 < slice_rows; i0 += 2) {
-        auto * src0_row = src0_plane + i0 * src0_nb1;
-
-        // TODO: figure dst how to handle a entire row
-        auto res0 = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row),
-                             reinterpret_cast<const data_type1 *>(src1_row), src0_ne0, table);
-
-        // TODO: figure dst how to handle a entire row
-        auto res1 = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row + src0_nb1),
-                             reinterpret_cast<const data_type1 *>(src1_row), src0_ne0, table);
-
-        {
-            dst_row[i0]     = convert_vector<data_type1>::convert(res0);
-            dst_row[i0 + 1] = convert_vector<data_type1>::convert(res1);
-        }
-    }
-
-    if (src1_fetch_row_bytes > 0) {
-        hexagon::l2fetch_row(src1_row + src1_nb1, src1_fetch_row_bytes);
-    }
-
-    if (i0 < slice_rows) {
-        auto * src0_row = src0_plane + i0 * src0_nb1;
-        auto   res      = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row),
-                                   reinterpret_cast<const data_type1 *>(src1_row), src0_ne0, table);
-        dst_row[i0]     = convert_vector<data_type1>::convert(res);
-    }
-}
-
-template <auto _DotFunc>
+template <auto _DotFunc, typename... _TExtraArgs>
 inline void batched_row_dot(const uint8_t * src0_plane,
                             const size_t    src0_ne0,
                             const size_t    src0_nb1,
@@ -112,7 +69,8 @@ inline void batched_row_dot(const uint8_t * src0_plane,
                             const size_t    src1_nb1,
                             float *         dst_row,
                             const size_t    slice_rows,
-                            const size_t    src1_fetch_row_bytes) {
+                            const size_t    src1_fetch_row_bytes,
+                            _TExtraArgs... args) {
     using data_type0 = typename get_data_type<decltype(_DotFunc)>::data_type0;
     using data_type1 = typename get_data_type<decltype(_DotFunc)>::data_type1;
 
@@ -122,11 +80,11 @@ inline void batched_row_dot(const uint8_t * src0_plane,
 
         // TODO: figure dst how to handle a entire row
         auto res0 = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row),
-                             reinterpret_cast<const data_type1 *>(src1_row), src0_ne0);
+                             reinterpret_cast<const data_type1 *>(src1_row), src0_ne0, args...);
 
         // TODO: figure dst how to handle a entire row
         auto res1 = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row + src0_nb1),
-                             reinterpret_cast<const data_type1 *>(src1_row), src0_ne0);
+                             reinterpret_cast<const data_type1 *>(src1_row), src0_ne0, args...);
 
         {
             dst_row[i0]     = convert_vector<data_type1>::convert(res0);
@@ -141,7 +99,7 @@ inline void batched_row_dot(const uint8_t * src0_plane,
     if (i0 < slice_rows) {
         auto * src0_row = src0_plane + i0 * src0_nb1;
         auto   res      = _DotFunc(reinterpret_cast<const data_type0 *>(src0_row),
-                                   reinterpret_cast<const data_type1 *>(src1_row), src0_ne0);
+                                   reinterpret_cast<const data_type1 *>(src1_row), src0_ne0, args...);
         dst_row[i0]     = convert_vector<data_type1>::convert(res);
     }
 }
@@ -620,9 +578,9 @@ inline void mul_mat_gemv_quant_impl(hexagon::tensor *         src0,
             {
                 DEVICE_SCOPED_OP_PERFORMANCE_TRACKER_ADD_ONE_SUB_PROC(mul_mat, 0, dot);
                 auto * dst_row = reinterpret_cast<float *>(dst_ptr) + col_idx;
-                batched_row_dot_with_table<_DotFunc>(src0_plane_read_cache_ptr, src0->get_ne(0), src0_row_stride,
-                                                     src1_row_cache_ptr, src1->get_nb(1), dst_row, slice_rows, 0,
-                                                     dequant_table);
+                batched_row_dot<_DotFunc, const HVX_Vector>(src0_plane_read_cache_ptr, src0->get_ne(0), src0_row_stride,
+                                                            src1_row_cache_ptr, src1->get_nb(1), dst_row, slice_rows, 0,
+                                                            dequant_table);
             }
         }
     }
