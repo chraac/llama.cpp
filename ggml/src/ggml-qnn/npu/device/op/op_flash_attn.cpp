@@ -379,11 +379,10 @@ bool is_flash_attn_required_sync(npu_device_tensor_op       prev_op,
                                  const npu_device_ne_type & prev_ne,
                                  npu_device_tensor_op       op,
                                  const npu_device_ne_type & ne) {
-    NPU_UNUSED(prev_op);
     NPU_UNUSED(prev_ne);
     NPU_UNUSED(op);
     NPU_UNUSED(ne);
-    return true;
+    return prev_op != NPU_OP_COUNT;
 }
 
 }  // namespace hexagon
