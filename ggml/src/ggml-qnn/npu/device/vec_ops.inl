@@ -179,10 +179,6 @@ inline HVX_Vector vec_mpy_qf32(HVX_Vector src0, HVX_Vector src1) {
     return Q6_Vqf32_vmpy_VsfVsf(src0, src1);
 }
 
-inline HVX_Vector vec_mpy_qf32_qf32_qf32(HVX_Vector src0, HVX_Vector src1) {
-    return Q6_Vqf32_vmpy_Vqf32Vqf32(src0, src1);
-}
-
 inline HVX_Vector vec_add_qf32(HVX_Vector sum, HVX_Vector result) {
     return Q6_Vqf32_vadd_Vqf32Vqf32(sum, result);
 }
@@ -399,8 +395,6 @@ template <typename _TQuantElem0,
                                      const HVX_Vector     qs_indices,
                                      const HVX_Vector     scale_indices,
                                      const HVX_Vector     table),
-          HVX_Vector (*_MpyFunc)(HVX_Vector, HVX_Vector),
-          HVX_Vector (*_AddFunc)(HVX_Vector, HVX_Vector),
           _TRet (*_ReduceFunc)(HVX_Vector)>
 inline _TRet vec_dot_product_quant_impl(const _TQuantElem0 * src0,
                                         const _TElem1 *      src1,
@@ -454,22 +448,22 @@ inline _TRet vec_dot_product_quant_impl(const _TQuantElem0 * src0,
             l10 = Q6_Vqf32_vadd_VsfVsf(kZeroV, l10);
             l11 = Q6_Vqf32_vadd_VsfVsf(kZeroV, l11);
 
-            HVX_Vector mpy0 = _MpyFunc(l00, l10);
-            HVX_Vector mpy1 = _MpyFunc(l01, l11);
+            HVX_Vector mpy0 = Q6_Vqf32_vmpy_Vqf32Vqf32(l00, l10);
+            HVX_Vector mpy1 = Q6_Vqf32_vmpy_Vqf32Vqf32(l01, l11);
 
             h10 = Q6_Vqf32_vadd_VsfVsf(kZeroV, h10);
             h11 = Q6_Vqf32_vadd_VsfVsf(kZeroV, h11);
 
-            HVX_Vector mpy2 = _MpyFunc(h00, h10);
-            HVX_Vector mpy3 = _MpyFunc(h01, h11);
+            HVX_Vector mpy2 = Q6_Vqf32_vmpy_Vqf32Vqf32(h00, h10);
+            HVX_Vector mpy3 = Q6_Vqf32_vmpy_Vqf32Vqf32(h01, h11);
 
             prev1 = curr111;
 
-            sum0 = _AddFunc(mpy0, sum0);
-            sum1 = _AddFunc(mpy1, sum1);
+            sum0 = Q6_Vqf32_vadd_Vqf32Vqf32(mpy0, sum0);
+            sum1 = Q6_Vqf32_vadd_Vqf32Vqf32(mpy1, sum1);
 
-            sum0 = _AddFunc(mpy2, sum0);
-            sum1 = _AddFunc(mpy3, sum1);
+            sum0 = Q6_Vqf32_vadd_Vqf32Vqf32(mpy2, sum0);
+            sum1 = Q6_Vqf32_vadd_Vqf32Vqf32(mpy3, sum1);
 
             src0_ptr += 4;
             src1_vec_ptr += 4;
@@ -488,29 +482,31 @@ inline _TRet vec_dot_product_quant_impl(const _TQuantElem0 * src0,
             l1 = Q6_Vqf32_vadd_VsfVsf(kZeroV, l1);
             h1 = Q6_Vqf32_vadd_VsfVsf(kZeroV, h1);
 
-            HVX_Vector mpy0 = _MpyFunc(l0, l1);
-            HVX_Vector mpy1 = _MpyFunc(h0, h1);
+            HVX_Vector mpy0 = Q6_Vqf32_vmpy_Vqf32Vqf32(l0, l1);
+            HVX_Vector mpy1 = Q6_Vqf32_vmpy_Vqf32Vqf32(h0, h1);
 
             prev1 = Q6_V_hi_W(curr1);
 
-            sum0 = _AddFunc(mpy0, sum0);
-            sum1 = _AddFunc(mpy1, sum1);
+            sum0 = Q6_Vqf32_vadd_Vqf32Vqf32(mpy0, sum0);
+            sum1 = Q6_Vqf32_vadd_Vqf32Vqf32(mpy1, sum1);
 
             src0_ptr += 2;
             src1_vec_ptr += 2;
         }
 
-        sum = _AddFunc(sum0, sum1);
+        sum = Q6_Vqf32_vadd_Vqf32Vqf32(sum0, sum1);
     }
 
     if (src1_vec_ptr_end - src1_vec_ptr > 0) {
         HVX_Vector curr1 = *src1_vec_ptr++;
         HVX_Vector s1    = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-        prev1            = curr1;
         HVX_Vector s0    = _DequantFunc(src0_ptr++, qs_indices, scale_indices, table);
         s1               = Q6_Vqf32_vadd_VsfVsf(kZeroV, s1);
 
-        sum = _AddFunc(_MpyFunc(s0, s1), sum);
+        HVX_Vector mpy0 = Q6_Vqf32_vmpy_Vqf32Vqf32(s0, s1);
+        prev1           = curr1;
+
+        sum = Q6_Vqf32_vadd_Vqf32Vqf32(mpy0, sum);
     }
 
     if ((src1_vec_ptr_end - ((HVX_Vector *) src1)) > 0) {
@@ -522,12 +518,13 @@ inline _TRet vec_dot_product_quant_impl(const _TQuantElem0 * src0,
         HVX_Vector curr1             = should_fetch_src1 ? *src1_vec_ptr : prev1;
         src1_vec_ptr += should_fetch_src1 ? 1 : 0;
         HVX_Vector s1 = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-        HVX_Vector s0 = _DequantFunc(src0_ptr++, qs_indices, scale_indices, table);
+        HVX_Vector s0 = _DequantFunc(src0_ptr, qs_indices, scale_indices, table);
         s1            = Q6_Vqf32_vadd_VsfVsf(kZeroV, s1);
 
-        HVX_Vector mpy0 = _MpyFunc(s0, s1);
+        HVX_Vector mpy0 = Q6_Vqf32_vmpy_Vqf32Vqf32(s0, s1);
         prev1           = curr1;
-        sum             = _AddFunc(mpy0, sum);
+
+        sum = Q6_Vqf32_vadd_Vqf32Vqf32(mpy0, sum);
     }
 
     return _ReduceFunc(sum);

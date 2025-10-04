@@ -369,8 +369,7 @@ inline HVX_Vector vec_dot_product_vqf32_q40_f32(const npu_device_block_q4_0 * sr
 
     return vec_dot_product_quant_impl<npu_device_block_q4_0, float, HVX_Vector, load_dequant_vec_q40_qf32_4blocks,
                                       load_dequant_vec_q40_qf32_2blocks, load_dequant_vec_q40_qf32_1block,
-                                      vec_mpy_qf32_qf32_qf32, vec_add_qf32, vec_reduction_qf32>(
-        src0, src1, count, qs_indices, scale_indices, table);
+                                      vec_reduction_qf32>(src0, src1, count, qs_indices, scale_indices, table);
 }
 
 inline bool is_f16_f32_dot_product_aligned(const npu_device_fp16_t * src0, const float * src1, size_t count) {
