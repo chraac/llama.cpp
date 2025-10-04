@@ -445,17 +445,17 @@ inline _TRet vec_dot_product_quant_impl(const _TQuantElem0 * src0,
             HVX_Vector h01 = Q6_V_hi_W(s01.val[1]);
             HVX_Vector h11 = Q6_V_valign_VVR(curr111, curr110, (size_t) src1);
 
-            l00 = Q6_Vsf_equals_Vqf32(l00);
-            l01 = Q6_Vsf_equals_Vqf32(l01);
+            l10 = Q6_Vqf32_vadd_VsfVsf(kZeroV, l10);
+            l11 = Q6_Vqf32_vadd_VsfVsf(kZeroV, l11);
 
-            HVX_Vector mpy0 = Q6_Vqf32_vmpy_VsfVsf(l00, l10);
-            HVX_Vector mpy1 = Q6_Vqf32_vmpy_VsfVsf(l01, l11);
+            HVX_Vector mpy0 = Q6_Vqf32_vmpy_Vqf32Vqf32(l00, l10);
+            HVX_Vector mpy1 = Q6_Vqf32_vmpy_Vqf32Vqf32(l01, l11);
 
-            h00 = Q6_Vsf_equals_Vqf32(h00);
-            h01 = Q6_Vsf_equals_Vqf32(h01);
+            h10 = Q6_Vqf32_vadd_VsfVsf(kZeroV, h10);
+            h11 = Q6_Vqf32_vadd_VsfVsf(kZeroV, h11);
 
-            HVX_Vector mpy2 = Q6_Vqf32_vmpy_VsfVsf(h00, h10);
-            HVX_Vector mpy3 = Q6_Vqf32_vmpy_VsfVsf(h01, h11);
+            HVX_Vector mpy2 = Q6_Vqf32_vmpy_Vqf32Vqf32(h00, h10);
+            HVX_Vector mpy3 = Q6_Vqf32_vmpy_Vqf32Vqf32(h01, h11);
 
             prev1 = curr111;
 
@@ -479,11 +479,11 @@ inline _TRet vec_dot_product_quant_impl(const _TQuantElem0 * src0,
             HVX_Vector h0 = Q6_V_hi_W(s0);
             HVX_Vector h1 = Q6_V_valign_VVR(Q6_V_hi_W(curr1), Q6_V_lo_W(curr1), (size_t) src1);
 
-            l0 = Q6_Vsf_equals_Vqf32(l0);
-            h0 = Q6_Vsf_equals_Vqf32(h0);
+            l1 = Q6_Vqf32_vadd_VsfVsf(kZeroV, l1);
+            h1 = Q6_Vqf32_vadd_VsfVsf(kZeroV, h1);
 
-            HVX_Vector mpy0 = Q6_Vqf32_vmpy_VsfVsf(l0, l1);
-            HVX_Vector mpy1 = Q6_Vqf32_vmpy_VsfVsf(h0, h1);
+            HVX_Vector mpy0 = Q6_Vqf32_vmpy_Vqf32Vqf32(l0, l1);
+            HVX_Vector mpy1 = Q6_Vqf32_vmpy_Vqf32Vqf32(h0, h1);
 
             prev1 = Q6_V_hi_W(curr1);
 
@@ -500,11 +500,10 @@ inline _TRet vec_dot_product_quant_impl(const _TQuantElem0 * src0,
     if (src1_vec_ptr_end - src1_vec_ptr > 0) {
         HVX_Vector curr1 = *src1_vec_ptr++;
         HVX_Vector s1    = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
+        HVX_Vector s0    = _DequantFunc(src0_ptr++, qs_indices, scale_indices, table);
+        s1               = Q6_Vqf32_vadd_VsfVsf(kZeroV, s1);
 
-        HVX_Vector s0 = _DequantFunc(src0_ptr++, qs_indices, scale_indices, table);
-        s0            = Q6_Vsf_equals_Vqf32(s0);
-
-        HVX_Vector mpy0 = Q6_Vqf32_vmpy_VsfVsf(s0, s1);
+        HVX_Vector mpy0 = Q6_Vqf32_vmpy_Vqf32Vqf32(s0, s1);
         prev1           = curr1;
 
         sum = Q6_Vqf32_vadd_Vqf32Vqf32(mpy0, sum);
@@ -519,11 +518,10 @@ inline _TRet vec_dot_product_quant_impl(const _TQuantElem0 * src0,
         HVX_Vector curr1             = should_fetch_src1 ? *src1_vec_ptr : prev1;
         src1_vec_ptr += should_fetch_src1 ? 1 : 0;
         HVX_Vector s1 = Q6_V_valign_VVR(curr1, prev1, (size_t) src1);
-
         HVX_Vector s0 = _DequantFunc(src0_ptr, qs_indices, scale_indices, table);
-        s0            = Q6_Vsf_equals_Vqf32(s0);
+        s1            = Q6_Vqf32_vadd_VsfVsf(kZeroV, s1);
 
-        HVX_Vector mpy0 = Q6_Vqf32_vmpy_VsfVsf(s0, s1);
+        HVX_Vector mpy0 = Q6_Vqf32_vmpy_Vqf32Vqf32(s0, s1);
         prev1           = curr1;
 
         sum = Q6_Vqf32_vadd_Vqf32Vqf32(mpy0, sum);
