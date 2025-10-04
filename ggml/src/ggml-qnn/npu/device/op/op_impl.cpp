@@ -231,10 +231,10 @@ bool is_element_wise_op_required_sync(npu_device_tensor_op       prev_op,
                                       const npu_device_ne_type & prev_ne,
                                       npu_device_tensor_op       op,
                                       const npu_device_ne_type & ne) {
-    NPU_UNUSED(prev_op);
     NPU_UNUSED(prev_ne);
+    NPU_UNUSED(op);
     NPU_UNUSED(ne);
-    return op == NPU_OP_MUL_MAT;
+    return prev_op != NPU_OP_ADD && prev_op != NPU_OP_SUB && prev_op != NPU_OP_MUL && prev_op != NPU_OP_RMS_NORM;
 }
 
 void rms_norm_vec_f32(const float * src, float * dst, size_t count, float eps) {
@@ -370,10 +370,10 @@ bool is_unary_op_required_sync(npu_device_tensor_op       prev_op,
                                const npu_device_ne_type & prev_ne,
                                npu_device_tensor_op       op,
                                const npu_device_ne_type & ne) {
-    NPU_UNUSED(prev_op);
     NPU_UNUSED(prev_ne);
+    NPU_UNUSED(op);
     NPU_UNUSED(ne);
-    return op == NPU_OP_MUL_MAT;
+    return prev_op != NPU_OP_ADD && prev_op != NPU_OP_SUB && prev_op != NPU_OP_MUL && prev_op != NPU_OP_RMS_NORM;
 }
 
 struct op_capabilities {

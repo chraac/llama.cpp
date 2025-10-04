@@ -887,7 +887,7 @@ bool is_mul_mat_required_sync(npu_device_tensor_op       prev_op,
     NPU_UNUSED(prev_ne);
     NPU_UNUSED(op);
     NPU_UNUSED(ne);
-    return true;
+    return prev_op != NPU_OP_MUL_MAT || memcmp(&prev_ne, &ne, sizeof(prev_ne)) != 0;
 }
 
 }  // namespace hexagon
