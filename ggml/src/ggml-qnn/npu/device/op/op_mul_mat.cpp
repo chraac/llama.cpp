@@ -32,6 +32,12 @@ template <> struct convert_vector<float> {
     static float convert(HVX_Vector vec) { return hexagon::get_flt0_from_fltv(Q6_Vsf_equals_Vqf32(vec)); }
 };
 
+inline std::pair<int64_t, int64_t> unflatten_i3_i2(int64_t idx, const hexagon::tensor * t) {
+    const auto i3 = idx / t->get_ne(2);
+    const auto i2 = idx - i3 * t->get_ne(2);
+    return { i3, i2 };
+}
+
 template <> struct convert_vector<npu_device_fp16_t> {
     static float convert(HVX_Vector vec) {
         HVX_Vector vect = Q6_Vhf_equals_Vqf16(vec);
