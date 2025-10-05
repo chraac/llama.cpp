@@ -50,6 +50,16 @@ ggml_status backend_buffer_init_tensor(ggml_backend_buffer_t buffer, ggml_tensor
     return GGML_STATUS_SUCCESS;
 }
 
+void backend_buffer_memset_tensor(ggml_backend_buffer_t buffer,
+                                  ggml_tensor *         tensor,
+                                  uint8_t               value,
+                                  size_t                offset,
+                                  size_t                size) {
+    SCOPED_PERFORMANCE_TRACKER("[hexagon-npu][%p]backend_buffer_memset_tensor.size.%zu",
+                               (void *) get_buffer_object(buffer), size);
+    memset((char *) tensor->data + offset, value, size);
+}
+
 void backend_buffer_set_tensor(ggml_backend_buffer_t buffer,
                                ggml_tensor *         tensor,
                                const void *          data,
@@ -99,7 +109,7 @@ constexpr const ggml_backend_buffer_i backend_buffer_interface = {
     /* .free_buffer     = */ backend_buffer_free_buffer,
     /* .get_base        = */ backend_buffer_get_base,
     /* .init_tensor     = */ backend_buffer_init_tensor,
-    /* .memset_tensor   = */ nullptr,
+    /* .memset_tensor   = */ backend_buffer_memset_tensor,
     /* .set_tensor      = */ backend_buffer_set_tensor,
     /* .get_tensor      = */ backend_buffer_get_tensor,
     /* .cpy_tensor      = */ backend_buffer_cpy_tensor,
