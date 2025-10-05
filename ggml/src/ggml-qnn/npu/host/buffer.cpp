@@ -86,6 +86,8 @@ bool backend_buffer_cpy_tensor(ggml_backend_buffer_t buffer, const ggml_tensor *
         return true;
     }
 
+    LOG_DEBUG("[hexagon-npu][%p]backend_buffer_cpy_tensor: copy from non-host buffer not supported\n",
+              (void *) get_buffer_object(buffer));
     return false;
 }
 

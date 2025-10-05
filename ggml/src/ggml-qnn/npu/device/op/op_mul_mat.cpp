@@ -802,7 +802,7 @@ bool mul_mat_f32(hexagon::tensor * out, compute_params * params) {
             break;
     }
 
-    DEVICE_LOG_ERROR("Unsupported src1 tensor type: %s\n", get_type_name(src1->get_type()));
+    DEVICE_LOG_ERROR("[MUL_MAT]Unsupported src1 tensor type: %s\n", get_type_name(src1->get_type()));
     return false;
 }
 
