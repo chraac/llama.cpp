@@ -43,7 +43,9 @@ void backend_dev_get_memory(ggml_backend_dev_t dev, size_t * free, size_t * tota
 
 enum ggml_backend_dev_type backend_dev_get_type(ggml_backend_dev_t dev) {
     GGML_UNUSED(dev);
-    return GGML_BACKEND_DEVICE_TYPE_ACCEL;
+
+    // TODO: figure out why the GGML_BACKEND_DEVICE_TYPE_ACCEL type will miss some ops
+    return GGML_BACKEND_DEVICE_TYPE_IGPU;
 }
 
 void backend_dev_get_props(ggml_backend_dev_t dev, struct ggml_backend_dev_props * props) {
