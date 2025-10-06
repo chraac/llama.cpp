@@ -38,9 +38,10 @@ template <typename idx_t> void set_rows_impl(hexagon::tensor * out, hexagon::com
 
         const size_t i1 = *reinterpret_cast<const idx_t *>(src1_ptr + i10 * src1->get_nb(0) + i11 * src1->get_nb(1) +
                                                            i12 * src1->get_nb(2));
-        from_float(reinterpret_cast<const float *>(src0_ptr + i03 * src0->get_nb(3) + i02 * src0->get_nb(2) +
-                                                   i01 * src0->get_nb(1)),
-                   dst_ptr + i1 * out->get_nb(0) + i03 * out->get_nb(3) + i02 * out->get_nb(2), size_t(out->get_ne(0)));
+        from_float(reinterpret_cast<const float *>(src0_ptr + i01 * src0->get_nb(1) + i02 * src0->get_nb(2) +
+                                                   i03 * src0->get_nb(3)),
+                   dst_ptr + i1 * out->get_nb(1) + i02 * out->get_nb(2) + i03 * out->get_nb(3),
+                   size_t(src0->get_ne(0)));
     }
 
     out->release_write_buffer();  // mark the output tensor as modified
