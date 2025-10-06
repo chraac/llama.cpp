@@ -72,6 +72,7 @@ interface npu_device : remote_handle64{
         NPU_DATA_TYPE_F32,
         NPU_DATA_TYPE_F16,
         NPU_DATA_TYPE_I32,
+        NPU_DATA_TYPE_I64,
         NPU_DATA_TYPE_Q8_0,
         NPU_DATA_TYPE_Q4_0,
         NPU_DATA_TYPE_Q4_K,

@@ -547,6 +547,7 @@ constexpr const hexagon::device_type_traits kDeviceTypeTraits[] = {
      hexagon::type_erase_dot_func<hexagon::vec_dot_product_aligned_f16_f16>,
      hexagon::type_erase_dot_func<hexagon::is_f16_f16_dot_product_aligned> },
     { NPU_DATA_TYPE_I32, "I32", 1, sizeof(int32_t), false },
+    { NPU_DATA_TYPE_I64, "I64", 1, sizeof(int64_t), false },
     { NPU_DATA_TYPE_Q8_0, "Q8_0", QUANT_BLOCK_SIZE, sizeof(npu_device_block_q8_0), true, dequantize_row_q8_0,
      quantize_row_q8_0 },
     { NPU_DATA_TYPE_Q4_0, "Q4_0", QUANT_BLOCK_SIZE, sizeof(npu_device_block_q4_0), true, dequantize_row_q4_0,
@@ -563,6 +564,8 @@ static_assert(kDeviceTypeTraits[NPU_DATA_TYPE_F16].type == NPU_DATA_TYPE_F16,
               "kDeviceTypeTraits F16 type mismatch with npu_device_tensor_data_type enum");
 static_assert(kDeviceTypeTraits[NPU_DATA_TYPE_I32].type == NPU_DATA_TYPE_I32,
               "kDeviceTypeTraits I32 type mismatch with npu_device_tensor_data_type enum");
+static_assert(kDeviceTypeTraits[NPU_DATA_TYPE_I64].type == NPU_DATA_TYPE_I64,
+              "kDeviceTypeTraits I64 type mismatch with npu_device_tensor_data_type enum");
 static_assert(kDeviceTypeTraits[NPU_DATA_TYPE_Q8_0].type == NPU_DATA_TYPE_Q8_0,
               "kDeviceTypeTraits Q8_0 type mismatch with npu_device_tensor_data_type enum");
 static_assert(kDeviceTypeTraits[NPU_DATA_TYPE_Q4_0].type == NPU_DATA_TYPE_Q4_0,

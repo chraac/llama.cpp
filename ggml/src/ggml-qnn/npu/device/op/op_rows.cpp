@@ -51,9 +51,22 @@ bool is_rows_supported(const npu_device_tensor_op_spec * op_spec,
             return false;
         }
 
-        if (dst->type != src0.type && dst->type != NPU_DATA_TYPE_F16) {
-            DEVICE_LOG_DEBUG("[%s]dst.type, src0.type mismatch or not F16: %s vs %s\n", hexagon::op_get_name(op),
-                             hexagon::get_type_name(dst->type), hexagon::get_type_name(src0.type));
+        if (src1.type != NPU_DATA_TYPE_I32 && src1.type != NPU_DATA_TYPE_I64) {
+            DEVICE_LOG_DEBUG("[%s]src1.type is not I32 or I64: %s\n", hexagon::op_get_name(op),
+                             hexagon::get_type_name(src1.type));
+            return false;
+        }
+
+        if (dst->type != src0.type && !get_type_traits(dst->type).from_float) {
+            DEVICE_LOG_DEBUG("[%s]dst.from_float is null: %s\n", hexagon::op_get_name(op),
+                             hexagon::get_type_name(dst->type));
+            return false;
+        }
+
+        if (dst->type != NPU_DATA_TYPE_F16) {
+            // TODO: remove this limitation if needed
+            DEVICE_LOG_DEBUG("[%s]dst.type is not F16: %s\n", hexagon::op_get_name(op),
+                             hexagon::get_type_name(dst->type));
             return false;
         }
     }
