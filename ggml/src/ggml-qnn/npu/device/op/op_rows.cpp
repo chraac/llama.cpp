@@ -42,6 +42,8 @@ template <typename idx_t> void set_rows_impl(hexagon::tensor * out, hexagon::com
                                                    i01 * src0->get_nb(1)),
                    dst_ptr + i1 * out->get_nb(0) + i03 * out->get_nb(3) + i02 * out->get_nb(2), size_t(out->get_ne(0)));
     }
+
+    out->release_write_buffer();  // mark the output tensor as modified
 }
 
 }  // namespace
