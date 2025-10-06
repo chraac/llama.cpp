@@ -6,10 +6,12 @@
 #include "op_glu.hpp"
 #include "op_mul_mat.hpp"
 #include "op_rope.hpp"
+#include "op_rows.hpp"
 #include "type_traits.hpp"
 #include "vec_ops.hpp"
 
 #include <cmath>
+#include <cstddef>
 #include <type_traits>
 
 namespace {
@@ -387,56 +389,70 @@ struct op_capabilities {
 
 constexpr const op_capabilities kOpCapabilities[] = {
     {
-     NPU_OP_MUL_MAT,                   hexagon::is_mul_mat_supported,
+     NPU_OP_MUL_MAT,                       hexagon::is_mul_mat_supported,
      hexagon::is_mul_mat_required_sync,
      {
             hexagon::mul_mat_f32,  // NPU_DATA_TYPE_F32
             nullptr,               // NPU_DATA_TYPE_F16
         }, },
     {
-     NPU_OP_ADD,                               is_element_wise_op_supported,
+     NPU_OP_ADD,                                   is_element_wise_op_supported,
      is_element_wise_op_required_sync,                                     {
             element_wise_op<vec_op_f32_f32<vadd_f32_f32>>,  // NPU_DATA_TYPE_F32
             element_wise_op<vec_op_f16_f16<vadd_f16_f16>>,  // NPU_DATA_TYPE_F16
         }, },
     {
-     NPU_OP_SUB, is_element_wise_op_supported,
+     NPU_OP_SUB,     is_element_wise_op_supported,
      is_element_wise_op_required_sync, {
             element_wise_op<vec_op_f32_f32<vsub_f32_f32>>,  // NPU_DATA_TYPE_F32
             element_wise_op<vec_op_f16_f16<vsub_f16_f16>>,  // NPU_DATA_TYPE_F16
         }, },
     {
-     NPU_OP_MUL,                       is_element_wise_op_supported,
+     NPU_OP_MUL,                           is_element_wise_op_supported,
      is_element_wise_op_required_sync,               {
             element_wise_op<vec_op_f32_f32<vmul_f32_f32>>,  // NPU_DATA_TYPE_F32
             element_wise_op<vec_op_f16_f16<vmul_f16_f16>>,  // NPU_DATA_TYPE_F16
         }, },
     {
-     NPU_OP_RMS_NORM,                               is_unary_op_supported,
+     NPU_OP_RMS_NORM,                                   is_unary_op_supported,
      is_unary_op_required_sync,                                     {
             unary_op<rms_norm_vec_f32>,  // NPU_DATA_TYPE_F32
             nullptr,                     // NPU_DATA_TYPE_F16
         }, },
     {
-     NPU_OP_FLASH_ATTN, hexagon::is_flash_attn_supported,
+     NPU_OP_FLASH_ATTN,     hexagon::is_flash_attn_supported,
      hexagon::is_flash_attn_required_sync,
      {
             hexagon::flash_attn_f32,  // NPU_DATA_TYPE_F32
             nullptr,                  // NPU_DATA_TYPE_F16
         }, },
     {
-     NPU_OP_ROPE,                  hexagon::is_rope_supported,
+     NPU_OP_ROPE,                      hexagon::is_rope_supported,
      hexagon::is_rope_required_sync,
      {
             hexagon::rope_f32,  // NPU_DATA_TYPE_F32
             nullptr,            // NPU_DATA_TYPE_F16
         }, },
     {
-     NPU_OP_GLU,                               hexagon::is_glu_op_supported,
+     NPU_OP_GLU,                                   hexagon::is_glu_op_supported,
      hexagon::is_glu_required_sync,
      {
             hexagon::glu_f32,  // NPU_DATA_TYPE_F32
             hexagon::glu_f16,  // NPU_DATA_TYPE_F16
+        }, },
+    {
+     NPU_OP_GET_ROWS, hexagon::is_rows_supported,
+     hexagon::is_rows_required_sync,
+     {
+            hexagon::get_rows_f32,  // NPU_DATA_TYPE_F32
+            nullptr,                // NPU_DATA_TYPE_F16
+        }, },
+    {
+     NPU_OP_SET_ROWS,                          hexagon::is_rows_supported,
+     hexagon::is_rows_required_sync,
+     {
+            hexagon::set_rows_f32,  // NPU_DATA_TYPE_F32
+            nullptr,                // NPU_DATA_TYPE_F16
         }, },
 };
 
@@ -452,6 +468,10 @@ static_assert(kOpCapabilities[NPU_OP_FLASH_ATTN].op == NPU_OP_FLASH_ATTN,
               "kOpArray[NPU_OP_FLASH_ATTN].op != NPU_OP_FLASH_ATTN");
 static_assert(kOpCapabilities[NPU_OP_ROPE].op == NPU_OP_ROPE, "kOpArray[NPU_OP_ROPE].op != NPU_OP_ROPE");
 static_assert(kOpCapabilities[NPU_OP_GLU].op == NPU_OP_GLU, "kOpArray[NPU_OP_GLU].op != NPU_OP_GLU");
+static_assert(kOpCapabilities[NPU_OP_GET_ROWS].op == NPU_OP_GET_ROWS,
+              "kOpArray[NPU_OP_GET_ROWS].op != NPU_OP_GET_ROWS");
+static_assert(kOpCapabilities[NPU_OP_SET_ROWS].op == NPU_OP_SET_ROWS,
+              "kOpArray[NPU_OP_SET_ROWS].op != NPU_OP_SET_ROWS");
 
 hexagon::compute_func_type get_compute_func_impl(npu_device_tensor_op op, npu_device_tensor_data_type type) {
     if (op >= NPU_OP_COUNT) {
