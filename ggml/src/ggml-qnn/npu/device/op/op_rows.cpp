@@ -141,9 +141,9 @@ bool is_rows_supported(const npu_device_tensor_op_spec * op_spec,
             return false;
         }
 
-        if (dst->type != NPU_DATA_TYPE_F16) {
+        if (dst->type != NPU_DATA_TYPE_F16 && dst->type != NPU_DATA_TYPE_F32) {
             // TODO: remove this limitation if needed
-            DEVICE_LOG_DEBUG("[%s]dst.type is not F16: %s\n", hexagon::op_get_name(op),
+            DEVICE_LOG_DEBUG("[%s]dst.type is not F16 or F32: %s\n", hexagon::op_get_name(op),
                              hexagon::get_type_name(dst->type));
             return false;
         }
