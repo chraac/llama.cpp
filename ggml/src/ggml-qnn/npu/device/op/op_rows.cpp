@@ -1,5 +1,7 @@
 #include "op_rows.hpp"
 
+#include "type_traits.hpp"
+
 namespace hexagon {
 
 bool get_rows_f32(tensor * out, compute_params * params) {
@@ -16,7 +18,47 @@ bool is_rows_supported(const npu_device_tensor_op_spec * op_spec,
                        const npu_device_tensor_spec *    dst,
                        const npu_device_tensor_spec *    srcs,
                        size_t                            src_len) {
-    // TODO: implement is_rows_supported
+    const auto op = op_spec->op;
+    if (op != NPU_OP_GET_ROWS && op != NPU_OP_SET_ROWS) {
+        DEVICE_LOG_DEBUG("[%s]unsupported\n", hexagon::op_get_name(op));
+        return false;
+    }
+
+    if (src_len < 2) {
+        DEVICE_LOG_DEBUG("[%s]invalid src_len: %zu\n", hexagon::op_get_name(op), src_len);
+        return false;
+    }
+
+    const auto & src0 = srcs[0];
+    const auto & src1 = srcs[1];
+    if (op == NPU_OP_GET_ROWS) {
+        if (dst->ne[0] != src0.ne[0]) {
+            DEVICE_LOG_DEBUG("[%s]dst.ne[0] and src0.ne[0] not match: %ld vs %ld\n", hexagon::op_get_name(op),
+                             (long) dst->ne[0], (long) src0.ne[0]);
+            return false;
+        }
+
+        if (dst->type != src0.type) {
+            DEVICE_LOG_DEBUG("[%s]dst.type and src0.type mismatch: %s vs %s\n", hexagon::op_get_name(op),
+                             hexagon::get_type_name(dst->type), hexagon::get_type_name(src0.type));
+            return false;
+        }
+    } else {
+        // NPU_OP_SET_ROWS
+        if (dst->ne[0] != src0.ne[0] || dst->ne[0] != src1.ne[0]) {
+            DEVICE_LOG_DEBUG("[%s]dst.ne[0], src0.ne[0] and src1.ne[0] not match: %ld vs %ld vs %ld\n",
+                             hexagon::op_get_name(op), (long) dst->ne[0], (long) src0.ne[0], (long) src1.ne[0]);
+            return false;
+        }
+
+        if (dst->type != src0.type && dst->type != NPU_DATA_TYPE_F16) {
+            DEVICE_LOG_DEBUG("[%s]dst.type, src0.type mismatch or not F16: %s vs %s\n", hexagon::op_get_name(op),
+                             hexagon::get_type_name(dst->type), hexagon::get_type_name(src0.type));
+            return false;
+        }
+    }
+
+    // TODO: remove this limitation
     return false;
 }
 
