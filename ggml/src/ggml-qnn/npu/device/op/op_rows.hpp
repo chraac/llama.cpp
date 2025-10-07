@@ -5,7 +5,7 @@
 namespace hexagon {
 
 bool get_rows_f32(tensor * out, compute_params * params);
-bool set_rows_f32(tensor * out, compute_params * params);
+bool set_rows_generic(tensor * out, compute_params * params);
 
 bool is_rows_supported(const npu_device_tensor_op_spec * op_spec,
                        const npu_device_tensor_spec *    dst,

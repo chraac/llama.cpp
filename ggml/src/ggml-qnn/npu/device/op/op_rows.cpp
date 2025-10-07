@@ -56,7 +56,7 @@ bool get_rows_f32(tensor * out, compute_params * params) {
     return false;
 }
 
-bool set_rows_f32(tensor * out, compute_params * params) {
+bool set_rows_generic(tensor * out, compute_params * params) {
     if (!out) {
         return false;
     }
@@ -137,13 +137,6 @@ bool is_rows_supported(const npu_device_tensor_op_spec * op_spec,
 
         if (dst->type != src0.type && !get_type_traits(dst->type).from_float) {
             DEVICE_LOG_DEBUG("[%s]dst.from_float is null: %s\n", hexagon::op_get_name(op),
-                             hexagon::get_type_name(dst->type));
-            return false;
-        }
-
-        if (dst->type != NPU_DATA_TYPE_F16 && dst->type != NPU_DATA_TYPE_F32) {
-            // TODO: remove this limitation if needed
-            DEVICE_LOG_DEBUG("[%s]dst.type is not F16 or F32: %s\n", hexagon::op_get_name(op),
                              hexagon::get_type_name(dst->type));
             return false;
         }

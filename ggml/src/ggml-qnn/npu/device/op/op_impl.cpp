@@ -451,8 +451,13 @@ constexpr const op_capabilities kOpCapabilities[] = {
      NPU_OP_SET_ROWS,                          hexagon::is_rows_supported,
      hexagon::is_rows_required_sync,
      {
-            hexagon::set_rows_f32,  // NPU_DATA_TYPE_F32
-            hexagon::set_rows_f32,  // NPU_DATA_TYPE_F16
+            hexagon::set_rows_generic,  // NPU_DATA_TYPE_F32
+            hexagon::set_rows_generic,  // NPU_DATA_TYPE_F16
+            nullptr,                    // NPU_DATA_TYPE_I32
+            nullptr,                    // NPU_DATA_TYPE_I64
+            hexagon::set_rows_generic,  // NPU_DATA_TYPE_Q8_0
+            hexagon::set_rows_generic,  // NPU_DATA_TYPE_Q4_0
+            hexagon::set_rows_generic,  // NPU_DATA_TYPE_Q4_K
         }, },
 };
 
