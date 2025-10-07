@@ -457,7 +457,7 @@ constexpr const op_capabilities kOpCapabilities[] = {
             nullptr,                    // NPU_DATA_TYPE_I64
             hexagon::set_rows_generic,  // NPU_DATA_TYPE_Q8_0
             hexagon::set_rows_generic,  // NPU_DATA_TYPE_Q4_0
-            hexagon::set_rows_generic,  // NPU_DATA_TYPE_Q4_K
+            nullptr,                    // TODO: figure out why failed on NPU_DATA_TYPE_Q4_K
         }, },
 };
 
