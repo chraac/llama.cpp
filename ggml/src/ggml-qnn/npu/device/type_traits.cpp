@@ -533,17 +533,14 @@ void copy_row_f16(const void * src, hexagon::dequant_output_type * dst, size_t c
     hexagon::vec_cpy_f16(reinterpret_cast<const npu_device_fp16_t *>(src), dst, count);
 }
 
-void copy_row_f32(const void * src, hexagon::dequant_output_type * dst, size_t count, HVX_Vector) {
+template <typename _TSrc, typename _TDst, typename... _TExtArgs>
+void copy_row_f32(const _TSrc * src, _TDst * dst, size_t count, _TExtArgs...) {
     hexagon::vec_cpy_f32(reinterpret_cast<const float *>(src), reinterpret_cast<float *>(dst), count);
 }
 
-void copy_row_f32(const float * src, void * dst, size_t count) {
-    hexagon::vec_cpy_f32(src, reinterpret_cast<float *>(dst), count);
-}
-
 constexpr const hexagon::device_type_traits kDeviceTypeTraits[] = {
-    { NPU_DATA_TYPE_F32, "F32", 1, sizeof(float), false, copy_row_f32, copy_row_f32,
-     hexagon::type_erase_dot_func<hexagon::vec_dot_product_f32_f32>,
+    { NPU_DATA_TYPE_F32, "F32", 1, sizeof(float), false, copy_row_f32<void, hexagon::dequant_output_type, HVX_Vector>,
+     copy_row_f32<float, void>, hexagon::type_erase_dot_func<hexagon::vec_dot_product_f32_f32>,
      hexagon::type_erase_dot_func<hexagon::vec_dot_product_aligned_f32_f32>,
      hexagon::type_erase_dot_func<hexagon::is_f32_f32_dot_product_aligned> },
     { NPU_DATA_TYPE_F16, "F16", 1, sizeof(npu_device_fp16_t), false, copy_row_f16, quantize_row_fp16,
