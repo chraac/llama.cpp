@@ -1,6 +1,6 @@
 
 
-#include "op_impl.hpp"
+#include "op_registry.hpp"
 
 #include "op_eltwise.hpp"
 #include "op_flash_attn.hpp"
