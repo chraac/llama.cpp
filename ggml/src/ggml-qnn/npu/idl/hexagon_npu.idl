@@ -56,6 +56,7 @@ interface npu_device : remote_handle64{
         NPU_OP_GLU,
         NPU_OP_GET_ROWS,
         NPU_OP_SET_ROWS,
+        NPU_OP_CPY,
         NPU_OP_COUNT
     };
 

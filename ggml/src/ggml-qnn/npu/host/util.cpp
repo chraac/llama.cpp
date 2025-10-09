@@ -41,6 +41,8 @@ enum npu_device_tensor_op op_to_npu_op(ggml_op op) {
             return NPU_OP_GET_ROWS;
         case GGML_OP_SET_ROWS:
             return NPU_OP_SET_ROWS;
+        case GGML_OP_CPY:
+            return NPU_OP_CPY;
         default:
             return NPU_OP_COUNT;
     }
@@ -68,6 +70,8 @@ const char * get_npu_op_desc(enum npu_device_tensor_op op) {
             return ggml_op_name(GGML_OP_GET_ROWS);
         case NPU_OP_SET_ROWS:
             return ggml_op_name(GGML_OP_SET_ROWS);
+        case NPU_OP_CPY:
+            return ggml_op_name(GGML_OP_CPY);
         default:
             return "UNKNOWN";
     }

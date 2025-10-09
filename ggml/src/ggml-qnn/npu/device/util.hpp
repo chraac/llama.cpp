@@ -76,6 +76,8 @@ inline constexpr const char * op_get_name(npu_device_tensor_op op) {
             return "GET_ROWS";
         case NPU_OP_SET_ROWS:
             return "SET_ROWS";
+        case NPU_OP_CPY:
+            return "CPY";
         default:
             return "UNKNOWN";
     }

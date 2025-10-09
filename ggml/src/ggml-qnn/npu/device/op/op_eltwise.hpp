@@ -33,6 +33,14 @@ inline void vec_op_f16_f16(const npu_device_fp16_t * src0,
     vec_trans_impl<_OpBinaryTransform, npu_device_fp16_t>(src0, src1, dst, count);
 }
 
+template <HVX_Vector (*_OpUnaryTransform)(HVX_VectorPair)>
+inline void unary_vec_op_f16_f32(const float * src, npu_device_fp16_t * dst, size_t count, size_t) {
+    // TODO: remove the unused param
+
+    using namespace hexagon::vec;
+    vec_trans_with_half_ret_impl<_OpUnaryTransform, float, npu_device_fp16_t>(src, dst, count);
+}
+
 inline HVX_Vector vadd_f16_f16(HVX_Vector a, HVX_Vector b) {
     // TODO: fix this since qf16 has less precision than fp16
     return Q6_Vhf_equals_Vqf16(Q6_Vqf16_vadd_VhfVhf(a, b));
@@ -338,7 +346,7 @@ bool is_unary_op_supported(const npu_device_tensor_op_spec * op_spec,
                            const npu_device_tensor_spec *    srcs,
                            size_t                            src_len) {
     const auto op = op_spec->op;
-    if (op != NPU_OP_RMS_NORM) {
+    if (op != NPU_OP_RMS_NORM && op != NPU_OP_CPY) {
         DEVICE_LOG_DEBUG("[%s]unsupported\n", hexagon::op_get_name(op));
         return false;
     }
@@ -349,21 +357,29 @@ bool is_unary_op_supported(const npu_device_tensor_op_spec * op_spec,
     }
 
     const auto & src0 = srcs[0];
-    if (dst->type != src0.type) {
-        DEVICE_LOG_DEBUG("[%s]src0.type and dst.type mismatch: %s vs %s\n", hexagon::op_get_name(op),
-                         hexagon::get_type_name(src0.type), hexagon::get_type_name(dst->type));
-        return false;
-    }
-
-    if (dst->type != NPU_DATA_TYPE_F32) {
-        DEVICE_LOG_DEBUG("[%s]unsupported data type: %s\n", hexagon::op_get_name(op),
-                         hexagon::get_type_name(dst->type));
-        return false;
-    }
-
     if (!hexagon::is_same_shape(src0, *dst)) {
         DEVICE_LOG_DEBUG("[%s]src0 and dst have different shape\n", hexagon::op_get_name(op));
         return false;
+    }
+
+    if (op == NPU_OP_RMS_NORM) {
+        if (dst->type != src0.type) {
+            DEVICE_LOG_DEBUG("[%s]src0.type and dst.type mismatch: %s vs %s\n", hexagon::op_get_name(op),
+                             hexagon::get_type_name(src0.type), hexagon::get_type_name(dst->type));
+            return false;
+        }
+
+        if (dst->type != NPU_DATA_TYPE_F32) {
+            DEVICE_LOG_DEBUG("[%s]unsupported data type: %s\n", hexagon::op_get_name(op),
+                             hexagon::get_type_name(dst->type));
+            return false;
+        }
+    } else {
+        if (dst->type != NPU_DATA_TYPE_F16 || src0.type != NPU_DATA_TYPE_F32) {
+            DEVICE_LOG_DEBUG("[%s]unsupported data type src:%s dst:%s\n", hexagon::op_get_name(op),
+                             hexagon::get_type_name(src0.type), hexagon::get_type_name(dst->type));
+            return false;
+        }
     }
 
     return true;

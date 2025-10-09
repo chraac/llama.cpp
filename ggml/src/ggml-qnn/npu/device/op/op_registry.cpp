@@ -98,6 +98,13 @@ constexpr const op_capabilities kOpCapabilities[] = {
             hexagon::set_rows_generic,  // NPU_DATA_TYPE_Q4_0
             nullptr,                    // TODO: figure out why failed on NPU_DATA_TYPE_Q4_K
         }, },
+    {
+     NPU_OP_CPY,                                        hexagon::is_unary_op_supported,
+     hexagon::is_unary_op_required_sync,
+     {
+            nullptr,                                                                     // NPU_DATA_TYPE_F32
+            hexagon::unary_op<hexagon::unary_vec_op_f16_f32<hexagon::vequals_f16_f32>>,  // NPU_DATA_TYPE_F16
+        }, },
 };
 
 static_assert(kOpCapabilities[NPU_OP_MUL_MAT].compute_funcs[NPU_DATA_TYPE_F32] == hexagon::mul_mat_f32,
