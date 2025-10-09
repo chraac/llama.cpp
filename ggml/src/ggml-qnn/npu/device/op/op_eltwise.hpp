@@ -53,10 +53,11 @@ template <typename _TyData> struct get_data_type<void (*)(const _TyData *, const
     using type = _TyData;
 };
 
-template <typename _TyData, typename _TyParam>
-struct get_data_type<void (*)(const _TyData *, _TyData *, size_t, _TyParam)> {
-    using type       = _TyData;
-    using param_type = typename std::remove_cv<typename std::remove_reference<_TyParam>::type>::type;
+template <typename _TyInput, typename _TyOutput, typename _TyParam>
+struct get_data_type<void (*)(const _TyInput *, _TyOutput *, size_t, _TyParam)> {
+    using type        = _TyInput;
+    using output_type = _TyOutput;
+    using param_type  = typename std::remove_cv<typename std::remove_reference<_TyParam>::type>::type;
 };
 
 template <auto _RowFunc> bool element_wise_op(hexagon::tensor * out, hexagon::compute_params * params) {
@@ -272,8 +273,9 @@ void rms_norm_vec_f32(const float * src, float * dst, size_t count, float eps) {
 
 // TODO: merge with element_wise_op?
 template <auto _RowFunc> bool unary_op(hexagon::tensor * out, hexagon::compute_params * params) {
-    using data_type  = typename get_data_type<decltype(_RowFunc)>::type;
-    using param_type = typename get_data_type<decltype(_RowFunc)>::param_type;
+    using input_type  = typename get_data_type<decltype(_RowFunc)>::type;
+    using output_type = typename get_data_type<decltype(_RowFunc)>::output_type;
+    using param_type  = typename get_data_type<decltype(_RowFunc)>::param_type;
 
     if (!out) {
         return false;
@@ -303,7 +305,7 @@ template <auto _RowFunc> bool unary_op(hexagon::tensor * out, hexagon::compute_p
     DEVICE_SCOPED_OP_PERFORMANCE_TRACKER(out, params->get_thread_index());
 
     const auto   param           = out->get_op_param<param_type>(0);
-    const size_t valid_row_bytes = src0->get_ne(0) * sizeof(data_type);
+    const size_t valid_row_bytes = src0->get_ne(0) * sizeof(input_type);
     for (int64_t ir = start_end.first; ir < start_end.second; ++ir) {
         const auto i03 = ir / rows_per_cube;
         const auto i02 = ir / out->get_ne(1) - i03 * out->get_ne(2);
@@ -315,7 +317,7 @@ template <auto _RowFunc> bool unary_op(hexagon::tensor * out, hexagon::compute_p
             hexagon::l2fetch_row(src0_row + src0->get_nb(1), valid_row_bytes);
         }
 
-        _RowFunc(reinterpret_cast<const data_type *>(src0_row), reinterpret_cast<data_type *>(dst_row),
+        _RowFunc(reinterpret_cast<const input_type *>(src0_row), reinterpret_cast<output_type *>(dst_row),
                  static_cast<size_t>(out->get_ne(0)), param);
     }
 
