@@ -47,6 +47,14 @@ inline HVX_Vector vmul_f16_f16(HVX_Vector a, HVX_Vector b) {
     return Q6_Vhf_equals_Wqf32(Q6_Wqf32_vmpy_VhfVhf(a, b));
 }
 
+inline HVX_Vector vequals_f16_f32(HVX_VectorPair a) {
+    const HVX_Vector kZeroV = Q6_V_vzero();
+    HVX_Vector       lo     = Q6_Vqf32_vadd_Vqf32Vsf(kZeroV, Q6_V_lo_W(a));
+    HVX_Vector       hi     = Q6_Vqf32_vadd_Vqf32Vsf(kZeroV, Q6_V_hi_W(a));
+    a                       = Q6_W_vcombine_VV(hi, lo);
+    return Q6_Vh_vdeal_Vh(Q6_Vhf_equals_Wqf32(a));
+}
+
 template <typename T> struct get_data_type {};
 
 template <typename _TyData> struct get_data_type<void (*)(const _TyData *, const _TyData *, _TyData *, size_t)> {

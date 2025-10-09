@@ -709,4 +709,91 @@ inline void vec_trans_impl(const _TyData * src0,
     }
 }
 
+template <auto * _OpUnaryTransform, typename _TyData, typename _TyDataRet, typename... _TyParams>
+inline void vec_trans_with_half_ret_impl(const _TyData * src0, _TyDataRet * dst, size_t count, _TyParams... params) {
+    static_assert(std::is_same_v<decltype(_OpUnaryTransform), HVX_Vector (*)(HVX_VectorPair, _TyParams...)>,
+                  "Function type mismatch: _OpUnaryTransform must be of type HVX_Vector (*)(HVX_Vector, HVX_Vector, "
+                  "_TyParams...)");
+
+    static_assert(sizeof(_TyData) / sizeof(_TyDataRet) == 2,
+                  "Element size mismatch: _TyData must be twice the size of _TyDataRet");
+
+    constexpr const size_t kElementsPerVector = hexagon::kBytesPerVector / sizeof(_TyData);
+    const HVX_Vector       kZero              = Q6_V_vzero();
+
+    HVX_Vector *       src0_vec_ptr     = ((HVX_Vector *) src0);
+    HVX_Vector * const src0_vec_ptr_end = ((HVX_Vector *) src0) + count / kElementsPerVector;
+    HVX_Vector *       dst_vec_ptr      = ((HVX_Vector *) dst);  // framework will ensure the dst is aligned
+    HVX_Vector         prev0            = *src0_vec_ptr++;
+
+    {
+        while (src0_vec_ptr_end - src0_vec_ptr > 1) {
+            HVX_VectorPair curr0 = reinterpret_cast<HVX_VectorPair *>(src0_vec_ptr)[0];
+
+            HVX_Vector l0 = Q6_V_valign_VVR(Q6_V_lo_W(curr0), prev0, (size_t) src0);
+            HVX_Vector h0 = Q6_V_valign_VVR(Q6_V_hi_W(curr0), Q6_V_lo_W(curr0), (size_t) src0);
+
+            dst_vec_ptr[0] = _OpUnaryTransform(Q6_W_vcombine_VV(h0, l0), params...);
+
+            prev0 = Q6_V_hi_W(curr0);
+            src0_vec_ptr += 2;
+            dst_vec_ptr++;
+        }
+    }
+
+    HVX_Vector result;
+    uint32_t   processed_floats = 0;
+    if (src0_vec_ptr_end - src0_vec_ptr > 0) {
+        HVX_Vector curr0 = *src0_vec_ptr++;
+        HVX_Vector s0    = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
+        prev0            = curr0;
+        result           = _OpUnaryTransform(Q6_W_vcombine_VV(kZero, s0), params...);
+        processed_floats = kElementsPerVector;
+    }
+
+    static const HVX_VectorPred mask = Q6_Q_vsetq_R(hexagon::kBytesPerVector / 2);
+
+    const size_t leftover = count % kElementsPerVector;
+    if ((src0_vec_ptr_end - ((HVX_Vector *) src0)) > 0) {
+        // handle the last vector
+        // see also:
+        //   https://github.com/UbiquitousLearning/mllm/blob/babf4410352ce8730824c87699c025a0d4ce3a6f/src/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/src/ops/LLaMAMul.cpp#L147
+        //   or qualcomm sdk libs\qhl_hvx\src\qhblas_hvx\qhblas_hvx_aw_vector_add_ah.c
+        bool should_fetch_src0 = leftover != 0 || !hexagon::is_addr_aligned(src0_vec_ptr);
+
+        HVX_Vector curr0 = should_fetch_src0 ? *src0_vec_ptr : prev0;
+        HVX_Vector s0    = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
+
+        if (processed_floats) {
+            s0             = _OpUnaryTransform(Q6_W_vcombine_VV(s0, kZero), params...);
+            dst_vec_ptr[0] = Q6_V_vmux_QVV(mask, result, s0);  // only update the lower half of the result vector
+            dst_vec_ptr++;
+        } else {
+            result = _OpUnaryTransform(Q6_W_vcombine_VV(kZero, s0), params...);
+        }
+
+        src0_vec_ptr += should_fetch_src0 ? 1 : 0;
+        prev0 = curr0;
+        processed_floats += kElementsPerVector;
+    }
+
+    if (leftover > 0) {
+        // handle the leftover elements
+        const size_t leftover_bytes = leftover * sizeof(_TyData);
+        HVX_Vector   curr0 = (leftover_bytes + hexagon::unaligned_bytes(src0_vec_ptr) > hexagon::kBytesPerVector) ?
+                                 *src0_vec_ptr :
+                                 prev0;
+        curr0              = Q6_V_valign_VVR(curr0, prev0, (size_t) src0);
+
+        if (processed_floats % (hexagon::kBytesPerVector / sizeof(_TyDataRet))) {
+            curr0 = _OpUnaryTransform(Q6_W_vcombine_VV(curr0, kZero), params...);
+            curr0 = Q6_V_vmux_QVV(mask, result, curr0);
+        } else {
+            curr0 = _OpUnaryTransform(Q6_W_vcombine_VV(kZero, curr0), params...);
+        }
+
+        q6op_vstu_variable_ARV(dst_vec_ptr, leftover_bytes, curr0);
+    }
+}
+
 }  // namespace hexagon::vec
