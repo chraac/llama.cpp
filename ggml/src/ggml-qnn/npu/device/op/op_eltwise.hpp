@@ -375,7 +375,14 @@ bool is_unary_op_supported(const npu_device_tensor_op_spec * op_spec,
             return false;
         }
     } else {
+        if (dst->nb[1] < dst->nb[0] || src0.nb[1] < src0.nb[0]) {
+            // TODO: support non-continuous row
+            DEVICE_LOG_DEBUG("[%s]unsupported non-continuous row\n", hexagon::op_get_name(op));
+            return false;
+        }
+
         if (dst->type != NPU_DATA_TYPE_F16 || src0.type != NPU_DATA_TYPE_F32) {
+            // TODO: support more types
             DEVICE_LOG_DEBUG("[%s]unsupported data type src:%s dst:%s\n", hexagon::op_get_name(op),
                              hexagon::get_type_name(src0.type), hexagon::get_type_name(dst->type));
             return false;
