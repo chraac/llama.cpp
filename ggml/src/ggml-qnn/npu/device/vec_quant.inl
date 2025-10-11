@@ -27,7 +27,8 @@ template <typename _TBlock> inline HVX_Vector load_block_generic(const _TBlock &
 
 template <typename _TBlock> inline HVX_Vector make_scale_load_mask() {
     static_assert(sizeof(_TBlock) < hexagon::kBytesPerVector, "wrong block size/padding");
-    static_assert(std::is_same_v<decltype(_TBlock::d), npu_device_fp16_t>, "wrong d type");
+    static_assert(std::is_same_v<decltype(_TBlock::d), npu_device_fp16_t>,
+                  "scale field d must be of type npu_device_fp16_t");
 
     constexpr const size_t kBytesPerScale  = QUANT_BLOCK_SIZE * sizeof(_TBlock::d);
     const size_t           qs_start_offset = offsetof(_TBlock, d);

@@ -407,8 +407,7 @@ inline _TRet vec_dot_product_quant_impl(const _TQuantElem0 * src0,
     static_assert(std::is_same_v<_TQuantElem0, npu_device_block_q4_0> ||
                       std::is_same_v<_TQuantElem0, npu_device_block_q4_k> ||
                       std::is_same_v<_TQuantElem0, npu_device_block_q8_0>,
-                  "Element type mismatch: _TQuantElem0 must be npu_device_block_q4_0, npu_device_block_q4_k or "
-                  "npu_device_block_q8_0");
+                  "Element type mismatch: _TQuantElem0 must be a supported quantization block type");
     static_assert(QUANT_BLOCK_SIZE == kElementsPerVector,
                   "Quant block size mismatch: QUANT_BLOCK_SIZE must be equal to kElementsPerVector");
 
