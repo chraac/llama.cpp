@@ -205,7 +205,6 @@ inline HVX_VectorPair dequantize_vec_q40_qf32_2blocks(HVX_Vector qs, HVX_Vector 
     qp0  = Q6_Wh_vlut16_VbVhR_nomatch(q_lo, table, 0);
 
     q_lo    = Q6_V_lo_W(qp0);
-    scale01 = Q6_Vh_vshuff_Vh(scale01);
     q_lo    = Q6_Vh_vshuff_Vh(q_lo);  // TODO: avoid vshuff here
 
     return Q6_Wqf32_vmpy_VhfVhf(q_lo, scale01);
@@ -254,9 +253,6 @@ inline HVX_VectorPair_x2 dequantize_vec_q40_qf32_4blocks(HVX_Vector qs,
     q_lo = Q6_Vh_vshuff_Vh(q_lo);  // byte: 0, 64, 32, 96, 1, 65, 33, 97, ..., 16, 80, 48, 112, 17, 81, 49, 113, ...
 
     qp0 = Q6_Wh_vlut16_VbVhR_nomatch(q_lo, table, 0);
-
-    scale01 = Q6_Vh_vshuff_Vh(scale01);
-    scale23 = Q6_Vh_vshuff_Vh(scale23);  // TODO: avoid vshuff here
 
     q_lo = Q6_V_lo_W(qp0);
     q_hi = Q6_V_hi_W(qp0);

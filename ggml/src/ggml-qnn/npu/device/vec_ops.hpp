@@ -365,7 +365,7 @@ inline HVX_Vector vec_dot_product_vqf32_q40_f32(const npu_device_block_q4_0 * sr
 
     alignas(hexagon::kBytesPerVector) static const HVX_Vector qs_indices = make_qs_load_mask<npu_device_block_q4_0>();
     alignas(hexagon::kBytesPerVector) static const HVX_Vector scale_indices =
-        make_scale_load_mask<npu_device_block_q4_0>();
+        Q6_Vh_vshuff_Vh(make_scale_load_mask<npu_device_block_q4_0>());
 
     return vec_dot_product_quant_impl<npu_device_block_q4_0, float, HVX_Vector, load_dequant_vec_q40_qf32_4blocks,
                                       load_dequant_vec_q40_qf32_2blocks, load_dequant_vec_q40_qf32_1block,
