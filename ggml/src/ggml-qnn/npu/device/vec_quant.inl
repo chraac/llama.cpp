@@ -84,10 +84,10 @@ inline hexagon::HVX_Vector_x2 load_dual_block_generic(const _TBlock *  srcs,
     const HVX_Vector blocks = load_struct_into_vector<_TBlock, 2>(srcs);
 
     HVX_Vector block01 = Q6_Vb_vlut32_VbVbI(qs_indices, blocks, 0);
-    block01            = Q6_Vb_vlut32or_VbVbVbI(block01, qs_indices, blocks, 2);
-
     HVX_Vector scale01 = Q6_Vb_vlut32_VbVbI(scale_indices, blocks, 0);
-    scale01            = Q6_Vb_vlut32or_VbVbVbI(scale01, scale_indices, blocks, 2);
+
+    block01 = Q6_Vb_vlut32or_VbVbVbI(block01, qs_indices, blocks, 2);
+    scale01 = Q6_Vb_vlut32or_VbVbVbI(scale01, scale_indices, blocks, 2);
 
     if constexpr (sizeof(_TBlock) * 4 > hexagon::kBytesPerVector) {
         block01 = Q6_Vb_vlut32or_VbVbVbI(block01, qs_indices, blocks, 1);
@@ -204,8 +204,8 @@ inline HVX_VectorPair dequantize_vec_q40_qf32_2blocks(HVX_Vector qs, HVX_Vector 
     q_lo = Q6_Vb_vshuff_Vb(q_lo);
     qp0  = Q6_Wh_vlut16_VbVhR_nomatch(q_lo, table, 0);
 
-    q_lo    = Q6_V_lo_W(qp0);
-    q_lo    = Q6_Vh_vshuff_Vh(q_lo);  // TODO: avoid vshuff here
+    q_lo = Q6_V_lo_W(qp0);
+    q_lo = Q6_Vh_vshuff_Vh(q_lo);  // TODO: avoid vshuff here
 
     return Q6_Wqf32_vmpy_VhfVhf(q_lo, scale01);
 }
