@@ -331,4 +331,12 @@ inline HVX_VectorPair_x2 load_dequant_vec_q40_qf32_4blocks(const npu_device_bloc
     return dequantize_vec_q40_qf32_4blocks(qs.val[0], qs.val[1], qs.val[2], table);
 }
 
+inline HVX_VectorPair_x3 load_dequant_vec_q40_qf32_6blocks(const npu_device_block_q4_0 * src,
+                                                           const HVX_Vector              qs_indices,
+                                                           const HVX_Vector              scale_indices,
+                                                           const HVX_Vector              table) {
+    auto qs = load_hexa_block_generic(src, qs_indices, scale_indices);
+    return dequantize_vec_q40_qf32_6blocks(qs.val[0], qs.val[1], qs.val[2], qs.val[4], table);
+}
+
 }  // namespace hexagon::vec::quant

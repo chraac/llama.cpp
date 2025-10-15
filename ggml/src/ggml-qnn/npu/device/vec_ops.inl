@@ -380,9 +380,38 @@ inline _TRet vec_dot_product_mix_aligned_impl(const _TElem0 * src0, const _TElem
     return _ReduceFunc(_AddFunc(sum0, sum1));
 }
 
+inline HVX_Vector_x2 vec_dot_accum_pair(HVX_VectorPair s0,
+                                        HVX_Vector     curr10,
+                                        HVX_Vector     curr11,
+                                        HVX_Vector     prev1,
+                                        HVX_Vector_x2  sums,
+                                        size_t         offset,
+                                        HVX_Vector     zero) {
+    HVX_Vector l0 = Q6_V_lo_W(s0);
+    HVX_Vector l1 = Q6_V_valign_VVR(curr10, prev1, offset);
+
+    HVX_Vector h0 = Q6_V_hi_W(s0);
+    HVX_Vector h1 = Q6_V_valign_VVR(curr11, curr10, offset);
+
+    l1 = Q6_Vqf32_vadd_VsfVsf(zero, l1);
+    h1 = Q6_Vqf32_vadd_VsfVsf(zero, h1);
+
+    HVX_Vector mpy0 = Q6_Vqf32_vmpy_Vqf32Vqf32(l0, l1);
+    HVX_Vector mpy1 = Q6_Vqf32_vmpy_Vqf32Vqf32(h0, h1);
+
+    HVX_Vector_x2 result;
+    result.val[0] = Q6_Vqf32_vadd_Vqf32Vqf32(mpy0, sums.val[0]);
+    result.val[1] = Q6_Vqf32_vadd_Vqf32Vqf32(mpy1, sums.val[1]);
+    return result;
+}
+
 template <typename _TQuantElem0,
           typename _TElem1,
           typename _TRet,
+          HVX_VectorPair_x3 (*_DequantHexaFunc)(const _TQuantElem0 * src,
+                                                const HVX_Vector     qs_indices,
+                                                const HVX_Vector     scale_indices,
+                                                const HVX_Vector     table),
           HVX_VectorPair_x2 (*_DequantQuadFunc)(const _TQuantElem0 * src,
                                                 const HVX_Vector     qs_indices,
                                                 const HVX_Vector     scale_indices,
@@ -422,8 +451,7 @@ inline _TRet vec_dot_product_quant_impl(const _TQuantElem0 * src0,
     HVX_Vector           sum              = kZeroV;
 
     if (src1_vec_ptr_end - src1_vec_ptr > 1) {
-        HVX_Vector sum0 = kZeroV;
-        HVX_Vector sum1 = kZeroV;
+        HVX_Vector_x2 sums = { kZeroV, kZeroV };
 
         while (src1_vec_ptr_end - src1_vec_ptr > 3) {
             HVX_VectorPair_x2 s01     = _DequantQuadFunc(src0_ptr, qs_indices, scale_indices, table);
@@ -432,37 +460,9 @@ inline _TRet vec_dot_product_quant_impl(const _TQuantElem0 * src0,
             HVX_Vector        curr110 = src1_vec_ptr[2];
             HVX_Vector        curr111 = src1_vec_ptr[3];
 
-            HVX_Vector l00 = Q6_V_lo_W(s01.val[0]);
-            HVX_Vector l10 = Q6_V_valign_VVR(curr100, prev1, (size_t) src1);
-
-            HVX_Vector l01 = Q6_V_lo_W(s01.val[1]);
-            HVX_Vector l11 = Q6_V_valign_VVR(curr110, curr101, (size_t) src1);
-
-            HVX_Vector h00 = Q6_V_hi_W(s01.val[0]);
-            HVX_Vector h10 = Q6_V_valign_VVR(curr101, curr100, (size_t) src1);
-
-            HVX_Vector h01 = Q6_V_hi_W(s01.val[1]);
-            HVX_Vector h11 = Q6_V_valign_VVR(curr111, curr110, (size_t) src1);
-
-            l10 = Q6_Vqf32_vadd_VsfVsf(kZeroV, l10);
-            l11 = Q6_Vqf32_vadd_VsfVsf(kZeroV, l11);
-
-            HVX_Vector mpy0 = Q6_Vqf32_vmpy_Vqf32Vqf32(l00, l10);
-            HVX_Vector mpy1 = Q6_Vqf32_vmpy_Vqf32Vqf32(l01, l11);
-
-            h10 = Q6_Vqf32_vadd_VsfVsf(kZeroV, h10);
-            h11 = Q6_Vqf32_vadd_VsfVsf(kZeroV, h11);
-
-            HVX_Vector mpy2 = Q6_Vqf32_vmpy_Vqf32Vqf32(h00, h10);
-            HVX_Vector mpy3 = Q6_Vqf32_vmpy_Vqf32Vqf32(h01, h11);
-
+            sums  = vec_dot_accum_pair(s01.val[0], curr100, curr101, prev1, sums, (size_t) src1, kZeroV);
+            sums  = vec_dot_accum_pair(s01.val[1], curr110, curr111, curr101, sums, (size_t) src1, kZeroV);
             prev1 = curr111;
-
-            sum0 = Q6_Vqf32_vadd_Vqf32Vqf32(mpy0, sum0);
-            sum1 = Q6_Vqf32_vadd_Vqf32Vqf32(mpy1, sum1);
-
-            sum0 = Q6_Vqf32_vadd_Vqf32Vqf32(mpy2, sum0);
-            sum1 = Q6_Vqf32_vadd_Vqf32Vqf32(mpy3, sum1);
 
             src0_ptr += 4;
             src1_vec_ptr += 4;
@@ -473,28 +473,14 @@ inline _TRet vec_dot_product_quant_impl(const _TQuantElem0 * src0,
             HVX_Vector     curr10 = src1_vec_ptr[0];
             HVX_Vector     curr11 = src1_vec_ptr[1];
 
-            HVX_Vector l0 = Q6_V_lo_W(s0);
-            HVX_Vector l1 = Q6_V_valign_VVR(curr10, prev1, (size_t) src1);
-
-            HVX_Vector h0 = Q6_V_hi_W(s0);
-            HVX_Vector h1 = Q6_V_valign_VVR(curr11, curr10, (size_t) src1);
-
-            l1 = Q6_Vqf32_vadd_VsfVsf(kZeroV, l1);
-            h1 = Q6_Vqf32_vadd_VsfVsf(kZeroV, h1);
-
-            HVX_Vector mpy0 = Q6_Vqf32_vmpy_Vqf32Vqf32(l0, l1);
-            HVX_Vector mpy1 = Q6_Vqf32_vmpy_Vqf32Vqf32(h0, h1);
-
+            sums  = vec_dot_accum_pair(s0, curr10, curr11, prev1, sums, (size_t) src1, kZeroV);
             prev1 = curr11;
-
-            sum0 = Q6_Vqf32_vadd_Vqf32Vqf32(mpy0, sum0);
-            sum1 = Q6_Vqf32_vadd_Vqf32Vqf32(mpy1, sum1);
 
             src0_ptr += 2;
             src1_vec_ptr += 2;
         }
 
-        sum = Q6_Vqf32_vadd_Vqf32Vqf32(sum0, sum1);
+        sum = Q6_Vqf32_vadd_Vqf32Vqf32(sums.val[0], sums.val[1]);
     }
 
     if (src1_vec_ptr_end - src1_vec_ptr > 0) {
