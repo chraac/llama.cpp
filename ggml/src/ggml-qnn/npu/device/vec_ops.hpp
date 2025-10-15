@@ -20,6 +20,7 @@ using HVX_Vector_x3     = HEXAGON_pack<HVX_Vector, 3>;
 using HVX_Vector_x4     = HEXAGON_pack<HVX_Vector, 4>;
 using HVX_Vector_x5     = HEXAGON_pack<HVX_Vector, 5>;
 using HVX_VectorPair_x2 = HEXAGON_pack<HVX_VectorPair, 2>;
+using HVX_VectorPair_x3 = HEXAGON_pack<HVX_VectorPair, 3>;
 using HVX_VectorPair_x4 = HEXAGON_pack<HVX_VectorPair, 4>;
 using HVX_VectorPred_x3 = HEXAGON_pack<HVX_VectorPred, 3>;
 

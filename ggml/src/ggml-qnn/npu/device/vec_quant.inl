@@ -263,6 +263,41 @@ inline HVX_VectorPair_x2 dequantize_vec_q40_qf32_4blocks(HVX_Vector qs,
     return result;
 }
 
+inline HVX_VectorPair_x3 dequantize_vec_q40_qf32_6blocks(HVX_Vector qs,
+                                                         HVX_Vector scale01,
+                                                         HVX_Vector scale23,
+                                                         HVX_Vector scale45,
+                                                         HVX_Vector table) {
+    constexpr const uint32_t kSizeOfQs = sizeof(npu_device_block_q4_0::qs);
+
+    HVX_Vector q_lo = qs;
+    HVX_Vector q_hi = Q6_Vub_vlsr_VubR(qs, 4);
+
+    HVX_VectorPair qp0 = Q6_W_vshuff_VVR(q_hi, q_lo, kSizeOfQs * (1 + 2 + 4));
+
+    q_lo = Q6_V_lo_W(qp0);
+    q_hi = Q6_V_hi_W(qp0);
+
+    q_lo = Q6_Vb_vshuff_Vb(q_lo);  // byte: 0, 64, 1, 65, ..., 32, 96, 33, 97, ...
+    q_hi = Q6_Vb_vshuff_Vb(q_hi);  // byte: 0, 64, 1, 65, ..., 32, 96, 33, 97, ...
+
+    q_lo = Q6_Vh_vshuff_Vh(q_lo);  // byte: 0, 64, 32, 96, 1, 65, 33, 97, ..., 16, 80, 48, 112, 17, 81, 49, 113, ...
+    q_hi = Q6_Vh_vshuff_Vh(q_hi);  // byte: 0, 64, 1, 65, ..., 32, 96, 33, 97, ...
+
+    qp0                = Q6_Wh_vlut16_VbVhR_nomatch(q_lo, table, 0);
+    HVX_VectorPair qp1 = Q6_Wh_vlut16_VbVhR_nomatch(q_hi, table, 0);
+
+    q_lo          = Q6_V_lo_W(qp0);
+    q_hi          = Q6_V_hi_W(qp0);
+    HVX_Vector q2 = Q6_V_lo_W(qp1);
+
+    hexagon::HVX_VectorPair_x3 result;
+    result.val[0] = Q6_Wqf32_vmpy_VhfVhf(q_lo, scale01);
+    result.val[1] = Q6_Wqf32_vmpy_VhfVhf(q_hi, scale23);
+    result.val[2] = Q6_Wqf32_vmpy_VhfVhf(q2, scale45);
+    return result;
+}
+
 inline HVX_Vector load_dequant_vec_q40_qf32_1block(const npu_device_block_q4_0 * src,
                                                    const HVX_Vector              qs_indices,
                                                    const HVX_Vector              scale_indices,
