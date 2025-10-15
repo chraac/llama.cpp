@@ -453,25 +453,6 @@ inline _TRet vec_dot_product_quant_impl(const _TQuantElem0 * src0,
     if (src1_vec_ptr_end - src1_vec_ptr > 1) {
         HVX_Vector_x2 sums = { kZeroV, kZeroV };
 
-        while (src1_vec_ptr_end - src1_vec_ptr > 5) {
-            HVX_VectorPair_x3 s01     = _DequantHexaFunc(src0_ptr, qs_indices, scale_indices, table);
-            HVX_Vector        curr100 = src1_vec_ptr[0];
-            HVX_Vector        curr101 = src1_vec_ptr[1];
-            HVX_Vector        curr110 = src1_vec_ptr[2];
-            HVX_Vector        curr111 = src1_vec_ptr[3];
-            HVX_Vector        curr120 = src1_vec_ptr[4];
-            HVX_Vector        curr121 = src1_vec_ptr[5];
-
-            sums = vec_dot_accum_pair(s01.val[0], curr100, curr101, prev1, sums, (size_t) src1, kZeroV);
-            sums = vec_dot_accum_pair(s01.val[1], curr110, curr111, curr101, sums, (size_t) src1, kZeroV);
-            sums = vec_dot_accum_pair(s01.val[2], curr120, curr121, curr111, sums, (size_t) src1, kZeroV);
-
-            prev1 = curr121;
-
-            src0_ptr += 6;
-            src1_vec_ptr += 6;
-        }
-
         while (src1_vec_ptr_end - src1_vec_ptr > 3) {
             HVX_VectorPair_x2 s01     = _DequantQuadFunc(src0_ptr, qs_indices, scale_indices, table);
             HVX_Vector        curr100 = src1_vec_ptr[0];
