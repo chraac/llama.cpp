@@ -372,7 +372,8 @@ void dequantize_row_q4_0_impl(const void * src, hexagon::dequant_output_type * d
     }
 
     for (; i + 1 < nb; i += 2) {
-        auto res = load_dequant_vec_q40_qf16_2blocks(src_ptr + i, qs_indices, scale_indices, table);
+        auto qs  = load_dual_block_generic(src_ptr + i, qs_indices, scale_indices);
+        auto res = dequantize_vec_q40_qf16_2blocks(qs.val[0], qs.val[1], table);
         if constexpr (_IsDstAligned) {
             *reinterpret_cast<HVX_Vector *>(dst_ptr) = Q6_Vhf_equals_Vqf16(res);
         } else {

@@ -305,14 +305,6 @@ inline HVX_Vector load_dequant_vec_q40_qf32_1block(const npu_device_block_q4_0 *
     return Q6_V_lo_W(dequantize_vec_q40_qf32_2blocks(qs.val[0], qs.val[1], table));
 }
 
-inline HVX_Vector load_dequant_vec_q40_qf16_2blocks(const npu_device_block_q4_0 * src,
-                                                    const HVX_Vector              qs_indices,
-                                                    const HVX_Vector              scale_indices,
-                                                    const HVX_Vector              table) {
-    auto qs = load_dual_block_generic(src, qs_indices, scale_indices);
-    return dequantize_vec_q40_qf16_2blocks(qs.val[0], qs.val[1], table);
-}
-
 inline HVX_VectorPair load_dequant_vec_q40_qf32_2blocks(const npu_device_block_q4_0 * src,
                                                         const HVX_Vector              qs_indices,
                                                         const HVX_Vector              scale_indices,
