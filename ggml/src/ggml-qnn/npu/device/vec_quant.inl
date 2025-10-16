@@ -139,15 +139,14 @@ inline hexagon::HVX_Vector_x3 load_qual_block_generic(const _TBlock *  srcs,
 }
 
 template <typename _TBlock>
-inline hexagon::HVX_Vector_x5 load_hexa_block_generic(const _TBlock *  srcs,
+inline hexagon::HVX_Vector_x4 load_hexa_block_generic(const _TBlock *  srcs,
                                                       const HVX_Vector qs_indices,
                                                       const HVX_Vector scale_indices) {
     static_assert(hexagon::kBytesPerVector >= sizeof(_TBlock) * 6, "wrong block size/padding");
-    constexpr const uint32_t kSizeOfQs = sizeof(_TBlock::qs);
 
     const HVX_Vector blocks = load_struct_into_vector<_TBlock, 6>(srcs);
 
-    hexagon::HVX_Vector_x5 result;
+    hexagon::HVX_Vector_x4 result;
     {
         HVX_Vector block012345 = Q6_Vb_vlut32_VbVbI(qs_indices, blocks, 0);
         block012345            = Q6_Vb_vlut32or_VbVbVbI(block012345, qs_indices, blocks, 1);
@@ -155,7 +154,6 @@ inline hexagon::HVX_Vector_x5 load_hexa_block_generic(const _TBlock *  srcs,
         block012345            = Q6_Vb_vlut32or_VbVbVbI(block012345, qs_indices, blocks, 3);
 
         result.val[0] = block012345;
-        result.val[3] = Q6_V_vror_VR(block012345, kSizeOfQs * 4);  // block45
     }
 
     {
@@ -173,7 +171,7 @@ inline hexagon::HVX_Vector_x5 load_hexa_block_generic(const _TBlock *  srcs,
 
         result.val[1] = scale01;
         result.val[2] = scale23;
-        result.val[4] = scale45;
+        result.val[3] = scale45;
     }
 
     return result;
@@ -336,7 +334,7 @@ inline HVX_VectorPair_x3 load_dequant_vec_q40_qf32_6blocks(const npu_device_bloc
                                                            const HVX_Vector              scale_indices,
                                                            const HVX_Vector              table) {
     auto qs = load_hexa_block_generic(src, qs_indices, scale_indices);
-    return dequantize_vec_q40_qf32_6blocks(qs.val[0], qs.val[1], qs.val[2], qs.val[4], table);
+    return dequantize_vec_q40_qf32_6blocks(qs.val[0], qs.val[1], qs.val[2], qs.val[3], table);
 }
 
 }  // namespace hexagon::vec::quant
