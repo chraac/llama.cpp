@@ -470,8 +470,14 @@ void dequantize_row_q4_K(const void * src, hexagon::dequant_output_type * dst, s
         HVX_Vector     q_hi = Q6_Vub_vlsr_VubR(qv, 4);
         HVX_VectorPair qp   = Q6_W_vshuff_VVR(q_hi, q_lo, kQuantSubBlockSize * 3);
 
-        dual_pair.p[0] = Q6_Wh_vlut16_VbVhR_nomatch(Q6_Vb_vshuff_Vb(Q6_V_lo_W(qp)), table, 0);
-        dual_pair.p[1] = Q6_Wh_vlut16_VbVhR_nomatch(Q6_Vb_vshuff_Vb(Q6_V_hi_W(qp)), table, 0);
+        q_lo = Q6_V_lo_W(qp);
+        q_hi = Q6_V_hi_W(qp);
+
+        q_lo = Q6_Vb_vshuff_Vb(q_lo);
+        q_hi = Q6_Vb_vshuff_Vb(q_hi);
+
+        dual_pair.p[0] = Q6_Wh_vlut16_VbVhR_nomatch(q_lo, table, 0);
+        dual_pair.p[1] = Q6_Wh_vlut16_VbVhR_nomatch(q_hi, table, 0);
 
         const __fp16 d   = reinterpret_cast<const __fp16 &>(src_ptr[i].d);
         const __fp16 min = reinterpret_cast<const __fp16 &>(src_ptr[i].dmin);

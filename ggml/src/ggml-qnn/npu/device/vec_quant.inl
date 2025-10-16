@@ -65,16 +65,6 @@ template <typename _TBlock> inline HVX_Vector make_qs_load_mask() {
     return ret.v;
 }
 
-template <typename _TBlock> inline HVX_Vector load_dual_block_generic(const _TBlock * srcs, HVX_VectorPred mask) {
-    static_assert(hexagon::kBytesPerVector >= sizeof(_TBlock) * 2, "wrong block size/padding");
-    constexpr const uint32_t kSizeOfQs    = sizeof(_TBlock::qs);
-    constexpr const uint32_t kSizeOfScale = sizeof(_TBlock) - kSizeOfQs;
-
-    HVX_Vector blocks = load_into_vector<_TBlock, 2, &_TBlock::qs>(srcs);
-    HVX_Vector block1 = Q6_V_vror_VR(blocks, kSizeOfScale);
-    return Q6_V_vmux_QVV(mask, blocks, block1);
-}
-
 template <typename _TBlock>
 inline hexagon::HVX_Vector_x2 load_dual_block_generic(const _TBlock *  srcs,
                                                       const HVX_Vector qs_indices,
