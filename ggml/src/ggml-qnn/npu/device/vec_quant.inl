@@ -69,11 +69,25 @@ inline HVX_Vector make_q40_qs_load_mask() {
     const size_t qs_start_offset = offsetof(npu_device_block_q4_0, qs);
     const size_t qs_end_offset   = qs_start_offset + sizeof(npu_device_block_q4_0::qs);
 
-    constexpr const static size_t kIndexShuffle[hexagon::kBytesPerVector] = {
-        0,  32, 16, 48, 1,  33, 17, 49, 2,  34, 18, 50, 3,  35, 19, 51, 4,  36, 20, 52, 5,  37,
-        21, 53, 6,  38, 22, 54, 7,  39, 23, 55, 8,  40, 24, 56, 9,  41, 25, 57, 10, 42, 26, 58,
-        11, 43, 27, 59, 12, 44, 28, 60, 13, 45, 29, 61, 14, 46, 30, 62, 15, 47, 31, 63,
-    };
+    const static std::array<size_t, hexagon::kBytesPerVector> kIndexShuffle = []() {
+        constexpr const static size_t kIndexShuffleTarget[hexagon::kBytesPerVector] = {
+            0,  32, 16, 48, 1,  33, 17, 49, 2,  34, 18, 50, 3,  35, 19, 51, 4,  36, 20, 52, 5,  37,
+            21, 53, 6,  38, 22, 54, 7,  39, 23, 55, 8,  40, 24, 56, 9,  41, 25, 57, 10, 42, 26, 58,
+            11, 43, 27, 59, 12, 44, 28, 60, 13, 45, 29, 61, 14, 46, 30, 62, 15, 47, 31, 63,
+        };
+
+        std::array<size_t, hexagon::kBytesPerVector> ret = {};
+        for (size_t i = 0; i < hexagon::kBytesPerVector; ++i) {
+            for (size_t j = 0; j < hexagon::kBytesPerVector; ++j) {
+                if (kIndexShuffleTarget[j] == i) {
+                    ret[i] = j;
+                    break;
+                }
+            }
+        }
+
+        return ret;
+    }();
 
     hexagon::HVX_VectorAlias ret;
     size_t                   ret_idx = 0;
@@ -282,12 +296,6 @@ inline HVX_VectorPair_x3 dequantize_vec_q40_qf32_6blocks(HVX_Vector qs,
 
     q_lo = Q6_V_lo_W(qp0);
     q_hi = Q6_V_hi_W(qp0);
-
-    q_lo = Q6_Vb_vshuff_Vb(q_lo);  // byte: 0, 64, 1, 65, ..., 32, 96, 33, 97, ...
-    q_hi = Q6_Vb_vshuff_Vb(q_hi);  // byte: 0, 64, 1, 65, ..., 32, 96, 33, 97, ...
-
-    q_lo = Q6_Vh_vshuff_Vh(q_lo);  // byte: 0, 64, 32, 96, 1, 65, 33, 97, ..., 16, 80, 48, 112, 17, 81, 49, 113, ...
-    q_hi = Q6_Vh_vshuff_Vh(q_hi);  // byte: 0, 64, 1, 65, ..., 32, 96, 33, 97, ...
 
     qp0                = Q6_Wh_vlut16_VbVhR_nomatch(q_lo, table, 0);
     HVX_VectorPair qp1 = Q6_Wh_vlut16_VbVhR_nomatch(q_hi, table, 0);
