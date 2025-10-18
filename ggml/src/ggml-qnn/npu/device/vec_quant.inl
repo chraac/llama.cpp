@@ -69,32 +69,19 @@ inline HVX_Vector make_q40_qs_load_mask() {
     const size_t qs_start_offset = offsetof(npu_device_block_q4_0, qs);
     const size_t qs_end_offset   = qs_start_offset + sizeof(npu_device_block_q4_0::qs);
 
-    const static std::array<size_t, hexagon::kBytesPerVector> kIndexShuffle = []() {
-        constexpr const static size_t kIndexShuffleTarget[hexagon::kBytesPerVector] = {
-            0,  32, 16, 48, 1,  33, 17, 49, 2,  34, 18, 50, 3,  35, 19, 51, 4,  36, 20, 52, 5,  37,
-            21, 53, 6,  38, 22, 54, 7,  39, 23, 55, 8,  40, 24, 56, 9,  41, 25, 57, 10, 42, 26, 58,
-            11, 43, 27, 59, 12, 44, 28, 60, 13, 45, 29, 61, 14, 46, 30, 62, 15, 47, 31, 63,
-        };
-
-        std::array<size_t, hexagon::kBytesPerVector> ret = {};
-        for (size_t i = 0; i < hexagon::kBytesPerVector; ++i) {
-            for (size_t j = 0; j < hexagon::kBytesPerVector; ++j) {
-                if (kIndexShuffleTarget[j] == i) {
-                    ret[i] = j;
-                    break;
-                }
-            }
-        }
-
-        return ret;
-    }();
+    const static std::array<size_t, hexagon::kBytesPerVector> kIndexShuffle = {
+        0,  4,  8,  12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 2,  6,  10, 14, 18, 22,
+        26, 30, 34, 38, 42, 46, 50, 54, 58, 62, 1,  5,  9,  13, 17, 21, 25, 29, 33, 37, 41, 45,
+        49, 53, 57, 61, 3,  7,  11, 15, 19, 23, 27, 31, 35, 39, 43, 47, 51, 55, 59, 63
+    };
 
     hexagon::HVX_VectorAlias ret;
     size_t                   ret_idx = 0;
     for (size_t i = 0; i < hexagon::kBytesPerVector; ++i) {
         auto offset = i % sizeof(npu_device_block_q4_0);
         if (offset >= qs_start_offset && offset < qs_end_offset) {
-            ret.u8[kIndexShuffle[ret_idx++]] = (i & 1) ? (i / 2 + 64) : (i / 2);
+            size_t idx  = kIndexShuffle[ret_idx++];
+            ret.u8[idx] = ((i & 1) ? (i / 2 + 64) : (i / 2));
         }
     }
 
