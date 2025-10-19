@@ -73,11 +73,17 @@ inline HVX_Vector make_q40_qs_load_mask() {
     const size_t qs_start_offset = offsetof(npu_device_block_q4_0, qs);
     const size_t qs_end_offset   = qs_start_offset + sizeof(npu_device_block_q4_0::qs);
 
-    const static std::array<size_t, hexagon::kBytesPerVector> kIndexShuffle = {
-        0,  4,  8,  12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 2,  6,  10, 14, 18, 22,
-        26, 30, 34, 38, 42, 46, 50, 54, 58, 62, 1,  5,  9,  13, 17, 21, 25, 29, 33, 37, 41, 45,
-        49, 53, 57, 61, 3,  7,  11, 15, 19, 23, 27, 31, 35, 39, 43, 47, 51, 55, 59, 63
+    // TODO: find a more general way to generate this mask
+    constexpr const size_t kIndexShuffle[] = {
+        0,   4,   8,   12,  16,  20,  24,  28,  32,  36,  40,  44,  48,  52,  56,  60,  2,   6,   10,  14,  18,  22,
+        26,  30,  34,  38,  42,  46,  50,  54,  58,  62,  1,   5,   9,   13,  17,  21,  25,  29,  33,  37,  41,  45,
+        49,  53,  57,  61,  3,   7,   11,  15,  19,  23,  27,  31,  35,  39,  43,  47,  51,  55,  59,  63,  127, 127,
+        127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127,
+        127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127,
+        127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127,
     };
+
+    static_assert(std::size(kIndexShuffle) == hexagon::kBytesPerVector, "invalid kIndexShuffle size");
 
     hexagon::HVX_VectorAlias ret;
     size_t                   ret_idx = 0;
