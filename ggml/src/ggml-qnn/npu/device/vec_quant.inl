@@ -51,7 +51,25 @@ inline size_t to_vlut_index(size_t byte_offset) {
     return ((byte_offset & 1) ? (byte_offset / 2 + 64) : (byte_offset / 2));
 }
 
-template <typename _TBlock> inline HVX_Vector make_qs_load_mask() {
+inline size_t default_qs_shuff_idx(size_t idx) {
+    return idx;
+}
+
+inline size_t q4_qs_shuff_idx(size_t idx) {
+    // TODO: find a more general way to generate this mask
+    constexpr const size_t kIndexShuffle[] = {
+        0,   4,   8,   12,  16,  20,  24,  28,  32,  36,  40,  44,  48,  52,  56,  60,  2,   6,   10,  14,  18,  22,
+        26,  30,  34,  38,  42,  46,  50,  54,  58,  62,  1,   5,   9,   13,  17,  21,  25,  29,  33,  37,  41,  45,
+        49,  53,  57,  61,  3,   7,   11,  15,  19,  23,  27,  31,  35,  39,  43,  47,  51,  55,  59,  63,  127, 127,
+        127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127,
+        127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127,
+        127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127,
+    };
+    return kIndexShuffle[idx];
+}
+
+template <typename _TBlock, size_t (*_FuncGetShuffIdx)(size_t) = default_qs_shuff_idx>
+inline HVX_Vector make_qs_load_mask() {
     static_assert(sizeof(_TBlock) < hexagon::kBytesPerVector, "wrong block size/padding");
 
     const size_t qs_start_offset = offsetof(_TBlock, qs);
@@ -62,36 +80,9 @@ template <typename _TBlock> inline HVX_Vector make_qs_load_mask() {
     for (size_t i = 0; i < hexagon::kBytesPerVector; ++i) {
         auto offset = i % sizeof(_TBlock);
         if (offset >= qs_start_offset && offset < qs_end_offset) {
-            ret.u8[ret_idx++] = to_vlut_index(i);
-        }
-    }
-
-    return ret.v;
-}
-
-inline HVX_Vector make_q40_qs_load_mask() {
-    const size_t qs_start_offset = offsetof(npu_device_block_q4_0, qs);
-    const size_t qs_end_offset   = qs_start_offset + sizeof(npu_device_block_q4_0::qs);
-
-    // TODO: find a more general way to generate this mask
-    constexpr const size_t kIndexShuffle[] = {
-        0,   4,   8,   12,  16,  20,  24,  28,  32,  36,  40,  44,  48,  52,  56,  60,  2,   6,   10,  14,  18,  22,
-        26,  30,  34,  38,  42,  46,  50,  54,  58,  62,  1,   5,   9,   13,  17,  21,  25,  29,  33,  37,  41,  45,
-        49,  53,  57,  61,  3,   7,   11,  15,  19,  23,  27,  31,  35,  39,  43,  47,  51,  55,  59,  63,  127, 127,
-        127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127,
-        127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127,
-        127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127,
-    };
-
-    static_assert(std::size(kIndexShuffle) == hexagon::kBytesPerVector, "invalid kIndexShuffle size");
-
-    hexagon::HVX_VectorAlias ret;
-    size_t                   ret_idx = 0;
-    for (size_t i = 0; i < hexagon::kBytesPerVector; ++i) {
-        auto offset = i % sizeof(npu_device_block_q4_0);
-        if (offset >= qs_start_offset && offset < qs_end_offset) {
-            size_t idx  = kIndexShuffle[ret_idx++];
-            ret.u8[idx] = to_vlut_index(i);
+            size_t idx  = _FuncGetShuffIdx(ret_idx);
+            ret.u8[idx] = ((i & 1) ? (i / 2 + 64) : (i / 2));
+            ret_idx++;
         }
     }
 

@@ -595,66 +595,6 @@ bool init_f16_f32_table(float * table, size_t count) {
         table[i] = to_float(i);
     }
 
-    {
-        using namespace hexagon::vec::quant;
-        using uint = unsigned int;
-
-        npu_device_block_q4_0 blks[10];
-        size_t                index = 0;
-        for (size_t b = 0; b < std::size(blks); ++b) {
-            auto & blk = blks[b];
-            for (size_t i = 0; i < sizeof(blk.qs); ++i) {
-                blk.qs[i] = index++;
-            }
-
-            blk.d = to_fp16(1.0f);
-        }
-
-        alignas(hexagon::kBytesPerVector) static const HVX_Vector qs_indices_ref =
-            make_qs_load_mask<npu_device_block_q4_0>();
-        alignas(hexagon::kBytesPerVector) static const HVX_Vector qs_indices = make_q40_qs_load_mask();
-        alignas(hexagon::kBytesPerVector) static const HVX_Vector scale_indices =
-            Q6_Vh_vshuff_Vh(make_scale_load_mask<npu_device_block_q4_0>());
-
-        hexagon::HVX_VectorAlias result_ref;
-        {
-            auto res     = load_qual_block_generic(blks, qs_indices_ref, scale_indices);
-            result_ref.v = res.val[0];
-        }
-
-        hexagon::HVX_VectorAlias result;
-        {
-            auto res = load_qual_block_generic(blks, qs_indices, scale_indices);
-            result.v = res.val[0];
-        }
-
-        DEVICE_LOG_INFO(
-            "load_qual_block_generic.ref: %08X,%08X,%08X,%08X, %08X,%08X,%08X,%08X, %08X,%08X,%08X,%08X, "
-            "%08X,%08X,%08X,%08X, "
-            "%08X,%08X,%08X,%08X, %08X,%08X,%08X,%08X, %08X,%08X,%08X,%08X, %08X,%08X,%08X,%08X\n",
-            (uint) result_ref.u32[0], (uint) result_ref.u32[1], (uint) result_ref.u32[2], (uint) result_ref.u32[3],
-            (uint) result_ref.u32[4], (uint) result_ref.u32[5], (uint) result_ref.u32[6], (uint) result_ref.u32[7],
-            (uint) result_ref.u32[8], (uint) result_ref.u32[9], (uint) result_ref.u32[10], (uint) result_ref.u32[11],
-            (uint) result_ref.u32[12], (uint) result_ref.u32[13], (uint) result_ref.u32[14], (uint) result_ref.u32[15],
-            (uint) result_ref.u32[16], (uint) result_ref.u32[17], (uint) result_ref.u32[18], (uint) result_ref.u32[19],
-            (uint) result_ref.u32[20], (uint) result_ref.u32[21], (uint) result_ref.u32[22], (uint) result_ref.u32[23],
-            (uint) result_ref.u32[24], (uint) result_ref.u32[25], (uint) result_ref.u32[26], (uint) result_ref.u32[27],
-            (uint) result_ref.u32[28], (uint) result_ref.u32[29], (uint) result_ref.u32[30], (uint) result_ref.u32[31]);
-
-        DEVICE_LOG_INFO(
-            "load_qual_block_generic: %08X,%08X,%08X,%08X, %08X,%08X,%08X,%08X, %08X,%08X,%08X,%08X, "
-            "%08X,%08X,%08X,%08X, "
-            "%08X,%08X,%08X,%08X, %08X,%08X,%08X,%08X, %08X,%08X,%08X,%08X, %08X,%08X,%08X,%08X\n",
-            (uint) result.u32[0], (uint) result.u32[1], (uint) result.u32[2], (uint) result.u32[3],
-            (uint) result.u32[4], (uint) result.u32[5], (uint) result.u32[6], (uint) result.u32[7],
-            (uint) result.u32[8], (uint) result.u32[9], (uint) result.u32[10], (uint) result.u32[11],
-            (uint) result.u32[12], (uint) result.u32[13], (uint) result.u32[14], (uint) result.u32[15],
-            (uint) result.u32[16], (uint) result.u32[17], (uint) result.u32[18], (uint) result.u32[19],
-            (uint) result.u32[20], (uint) result.u32[21], (uint) result.u32[22], (uint) result.u32[23],
-            (uint) result.u32[24], (uint) result.u32[25], (uint) result.u32[26], (uint) result.u32[27],
-            (uint) result.u32[28], (uint) result.u32[29], (uint) result.u32[30], (uint) result.u32[31]);
-    }
-
     return true;
 }
 
