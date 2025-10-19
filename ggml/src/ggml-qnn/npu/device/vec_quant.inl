@@ -47,6 +47,10 @@ template <typename _TBlock> inline HVX_Vector make_scale_load_mask() {
     return ret.v;
 }
 
+inline size_t to_vlut_index(size_t byte_offset) {
+    return ((byte_offset & 1) ? (byte_offset / 2 + 64) : (byte_offset / 2));
+}
+
 template <typename _TBlock> inline HVX_Vector make_qs_load_mask() {
     static_assert(sizeof(_TBlock) < hexagon::kBytesPerVector, "wrong block size/padding");
 
@@ -58,7 +62,7 @@ template <typename _TBlock> inline HVX_Vector make_qs_load_mask() {
     for (size_t i = 0; i < hexagon::kBytesPerVector; ++i) {
         auto offset = i % sizeof(_TBlock);
         if (offset >= qs_start_offset && offset < qs_end_offset) {
-            ret.u8[ret_idx++] = (i & 1) ? (i / 2 + 64) : (i / 2);
+            ret.u8[ret_idx++] = to_vlut_index(i);
         }
     }
 
@@ -81,7 +85,7 @@ inline HVX_Vector make_q40_qs_load_mask() {
         auto offset = i % sizeof(npu_device_block_q4_0);
         if (offset >= qs_start_offset && offset < qs_end_offset) {
             size_t idx  = kIndexShuffle[ret_idx++];
-            ret.u8[idx] = ((i & 1) ? (i / 2 + 64) : (i / 2));
+            ret.u8[idx] = to_vlut_index(i);
         }
     }
 
