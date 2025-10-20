@@ -280,7 +280,7 @@ inline HVX_VectorPair_x3 dequantize_vec_q40_qf32_6blocks(HVX_Vector qs,
     HVX_Vector q_lo = qs;
     HVX_Vector q_hi = Q6_Vub_vlsr_VubR(qs, 4);
 
-    HVX_VectorPair qp0 = Q6_W_vshuff_VVR(q_hi, q_lo, kSizeOfQs * (1 + 2 + 4));
+    HVX_VectorPair qp0 = Q6_W_vshuff_VVR(q_hi, q_lo, kSizeOfQs * 4);
 
     q_lo = Q6_V_lo_W(qp0);
     q_hi = Q6_V_hi_W(qp0);
