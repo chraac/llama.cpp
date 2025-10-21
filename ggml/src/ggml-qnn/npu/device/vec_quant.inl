@@ -56,7 +56,8 @@ inline size_t default_qs_shuff_idx(size_t idx) {
 }
 
 inline size_t q4_qs_shuff_idx(size_t idx) {
-    // TODO: find a more general way to generate this mask
+    // TODO: The current mask (kIndexShuffle) is hardcoded for the Q4 quantization block layout, where data is arranged in a specific interleaved pattern.
+    //   A more general solution would need to programmatically generate the shuffle mask based on the quantization block's structure.
     constexpr const size_t kIndexShuffle[] = {
         0,   4,   8,   12,  16,  20,  24,  28,  32,  36,  40,  44,  48,  52,  56,  60,  2,   6,   10,  14,  18,  22,
         26,  30,  34,  38,  42,  46,  50,  54,  58,  62,  1,   5,   9,   13,  17,  21,  25,  29,  33,  37,  41,  45,

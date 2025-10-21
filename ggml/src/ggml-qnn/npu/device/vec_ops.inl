@@ -777,8 +777,7 @@ inline void vec_trans_with_half_ret_impl(const _TyData * src0, _TyDataRet * dst,
         processed_bytes += src_leftover * sizeof(_TyDataRet);
         q6op_vstu_variable_ARV(dst_vec_ptr, processed_bytes % hexagon::kBytesPerVector, curr0);
     } else if (processed_bytes % hexagon::kBytesPerVector) {
-        // TODO: opt: avoid this
-        // write back the last result if not written yet
+        // TODO: This conditional write-back is suboptimal because it may result in an extra memory write.
         q6op_vstu_variable_ARV(dst_vec_ptr, processed_bytes % hexagon::kBytesPerVector, result);
     }
 }

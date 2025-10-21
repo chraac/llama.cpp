@@ -30,8 +30,7 @@ template <typename idx_t> void set_rows_impl(hexagon::tensor * out, hexagon::com
     for (size_t ir = start_end.first; ir < size_t(start_end.second); ++ir) {
         const size_t i03 = ir / rows_per_cube;
         const size_t i02 = ir / src0->get_ne(1) - i03 * src0->get_ne(2);
-        const size_t i01 = ir % src0->get_ne(1);  // TODO: should we use divide instead of mod?
-
+        const size_t i01 = ir % src0->get_ne(1);
         const size_t i12 = i03 % src1->get_ne(2);
         const size_t i11 = i02 % src1->get_ne(1);
         const size_t i10 = i01;
@@ -64,7 +63,7 @@ bool set_rows_generic(tensor * out, compute_params * params) {
     auto * src0 = out->get_src(0);
     auto * src1 = out->get_src(1);
     if (!src0 || !src1) {
-        DEVICE_LOG_ERROR("set_rows_f32: missing src0 or src1\n");
+        DEVICE_LOG_ERROR("set_rows_generic: missing src0 or src1\n");
         return false;
     }
 
@@ -76,7 +75,7 @@ bool set_rows_generic(tensor * out, compute_params * params) {
             set_rows_impl<int64_t>(out, params);
             break;
         default:
-            DEVICE_LOG_ERROR("set_rows_f32: unsupported src1 type: %s\n", hexagon::get_type_name(src1->get_type()));
+            DEVICE_LOG_ERROR("set_rows_generic: unsupported src1 type: %s\n", hexagon::get_type_name(src1->get_type()));
             return false;
     }
     return true;
