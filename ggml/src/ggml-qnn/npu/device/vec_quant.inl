@@ -47,10 +47,6 @@ template <typename _TBlock> inline HVX_Vector make_scale_load_mask() {
     return ret.v;
 }
 
-inline size_t to_vlut_index(size_t byte_offset) {
-    return ((byte_offset & 1) ? (byte_offset / 2 + 64) : (byte_offset / 2));
-}
-
 inline size_t default_qs_shuff_idx(size_t idx) {
     return idx;
 }
