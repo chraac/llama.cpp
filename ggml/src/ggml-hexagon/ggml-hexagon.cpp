@@ -328,6 +328,8 @@ struct ggml_backend_hexagon_buffer_type_context {
     std::string            name;
 };
 
+#pragma weak rpcmem_alloc2
+
 struct ggml_backend_hexagon_buffer_context {
     bool mmap_to(ggml_hexagon_session * s) {
         HEX_VERBOSE("ggml-hex: %s mmaping buffer: base %p domain-id %d session-id %d size %zu fd %d repack %d\n",
@@ -367,7 +369,13 @@ struct ggml_backend_hexagon_buffer_context {
     ggml_backend_hexagon_buffer_context(ggml_hexagon_session * sess, size_t size, bool repack) {
         size += 4 * 1024;  // extra page for padding
 
-        this->base = (uint8_t *) rpcmem_alloc2(RPCMEM_HEAP_ID_SYSTEM, RPCMEM_DEFAULT_FLAGS | RPCMEM_HEAP_NOREG, size);
+        if (rpcmem_alloc2) {
+            this->base = (uint8_t *) rpcmem_alloc2(RPCMEM_HEAP_ID_SYSTEM, RPCMEM_DEFAULT_FLAGS | RPCMEM_HEAP_NOREG, size);
+        } else {
+            GGML_LOG_INFO("ggml-hex: %s rpcmem_alloc2 not found, falling back to rpcmem_alloc\n", sess->name.c_str());
+            this->base = (uint8_t *) rpcmem_alloc(RPCMEM_HEAP_ID_SYSTEM, RPCMEM_DEFAULT_FLAGS | RPCMEM_HEAP_NOREG, size);
+        }
+
         if (!this->base) {
             GGML_LOG_ERROR("ggml-hex: %s failed to allocate buffer : size %zu\n", sess->name.c_str(), size);
             throw std::runtime_error("ggml-hex: rpcmem_alloc failed (see log for details)");
@@ -1679,12 +1687,13 @@ void ggml_hexagon_session::allocate(int dev_id) noexcept(false) {
     }
 
     // Get session URI
-    char htp_uri[256];
-    sprintf(htp_uri, "file:///libggml-htp-v%u.so?htp_iface_skel_handle_invoke&_modver=1.0", opt_arch);
 
     char session_uri[256];
     {
-        struct remote_rpc_get_uri u;
+        char htp_uri[256];
+        snprintf(htp_uri, sizeof(htp_uri), "file:///libggml-htp-v%u.so?htp_iface_skel_handle_invoke&_modver=1.0", opt_arch);
+
+        struct remote_rpc_get_uri u = {};
         u.session_id      = this->session_id;
         u.domain_name     = const_cast<char *>(CDSP_DOMAIN_NAME);
         u.domain_name_len = strlen(CDSP_DOMAIN_NAME);
@@ -1695,8 +1704,10 @@ void ggml_hexagon_session::allocate(int dev_id) noexcept(false) {
 
         int err = remote_session_control(FASTRPC_GET_URI, (void *) &u, sizeof(u));
         if (err != AEE_SUCCESS) {
-            GGML_LOG_ERROR("ggml-hex: failed to get URI for session %d : error 0x%x\n", dev_id, err);
-            throw std::runtime_error("ggml-hex: remote_session_control(get-uri) failed (see log for details)");
+            // Fallback: use default URI
+            snprintf(session_uri, sizeof(session_uri), "file:///libggml-htp-v%u.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp", opt_arch);
+
+            GGML_LOG_WARN("ggml-hex: failed to get URI for session %d : error 0x%x, fall back to %s\n", dev_id, err, session_uri);
         }
     }
 
