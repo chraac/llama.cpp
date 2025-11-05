@@ -1704,10 +1704,12 @@ void ggml_hexagon_session::allocate(int dev_id) noexcept(false) {
 
         int err = remote_session_control(FASTRPC_GET_URI, (void *) &u, sizeof(u));
         if (err != AEE_SUCCESS) {
-            // Fallback: use default URI
-            snprintf(session_uri, sizeof(session_uri), "file:///libggml-htp-v%u.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp", opt_arch);
+            // fallback to single session uris
+            int htp_URI_domain_len = strlen(htp_uri) + MAX_DOMAIN_NAMELEN;
 
-            GGML_LOG_WARN("ggml-hex: failed to get URI for session %d : error 0x%x, fall back to %s\n", dev_id, err, session_uri);
+            snprintf(session_uri, htp_URI_domain_len, "%s%s", htp_uri, my_domain->uri);
+
+            GGML_LOG_WARN("ggml-hex: failed to get URI for session %d : error 0x%x. Falling back to single session URI: %s\n", dev_id, err, session_uri);
         }
     }
 
