@@ -28,10 +28,10 @@ vec2 cache_b_ds;
 
 #include "mul_mat_vecq_funcs.glsl"
 
-void iter(inout FLOAT_TYPE temp[NUM_COLS][NUM_ROWS], const uint first_row, const uint num_rows, const uint col, const uint b_qs_idx) {
+void iter(inout FLOAT_TYPE temp[NUM_COLS][NUM_ROWS], const uint first_row, const uint num_rows, const uint col_blk, const uint b_qs_idx) {
     [[unroll]] for (uint j = 0; j < NUM_COLS; ++j) {
         // Preload data_b block
-        const uint b_block_idx = (j*p.batch_stride_b + col) / QUANT_K_Q8_1 + b_offset;
+        const uint b_block_idx = j*p.batch_stride_b / QUANT_K_Q8_1 + b_offset + col_blk;
         const uint b_block_idx_outer = b_block_idx / 4;
         const uint b_block_idx_inner = b_block_idx % 4;
         cache_b_ds = vec2(data_b[b_block_idx_outer].ds[b_block_idx_inner]);
@@ -65,7 +65,7 @@ void iter(inout FLOAT_TYPE temp[NUM_COLS][NUM_ROWS], const uint first_row, const
 
         uint ibi = first_row*p.ncols;
         [[unroll]] for (uint n = 0; n < num_rows; ++n) {
-            const uint a_block_idx = (ibi + col)/QUANT_K_Q8_1 + a_offset;
+            const uint a_block_idx = ibi / QUANT_K_Q8_1 + a_offset + col_blk;
             ibi += p.ncols;
 
             temp[j][n] += mmvq_dot_product(a_block_idx, b_qs_idx);
@@ -88,14 +88,15 @@ void compute_outputs(const uint32_t first_row, const uint32_t num_rows) {
         }
     }
 
-    const uint col_stride = K_PER_ITER * BLOCK_SIZE;
+    uint col_stride = K_PER_ITER * BLOCK_SIZE;
     uint num_iters = p.ncols / col_stride;
     if (num_iters * col_stride + K_PER_ITER * tid < p.ncols) {
         num_iters++;
     }
 
     const uint b_qs_idx = tid % (32 / K_PER_ITER);
-    uint col = tid * K_PER_ITER;
+    uint col = tid * K_PER_ITER / QUANT_K_Q8_1;
+    col_stride /= QUANT_K_Q8_1;
     while (num_iters >= 4) {
         // Manually partially unroll the loop
         [[unroll]] for (uint k = 0; k < 4; ++k) {
