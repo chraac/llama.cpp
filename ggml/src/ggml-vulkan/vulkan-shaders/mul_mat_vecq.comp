@@ -28,7 +28,7 @@ vec2 cache_b_ds;
 
 #include "mul_mat_vecq_funcs.glsl"
 
-void iter_aligned(inout FLOAT_TYPE temp[NUM_COLS][NUM_ROWS], const uint first_row, const uint num_rows, const uint col_blk, const uint b_qs_idx) {
+void iter(inout FLOAT_TYPE temp[NUM_COLS][NUM_ROWS], const uint first_row, const uint num_rows, const uint col_blk, const uint b_qs_idx) {
     const uint a_block_stride = p.ncols / QUANT_K_Q8_1;
     const uint b_block_stride = p.batch_stride_b / QUANT_K_Q8_1;
     uint b_block_idx = b_offset + col_blk;
@@ -74,7 +74,7 @@ void iter_aligned(inout FLOAT_TYPE temp[NUM_COLS][NUM_ROWS], const uint first_ro
     }
 }
 
-void iter(inout FLOAT_TYPE temp[NUM_COLS][NUM_ROWS], const uint first_row, const uint num_rows, const uint col_blk, const uint b_qs_idx) {
+void iter_aligned(inout FLOAT_TYPE temp[NUM_COLS][NUM_ROWS], const uint first_row, const uint num_rows, const uint col_blk, const uint b_qs_idx) {
     const uint a_block_stride = p.ncols / QUANT_K_Q8_1;
     const uint b_block_stride = p.batch_stride_b / QUANT_K_Q8_1;
     uint b_block_idx = b_offset + col_blk;
