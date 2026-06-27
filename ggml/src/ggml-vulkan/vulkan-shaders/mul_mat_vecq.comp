@@ -119,7 +119,7 @@ void compute_outputs(const uint32_t first_row, const uint32_t num_rows) {
     const uint b_qs_idx = tid % (32 / K_PER_ITER);
     uint col = tid * K_PER_ITER;
 
-    if (QUANT_R == 2 && (p.ncols % QUANT_K_Q8_1) == 0 && (p.batch_stride_b % (QUANT_K_Q8_1 * 4)) == 0) {
+    if (QUANT_R == 2 && (p.ncols % QUANT_K_Q8_1) == 0 && (p.batch_stride_b % (QUANT_K_Q8_1 * 4)) == 0 && num_iters % 4 == 0) {
         col /= QUANT_K_Q8_1;
         col_stride /= QUANT_K_Q8_1;
         const uint b_block_idx_inner = (b_offset + col) % 4;
@@ -131,19 +131,6 @@ void compute_outputs(const uint32_t first_row, const uint32_t num_rows) {
             }
 
             num_iters -= 4;
-        }
-
-        if (num_iters >= 2) {
-            // Manually partially unroll the loop
-            iter_aligned(temp, first_row, num_rows, col, b_block_idx_inner, b_qs_idx);
-            col += col_stride;
-            iter_aligned(temp, first_row, num_rows, col, b_block_idx_inner, b_qs_idx);
-            col += col_stride;
-            num_iters -= 2;
-        }
-
-        if (num_iters > 0) {
-            iter_aligned(temp, first_row, num_rows, col, b_block_idx_inner, b_qs_idx);
         }
     } else {
         while (num_iters >= 4) {
