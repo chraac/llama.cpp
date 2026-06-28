@@ -119,8 +119,8 @@ void compute_outputs(const uint32_t first_row, const uint32_t num_rows) {
     const uint b_qs_idx = tid % (32 / K_PER_ITER);
     uint col = tid * K_PER_ITER;
 
-    // Seeing performance regression when k <= 2048
-    if (QUANT_R == 2 && p.stride_a > 2048 && (p.ncols % QUANT_K_Q8_1) == 0 && (p.batch_stride_b % (QUANT_K_Q8_1 * 4)) == 0) {
+    // Seeing performance regression when k <= 2048 && m <= 2048
+    if (QUANT_R == 2 && (p.stride_a > 2048 || p.stride_d > 2048) && (p.ncols % QUANT_K_Q8_1) == 0 && (p.batch_stride_b % (QUANT_K_Q8_1 * 4)) == 0) {
         col /= QUANT_K_Q8_1;
         col_stride /= QUANT_K_Q8_1;
         const uint b_block_idx_inner = (b_offset + col) % 4;
