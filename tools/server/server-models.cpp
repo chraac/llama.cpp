@@ -219,13 +219,14 @@ void server_model_meta::update_caps() {
             "LLAMA_ARG_MODEL_URL",
             "LLAMA_ARG_MMPROJ",
             "LLAMA_ARG_MMPROJ_URL",
+            "LLAMA_ARG_MMPROJ_AUTO",
             "LLAMA_ARG_HF_REPO",
             "LLAMA_ARG_HF_REPO_FILE",
         });
         params.offline = true;
         common_models_handler handler = common_models_handler_init(params, LLAMA_EXAMPLE_SERVER);
         common_models_handler_apply(handler, params); // note: this won't download the model because offline=true
-        if (params.mmproj.path.empty()) {
+        if (params.no_mmproj || params.mmproj.path.empty()) {
             multimodal = { false, false };
         } else {
             multimodal = mtmd_get_cap_from_file(params.mmproj.path.c_str());
@@ -851,7 +852,7 @@ void server_models::load(const std::string & name, const load_options & opts) {
         //                so that we can use stdout for commands and stderr for logging
         int options = subprocess_option_no_window | subprocess_option_combined_stdout_stderr;
         inst.subproc->sproc.emplace();
-        int result = subprocess_create_ex(argv.data(), options, envp.data(), &inst.subproc->get());
+        int result = subprocess_create_ex(argv.data(), options, envp.data(), nullptr, &inst.subproc->get());
         if (result != 0) {
             throw std::runtime_error("failed to spawn server instance");
         }
@@ -1943,53 +1944,6 @@ void server_models_routes::init_routes() {
 // server_http_proxy
 //
 
-// simple implementation of a pipe
-// used for streaming data between threads
-template<typename T>
-struct pipe_t {
-    std::mutex mutex;
-    std::condition_variable cv;
-    std::queue<T> queue;
-    std::atomic<bool> writer_closed{false};
-    std::atomic<bool> reader_closed{false};
-    void close_write() {
-        writer_closed.store(true, std::memory_order_relaxed);
-        cv.notify_all();
-    }
-    void close_read() {
-        reader_closed.store(true, std::memory_order_relaxed);
-        cv.notify_all();
-    }
-    bool read(T & output, const std::function<bool()> & should_stop) {
-        std::unique_lock<std::mutex> lk(mutex);
-        constexpr auto poll_interval = std::chrono::milliseconds(500);
-        while (true) {
-            if (!queue.empty()) {
-                output = std::move(queue.front());
-                queue.pop();
-                return true;
-            }
-            if (writer_closed.load()) {
-                return false; // clean EOF
-            }
-            if (should_stop()) {
-                close_read(); // signal broken pipe to writer
-                return false; // cancelled / reader no longer alive
-            }
-            cv.wait_for(lk, poll_interval);
-        }
-    }
-    bool write(T && data) {
-        std::lock_guard<std::mutex> lk(mutex);
-        if (reader_closed.load()) {
-            return false; // broken pipe
-        }
-        queue.push(std::move(data));
-        cv.notify_one();
-        return true;
-    }
-};
-
 static std::string to_lower_copy(const std::string & value) {
     std::string lowered(value.size(), '\0');
     std::transform(value.begin(), value.end(), lowered.begin(), [](unsigned char c) { return std::tolower(c); });
@@ -2099,7 +2053,7 @@ server_http_proxy::server_http_proxy(
         ) {
     // shared between reader and writer threads
     auto cli  = std::make_shared<httplib::ClientImpl>(host, port);
-    auto pipe = std::make_shared<pipe_t<msg_t>>();
+    auto pipe = std::make_shared<server_pipe<msg_t>>();
 
     if (scheme == "https") {
 #ifdef CPPHTTPLIB_OPENSSL_SUPPORT
