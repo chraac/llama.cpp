@@ -353,7 +353,6 @@ vec2 get_dm_scale(uint ib, uint iqs) {
 FLOAT_TYPE mmvq_dot_product(const uint ib_a, const uint iqs) {
     int32_t q_sum = 0;
 
-    const vec2 dm_scale = get_dm_scale(ib_a, iqs * 4);
 
 #if defined(DATA_A_Q4_K)
     i32vec4 qs_a0;
@@ -369,6 +368,7 @@ FLOAT_TYPE mmvq_dot_product(const uint ib_a, const uint iqs) {
     q_sum += dotPacked4x8EXT(qs_a1.z, cache_b_qs[6]);
     q_sum += dotPacked4x8EXT(qs_a1.w, cache_b_qs[7]);
 
+    const vec2 dm_scale = get_dm_scale(ib_a, iqs * 4);
     return FLOAT_TYPE(float(cache_b_ds.x) * float(dm_scale.x) * float(q_sum) - float(dm_scale.y) * float(cache_b_ds.y));
 #else
     const i32vec4 qs_a = repack4(ib_a, iqs * 4);
@@ -377,6 +377,7 @@ FLOAT_TYPE mmvq_dot_product(const uint ib_a, const uint iqs) {
     q_sum += dotPacked4x8EXT(qs_a.z, cache_b_qs[2]);
     q_sum += dotPacked4x8EXT(qs_a.w, cache_b_qs[3]);
 
+    const vec2 dm_scale = get_dm_scale(ib_a, iqs * 4);
     return FLOAT_TYPE(float(cache_b_ds.x) * float(dm_scale.x) * float(q_sum) - float(dm_scale.y) * float(cache_b_ds.y / 2));
 #endif
 }
