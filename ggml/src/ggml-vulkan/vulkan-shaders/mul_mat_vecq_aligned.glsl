@@ -74,22 +74,20 @@ void compute_outputs_aligned(const uint32_t first_row, const uint32_t num_rows) 
     uint col = tid * K_PER_ITER;
 
     // iter_aligned only wins when both M and K are large; small M or K regress.
-    {
-        col /= QUANT_K_Q8_1;
-        col_stride /= QUANT_K_Q8_1;
-        const uint b_block_idx_inner = (b_offset + col) % 4;
-        while (num_iters >= 2) {
-            // Manually partially unroll the loop
-            iter_aligned(temp, first_row, num_rows, col, b_block_idx_inner, b_qs_idx);
-            col += col_stride;
-            iter_aligned(temp, first_row, num_rows, col, b_block_idx_inner, b_qs_idx);
-            col += col_stride;
-            num_iters -= 2;
-        }
+    col /= QUANT_K_Q8_1;
+    col_stride /= QUANT_K_Q8_1;
+    const uint b_block_idx_inner = (b_offset + col) % 4;
+    while (num_iters >= 2) {
+        // Manually partially unroll the loop
+        iter_aligned(temp, first_row, num_rows, col, b_block_idx_inner, b_qs_idx);
+        col += col_stride;
+        iter_aligned(temp, first_row, num_rows, col, b_block_idx_inner, b_qs_idx);
+        col += col_stride;
+        num_iters -= 2;
+    }
 
-        if (num_iters > 0) {
-            iter_aligned(temp, first_row, num_rows, col, b_block_idx_inner, b_qs_idx);
-        }
+    if (num_iters > 0) {
+        iter_aligned(temp, first_row, num_rows, col, b_block_idx_inner, b_qs_idx);
     }
 
     reduce_result(temp, d_offset, first_row, num_rows, tid);
