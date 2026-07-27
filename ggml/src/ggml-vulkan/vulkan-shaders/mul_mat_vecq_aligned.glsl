@@ -1,11 +1,6 @@
 
 #include "mul_mat_vecq_funcs.glsl"
 
-#if defined(DATA_A_Q4_K)
-#undef K_PER_ITER
-#define K_PER_ITER 32
-#endif
-
 void iter_aligned(inout FLOAT_TYPE temp[NUM_COLS][NUM_ROWS], const uint first_row, const uint num_rows, const uint col_blk, const uint b_block_idx_inner, const uint b_qs_idx) {
     const uint a_block_stride = p.ncols / QUANT_K_Q8_1;
     const uint b_block_stride = p.batch_stride_b / QUANT_K_Q8_1;
