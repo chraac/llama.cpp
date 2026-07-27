@@ -28,7 +28,6 @@ uint a_offset, b_offset, d_offset;
 int32_t cache_b_qs[K_PER_ITER / 4];
 vec2 cache_b_ds;
 
-#include "mul_mat_vecq_funcs.glsl"
 #include "mul_mat_vecq_aligned.glsl"
 
 void iter(inout FLOAT_TYPE temp[NUM_COLS][NUM_ROWS], const uint first_row, const uint num_rows, const uint col, const uint b_qs_idx) {

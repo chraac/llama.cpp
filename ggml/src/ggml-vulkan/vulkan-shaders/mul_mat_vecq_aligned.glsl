@@ -1,4 +1,6 @@
 
+#include "mul_mat_vecq_funcs.glsl"
+
 #if defined(DATA_A_Q4_K)
 #undef K_PER_ITER
 #define K_PER_ITER 32
