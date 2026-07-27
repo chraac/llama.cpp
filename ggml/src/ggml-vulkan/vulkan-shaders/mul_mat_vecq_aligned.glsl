@@ -1,0 +1,96 @@
+
+#if defined(DATA_A_Q4_K)
+#undef K_PER_ITER
+#define K_PER_ITER 32
+#endif
+
+void iter_aligned(inout FLOAT_TYPE temp[NUM_COLS][NUM_ROWS], const uint first_row, const uint num_rows, const uint col_blk, const uint b_block_idx_inner, const uint b_qs_idx) {
+    const uint a_block_stride = p.ncols / QUANT_K_Q8_1;
+    const uint b_block_stride = p.batch_stride_b / QUANT_K_Q8_1;
+    uint b_block_idx = b_offset + col_blk;
+    [[unroll]] for (uint j = 0; j < NUM_COLS; ++j) {
+        // Preload data_b block
+        const uint b_block_idx_outer = b_block_idx / 4;
+        b_block_idx += b_block_stride;
+        cache_b_ds = vec2(data_b[b_block_idx_outer].ds[b_block_idx_inner]);
+
+#if QUANT_R == 2
+        // Assumes K_PER_ITER == 8
+        cache_b_qs[0] = data_b[b_block_idx_outer].qs[b_block_idx_inner * 8 + b_qs_idx];
+        cache_b_qs[1] = data_b[b_block_idx_outer].qs[b_block_idx_inner * 8 + b_qs_idx + 4];
+#else
+#if K_PER_ITER == 8
+        cache_b_qs[0] = data_b[b_block_idx_outer].qs[b_block_idx_inner * 8 + b_qs_idx * 2];
+        cache_b_qs[1] = data_b[b_block_idx_outer].qs[b_block_idx_inner * 8 + b_qs_idx * 2 + 1];
+#elif K_PER_ITER == 16
+        cache_b_qs[0] = data_b[b_block_idx_outer].qs[b_block_idx_inner * 8 + b_qs_idx * 4    ];
+        cache_b_qs[1] = data_b[b_block_idx_outer].qs[b_block_idx_inner * 8 + b_qs_idx * 4 + 1];
+        cache_b_qs[2] = data_b[b_block_idx_outer].qs[b_block_idx_inner * 8 + b_qs_idx * 4 + 2];
+        cache_b_qs[3] = data_b[b_block_idx_outer].qs[b_block_idx_inner * 8 + b_qs_idx * 4 + 3];
+#elif K_PER_ITER == 32
+        cache_b_qs[0] = data_b[b_block_idx_outer].qs[b_block_idx_inner * 8    ];
+        cache_b_qs[1] = data_b[b_block_idx_outer].qs[b_block_idx_inner * 8 + 1];
+        cache_b_qs[2] = data_b[b_block_idx_outer].qs[b_block_idx_inner * 8 + 2];
+        cache_b_qs[3] = data_b[b_block_idx_outer].qs[b_block_idx_inner * 8 + 3];
+        cache_b_qs[4] = data_b[b_block_idx_outer].qs[b_block_idx_inner * 8 + 4];
+        cache_b_qs[5] = data_b[b_block_idx_outer].qs[b_block_idx_inner * 8 + 5];
+        cache_b_qs[6] = data_b[b_block_idx_outer].qs[b_block_idx_inner * 8 + 6];
+        cache_b_qs[7] = data_b[b_block_idx_outer].qs[b_block_idx_inner * 8 + 7];
+#else
+#error unimplemented
+#endif
+#endif
+
+        uint a_block_idx = first_row * a_block_stride + a_offset + col_blk;
+        [[unroll]] for (uint n = 0; n < num_rows; ++n) {
+            temp[j][n] += mmvq_dot_product(a_block_idx, b_qs_idx);
+            a_block_idx += a_block_stride;
+        }
+    }
+}
+
+void compute_outputs_aligned(const uint32_t first_row, const uint32_t num_rows) {
+    const uint tid = gl_LocalInvocationID.x;
+
+    get_offsets(a_offset, b_offset, d_offset);
+    a_offset *= QUANT_K / QUANT_K_Q8_1;
+    b_offset /= QUANT_K_Q8_1;
+
+    FLOAT_TYPE temp[NUM_COLS][NUM_ROWS];
+
+    [[unroll]] for (uint j = 0; j < NUM_COLS; ++j) {
+        [[unroll]] for (uint n = 0; n < num_rows; ++n) {
+            temp[j][n] = FLOAT_TYPE(0.0f);
+        }
+    }
+
+    uint col_stride = K_PER_ITER * BLOCK_SIZE;
+    uint num_iters = p.ncols / col_stride;
+    if (num_iters * col_stride + K_PER_ITER * tid < p.ncols) {
+        num_iters++;
+    }
+
+    const uint b_qs_idx = tid % (32 / K_PER_ITER);
+    uint col = tid * K_PER_ITER;
+
+    // iter_aligned only wins when both M and K are large; small M or K regress.
+    {
+        col /= QUANT_K_Q8_1;
+        col_stride /= QUANT_K_Q8_1;
+        const uint b_block_idx_inner = (b_offset + col) % 4;
+        while (num_iters >= 2) {
+            // Manually partially unroll the loop
+            iter_aligned(temp, first_row, num_rows, col, b_block_idx_inner, b_qs_idx);
+            col += col_stride;
+            iter_aligned(temp, first_row, num_rows, col, b_block_idx_inner, b_qs_idx);
+            col += col_stride;
+            num_iters -= 2;
+        }
+
+        if (num_iters > 0) {
+            iter_aligned(temp, first_row, num_rows, col, b_block_idx_inner, b_qs_idx);
+        }
+    }
+
+    reduce_result(temp, d_offset, first_row, num_rows, tid);
+}
