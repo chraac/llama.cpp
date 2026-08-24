@@ -225,6 +225,7 @@ static size_t ggml_backend_metal_buffer_type_get_alloc_size(ggml_backend_buffer_
                 res += ggml_metal_op_flash_attn_ext_extra_pad(tensor);
                 res += ggml_metal_op_flash_attn_ext_extra_blk(tensor);
                 res += ggml_metal_op_flash_attn_ext_extra_tmp(tensor);
+                res += ggml_metal_op_flash_attn_ext_extra_kv_f16(tensor);
             } break;
         case GGML_OP_CUMSUM:
         case GGML_OP_ARGSORT:
@@ -890,7 +891,7 @@ static ggml_backend_dev_t ggml_backend_metal_device_init(ggml_backend_reg_t reg,
     return new ggml_backend_device {
         /* .iface   = */ ggml_backend_metal_device_i,
         /* .reg     = */ reg,
-        /* .context = */ ggml_metal_device_get(device),
+        /* .context = */ ggml_metal_device_get(device, g_devices),
     };
 }
 

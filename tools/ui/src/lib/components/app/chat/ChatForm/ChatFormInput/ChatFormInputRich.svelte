@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { CODE_BLOCK, CODE_TOKEN_ATTR, UI_DATA_ATTRS } from '$lib/constants';
 	import { BooleanString, ChatFormInputRichTokenKind, ColorMode } from '$lib/enums';
-	import { isMobile } from '$lib/stores';
+	import { deviceStore } from '$lib/stores';
 	import type { ChatFormInputRichToken } from '$lib/types';
 	import type { SourceHistoryEntry } from '$lib/utils';
 	import {
@@ -625,7 +625,7 @@
 		}
 
 		if (rootElement && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
-			const isWordJump = (event.altKey || event.ctrlKey) && !event.metaKey;
+			const isWordJump = (event.altKey || event.ctrlKey) && !event.metaKey && !event.shiftKey;
 			const isPlainLeft =
 				event.key === 'ArrowLeft' && !event.altKey && !event.ctrlKey && !event.metaKey;
 
@@ -750,7 +750,7 @@
 		syncEmptyState();
 		document.addEventListener('selectionchange', handleSelectionChange);
 
-		if (!isMobile.current) {
+		if (!deviceStore.isMobile) {
 			rootElement?.focus({ preventScroll: true });
 		}
 	});
@@ -792,7 +792,7 @@
 	}
 
 	export function focus() {
-		if (isMobile.current) return;
+		if (deviceStore.isMobile) return;
 
 		rootElement?.focus({ preventScroll: true });
 	}

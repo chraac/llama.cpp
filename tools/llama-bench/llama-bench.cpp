@@ -846,7 +846,7 @@ static cmd_params parse_cmd_params(int argc, char ** argv) {
                     invalid_param = true;
                     break;
                 }
-                LOG_WRN("DEPRECATED: -mmp and --mmap are deprecated in favour of --load-mode. Please use --load-mode mmap instead.");
+                LOG_WRN("DEPRECATED: -mmp and --mmap are deprecated in favour of --load-mode. Please use --load-mode mmap instead.\n");
                 auto p = string_split<bool>(argv[i], split_delim);
 
                 std::vector<llama_load_mode> modes;
@@ -865,7 +865,7 @@ static cmd_params parse_cmd_params(int argc, char ** argv) {
                     invalid_param = true;
                     break;
                 }
-                LOG_WRN("DEPRECATED: -dio and --direct-io are deprecated in favour of --load-mode. Please use --load-mode dio instead.");
+                LOG_WRN("DEPRECATED: -dio and --direct-io are deprecated in favour of --load-mode. Please use --load-mode dio instead.\n");
                 auto p = string_split<bool>(argv[i], split_delim);
 
                 std::vector<llama_load_mode> modes;
@@ -2294,6 +2294,7 @@ int llama_bench(int argc, char ** argv) {
                 fit_overrides.data(),
                 margins.data(),
                 inst.fit_min_ctx,
+                nullptr,
                 params.verbose ? GGML_LOG_LEVEL_DEBUG : GGML_LOG_LEVEL_ERROR);
        }
 

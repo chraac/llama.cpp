@@ -21,8 +21,7 @@
 	import {
 		chatStore,
 		conversationsStore,
-		device,
-		isMobile,
+		deviceStore,
 		serverStore,
 		settingsStore
 	} from '$lib/stores';
@@ -32,7 +31,7 @@
 	let { showCenteredEmpty = false } = $props();
 
 	let disableAutoScroll = $derived(
-		Boolean(settingsStore.config.disableAutoScroll) || isMobile.current
+		Boolean(settingsStore.config.disableAutoScroll) || deviceStore.isMobile
 	);
 	let isMobileUserScrolledUp = $state(false);
 	let mobileScrollDownHint = $state(false);
@@ -42,21 +41,18 @@
 	let showDeleteDialog = $state(false);
 	let showEmptyFileDialog = $state(false);
 	let isEmpty = $derived(
-		showCenteredEmpty &&
-			!conversationsStore.activeConversation &&
-			conversationsStore.activeMessages.length === 0 &&
-			!chatStore.isLoading
+		showCenteredEmpty && conversationsStore.activeMessages.length === 0 && !chatStore.isLoading
 	);
 	let activeErrorDialog = $derived(chatStore.errorDialogState);
 	let isServerLoading = $derived(serverStore.loading);
 	let hasPropsError = $derived(!!serverStore.error);
 	let isCurrentConversationLoading = $derived(chatStore.isLoading || chatStore.isStreaming());
 	let chatFormBottomPosition = $derived.by(() => {
-		if (!isMobile.current) return '1rem';
+		if (!deviceStore.isMobile) return '1rem';
 
-		if (device.isStandalone) return '1.5rem';
+		if (deviceStore.isStandalone) return '1.5rem';
 
-		if (device.isIOSSafari) return '0.25rem';
+		if (deviceStore.isIOSSafari) return '0.25rem';
 
 		return '0.5rem';
 	});
@@ -84,7 +80,7 @@
 	});
 
 	function handleMobileScroll() {
-		if (!isMobile.current) return;
+		if (!deviceStore.isMobile) return;
 
 		const container = scroll.chatScrollContainer;
 
@@ -184,7 +180,7 @@
 	}
 
 	function handleSendLikeScroll() {
-		if (!isMobile.current) {
+		if (!deviceStore.isMobile) {
 			autoScroll.enable();
 		}
 
@@ -197,7 +193,7 @@
 				'.chat-message:nth-last-child(2) .chat-message-user .chat-message-user-bubble'
 			) as HTMLElement | null;
 
-			if (isMobile.current) {
+			if (deviceStore.isMobile) {
 				// Keep the last user message bubble just above the input on mobile
 				const bubbleHeight = lastUserBubble?.scrollHeight ?? 0;
 				const baseHeight = container.scrollHeight - innerHeight;
@@ -220,7 +216,7 @@
 			}
 		}, 100);
 
-		if (isMobile.current) {
+		if (deviceStore.isMobile) {
 			autoScroll.setDisabled(disableAutoScroll);
 			mobileScrollDownHint = true;
 			mobileScrollDownHintLockedUntil = Date.now() + 500;
@@ -243,7 +239,8 @@
 
 	$effect(() => {
 		const shouldDisableAutoScroll =
-			settingsStore.config.disableAutoScroll || (isMobile.current && isCurrentConversationLoading);
+			settingsStore.config.disableAutoScroll ||
+			(deviceStore.isMobile && isCurrentConversationLoading);
 
 		autoScroll.setDisabled(shouldDisableAutoScroll);
 
@@ -266,7 +263,7 @@
 			autoScroll.enable();
 		}
 
-		if (isMobile.current && isCurrentConversationLoading) {
+		if (deviceStore.isMobile && isCurrentConversationLoading) {
 			mobileScrollDownHint = true;
 			mobileScrollDownHintLockedUntil = Date.now() + 500;
 		}
@@ -297,7 +294,7 @@
 	<ServerLoadingSplash />
 {:else}
 	<div
-		class="chat-screen flex grow flex-col min-h-[calc(100dvh-1rem)] md:min-h-full px-4 md:py-0 pt-12 pb-48 md:pb-4"
+		class="chat-screen flex grow flex-col min-h-[calc(100dvh-1rem)] md:min-h-[calc(100dvh-1rem-var(--chat-tabs-offset,0px))] px-4 md:py-0 pt-12 pb-48 md:pb-4"
 		style:--chat-form-bottom-position={chatFormBottomPosition}
 		ondragenter={dragAndDrop.dragHandlers.dragenter}
 		ondragleave={dragAndDrop.dragHandlers.dragleave}
@@ -318,9 +315,9 @@
 		<div
 			class={[
 				'pointer-events-none md:sticky fixed  mt-auto transition-all duration-200',
-				device.isStandalone
+				deviceStore.isStandalone
 					? 'bottom-6 right-4 left-4'
-					: device.isIOSSafari
+					: deviceStore.isIOSSafari
 						? 'bottom-1 left-2 right-2'
 						: 'bottom-2 right-2 left-2',
 				isEmpty ? 'md:bottom-[calc(50dvh-7rem)] 2xl:bottom-[calc(50dvh-4rem)]' : 'md:bottom-4'
@@ -336,7 +333,7 @@
 			{/if}
 
 			<div class="pointer-events-none flex flex-col gap-6 items-center w-full">
-				{#if (isMobile.current ? mobileScrollDownHint || isMobileUserScrolledUp : autoScroll.userScrolledUp) && page.url.hash.includes(ROUTES.CHAT) && page.params.id}
+				{#if (deviceStore.isMobile ? mobileScrollDownHint || isMobileUserScrolledUp : autoScroll.userScrolledUp) && page.url.hash.includes(ROUTES.CHAT) && page.params.id}
 					<ChatScreenActionScrollDown
 						onclick={() => {
 							mobileScrollDownHint = false;
