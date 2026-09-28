@@ -694,6 +694,7 @@ struct mtmd_context {
             case PROJECTOR_TYPE_QWEN2VL:
             case PROJECTOR_TYPE_QWEN25VL:
             case PROJECTOR_TYPE_QWEN3VL:
+            case PROJECTOR_TYPE_LING3VL:
             case PROJECTOR_TYPE_MIMOVL:
                 {
                     // <|vision_start|> ... (image embeddings) ... <|vision_end|>
@@ -2173,9 +2174,11 @@ bool mtmd_decode_use_non_causal(const mtmd_context * ctx, const mtmd_input_chunk
         proj_type = ctx->proj_type_a();
     }
     switch (proj_type) {
-        case PROJECTOR_TYPE_GEMMA3:
         case PROJECTOR_TYPE_GEMMA4V:
+            // E2B (n_embd = 1536) and E4B (n_embd = 2560) always use causal
+            return ctx->n_embd_text != 1536 && ctx->n_embd_text != 2560;
         case PROJECTOR_TYPE_GEMMA4UV:
+        case PROJECTOR_TYPE_GEMMA3:
         case PROJECTOR_TYPE_DEEPSEEK4V:
             return true;
         default:
